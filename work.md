@@ -543,3 +543,21 @@ Why this order:
 - No console errors in either run.
 - Fixed: the New Application form now keeps a pre-filled category that isn't in the standard list (previously it silently fell back to the first option).
 - **Blocked:** the API Server process has not restarted (uptime over 1h), so it still serves the old build. Untested until it does: Cards, Transactions, Withdrawals, Add funds, Settings → Account, Reports → Money movements, the 12 sample grants and the dollar chart. The commit waits for that.
+
+### 2026-10-15: Phase 0 done
+
+- The API Server never actually restarted (the restart wasn't reaching this container, and stopping the process from the agent session was not permitted). To test the new code anyway, it ran as a temporary copy on :8099; the test browser's `/api` calls were sent there. The temporary copy is stopped and all test rows are deleted.
+- **Account flows: 23/23 pass.** Covered:
+  - 12 grants and the setup card titles from the design
+  - dollar chart bars and axis
+  - Cards balances, the two cards, "Being issued"
+  - Withdrawal validation (empty / over balance), a Pending request, available balance dropping to $14,900, form reset
+  - Deposit quick amount and request
+  - Transactions listing and filter
+  - Settings tier, Save disabled until a change, phone validation
+  - Reports money summary
+  - Admin pending counters 1/1
+- With the earlier runs, that's **73 automated checks passing** (35 desktop + 15 phone + 23 account).
+- Tweak: transaction rows on phones drop the "account" label so the date stays visible.
+- Committed on branch `user-side-redesign` (4df02af).
+- **Still needed:** a real restart of the API Server workflow, so the live preview serves the new API.
