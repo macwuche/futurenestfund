@@ -1,0 +1,60 @@
+# User Dashboard & Profile UI Specification (`user_dashboard_profile_ui_design_operation.md`)
+
+## 1. Overview & Core Purpose
+Build a high-performance, responsive end-user dashboard and navigation interface for the Grant Management Platform. This interface provides users with an overview of their grant funding progress, quick-setup onboarding cards, and a structured menu system. It must render cleanly across both Desktop and Mobile browser viewports.
+
+---
+
+## 2. Design System & Aesthetics
+* **Canvas Background:** Pale Off-White / Light Gray (`#E2E8F0` / `#F3F4F6`).
+* **Container & Card Elements:** Pure White (`#FFFFFF`) with thin borders (`#E5E7EB`) and soft drop shadows (`shadow-sm`).
+* **Brand & Action Color:** Deep Navy / Blue (`#1E3A8A` / `#0F172A`).
+* **Accent & Badge Colors:**
+  * Recommended / Success Badges: Soft mint green (`#DCFCE7` / `#166534` text).
+  * Review / Warning Status: Amber (`#FEF3C7` / `#92400E` text).
+* **Card Specific Styling:** Recommendation slider/setup boxes feature a distinct **Light Ice-Blue Tinted Background (`#EEF4FB`)** with a border (`#DBEAFE`), rounded 16px corners (`rounded-2xl`), and left-aligned pill action buttons (`rounded-full`).
+
+---
+
+## 3. Navigation Menu Structure
+Both desktop and mobile navigation must strictly follow this exact user menu hierarchy and naming convention:
+1. **Dashboard**
+2. **Grant categories**
+3. **Applications** (with an active notification counter badge e.g., `3`)
+4. **Cards**
+5. **Transactions**
+6. **Withdrawals**
+7. **Add funds**
+8. **Settings**
+
+---
+
+## 4. Layout & View Specifications
+
+### A. Desktop View Architecture
+* **Layout Structure:** Multi-column workspace featuring a fixed left sidebar navigation panel and a main content area.
+* **Top Bar:** 
+  * Organization Switcher dropdown (*"Acme Foundation"*).
+  * Primary action button (`+ New Application`) styled as a rounded pill.
+  * Global notification bell and search icons.
+* **Grant Funding Tracker Card:**
+  * Displays **Total Grant Budget** (e.g., `$50,000.00`) and **Funds Allocated** (e.g., `$15,000.00`) alongside an interactive weekly/monthly funding bar chart comparing `Submitted` vs `Review` metrics.
+* **Onboarding Setup Cards Grid:**
+  * Two-column grid of light blue cards (`#EEF4FB`) containing AI matchmaking and proposal upload options, complete with left-aligned **"Complete Setup"** action buttons.
+* **Grant Highlights Section:**
+  * Searchable/filterable list showing active applications (e.g., *AI Innovation Grant*, *Community Arts Support*) with status badges.
+
+### B. Mobile Browser View Architecture
+* **Layout Structure:** Optimized mobile layout encased within an iPhone frame simulation featuring a top browser address bar (`grantapp.mx/dashboard`)[cite: 4].
+* **Header & User Profile:** Displays user avatar initials (*Jane Cooper*), verified badge, organization name, and greeting subtitle (*"Here are your account's highlights."*)[cite: 4].
+* **Horizontal Scrollable Slider:**
+  * Setup and recommendation cards are placed inside a true horizontal scrolling row (`overflow-x-auto`) with light blue backgrounds (`#EEF4FB`), left-aligned pill buttons, and cut-off overflow indicating swipeability.
+* **Mobile Bottom Navigation Bar:**
+  * A fixed bottom touch bar housing core navigation icons for quick thumb access (**Dashboard**, **Categories**, **Apps**, **Cards**, **Settings**).
+
+---
+
+## 5. Technical Implementation Guidelines
+* **Framework Stack:** Next.js (App Router), Tailwind CSS, and Lucide React icons.
+* **Responsive Control:** Utilize Tailwind's breakpoint modifiers (`hidden lg:flex`, `flex lg:hidden`) to seamlessly toggle between desktop sidebars and mobile bottom navigation bars.
+* **State & Data Handling:** Fetch user-specific metrics, grant budgets, and application statuses securely from Supabase tables utilizing Row Level Security (RLS).

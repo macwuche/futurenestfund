@@ -3,13 +3,17 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Grant applicant and administration dashboard API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: applicant
+    description: Applicant dashboard and profile
+  - name: admin
+    description: Administration dashboard and user controls
 paths:
   /healthz:
     get:
@@ -24,6 +28,170 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /applicant/dashboard:
+    get:
+      operationId: getApplicantDashboard
+      tags: [applicant]
+      summary: Get applicant dashboard
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [weekly, monthly]
+            default: weekly
+      responses:
+        "200":
+          description: Applicant dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicantDashboard"
+  /applicant/profile:
+    patch:
+      operationId: updateApplicantProfile
+      tags: [applicant]
+      summary: Update applicant contact details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplicantProfileUpdate"
+      responses:
+        "200":
+          description: Updated applicant profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicantProfile"
+  /admin/dashboard:
+    get:
+      operationId: getAdminDashboard
+      tags: [admin]
+      summary: Get platform operations overview
+      responses:
+        "200":
+          description: Admin dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDashboard"
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      tags: [admin]
+      summary: Search and list user profiles
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, active, frozen]
+            default: all
+      responses:
+        "200":
+          description: User directory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUsersPage"
+  /admin/users/{userId}:
+    get:
+      operationId: getAdminUser
+      tags: [admin]
+      summary: Get an admin user profile
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User profile and controls
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserProfile"
+        "404":
+          description: User not found
+    patch:
+      operationId: updateAdminUser
+      tags: [admin]
+      summary: Update a user profile and access controls
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserUpdate"
+      responses:
+        "200":
+          description: Updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserProfile"
+        "404":
+          description: User not found
+  /admin/users/{userId}/balance-adjustments:
+    post:
+      operationId: createUserBalanceAdjustment
+      tags: [admin]
+      summary: Record an audited demo balance adjustment
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BalanceAdjustmentInput"
+      responses:
+        "200":
+          description: Adjusted account balances
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserBalances"
+        "404":
+          description: User not found
+  /admin/system/freeze:
+    patch:
+      operationId: updateGlobalFreeze
+      tags: [admin]
+      summary: Toggle the demo platform freeze
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GlobalFreezeUpdate"
+      responses:
+        "200":
+          description: Updated freeze status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GlobalFreezeStatus"
 components:
   schemas:
     HealthStatus:
@@ -31,6 +199,237 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
-
+      required: [status]
+    ApplicantProfile:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        organization: { type: string }
+        verified: { type: boolean }
+        phone: { type: string }
+        telegram: { type: string }
+      required: [id, name, email, organization, verified, phone, telegram]
+    ApplicantProfileUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        phone: { type: string, maxLength: 40 }
+        telegram: { type: string, maxLength: 80 }
+    ApplicantApplication:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        category: { type: string }
+        status:
+          type: string
+          enum: [Submitted, Review, Approved, Changes requested, Declined]
+        amount: { type: number }
+        submittedAt: { type: string, format: date }
+      required: [id, title, category, status, amount, submittedAt]
+    FundingPoint:
+      type: object
+      properties:
+        label: { type: string }
+        submitted: { type: number }
+        review: { type: number }
+      required: [label, submitted, review]
+    SetupCard:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string }
+        actionLabel: { type: string }
+        complete: { type: boolean }
+      required: [id, title, description, actionLabel, complete]
+    GrantHighlight:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        category: { type: string }
+        amount: { type: number }
+        deadline: { type: string, format: date }
+        recommended: { type: boolean }
+      required: [id, title, category, amount, deadline, recommended]
+    ApplicantDashboard:
+      type: object
+      properties:
+        profile: { $ref: "#/components/schemas/ApplicantProfile" }
+        totalBudget: { type: number }
+        allocatedFunds: { type: number }
+        remainingFunds: { type: number }
+        fundingTrend:
+          type: array
+          items: { $ref: "#/components/schemas/FundingPoint" }
+        setupCards:
+          type: array
+          items: { $ref: "#/components/schemas/SetupCard" }
+        highlights:
+          type: array
+          items: { $ref: "#/components/schemas/ApplicantApplication" }
+        recommendations:
+          type: array
+          items: { $ref: "#/components/schemas/GrantHighlight" }
+        applicationCount: { type: integer }
+      required: [profile, totalBudget, allocatedFunds, remainingFunds, fundingTrend, setupCards, highlights, recommendations, applicationCount]
+    AdminDashboard:
+      type: object
+      properties:
+        totalUsers: { type: integer }
+        activeUsers: { type: integer }
+        pendingApplications: { type: integer }
+        pendingKyc: { type: integer }
+        pendingDeposits: { type: integer }
+        pendingWithdrawals: { type: integer }
+        totalGrantBalances: { type: number }
+        totalDepositBalances: { type: number }
+        applicationsByStatus:
+          type: array
+          items: { $ref: "#/components/schemas/StatusCount" }
+        recentActivity:
+          type: array
+          items: { $ref: "#/components/schemas/AdminActivity" }
+        systemHealth: { $ref: "#/components/schemas/SystemHealth" }
+        globalFrozen: { type: boolean }
+      required: [totalUsers, activeUsers, pendingApplications, pendingKyc, pendingDeposits, pendingWithdrawals, totalGrantBalances, totalDepositBalances, applicationsByStatus, recentActivity, systemHealth, globalFrozen]
+    StatusCount:
+      type: object
+      properties:
+        status: { type: string }
+        count: { type: integer }
+      required: [status, count]
+    AdminActivity:
+      type: object
+      properties:
+        id: { type: string }
+        action: { type: string }
+        subject: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [id, action, subject, createdAt]
+    SystemHealth:
+      type: object
+      properties:
+        api: { type: string, enum: [Operational, Degraded, Offline] }
+        database: { type: string, enum: [Operational, Degraded, Offline] }
+        auditLog: { type: string, enum: [Intact, Review required] }
+        fourEyes: { type: boolean }
+      required: [api, database, auditLog, fourEyes]
+    AdminUserSummary:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        organization: { type: string }
+        tier: { type: integer, minimum: 1, maximum: 3 }
+        verificationLevel: { type: string, enum: [Verified, Pending, Rejected, Unsubmitted] }
+        status: { type: string, enum: [Active, Frozen] }
+        grantBalance: { type: number }
+        depositBalance: { type: number }
+        joinedAt: { type: string, format: date }
+      required: [id, name, email, organization, tier, verificationLevel, status, grantBalance, depositBalance, joinedAt]
+    AdminUsersPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AdminUserSummary" }
+        total: { type: integer }
+      required: [items, total]
+    UserBalances:
+      type: object
+      properties:
+        grant: { type: number }
+        deposit: { type: number }
+        card: { type: number }
+      required: [grant, deposit, card]
+    UserCard:
+      type: object
+      properties:
+        id: { type: string }
+        network: { type: string, enum: [Visa, Mastercard] }
+        kind: { type: string, enum: [Virtual, Physical] }
+        lastFour: { type: string }
+        status: { type: string, enum: [Active, Frozen, Pending] }
+        balance: { type: number }
+      required: [id, network, kind, lastFour, status, balance]
+    KycDocument:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        kind: { type: string }
+        status: { type: string, enum: [Verified, Pending, Rejected] }
+        confidence: { type: number }
+      required: [id, name, kind, status, confidence]
+    UserPermissions:
+      type: object
+      properties:
+        emailNotifications: { type: boolean }
+        withdrawalKycRequired: { type: boolean }
+        depositKycRequired: { type: boolean }
+      required: [emailNotifications, withdrawalKycRequired, depositKycRequired]
+    AuditEntry:
+      type: object
+      properties:
+        id: { type: string }
+        action: { type: string }
+        actor: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [id, action, actor, createdAt]
+    AdminUserProfile:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        telegram: { type: string }
+        organization: { type: string }
+        maskedId: { type: string }
+        tier: { type: integer, minimum: 1, maximum: 3 }
+        verificationLevel: { type: string, enum: [Verified, Pending, Rejected, Unsubmitted] }
+        status: { type: string, enum: [Active, Frozen] }
+        balances: { $ref: "#/components/schemas/UserBalances" }
+        cards:
+          type: array
+          items: { $ref: "#/components/schemas/UserCard" }
+        documents:
+          type: array
+          items: { $ref: "#/components/schemas/KycDocument" }
+        permissions: { $ref: "#/components/schemas/UserPermissions" }
+        audit:
+          type: array
+          items: { $ref: "#/components/schemas/AuditEntry" }
+      required: [id, name, email, phone, telegram, organization, maskedId, tier, verificationLevel, status, balances, cards, documents, permissions, audit]
+    AdminUserUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        phone: { type: string, maxLength: 40 }
+        telegram: { type: string, maxLength: 80 }
+        tier: { type: integer, minimum: 1, maximum: 3 }
+        status: { type: string, enum: [Active, Frozen] }
+        permissions: { $ref: "#/components/schemas/UserPermissions" }
+    BalanceAdjustmentInput:
+      type: object
+      properties:
+        account: { type: string, enum: [grant, deposit, card] }
+        amount: { type: number, minimum: 0.01 }
+        reason: { type: string, minLength: 5, maxLength: 240 }
+      required: [account, amount, reason]
+    GlobalFreezeUpdate:
+      type: object
+      properties:
+        frozen: { type: boolean }
+        reason: { type: string, maxLength: 240 }
+      required: [frozen]
+    GlobalFreezeStatus:
+      type: object
+      properties:
+        frozen: { type: boolean }
+      required: [frozen]

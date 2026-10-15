@@ -1,0 +1,59 @@
+# Admin Dashboard & User Profile UI Specification (`admin_dashboard_profile_ui_design_operation.md`)
+
+## 1. Overview & Core Purpose
+Build a high-performance, ultra-secure Neobank-style **Admin Security Command Center** for the Grant Platform. This interface grants authorized security administrators and root operators complete visibility over platform analytics, user profiles, financial balances, ATM card issuance, KYC verification queues, and transaction ledgers.
+
+---
+
+## 2. Design System & Aesthetics
+* **Sidebar Background:** Jet Black (`#111111`) with high-contrast text and border separation (`border-slate-800`).
+* **Canvas Background:** Pale Off-White / Light Gray (`#F4F5F8` / `#E2E8F0`).
+* **Card Elements:** Pure White (`#FFFFFF`) with thin borders (`#E2E8F0`) and soft shadows (`shadow-sm`).
+* **Primary Accent Color:** Electric Neon Lime (`#C6F432`) used for active menu items, primary highlight buttons, and status indicators.
+* **Status Badges:** 
+  * Verified / Operational / Completed: Emerald (`#DCFCE7` background, `#166534` text).
+  * Pending / Warning: Amber (`#FEF3C7` background, `#92400E` text).
+  * Flagged / Critical / Rejected: Red (`#FEE2E2` background, `#991B1B` text).
+
+---
+
+## 3. Standardized Admin Menu Architecture
+Both desktop and mobile navigation must strictly follow this exact menu hierarchy and naming convention:
+1. **Dashboard** (Platform analytics, KPI metric cards, and system health monitors)
+2. **Users** (User search, profile inspector, and account control center)
+3. **Transactions** (Immutable transaction ledgers and export tools)
+4. **Deposit Page** (Pending wire approvals and manual balance injections)
+5. **Withdrawal Page** (Payout requests requiring 4-eyes administrative sign-off)
+6. **KYC Page** (Global identity document inspection and OCR verification queue)
+7. **Settings** (Command center security rules and threshold limits)
+
+---
+
+## 4. Layout & View Specifications
+
+### A. Desktop View Architecture
+* **Fixed Navigation Sidebar:** 
+  * Styled as a persistent, non-scrolling vertical panel (`sticky top-0 h-screen overflow-y-auto`) ensuring the menu remains locked in place when scrolling through long content.
+* **Top Command Header:** 
+  * Includes a "4-Eyes Active" compliance badge, dynamic page title, global search bar for system logs/IDs, and a high-privilege **"Global Freeze"** button.
+* **User Profile & Control Center (Users Module):**
+  * **Header:** User avatar with camera upload handler, verification level badge, masked ID, and instant account freeze controls.
+  * **Editable Personal Info:** Full name, locked email, phone number, and Telegram handle fields with a dedicated "Save Updates" commit button.
+  * **KYC Inspector:** Interactive document previews (Govt ID, Utility Bill) with automated OCR confidence indicators.
+  * **Financial Balances & Cards:** Real-time balances for Grant and Deposit accounts alongside Virtual Visa/Mastercard and Physical Black Debit Card modules featuring instant top-up buttons.
+  * **Feature Toggles & Tier Selector:** Granular toggles for email notifications, withdrawal/deposit KYC requirements, and user tier level assignments (Level 1 to Level 3).
+
+### B. Mobile Browser View Architecture
+* **Sliding Navigation Drawer:** 
+  * On mobile viewports (`lg:hidden`), the sidebar is hidden off-screen (`-translate-x-full`) and triggered via a top-left hamburger button (`☰`). A dark backdrop overlay (`bg-black/50`) appears when the drawer is open.
+* **Responsive Stacking & Padding:** 
+  * All metric grids, cards, and data tables automatically stack into single-column layouts or wrap cleanly with horizontal overflow containers (`overflow-x-auto`) to prevent layout clipping on small smartphone screens.
+* **Modal Dialogs:** 
+  * Balance adjustment modals and high-resolution document viewers center dynamically on mobile screens with touch-friendly close buttons (`✕`).
+
+---
+
+## 5. Technical Implementation Guidelines
+* **Framework Stack:** Next.js (App Router), Tailwind CSS, Lucide React icons, and Supabase backend with Row Level Security (RLS).
+* **State Management:** Secure client-side tab switching to toggle between Dashboard, Users, Transactions, Deposits, Withdrawals, KYC, and Settings without page reloads.
+* **Audit Logging:** Every balance adjustment, freeze command, and profile edit triggers an immutable audit log entry.

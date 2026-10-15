@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Grant Platform"
+description = "A grant management workspace with a secure applicant portal and an administrative operations dashboard for grant applications, identities, balances, and account profiles."
+version = "1.0.0"
+id = "artifacts/grant-platform"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20233
+
+[services.development]
+run = "pnpm --filter @workspace/grant-platform run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/grant-platform", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/grant-platform/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20233"
+BASE_PATH = "/"
