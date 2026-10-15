@@ -1,0 +1,1 @@
+- [New-app data isolation](data-isolation.md) — a reused account authorization is not permission to reuse the existing grant app's database.

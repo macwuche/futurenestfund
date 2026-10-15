@@ -4,6 +4,13 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
+import { DemoProvider } from '@/lib/demo-state';
+import {
+  DashboardPage, GrantsPage, ApplicationsPage, CardsPage, TransactionsPage, WithdrawalsPage, DepositsPage, SettingsPage,
+} from '@/pages/applicant';
+import {
+  AdminOverviewPage, AdminUsersPage, AdminUserPage, AdminTransactionsPage, AdminDepositsPage, AdminWithdrawalsPage, AdminKycPage, AdminSettingsPage,
+} from '@/pages/admin';
 import {
   Route,
   Switch,
@@ -11,30 +18,29 @@ import {
   Router as WouterRouter,
 } from 'wouter';
 
-const queryClient = new QueryClient();
-
-function Home() {
-  return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Replit Agent is building...
-        </h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Your app will appear here once it's ready.
-        </p>
-      </div>
-    </div>
-  );
-}
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });
 
 function Router() {
   return (
-    // Keep a shared shell (sidebar, navbar) outside the boundary so it
-    // survives a page crash.
     <RoutedErrorBoundary>
       <Switch>
-        <Route path="/" component={Home} />
+        <Route path="/" component={DashboardPage} />
+        <Route path="/dashboard" component={DashboardPage} />
+        <Route path="/grants" component={GrantsPage} />
+        <Route path="/applications" component={ApplicationsPage} />
+        <Route path="/cards" component={CardsPage} />
+        <Route path="/transactions" component={TransactionsPage} />
+        <Route path="/withdrawals" component={WithdrawalsPage} />
+        <Route path="/deposits" component={DepositsPage} />
+        <Route path="/settings" component={SettingsPage} />
+        <Route path="/admin" component={AdminOverviewPage} />
+        <Route path="/admin/users" component={AdminUsersPage} />
+        <Route path="/admin/users/:userId" component={AdminUserPage} />
+        <Route path="/admin/transactions" component={AdminTransactionsPage} />
+        <Route path="/admin/deposits" component={AdminDepositsPage} />
+        <Route path="/admin/withdrawals" component={AdminWithdrawalsPage} />
+        <Route path="/admin/kyc" component={AdminKycPage} />
+        <Route path="/admin/settings" component={AdminSettingsPage} />
         <Route component={NotFound} />
       </Switch>
     </RoutedErrorBoundary>
@@ -50,10 +56,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
+        <DemoProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </DemoProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
