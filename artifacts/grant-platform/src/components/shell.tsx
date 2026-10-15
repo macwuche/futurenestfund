@@ -1,28 +1,41 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
-  useGetApplicantDashboard, useGetAdminDashboard, useUpdateGlobalFreeze, getGetAdminDashboardQueryKey,
+  useGetAdminDashboard, useUpdateGlobalFreeze, getGetAdminDashboardQueryKey,
 } from '@workspace/api-client-react';
 import {
   LayoutDashboard, Layers, FileText, CreditCard, ArrowLeftRight, ArrowUpFromLine, PlusCircle, Settings, Bell, Search, Plus, Menu, X,
-  ChevronDown, Users, ArrowDownToLine, ShieldCheck, Snowflake, Building2, ScanLine,
+  ChevronDown, Users, ArrowDownToLine, ShieldCheck, Snowflake, Building2, ScanLine, House, ClipboardList, ChartPie, Milestone,
+  MessageCircleQuestion, Ellipsis, BadgeCheck, ArrowLeftRight as SwitchIcon,
 } from 'lucide-react';
-import { cx, initials, Modal } from '@/components/bits';
-import { useDemo } from '@/lib/demo-state';
+import { cx, Field, inputCls, Modal, Skel, useDismiss } from '@/components/bits';
+import { CATEGORIES, useApplicantDashboard, useDemo } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
-const userNav = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+type NavItem = { href: string; label: string; icon: typeof House };
+
+const userNav: NavItem[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: House },
+  { href: '/applications', label: 'My Applications', icon: FileText },
+  { href: '/grant-search', label: 'Grant Search', icon: Search },
   { href: '/grants', label: 'Grant categories', icon: Layers },
-  { href: '/applications', label: 'Applications', icon: FileText },
+  { href: '/funding-tracker', label: 'Grant Funding Tracker', icon: ClipboardList },
   { href: '/cards', label: 'Cards', icon: CreditCard },
   { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { href: '/withdrawals', label: 'Withdrawals', icon: ArrowUpFromLine },
   { href: '/deposits', label: 'Add funds', icon: PlusCircle },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/reports', label: 'Reports', icon: ChartPie },
+  { href: '/milestones', label: 'Milestones', icon: Milestone },
 ];
-const adminNav = [
+const userNavFooter: NavItem[] = [
+  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/help', label: 'Help Centre', icon: MessageCircleQuestion },
+];
+const adminNav: NavItem[] = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/transactions', label: 'Transactions', icon: ArrowLeftRight },
@@ -31,13 +44,323 @@ const adminNav = [
   { href: '/admin/kyc', label: 'KYC Page', icon: ScanLine },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
-const bottomNav = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+const bottomNav: NavItem[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: House },
   { href: '/grants', label: 'Categories', icon: Layers },
   { href: '/applications', label: 'Apps', icon: FileText },
   { href: '/cards', label: 'Cards', icon: CreditCard },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
+
+const isActive = (loc: string, href: string) =>
+  loc === href || (href === '/dashboard' && loc === '/') || (href === '/admin/users' && loc.startsWith('/admin/users'));
+const testId = (href: string) => `link-nav-${href.replace(/\//g, '-').slice(1)}`;
+
+/* ---------- Page title plumbing: pages render <Shell title>, the persistent layout renders the chrome ---------- */
+const TitleCtx = createContext<(t: string) => void>(() => {});
+
+/** Registers the page title with the persistent layout. `admin` is kept for call-site compatibility. */
+export function Shell({ title, children }: { admin?: boolean; title: string; children: ReactNode }) {
+  const setTitle = useContext(TitleCtx);
+  useLayoutEffect(() => setTitle(title), [title, setTitle]);
+  return <>{children}</>;
+}
+
+export function Layout({ admin, children }: { admin: boolean; children: ReactNode }) {
+  const [title, setTitle] = useState('');
+  const [open, setOpen] = useState(false);
+  const [loc] = useLocation();
+  useEffect(() => { setOpen(false); window.scrollTo(0, 0); }, [loc]);
+  useEffect(() => {
+    if (!title) return;
+    document.title = `${title} | GrantApp`;
+    const description = admin
+      ? `${title} — sample grant administration, profile controls and operations. Interactive demo.`
+      : `${title} — discover funding, follow grant applications and manage your sample workspace. Interactive demo.`;
+    document.querySelector('meta[name="description"]')?.setAttribute('content', description);
+    document.querySelector('meta[property="og:title"]')?.setAttribute('content', document.title);
+    document.querySelector('meta[property="og:description"]')?.setAttribute('content', description);
+  }, [title, admin]);
+  const close = useCallback(() => setOpen(false), []);
+  return (
+    <TitleCtx.Provider value={setTitle}>
+      {admin
+        ? <AdminFrame title={title} open={open} setOpen={setOpen} loc={loc}>{children}</AdminFrame>
+        : <UserFrame title={title} open={open} setOpen={setOpen} close={close} loc={loc}>{children}</UserFrame>}
+    </TitleCtx.Provider>
+  );
+}
+
+const SkipLink = () => <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[100] focus:rounded focus:bg-white focus:p-2">Skip to content</a>;
+
+/* ================================================================== */
+/* User workspace                                                      */
+/* ================================================================== */
+
+function Logo() {
+  return (
+    <Link href="/dashboard" aria-label="GrantApp home" className="flex items-center gap-1 px-2">
+      <svg viewBox="0 0 28 24" className="h-6 w-7" aria-hidden="true">
+        <path d="M1 3h6l6 13L22.5 1H27L14.5 23h-3z" fill="#1E3A8A" />
+        <path d="M7 3h3.5l5 10.5-2 3.5z" fill="#3B82F6" />
+      </svg>
+      <span className="text-[22px] font-bold tracking-tight text-slate-900">GrantApp</span>
+    </Link>
+  );
+}
+
+function UserFrame({ title, open, setOpen, close, loc, children }: { title: string; open: boolean; setOpen: (b: boolean) => void; close: () => void; loc: string; children: ReactNode }) {
+  const isDash = loc === '/' || loc === '/dashboard';
+  return (
+    <div className="theme-user min-h-[100dvh] bg-white lg:flex lg:bg-[#F3F4F6]">
+      <SkipLink />
+      <aside data-testid="sidebar-desktop" className="hidden border-r border-slate-200 bg-white px-3 py-5 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:gap-6 lg:overflow-y-auto">
+        <Logo />
+        <UserSidebar />
+      </aside>
+      {open && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={close} data-testid="overlay-drawer" />}
+      <aside aria-hidden={!open} inert={!open} data-testid="drawer-mobile" className={cx('fixed inset-y-0 right-0 z-50 flex w-72 max-w-[85vw] flex-col gap-6 overflow-y-auto bg-white px-3 py-5 shadow-2xl transition-transform duration-300 lg:hidden', open ? 'translate-x-0' : 'translate-x-full')}>
+        <div className="flex items-center justify-between">
+          <Logo />
+          <button aria-label="Close menu" data-testid="button-close-drawer" onClick={close} className="grid h-9 w-9 place-items-center rounded-full hover:bg-slate-100"><X className="h-5 w-5" /></button>
+        </div>
+        <UserSidebar onNav={close} />
+      </aside>
+      <div className="min-w-0 flex-1">
+        <UserTopDesktop />
+        <UserTopMobile title={title} isDash={isDash} onMenu={() => setOpen(true)} />
+        <main id="main" className="mx-auto w-full max-w-[1280px] px-4 pb-28 pt-2 sm:px-6 lg:px-8 lg:pb-10 lg:pt-6">
+          {isDash ? (
+            <div className="mb-5">
+              <h1 className="sr-only">Dashboard</h1>
+              <NewAppButton className="hidden lg:inline-flex" />
+            </div>
+          ) : (
+            title && <h1 className="mb-5 hidden text-2xl font-bold text-slate-900 lg:block" data-testid="text-page-title">{title}</h1>
+          )}
+          <div key={loc} className="rise">{children}</div>
+        </main>
+        <BottomNav loc={loc} />
+      </div>
+      <NewApplicationModal />
+    </div>
+  );
+}
+
+function NewAppButton({ className }: { className?: string }) {
+  const { openNewApp } = useDemo();
+  return (
+    <button data-testid="button-new-application" onClick={() => openNewApp()} className={cx('press items-center gap-1.5 rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0F172A]', className)}>
+      <Plus className="h-4 w-4" />New Application
+    </button>
+  );
+}
+
+function NavRow({ item, active, onNav, count }: { item: NavItem; active: boolean; onNav?: () => void; count?: number }) {
+  return (
+    <Link href={item.href} onClick={onNav} aria-current={active ? 'page' : undefined} data-testid={testId(item.href)}
+      className={cx('flex items-center gap-3 rounded-lg px-3 py-1.5 text-[15px] transition-colors duration-150',
+        active ? 'bg-[#DBEAFE] font-semibold text-slate-900' : 'font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900')}>
+      <item.icon className={cx('h-[18px] w-[18px] shrink-0', active ? 'text-[#1E3A8A]' : 'text-slate-500')} />
+      <span className="flex-1 truncate">{item.label}</span>
+      {count !== undefined && (
+        <span data-testid="badge-applications-count" className="grid h-5 min-w-5 place-items-center rounded-full bg-slate-200 px-1.5 text-[11px] font-semibold text-slate-700">{count}</span>
+      )}
+    </Link>
+  );
+}
+
+function UserSidebar({ onNav }: { onNav?: () => void }) {
+  const [loc] = useLocation();
+  const { apps } = useDemo();
+  const { data } = useApplicantDashboard();
+  const count = data ? data.applicationCount + apps.length : undefined;
+  return (
+    <div className="flex flex-1 flex-col gap-4">
+      <nav aria-label="User navigation" className="flex flex-col gap-0.5">
+        {userNav.map((i) => <NavRow key={i.href} item={i} active={isActive(loc, i.href)} onNav={onNav} count={i.href === '/applications' ? count : undefined} />)}
+      </nav>
+      <div className="mt-auto flex flex-col gap-0.5">
+        {userNavFooter.map((i) => <NavRow key={i.href} item={i} active={isActive(loc, i.href)} onNav={onNav} />)}
+        <hr className="my-3 border-slate-200" />
+        <UserCard onNav={onNav} />
+      </div>
+    </div>
+  );
+}
+
+function UserCard({ onNav }: { onNav?: () => void }) {
+  const { data } = useApplicantDashboard();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(ref, open, close);
+  if (!data) return <Skel className="h-12" />;
+  const go = () => { close(); onNav?.(); };
+  return (
+    <div ref={ref} className="relative flex items-center gap-3 px-2" data-testid="card-user">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#1E3A8A] text-base font-semibold text-white">{data.profile.name.charAt(0)}</span>
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="truncate text-sm font-semibold text-slate-900" data-testid="text-sidebar-name">{data.profile.name}</p>
+        <p className="truncate text-xs text-slate-500">{data.profile.organization}</p>
+      </div>
+      <button aria-label="Account menu" aria-haspopup="menu" aria-expanded={open} data-testid="button-user-menu" onClick={() => setOpen(!open)} className="grid h-8 w-8 place-items-center rounded-full text-slate-500 hover:bg-slate-100"><Ellipsis className="h-5 w-5" /></button>
+      {open && (
+        <div role="menu" className="pop absolute bottom-full left-0 right-0 z-50 mb-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+          <Link role="menuitem" href="/settings" onClick={go} data-testid="menu-account-settings" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-slate-100"><Settings className="h-4 w-4 text-slate-500" />Account settings</Link>
+          <Link role="menuitem" href="/admin" onClick={go} data-testid="button-admin-workspace" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-slate-100"><SwitchIcon className="h-4 w-4 text-slate-500" />Switch to admin view</Link>
+          <p className="mt-1 border-t border-slate-100 px-3 pb-1 pt-2 text-[11px] leading-snug text-slate-500" data-testid="text-demo-note">Demo preview. No real sign-in, transfers, card networks or OCR are connected.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OrgSwitcher({ name }: { name: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(ref, open, close);
+  return (
+    <div ref={ref} className="relative">
+      <button data-testid="button-org-switcher" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)} className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[15px] font-semibold text-slate-900 hover:bg-slate-100">
+        <span data-testid="text-org-name">{name}</span><ChevronDown className={cx('h-4 w-4 text-slate-500 transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <div role="menu" className="pop absolute left-0 top-full z-50 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+          <button role="menuitem" data-testid="menu-org-current" onClick={close} className="flex w-full items-center justify-between rounded-lg bg-[#EEF4FB] px-3 py-2 text-sm font-medium text-[#1E3A8A]"><span className="flex items-center gap-2"><Building2 className="h-4 w-4" />{name}</span><span className="text-xs">Current</span></button>
+          <p className="px-3 py-2 text-xs text-slate-500">Single organization in this demo.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NotificationBell() {
+  const { notes, unread, markRead } = useDemo();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(ref, open, close);
+  return (
+    <div ref={ref} className="relative">
+      <button aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'} data-testid="button-notifications" onClick={() => { setOpen(!open); markRead(); }} className="relative grid h-10 w-10 place-items-center rounded-full text-slate-700 hover:bg-slate-100">
+        <Bell className="h-5 w-5" />
+        {unread > 0 && <span data-testid="badge-notification-dot" className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />}
+      </button>
+      {open && (
+        <div className="pop absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl" data-testid="panel-notifications">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Notifications</p>
+          {notes.length === 0 ? <p className="text-sm text-slate-500">Nothing yet. Actions you take appear here.</p> : notes.map((n, i) => <p key={i} className="border-t border-slate-100 py-2 text-sm first:border-0">{n}</p>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UserTopDesktop() {
+  const { data } = useApplicantDashboard();
+  const { search, setSearch } = useDemo();
+  const [loc, nav] = useLocation();
+  return (
+    <header className="sticky top-0 z-30 hidden h-16 items-center gap-3 border-b border-slate-200 bg-white px-8 lg:flex">
+      {data ? <OrgSwitcher name={data.profile.organization} /> : <Skel className="h-7 w-40" />}
+      <div className="ml-auto flex items-center gap-3">
+        <NotificationBell />
+        <form role="search" onSubmit={(e) => { e.preventDefault(); if (loc !== '/applications' && loc !== '/dashboard' && loc !== '/') nav('/applications'); }} className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <input data-testid="input-global-search" type="search" aria-label="Search applications" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search"
+            className="w-56 rounded-full border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20" />
+        </form>
+      </div>
+    </header>
+  );
+}
+
+function UserTopMobile({ title, isDash, onMenu }: { title: string; isDash: boolean; onMenu: () => void }) {
+  const { data } = useApplicantDashboard();
+  const menu = (
+    <button aria-label="Open menu" data-testid="button-open-drawer" onClick={onMenu} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200"><Menu className="h-5 w-5" /></button>
+  );
+  if (!isDash) {
+    return (
+      <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+        <h1 className="flex-1 truncate text-lg font-bold text-slate-900" data-testid="text-page-title-mobile">{title}</h1>
+        {menu}
+      </header>
+    );
+  }
+  return (
+    <header className="px-4 pb-2 pt-5 lg:hidden" data-testid="section-greeting">
+      <div className="flex items-start gap-3">
+        {data ? (
+          <>
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#1E3A8A] text-lg font-semibold text-white">{data.profile.name.charAt(0)}</span>
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 text-lg font-semibold text-slate-900"><span className="truncate" data-testid="text-profile-name">{data.profile.name}</span>
+                {data.profile.verified && <BadgeCheck data-testid="badge-verified" aria-label="Verified" className="h-5 w-5 shrink-0 fill-[#16A34A] text-white" />}</p>
+              <p className="truncate text-sm text-slate-600" data-testid="text-profile-org">{data.profile.organization}</p>
+            </div>
+          </>
+        ) : <Skel className="h-12 flex-1" />}
+        {menu}
+      </div>
+      <p className="mt-2 text-[15px] text-slate-600">Here are your account's highlights.</p>
+    </header>
+  );
+}
+
+function BottomNav({ loc }: { loc: string }) {
+  return (
+    <nav aria-label="Bottom navigation" data-testid="nav-bottom" className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+      {bottomNav.map((b) => {
+        const a = isActive(loc, b.href);
+        return (
+          <Link key={b.href} href={b.href} data-testid={`button-bottom-${b.label.toLowerCase()}`} aria-current={a ? 'page' : undefined}
+            className={cx('flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold', a ? 'text-[#1E3A8A]' : 'text-slate-500')}>
+            <span className={cx('grid h-7 w-12 place-items-center rounded-full transition-colors', a && 'bg-[#DBEAFE]')}><b.icon className="h-5 w-5" /></span>{b.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+const appSchema = z.object({
+  title: z.string().trim().min(3, 'Enter at least 3 characters').max(120),
+  category: z.string().min(1, 'Choose a category'),
+  amount: z.coerce.number().min(100, 'Minimum is $100').max(10_000_000, 'Maximum is $10,000,000'),
+});
+export function NewApplicationModal() {
+  const { newApp, closeNewApp, addApp } = useDemo();
+  const [, nav] = useLocation();
+  const { toast } = useToast();
+  const f = useForm<z.input<typeof appSchema>, unknown, z.output<typeof appSchema>>({ resolver: zodResolver(appSchema), defaultValues: { title: '', category: CATEGORIES[0], amount: 5000 } });
+  useEffect(() => {
+    if (newApp) f.reset({ title: newApp.title ?? '', category: newApp.category ?? CATEGORIES[0], amount: newApp.amount ?? 5000 });
+  }, [newApp, f]);
+  return (
+    <Modal open={!!newApp} onClose={closeNewApp} title="New application" testid="dialog-new-application">
+      <form className="space-y-4" onSubmit={f.handleSubmit((v) => {
+        addApp(v); toast({ title: 'Application added', description: v.title }); closeNewApp(); nav('/applications');
+      })}>
+        <Field label="Project title" error={f.formState.errors.title?.message}><input data-testid="input-app-title" className={inputCls} {...f.register('title')} /></Field>
+        <Field label="Category" error={f.formState.errors.category?.message}>
+          <select data-testid="select-app-category" className={inputCls} {...f.register('category')}>
+            {(newApp?.category && !(CATEGORIES as readonly string[]).includes(newApp.category) ? [...CATEGORIES, newApp.category] : CATEGORIES).map((c) => <option key={c}>{c}</option>)}
+          </select>
+        </Field>
+        <Field label="Requested amount (USD)" error={f.formState.errors.amount?.message}><input data-testid="input-app-amount" type="number" inputMode="decimal" step="any" className={inputCls} {...f.register('amount')} /></Field>
+        <p className="text-xs text-slate-500">Demo: saved in this browser only. Not submitted to a funder.</p>
+        <button data-testid="button-submit-application" type="submit" className="press w-full rounded-full bg-[#1E3A8A] py-2.5 text-sm font-semibold text-white hover:bg-[#0F172A]">Add application</button>
+      </form>
+    </Modal>
+  );
+}
+
+/* ================================================================== */
+/* Admin workspace (unchanged design; admin pass comes later)          */
+/* ================================================================== */
 
 function WorkspaceSwitch({ admin }: { admin: boolean }) {
   const [, nav] = useLocation();
@@ -54,22 +377,18 @@ function WorkspaceSwitch({ admin }: { admin: boolean }) {
   );
 }
 
-function NavList({ items, admin, onNav, count }: { items: typeof userNav; admin: boolean; onNav?: () => void; count?: number }) {
+function AdminNavList({ onNav }: { onNav?: () => void }) {
   const [loc] = useLocation();
   return (
-    <nav aria-label={admin ? 'Admin navigation' : 'User navigation'} className="flex flex-col gap-1">
-      {items.map((i) => {
-        const active = loc === i.href || (i.href === '/dashboard' && loc === '/') || (i.href === '/admin/users' && loc.startsWith('/admin/users'));
+    <nav aria-label="Admin navigation" className="flex flex-col gap-1">
+      {adminNav.map((i) => {
+        const active = isActive(loc, i.href);
         return (
-          <Link key={i.href} href={i.href} onClick={onNav} aria-current={active ? 'page' : undefined} data-testid={`link-nav-${i.href.replace(/\//g, '-').slice(1)}`}
+          <Link key={i.href} href={i.href} onClick={onNav} aria-current={active ? 'page' : undefined} data-testid={testId(i.href)}
             className={cx('group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
-              admin ? (active ? 'bg-[#C6F432] text-[#111] font-semibold' : 'text-slate-300 hover:bg-white/10 hover:text-white hover:translate-x-0.5')
-                : active ? 'bg-[#1E3A8A] text-white' : 'text-slate-600 hover:bg-[#EEF4FB] hover:text-[#1E3A8A] hover:translate-x-0.5')}>
+              active ? 'bg-[#C6F432] text-[#111] font-semibold' : 'text-slate-300 hover:bg-white/10 hover:text-white hover:translate-x-0.5')}>
             <i.icon className="h-[18px] w-[18px]" />
             <span className="flex-1">{i.label}</span>
-            {i.label === 'Applications' && count !== undefined && (
-              <span data-testid="badge-applications-count" className={cx('rounded-full px-2 py-0.5 text-[11px] font-bold', active ? 'bg-white text-[#1E3A8A]' : 'bg-[#DBEAFE] text-[#1E3A8A]')}>{count}</span>
-            )}
           </Link>
         );
       })}
@@ -77,146 +396,56 @@ function NavList({ items, admin, onNav, count }: { items: typeof userNav; admin:
   );
 }
 
-function Brand({ admin }: { admin: boolean }) {
+function AdminBrand() {
   return (
     <div className="flex items-center gap-2.5 px-2">
-      <span className={cx('grid h-9 w-9 place-items-center rounded-xl font-display text-lg font-extrabold', admin ? 'bg-[#C6F432] text-[#111]' : 'bg-[#1E3A8A] text-white')}>G</span>
+      <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#C6F432] font-display text-lg font-extrabold text-[#111]">G</span>
       <div className="leading-tight">
-        <div className={cx('font-display text-base font-bold', admin && 'text-white')}>Grant Platform</div>
-        <div className={cx('text-[10px] font-semibold uppercase tracking-widest', admin ? 'text-[#C6F432]' : 'text-slate-400')}>{admin ? 'Command center' : 'Funding workspace'}</div>
+        <div className="font-display text-base font-bold text-white">GrantApp</div>
+        <div className="text-[10px] font-semibold uppercase tracking-widest text-[#C6F432]">Command center</div>
       </div>
     </div>
   );
 }
 
-export function Shell({ admin, title, children }: { admin: boolean; title: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const [loc, nav] = useLocation();
-  useEffect(() => {
-    setOpen(false);
-    window.scrollTo(0, 0);
-    document.title = `${title} | Grant Platform`;
-    const description = admin
-      ? `${title} — sample grant administration, profile controls and operations. Interactive demo.`
-      : `${title} — discover funding, follow grant applications and manage your sample workspace. Interactive demo.`;
-    document.querySelector('meta[name="description"]')?.setAttribute('content', description);
-    document.querySelector('meta[property="og:title"]')?.setAttribute('content', document.title);
-    document.querySelector('meta[property="og:description"]')?.setAttribute('content', description);
-  }, [loc, title, admin]);
+function AdminSidebarBody({ onNav }: { onNav?: () => void }) {
   return (
-    <div className={cx('min-h-[100dvh] lg:flex', admin ? 'bg-[#F4F5F8]' : 'mobile-preview-frame bg-[#E9EDF3]')}>
-      {!admin && <div data-testid="mobile-browser-bar" className="flex items-center justify-center gap-2 border-b border-slate-200 bg-slate-100 px-4 py-2 text-[11px] text-slate-600 lg:hidden">
-        <ShieldCheck className="h-3 w-3" aria-hidden="true" />
-        <span>grantapp.mx{loc === '/' ? '/dashboard' : loc}</span>
-        <span className="rounded bg-white px-1.5 py-0.5 text-[9px] font-semibold uppercase text-slate-500">Demo</span>
-      </div>}
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[100] focus:rounded focus:bg-white focus:p-2">Skip to content</a>
-      <aside className={cx('hidden lg:flex lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:gap-6 lg:overflow-y-auto border-r p-4',
-        admin ? 'bg-[#111111] border-slate-800' : 'bg-white border-slate-200')} data-testid="sidebar-desktop">
-        <Brand admin={admin} />
-        <SidebarBody admin={admin} />
+    <div className="flex flex-1 flex-col gap-6">
+      <AdminNavList onNav={onNav} />
+      <div className="mt-auto space-y-3">
+        <div className="rounded-xl bg-white/5 p-3 text-xs leading-relaxed text-slate-400">
+          <strong className="text-[#C6F432]">DEMO preview.</strong> Switch workspaces to see both sides of the sample data.
+        </div>
+        <WorkspaceSwitch admin />
+      </div>
+    </div>
+  );
+}
+
+function AdminFrame({ title, open, setOpen, loc, children }: { title: string; open: boolean; setOpen: (b: boolean) => void; loc: string; children: ReactNode }) {
+  return (
+    <div className="min-h-[100dvh] bg-[#F4F5F8] lg:flex">
+      <SkipLink />
+      <aside className="hidden border-r border-slate-800 bg-[#111111] p-4 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:gap-6 lg:overflow-y-auto" data-testid="sidebar-desktop">
+        <AdminBrand />
+        <AdminSidebarBody />
       </aside>
       {open && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setOpen(false)} data-testid="overlay-drawer" />}
-      <aside aria-hidden={!open} inert={!open} data-testid="drawer-mobile" className={cx('fixed inset-y-0 left-0 z-50 flex w-72 flex-col gap-6 overflow-y-auto p-4 transition-transform duration-300 lg:hidden',
-        admin ? 'bg-[#111111]' : 'bg-white', open ? 'translate-x-0' : '-translate-x-full')}>
+      <aside aria-hidden={!open} inert={!open} data-testid="drawer-mobile" className={cx('fixed inset-y-0 left-0 z-50 flex w-72 flex-col gap-6 overflow-y-auto bg-[#111111] p-4 transition-transform duration-300 lg:hidden', open ? 'translate-x-0' : '-translate-x-full')}>
         <div className="flex items-center justify-between">
-          <Brand admin={admin} />
-          <button aria-label="Close menu" data-testid="button-close-drawer" tabIndex={open ? 0 : -1} onClick={() => setOpen(false)} className={cx('grid h-9 w-9 place-items-center rounded-full', admin ? 'text-white hover:bg-white/10' : 'hover:bg-slate-100')}><X className="h-5 w-5" /></button>
+          <AdminBrand />
+          <button aria-label="Close menu" data-testid="button-close-drawer" onClick={() => setOpen(false)} className="grid h-9 w-9 place-items-center rounded-full text-white hover:bg-white/10"><X className="h-5 w-5" /></button>
         </div>
-        <SidebarBody admin={admin} onNav={() => setOpen(false)} focusable={open} />
+        <AdminSidebarBody onNav={() => setOpen(false)} />
       </aside>
       <div className="min-w-0 flex-1">
-        {admin ? <AdminTop title={title} onMenu={() => setOpen(true)} /> : <UserTop title={title} onMenu={() => setOpen(true)} />}
-        <main id="main" className={cx('mx-auto w-full max-w-[1280px] p-4 sm:p-6', !admin && 'pb-24 lg:pb-8')}>
+        <AdminTop title={title} onMenu={() => setOpen(true)} />
+        <main id="main" className="mx-auto w-full max-w-[1280px] p-4 sm:p-6">
           <div key={loc} className="rise">{children}</div>
           <p className="mt-8 text-center text-xs text-slate-500" data-testid="text-demo-note">Demo preview. No real authentication, transfers, card networks or OCR are connected.</p>
         </main>
-        {!admin && (
-          <nav aria-label="Bottom navigation" data-testid="nav-bottom" className="fixed inset-x-1 bottom-1 z-30 flex rounded-b-[24px] border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
-            {bottomNav.map((b) => {
-              const a = loc === b.href || (b.href === '/dashboard' && loc === '/');
-              return (
-                <button key={b.href} data-testid={`button-bottom-${b.label.toLowerCase()}`} onClick={() => nav(b.href)} aria-current={a ? 'page' : undefined}
-                  className={cx('press flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold', a ? 'text-[#1E3A8A]' : 'text-slate-500')}>
-                  <span className={cx('grid h-7 w-12 place-items-center rounded-full transition-colors', a && 'bg-[#DBEAFE]')}><b.icon className="h-5 w-5" /></span>{b.label}
-                </button>
-              );
-            })}
-          </nav>
-        )}
-      </div>
-      {!admin && <NewApplicationModal />}
-    </div>
-  );
-}
-
-function SidebarBody({ admin, onNav, focusable = true }: { admin: boolean; onNav?: () => void; focusable?: boolean }) {
-  const { apps } = useDemo();
-  const { data } = useGetApplicantDashboard(undefined, { query: { enabled: !admin, queryKey: ['/api/applicant/dashboard'] } });
-  const count = data ? data.applicationCount + apps.length : undefined;
-  return (
-    <div className={cx('flex flex-1 flex-col gap-6', !focusable && 'pointer-events-none')}>
-      <NavList items={admin ? adminNav : userNav} admin={admin} onNav={onNav} count={admin ? undefined : count} />
-      <div className="mt-auto space-y-3">
-        <div className={cx('rounded-xl p-3 text-xs leading-relaxed', admin ? 'bg-white/5 text-slate-400' : 'bg-[#EEF4FB] text-slate-600')}>
-          <strong className={admin ? 'text-[#C6F432]' : 'text-[#1E3A8A]'}>DEMO preview.</strong> Switch workspaces to see both sides of the sample data.
-        </div>
-        <WorkspaceSwitch admin={admin} />
       </div>
     </div>
-  );
-}
-
-function UserTop({ title, onMenu }: { title: string; onMenu: () => void }) {
-  const { data } = useGetApplicantDashboard();
-  const { setNewAppOpen, notes, setSearch, search } = useDemo();
-  const [, nav] = useLocation();
-  const [bell, setBell] = useState(false);
-  const [org, setOrg] = useState(false);
-  const [srch, setSrch] = useState(false);
-  const orgName = data?.profile.organization ?? 'Organization';
-  return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
-      <div className="flex items-center gap-2 px-4 py-3 sm:px-6">
-        <button aria-label="Open menu" data-testid="button-open-drawer" onClick={onMenu} className="press grid h-10 w-10 place-items-center rounded-full hover:bg-slate-100 lg:hidden"><Menu className="h-5 w-5" /></button>
-        <h1 className="font-display text-lg font-bold sm:text-xl" data-testid="text-page-title">{title}</h1>
-        <div className="relative ml-2 hidden md:block">
-          <button data-testid="button-org-switcher" aria-haspopup="menu" aria-expanded={org} onClick={() => setOrg(!org)} className="press flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium hover:border-[#1E3A8A]">
-            <Building2 className="h-4 w-4 text-[#1E3A8A]" /><span data-testid="text-org-name">{orgName}</span><ChevronDown className={cx('h-4 w-4 transition-transform', org && 'rotate-180')} />
-          </button>
-          {org && (
-            <div role="menu" className="pop absolute left-0 top-full mt-2 w-64 rounded-xl border bg-white p-1.5 shadow-xl">
-              <button role="menuitem" data-testid="menu-org-current" onClick={() => setOrg(false)} className="flex w-full items-center justify-between rounded-lg bg-[#EEF4FB] px-3 py-2 text-sm font-medium text-[#1E3A8A]">{orgName}<span className="text-xs">Current</span></button>
-              <p className="px-3 py-2 text-xs text-slate-500">Single organization in this demo.</p>
-            </div>
-          )}
-        </div>
-        <div className="ml-auto flex items-center gap-1.5">
-          {srch && (
-            <form onSubmit={(e) => { e.preventDefault(); nav('/applications'); }} className="pop">
-              <input autoFocus data-testid="input-global-search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search applications" className="w-36 rounded-full border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-[#1E3A8A] sm:w-56" />
-            </form>
-          )}
-          <button aria-label="Search" data-testid="button-search" onClick={() => setSrch(!srch)} className="press grid h-10 w-10 place-items-center rounded-full hover:bg-slate-100"><Search className="h-5 w-5" /></button>
-          <div className="relative">
-            <button aria-label="Notifications" data-testid="button-notifications" onClick={() => setBell(!bell)} className="press relative grid h-10 w-10 place-items-center rounded-full hover:bg-slate-100">
-              <Bell className="h-5 w-5" />{notes.length > 0 && <span data-testid="badge-notification-count" className="absolute right-1.5 top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#1E3A8A] px-1 text-[10px] font-bold text-white">{notes.length}</span>}
-            </button>
-            {bell && (
-              <div className="pop absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border bg-white p-3 shadow-xl" data-testid="panel-notifications">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Preview activity</p>
-                {notes.length === 0 ? <p className="text-sm text-slate-500">Nothing yet. Actions you take appear here.</p> : notes.map((n, i) => <p key={i} className="border-t py-2 text-sm first:border-0">{n}</p>)}
-              </div>
-            )}
-          </div>
-          <button data-testid="button-new-application" onClick={() => setNewAppOpen(true)} className="press flex items-center gap-1.5 rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0F172A]">
-            <Plus className="h-4 w-4" /><span className="hidden sm:inline">New Application</span><span className="sm:hidden">New</span>
-          </button>
-          <div className="hidden sm:block"><WorkspaceSwitch admin={false} /></div>
-          {data && <span aria-hidden className="hidden h-9 w-9 place-items-center rounded-full bg-[#DBEAFE] text-xs font-bold text-[#1E3A8A] xl:grid">{initials(data.profile.name)}</span>}
-        </div>
-      </div>
-    </header>
   );
 }
 
@@ -252,13 +481,13 @@ function AdminTop({ title, onMenu }: { title: string; onMenu: () => void }) {
           <input data-testid="input-admin-search" aria-label="Search users, logs and IDs" value={adminSearch} onChange={(e) => setAdminSearch(e.target.value)} placeholder="Search logs, users, IDs" className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-[#111] focus:ring-2 focus:ring-[#C6F432]" />
         </form>
         <div className="ml-auto flex items-center gap-2">
-          <div className="hidden rounded-full bg-[#111] sm:block"><WorkspaceSwitch admin={true} /></div>
+          <div className="hidden rounded-full bg-[#111] sm:block"><WorkspaceSwitch admin /></div>
           <button data-testid="button-global-freeze" onClick={() => setConfirm(true)} disabled={!data} className={cx('press flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition disabled:opacity-50', frozen ? 'bg-[#C6F432] text-[#111]' : 'bg-red-700 text-white hover:bg-red-800')}>
             <Snowflake className="h-4 w-4" />{frozen ? 'Lift Freeze' : 'Global Freeze'}
           </button>
         </div>
       </div>
-      <div className="px-4 pb-2 sm:hidden"><div className="inline-block rounded-full bg-[#111]"><WorkspaceSwitch admin={true} /></div></div>
+      <div className="px-4 pb-2 sm:hidden"><div className="inline-block rounded-full bg-[#111]"><WorkspaceSwitch admin /></div></div>
       {frozen && <div data-testid="banner-frozen" className="bg-red-700 px-6 py-1.5 text-center text-xs font-semibold text-white">Platform is globally frozen (demo state). Ledger adjustments are paused conceptually.</div>}
       <Modal open={confirm} onClose={() => setConfirm(false)} title={frozen ? 'Lift global freeze?' : 'Enable global freeze?'} testid="dialog-global-freeze">
         <p className="mb-3 text-sm text-slate-600">This flips a demo flag only. No real funds are moved or locked.</p>
@@ -269,39 +498,5 @@ function AdminTop({ title, onMenu }: { title: string; onMenu: () => void }) {
         </div>
       </Modal>
     </header>
-  );
-}
-
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Field, inputCls } from '@/components/bits';
-
-const appSchema = z.object({
-  title: z.string().min(3, 'Enter at least 3 characters'),
-  category: z.string().min(1, 'Choose a category'),
-  amount: z.coerce.number().min(100, 'Minimum is $100'),
-});
-export function NewApplicationModal() {
-  const { newAppOpen, setNewAppOpen, addApp } = useDemo();
-  const [, nav] = useLocation();
-  const { toast } = useToast();
-  const f = useForm<z.input<typeof appSchema>, unknown, z.output<typeof appSchema>>({ resolver: zodResolver(appSchema), defaultValues: { title: '', category: 'Innovation', amount: 5000 } });
-  return (
-    <Modal open={newAppOpen} onClose={() => setNewAppOpen(false)} title="New application" testid="dialog-new-application">
-      <form className="space-y-4" onSubmit={f.handleSubmit((v) => {
-        addApp(v); toast({ title: 'Application added to preview', description: v.title }); setNewAppOpen(false); f.reset(); nav('/applications');
-      })}>
-        <Field label="Project title" error={f.formState.errors.title?.message}><input data-testid="input-app-title" className={inputCls} {...f.register('title')} /></Field>
-        <Field label="Category" error={f.formState.errors.category?.message}>
-          <select data-testid="select-app-category" className={inputCls} {...f.register('category')}>
-            {['Innovation', 'Community Arts', 'Education', 'Health', 'Climate'].map((c) => <option key={c}>{c}</option>)}
-          </select>
-        </Field>
-        <Field label="Requested amount (USD)" error={f.formState.errors.amount?.message}><input data-testid="input-app-amount" type="number" step="any" className={inputCls} {...f.register('amount')} /></Field>
-        <p className="text-xs text-slate-500">DEMO: saved in this browser (localStorage) only. Not submitted to a funder.</p>
-        <button data-testid="button-submit-application" type="submit" className="press w-full rounded-full bg-[#1E3A8A] py-2.5 text-sm font-semibold text-white hover:bg-[#0F172A]">Add application</button>
-      </form>
-    </Modal>
   );
 }

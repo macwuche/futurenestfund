@@ -1,23 +1,15 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { AlertCircle } from 'lucide-react';
+import { Link, useLocation } from 'wouter';
+import { Shell } from '@/components/shell';
+import { Empty } from '@/components/bits';
 
 export default function NotFound() {
+  const [loc] = useLocation();
+  const admin = loc.startsWith('/admin');
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-gray-900">
-              404 Page Not Found
-            </h1>
-          </div>
-
-          <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+    <Shell title="Page not found">
+      <Empty title="We couldn't find that page" hint="The link may be outdated, or the page may have moved.">
+        <Link href={admin ? '/admin' : '/dashboard'} data-testid="link-home" className="inline-flex rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0F172A]">Back to dashboard</Link>
+      </Empty>
+    </Shell>
   );
 }

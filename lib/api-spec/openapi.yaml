@@ -66,6 +66,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApplicantProfile"
+  /applicant/account:
+    get:
+      operationId: getApplicantAccount
+      tags: [applicant]
+      summary: Get the applicant's balances, cards and money movements
+      responses:
+        "200":
+          description: Applicant account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicantAccount"
+  /applicant/requests:
+    post:
+      operationId: createApplicantRequest
+      tags: [applicant]
+      summary: Submit a demo deposit or withdrawal request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplicantRequestInput"
+      responses:
+        "201":
+          description: Request recorded as pending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicantTransaction"
+        "400":
+          description: Request refused
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
   /admin/dashboard:
     get:
       operationId: getAdminDashboard
@@ -194,6 +230,47 @@ paths:
                 $ref: "#/components/schemas/GlobalFreezeStatus"
 components:
   schemas:
+    ErrorMessage:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+    ApplicantTransaction:
+      type: object
+      properties:
+        id: { type: string }
+        type: { type: string, enum: [Deposit, Withdrawal, Top-up] }
+        account: { type: string, enum: [grant, deposit, card] }
+        direction: { type: string, enum: [in, out] }
+        amount: { type: number }
+        description: { type: string }
+        status: { type: string, enum: [Pending, Completed, Declined] }
+        createdAt: { type: string, format: date-time }
+      required: [id, type, account, direction, amount, description, status, createdAt]
+    ApplicantAccount:
+      type: object
+      properties:
+        status: { type: string, enum: [Active, Frozen] }
+        platformFrozen: { type: boolean }
+        tier: { type: integer, minimum: 1, maximum: 3 }
+        verificationLevel: { type: string, enum: [Verified, Pending, Rejected, Unsubmitted] }
+        permissions: { $ref: "#/components/schemas/UserPermissions" }
+        balances: { $ref: "#/components/schemas/UserBalances" }
+        availableToWithdraw: { type: number }
+        cards:
+          type: array
+          items: { $ref: "#/components/schemas/UserCard" }
+        transactions:
+          type: array
+          items: { $ref: "#/components/schemas/ApplicantTransaction" }
+      required: [status, platformFrozen, tier, verificationLevel, permissions, balances, availableToWithdraw, cards, transactions]
+    ApplicantRequestInput:
+      type: object
+      properties:
+        kind: { type: string, enum: [Deposit, Withdrawal] }
+        amount: { type: number, minimum: 0.01 }
+        note: { type: string, maxLength: 240 }
+      required: [kind, amount]
     HealthStatus:
       type: object
       properties:

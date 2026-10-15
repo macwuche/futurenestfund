@@ -1,11 +1,13 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { AlertTriangle, Inbox, RefreshCw, X } from 'lucide-react';
 
 export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(' ');
 export const money = (n: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 export const dateFmt = (s: string) => {
-  const d = new Date(s);
+  // Date-only strings ("2026-10-08") are parsed as UTC by Date; build them in local time so US users don't see the previous day.
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(s);
   return isNaN(d.getTime()) ? s : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 export const initials = (n: string) =>
@@ -22,13 +24,15 @@ const map: Record<string, string> = {
   Verified: 'green', Operational: 'green', Completed: 'green', Approved: 'green', Active: 'green', Intact: 'green', Recommended: 'green',
   Pending: 'amber', Review: 'amber', Degraded: 'amber', 'Changes requested': 'amber', 'Review required': 'amber',
   Rejected: 'red', Declined: 'red', Frozen: 'red', Offline: 'red',
-  Submitted: 'blue', Unsubmitted: 'gray',
+  Submitted: 'green', Unsubmitted: 'gray',
 };
-export function StatusBadge({ status, testid }: { status: string; testid?: string }) {
+/** Display wording for API statuses. */
+export const statusLabel = (s: string) => (s === 'Review' ? 'Under Review' : s);
+export function StatusBadge({ status, testid, dot = true }: { status: string; testid?: string; dot?: boolean }) {
   return (
     <span data-testid={testid ?? `badge-status-${status}`} className={cx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap', tone[map[status] ?? 'gray'])}>
-      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
-      {status}
+      {dot && <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />}
+      {statusLabel(status)}
     </span>
   );
 }
@@ -68,18 +72,46 @@ export function Empty({ title, hint, children }: { title: string; hint?: string;
   );
 }
 
-export function Modal({ open, onClose, title, children, testid }: { open: boolean; onClose: () => void; title: string; children: ReactNode; testid: string }) {
+/** Close a popover on outside pointer-down or Escape. */
+export function useDismiss(ref: RefObject<HTMLElement | null>, open: boolean, close: () => void) {
   useEffect(() => {
     if (!open) return;
-    const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const down = (e: PointerEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) close(); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('pointerdown', down);
+    document.addEventListener('keydown', key);
+    return () => { document.removeEventListener('pointerdown', down); document.removeEventListener('keydown', key); };
+  }, [ref, open, close]);
+}
+
+const focusable = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+export function Modal({ open, onClose, title, children, testid }: { open: boolean; onClose: () => void; title: string; children: ReactNode; testid: string }) {
+  const box = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const first = box.current?.querySelector<HTMLElement>('input,select,textarea') ?? box.current?.querySelector<HTMLElement>(focusable);
+    first?.focus();
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') return closeRef.current();
+      if (e.key !== 'Tab' || !box.current) return;
+      const els = Array.from(box.current.querySelectorAll<HTMLElement>(focusable));
+      if (!els.length) return;
+      const [a, z] = [els[0], els[els.length - 1]];
+      if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); } else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
+    };
     window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, [open, onClose]);
+    return () => { window.removeEventListener('keydown', h); document.body.style.overflow = overflow; prev?.focus?.(); };
+  }, [open]);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} data-testid={`overlay-${testid}`} />
-      <div role="dialog" aria-modal="true" aria-label={title} data-testid={testid} className="pop relative max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+      <div ref={box} role="dialog" aria-modal="true" aria-label={title} data-testid={testid} className="pop relative max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
         <div className="mb-4 flex items-start justify-between gap-4">
           <h2 className="font-display text-xl font-bold">{title}</h2>
           <button aria-label="Close dialog" data-testid={`button-close-${testid}`} onClick={onClose} className="press grid h-9 w-9 place-items-center rounded-full hover:bg-slate-100"><X className="h-5 w-5" /></button>

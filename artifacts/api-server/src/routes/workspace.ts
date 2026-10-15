@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import {
   GetApplicantDashboardQueryParams, GetApplicantDashboardResponse,
   UpdateApplicantProfileBody, UpdateApplicantProfileResponse,
+  GetApplicantAccountResponse, CreateApplicantRequestBody, CreateApplicantRequestResponse,
   GetAdminDashboardResponse, ListAdminUsersQueryParams, ListAdminUsersResponse,
   GetAdminUserParams, GetAdminUserResponse, UpdateAdminUserBody, UpdateAdminUserParams, UpdateAdminUserResponse,
   CreateUserBalanceAdjustmentBody, CreateUserBalanceAdjustmentParams, CreateUserBalanceAdjustmentResponse,
@@ -9,7 +10,7 @@ import {
 } from "@workspace/api-zod";
 import { db, demoProfilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { adminDashboard, applicantDashboard, applicantProfile, demoApplicantId, listUsers, getUser, changeProfile, adjustBalance, changeGlobalFreeze, DemoInputError } from "../lib/demoWorkspace";
+import { adminDashboard, applicantDashboard, applicantProfile, demoApplicantId, listUsers, getUser, changeProfile, adjustBalance, changeGlobalFreeze, applicantAccount, createApplicantRequest, DemoInputError } from "../lib/demoWorkspace";
 
 const router: IRouter = Router();
 router.use((_req, res, next) => {
@@ -30,6 +31,16 @@ router.patch("/applicant/profile", async (req, res): Promise<void> => {
   await changeProfile(demoApplicantId, input.data, "Demo applicant");
   const [person] = await db.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, demoApplicantId));
   res.json(UpdateApplicantProfileResponse.parse(applicantProfile(person!)));
+});
+
+router.get("/applicant/account", async (_req, res): Promise<void> => {
+  res.json(GetApplicantAccountResponse.parse(await applicantAccount()));
+});
+
+router.post("/applicant/requests", async (req, res): Promise<void> => {
+  const input = CreateApplicantRequestBody.safeParse(req.body);
+  if (!input.success) { res.status(400).json({ error: "Enter an amount of at least $0.01 and a note under 240 characters." }); return; }
+  res.status(201).json(CreateApplicantRequestResponse.parse(await createApplicantRequest(input.data.kind, input.data.amount, input.data.note)));
 });
 
 router.get("/admin/dashboard", async (_req, res): Promise<void> => {

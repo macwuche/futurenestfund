@@ -24,10 +24,14 @@ import type {
   AdminUserProfile,
   AdminUserUpdate,
   AdminUsersPage,
+  ApplicantAccount,
   ApplicantDashboard,
   ApplicantProfile,
   ApplicantProfileUpdate,
+  ApplicantRequestInput,
+  ApplicantTransaction,
   BalanceAdjustmentInput,
+  ErrorMessage,
   GetApplicantDashboardParams,
   GlobalFreezeStatus,
   GlobalFreezeUpdate,
@@ -311,6 +315,171 @@ export const useUpdateApplicantProfile = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateApplicantProfileMutationOptions(options));
+    }
+
+export const getGetApplicantAccountUrl = () => {
+
+
+
+
+  return `/api/applicant/account`
+}
+
+/**
+ * @summary Get the applicant's balances, cards and money movements
+ */
+export const getApplicantAccount = async ( options?: Parameters<typeof customFetch>[1]): Promise<ApplicantAccount> => {
+
+  return customFetch<ApplicantAccount>(getGetApplicantAccountUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetApplicantAccountQueryKey = () => {
+    return [
+    `/api/applicant/account`
+    ] as const;
+    }
+
+
+export const getGetApplicantAccountQueryOptions = <TData = Awaited<ReturnType<typeof getApplicantAccount>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantAccount>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApplicantAccountQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApplicantAccount>>> = ({ signal }) => getApplicantAccount({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApplicantAccount>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetApplicantAccountQueryResult = NonNullable<Awaited<ReturnType<typeof getApplicantAccount>>>
+export type GetApplicantAccountQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the applicant's balances, cards and money movements
+ */
+
+export function useGetApplicantAccount<TData = Awaited<ReturnType<typeof getApplicantAccount>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantAccount>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetApplicantAccountQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateApplicantRequestUrl = () => {
+
+
+
+
+  return `/api/applicant/requests`
+}
+
+/**
+ * @summary Submit a demo deposit or withdrawal request
+ */
+export const createApplicantRequest = async (applicantRequestInput: ApplicantRequestInput, options?: Parameters<typeof customFetch>[1]): Promise<ApplicantTransaction> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ApplicantTransaction>(getCreateApplicantRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(applicantRequestInput)
+  }
+);}
+
+
+
+
+
+export const getCreateApplicantRequestMutationKey = () => ['createApplicantRequest'] as const;
+
+export const getCreateApplicantRequestMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApplicantRequest>>, TError,CreateApplicantRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createApplicantRequest>>, TError,CreateApplicantRequestMutationVariables, TContext> => {
+
+const mutationKey = getCreateApplicantRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createApplicantRequest>>, CreateApplicantRequestMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createApplicantRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateApplicantRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createApplicantRequest>>>
+    export type CreateApplicantRequestMutationBody = BodyType<ApplicantRequestInput>
+    export type CreateApplicantRequestMutationError = ErrorType<ErrorMessage>
+    export type CreateApplicantRequestMutationVariables = {data: BodyType<ApplicantRequestInput>}
+
+    /**
+ * @summary Submit a demo deposit or withdrawal request
+ */
+export const useCreateApplicantRequest = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApplicantRequest>>, TError,CreateApplicantRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createApplicantRequest>>,
+        TError,
+        CreateApplicantRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateApplicantRequestMutationOptions(options));
     }
 
 export const getGetAdminDashboardUrl = () => {

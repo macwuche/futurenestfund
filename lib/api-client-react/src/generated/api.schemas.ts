@@ -5,6 +5,152 @@
  * Grant applicant and administration dashboard API
  * OpenAPI spec version: 0.1.0
  */
+export interface ErrorMessage {
+  error: string;
+}
+
+export type ApplicantTransactionType = typeof ApplicantTransactionType[keyof typeof ApplicantTransactionType];
+
+
+export const ApplicantTransactionType = {
+  Deposit: 'Deposit',
+  Withdrawal: 'Withdrawal',
+  'Top-up': 'Top-up',
+} as const;
+
+export type ApplicantTransactionAccount = typeof ApplicantTransactionAccount[keyof typeof ApplicantTransactionAccount];
+
+
+export const ApplicantTransactionAccount = {
+  grant: 'grant',
+  deposit: 'deposit',
+  card: 'card',
+} as const;
+
+export type ApplicantTransactionDirection = typeof ApplicantTransactionDirection[keyof typeof ApplicantTransactionDirection];
+
+
+export const ApplicantTransactionDirection = {
+  in: 'in',
+  out: 'out',
+} as const;
+
+export type ApplicantTransactionStatus = typeof ApplicantTransactionStatus[keyof typeof ApplicantTransactionStatus];
+
+
+export const ApplicantTransactionStatus = {
+  Pending: 'Pending',
+  Completed: 'Completed',
+  Declined: 'Declined',
+} as const;
+
+export interface ApplicantTransaction {
+  id: string;
+  type: ApplicantTransactionType;
+  account: ApplicantTransactionAccount;
+  direction: ApplicantTransactionDirection;
+  amount: number;
+  description: string;
+  status: ApplicantTransactionStatus;
+  createdAt: string;
+}
+
+export type ApplicantAccountStatus = typeof ApplicantAccountStatus[keyof typeof ApplicantAccountStatus];
+
+
+export const ApplicantAccountStatus = {
+  Active: 'Active',
+  Frozen: 'Frozen',
+} as const;
+
+export type ApplicantAccountVerificationLevel = typeof ApplicantAccountVerificationLevel[keyof typeof ApplicantAccountVerificationLevel];
+
+
+export const ApplicantAccountVerificationLevel = {
+  Verified: 'Verified',
+  Pending: 'Pending',
+  Rejected: 'Rejected',
+  Unsubmitted: 'Unsubmitted',
+} as const;
+
+export interface UserPermissions {
+  emailNotifications: boolean;
+  withdrawalKycRequired: boolean;
+  depositKycRequired: boolean;
+}
+
+export interface UserBalances {
+  grant: number;
+  deposit: number;
+  card: number;
+}
+
+export type UserCardNetwork = typeof UserCardNetwork[keyof typeof UserCardNetwork];
+
+
+export const UserCardNetwork = {
+  Visa: 'Visa',
+  Mastercard: 'Mastercard',
+} as const;
+
+export type UserCardKind = typeof UserCardKind[keyof typeof UserCardKind];
+
+
+export const UserCardKind = {
+  Virtual: 'Virtual',
+  Physical: 'Physical',
+} as const;
+
+export type UserCardStatus = typeof UserCardStatus[keyof typeof UserCardStatus];
+
+
+export const UserCardStatus = {
+  Active: 'Active',
+  Frozen: 'Frozen',
+  Pending: 'Pending',
+} as const;
+
+export interface UserCard {
+  id: string;
+  network: UserCardNetwork;
+  kind: UserCardKind;
+  lastFour: string;
+  status: UserCardStatus;
+  balance: number;
+}
+
+export interface ApplicantAccount {
+  status: ApplicantAccountStatus;
+  platformFrozen: boolean;
+  /**
+     * @minimum 1
+     * @maximum 3
+     */
+  tier: number;
+  verificationLevel: ApplicantAccountVerificationLevel;
+  permissions: UserPermissions;
+  balances: UserBalances;
+  availableToWithdraw: number;
+  cards: UserCard[];
+  transactions: ApplicantTransaction[];
+}
+
+export type ApplicantRequestInputKind = typeof ApplicantRequestInputKind[keyof typeof ApplicantRequestInputKind];
+
+
+export const ApplicantRequestInputKind = {
+  Deposit: 'Deposit',
+  Withdrawal: 'Withdrawal',
+} as const;
+
+export interface ApplicantRequestInput {
+  kind: ApplicantRequestInputKind;
+  /** @minimum 0.01 */
+  amount: number;
+  /** @maxLength 240 */
+  note?: string;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -186,46 +332,6 @@ export interface AdminUsersPage {
   total: number;
 }
 
-export interface UserBalances {
-  grant: number;
-  deposit: number;
-  card: number;
-}
-
-export type UserCardNetwork = typeof UserCardNetwork[keyof typeof UserCardNetwork];
-
-
-export const UserCardNetwork = {
-  Visa: 'Visa',
-  Mastercard: 'Mastercard',
-} as const;
-
-export type UserCardKind = typeof UserCardKind[keyof typeof UserCardKind];
-
-
-export const UserCardKind = {
-  Virtual: 'Virtual',
-  Physical: 'Physical',
-} as const;
-
-export type UserCardStatus = typeof UserCardStatus[keyof typeof UserCardStatus];
-
-
-export const UserCardStatus = {
-  Active: 'Active',
-  Frozen: 'Frozen',
-  Pending: 'Pending',
-} as const;
-
-export interface UserCard {
-  id: string;
-  network: UserCardNetwork;
-  kind: UserCardKind;
-  lastFour: string;
-  status: UserCardStatus;
-  balance: number;
-}
-
 export type KycDocumentStatus = typeof KycDocumentStatus[keyof typeof KycDocumentStatus];
 
 
@@ -241,12 +347,6 @@ export interface KycDocument {
   kind: string;
   status: KycDocumentStatus;
   confidence: number;
-}
-
-export interface UserPermissions {
-  emailNotifications: boolean;
-  withdrawalKycRequired: boolean;
-  depositKycRequired: boolean;
 }
 
 export interface AuditEntry {

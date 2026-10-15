@@ -101,6 +101,77 @@ export const UpdateApplicantProfileResponse = zod.object({
 
 
 /**
+ * @summary Get the applicant's balances, cards and money movements
+ */
+export const getApplicantAccountResponseTierMax = 3;
+
+
+
+export const GetApplicantAccountResponse = zod.object({
+  "status": zod.enum(['Active', 'Frozen']),
+  "platformFrozen": zod.boolean(),
+  "tier": zod.number().int().min(1).max(getApplicantAccountResponseTierMax),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "permissions": zod.object({
+  "emailNotifications": zod.boolean(),
+  "withdrawalKycRequired": zod.boolean(),
+  "depositKycRequired": zod.boolean()
+}),
+  "balances": zod.object({
+  "grant": zod.number(),
+  "deposit": zod.number(),
+  "card": zod.number()
+}),
+  "availableToWithdraw": zod.number(),
+  "cards": zod.array(zod.object({
+  "id": zod.string(),
+  "network": zod.enum(['Visa', 'Mastercard']),
+  "kind": zod.enum(['Virtual', 'Physical']),
+  "lastFour": zod.string(),
+  "status": zod.enum(['Active', 'Frozen', 'Pending']),
+  "balance": zod.number()
+})),
+  "transactions": zod.array(zod.object({
+  "id": zod.string(),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up']),
+  "account": zod.enum(['grant', 'deposit', 'card']),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "description": zod.string(),
+  "status": zod.enum(['Pending', 'Completed', 'Declined']),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Submit a demo deposit or withdrawal request
+ */
+export const createApplicantRequestBodyAmountMin = 0.01;
+
+export const createApplicantRequestBodyNoteMax = 240;
+
+
+
+export const CreateApplicantRequestBody = zod.object({
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "amount": zod.number().min(createApplicantRequestBodyAmountMin),
+  "note": zod.string().max(createApplicantRequestBodyNoteMax).optional()
+})
+
+export const CreateApplicantRequestResponse = zod.object({
+  "id": zod.string(),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up']),
+  "account": zod.enum(['grant', 'deposit', 'card']),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "description": zod.string(),
+  "status": zod.enum(['Pending', 'Completed', 'Declined']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Get platform operations overview
  */
 export const GetAdminDashboardResponse = zod.object({

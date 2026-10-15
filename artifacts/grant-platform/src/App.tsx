@@ -8,6 +8,8 @@ import { DemoProvider } from '@/lib/demo-state';
 import {
   DashboardPage, GrantsPage, ApplicationsPage, CardsPage, TransactionsPage, WithdrawalsPage, DepositsPage, SettingsPage,
 } from '@/pages/applicant';
+import { GrantSearchPage, FundingTrackerPage, ReportsPage, MilestonesPage, HelpPage } from '@/pages/applicant-more';
+import { Layout } from '@/components/shell';
 import {
   AdminOverviewPage, AdminUsersPage, AdminUserPage, AdminTransactionsPage, AdminDepositsPage, AdminWithdrawalsPage, AdminKycPage, AdminSettingsPage,
 } from '@/pages/admin';
@@ -21,7 +23,10 @@ import {
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });
 
 function Router() {
+  const [loc] = useLocation();
+  const admin = loc === '/admin' || loc.startsWith('/admin/');
   return (
+    <Layout key={admin ? 'admin' : 'user'} admin={admin}>
     <RoutedErrorBoundary>
       <Switch>
         <Route path="/" component={DashboardPage} />
@@ -33,6 +38,11 @@ function Router() {
         <Route path="/withdrawals" component={WithdrawalsPage} />
         <Route path="/deposits" component={DepositsPage} />
         <Route path="/settings" component={SettingsPage} />
+        <Route path="/grant-search" component={GrantSearchPage} />
+        <Route path="/funding-tracker" component={FundingTrackerPage} />
+        <Route path="/reports" component={ReportsPage} />
+        <Route path="/milestones" component={MilestonesPage} />
+        <Route path="/help" component={HelpPage} />
         <Route path="/admin" component={AdminOverviewPage} />
         <Route path="/admin/users" component={AdminUsersPage} />
         <Route path="/admin/users/:userId" component={AdminUserPage} />
@@ -44,6 +54,7 @@ function Router() {
         <Route component={NotFound} />
       </Switch>
     </RoutedErrorBoundary>
+    </Layout>
   );
 }
 
