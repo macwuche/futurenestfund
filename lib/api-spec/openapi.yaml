@@ -179,6 +179,139 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApplicationDetail" }
+  /applicant/avatar:
+    post:
+      operationId: uploadApplicantAvatar
+      tags: [applicant]
+      summary: Upload a profile photo (JPEG, PNG or WebP, re-encoded on the server)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/FileUpload" }
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicantProfile" }
+        "400":
+          description: File or request refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    delete:
+      operationId: deleteApplicantAvatar
+      tags: [applicant]
+      summary: Remove the profile photo
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicantProfile" }
+  /applicant/kyc:
+    get:
+      operationId: getApplicantKyc
+      tags: [applicant]
+      summary: Get the applicant's identity verification status and current documents
+      responses:
+        "200":
+          description: Verification status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicantKyc" }
+  /applicant/kyc/documents:
+    post:
+      operationId: uploadApplicantKycDocument
+      tags: [applicant]
+      summary: Upload or replace an identity document (image or PDF)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/KycUpload" }
+      responses:
+        "201":
+          description: Document stored and queued for review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicantKyc" }
+        "400":
+          description: File or request refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /applicant/applications/{applicationId}/documents:
+    post:
+      operationId: uploadApplicantApplicationDocument
+      tags: [applicant]
+      summary: Attach a proposal document (PDF or Word) to an application
+      parameters:
+        - { name: applicationId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/FileUpload" }
+      responses:
+        "201":
+          description: Updated application
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicationDetail" }
+        "400":
+          description: File or request refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /applicant/applications/{applicationId}/documents/{fileId}:
+    delete:
+      operationId: deleteApplicantApplicationDocument
+      tags: [applicant]
+      summary: Remove an attached document while the application can still be edited
+      parameters:
+        - { name: applicationId, in: path, required: true, schema: { type: string } }
+        - { name: fileId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Updated application
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicationDetail" }
+        "400":
+          description: File or request refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /applicant/files/{fileId}:
+    get:
+      operationId: getApplicantFile
+      tags: [applicant]
+      summary: Download one of the applicant's own files
+      parameters:
+        - { name: fileId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: File contents
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /applicant/milestones:
     get:
       operationId: listApplicantMilestones
@@ -364,6 +497,24 @@ paths:
                 $ref: "#/components/schemas/UserBalances"
         "404":
           description: User not found
+  /admin/files/{fileId}:
+    get:
+      operationId: getAdminFile
+      tags: [admin]
+      summary: Download any user's file for review
+      parameters:
+        - { name: fileId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: File contents
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /admin/system/freeze:
     patch:
       operationId: updateGlobalFreeze
@@ -441,6 +592,7 @@ components:
         verified: { type: boolean }
         phone: { type: string }
         telegram: { type: string }
+        avatarUrl: { type: string, description: "Same-origin URL of the profile photo; absent when none is set" }
       required: [id, name, email, organization, verified, phone, telegram]
     ApplicantProfileUpdate:
       type: object
@@ -484,10 +636,14 @@ components:
             updatedAt: { type: string, format: date-time }
             canWithdraw: { type: boolean }
             canRespond: { type: boolean }
+            canAttach: { type: boolean, description: "Whether documents can still be attached or removed" }
+            documents:
+              type: array
+              items: { $ref: "#/components/schemas/StoredDocument" }
             events:
               type: array
               items: { $ref: "#/components/schemas/ApplicationEvent" }
-          required: [updatedAt, canWithdraw, canRespond, events]
+          required: [updatedAt, canWithdraw, canRespond, canAttach, documents, events]
     ApplicationResponseInput:
       type: object
       properties:
@@ -634,7 +790,8 @@ components:
         grantBalance: { type: number }
         depositBalance: { type: number }
         joinedAt: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
-      required: [id, name, email, organization, tier, verificationLevel, status, grantBalance, depositBalance, joinedAt]
+        pendingKycDocuments: { type: integer, description: "Current identity documents awaiting review" }
+      required: [id, name, email, organization, tier, verificationLevel, status, grantBalance, depositBalance, joinedAt, pendingKycDocuments]
     AdminUsersPage:
       type: object
       properties:
@@ -665,10 +822,44 @@ components:
       properties:
         id: { type: string }
         name: { type: string }
-        kind: { type: string }
+        kind: { type: string, enum: [Government ID, Proof of address] }
         status: { type: string, enum: [Verified, Pending, Rejected] }
-        confidence: { type: number }
-      required: [id, name, kind, status, confidence]
+        sample: { type: boolean, description: "Seeded sample document with no file" }
+        confidence: { type: number, description: "Demonstration OCR score; only present on sample documents" }
+        url: { type: string, description: "Same-origin download URL for uploaded documents" }
+        mimeType: { type: string }
+        submittedAt: { type: string, format: date-time }
+      required: [id, name, kind, status, sample, submittedAt]
+    ApplicantKyc:
+      type: object
+      properties:
+        verificationLevel: { type: string, enum: [Verified, Pending, Rejected, Unsubmitted] }
+        documents:
+          type: array
+          description: Current document per kind (replaced ones are omitted)
+          items: { $ref: "#/components/schemas/KycDocument" }
+      required: [verificationLevel, documents]
+    StoredDocument:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        mimeType: { type: string }
+        sizeBytes: { type: integer }
+        url: { type: string }
+        uploadedAt: { type: string, format: date-time }
+      required: [id, name, mimeType, sizeBytes, url, uploadedAt]
+    FileUpload:
+      type: object
+      properties:
+        file: { type: string, format: binary }
+      required: [file]
+    KycUpload:
+      type: object
+      properties:
+        kind: { type: string, enum: [Government ID, Proof of address] }
+        file: { type: string, format: binary }
+      required: [kind, file]
     UserPermissions:
       type: object
       properties:
@@ -694,6 +885,7 @@ components:
         telegram: { type: string }
         organization: { type: string }
         maskedId: { type: string }
+        avatarUrl: { type: string }
         tier: { type: integer, minimum: 1, maximum: 3 }
         verificationLevel: { type: string, enum: [Verified, Pending, Rejected, Unsubmitted] }
         status: { type: string, enum: [Active, Frozen] }

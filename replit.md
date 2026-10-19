@@ -12,6 +12,7 @@ This is an explicitly labeled **interactive demo**, not a production financial s
 - Drizzle sample schema: `lib/db/src/schema/demo-*.ts`
 - Sample seeding: `artifacts/api-server/src/lib/demoSeed.ts`
 - Workspace behavior/transactions: `artifacts/api-server/src/lib/demoWorkspace.ts`
+- Applicant records (applications, milestones): `artifacts/api-server/src/lib/applicantRecords.ts`; uploads: `uploads.ts`, `kyc.ts`, `avatars.ts`
 
 ## Run and verify
 
@@ -31,7 +32,8 @@ The supplied documents contain generic Next.js instructions, but the user's expl
 - Profile edits, tier/permission updates, account freezes, global freeze and sample balance top-ups persist in Postgres and create append-only application audit records.
 - Money is stored in integer cents. Sample ledger changes and audit writes share a transaction, using row locks. Global freeze and individual account freeze block sample top-ups.
 - Demo tables have RLS enabled without public policies; only the API's database connection accesses them.
-- The public demo API is not production-secure account management. Real auth/roles, ownership enforcement, two-person approvals, actual KYC/OCR, file handling, Resend delivery and live grant workflows are not enabled yet.
+- The public demo API is not production-secure account management. Real auth/roles, two-person approvals, KYC review decisions, actual OCR, Resend delivery and live grant workflows are not enabled yet. Applicant endpoints scope data through `currentUserId()` (still the demo applicant until sign-in exists).
+- Uploads (profile photos, identity documents, proposal files) are written to the API server's disk in `UPLOAD_DIR` (default `artifacts/api-server/uploads/`, git-ignored), with metadata in `demo_files`. The server checks real file types from the bytes, re-encodes images with sharp (strips EXIF/GPS, caps pixels), refuses PDFs with scripts/attachments and macro Word files, caps files at 10 MB, and serves them owner-only with a sandbox CSP. That disk is not durable on Replit deployments; a deployment needs persistent storage before real use. The UI asks users to upload sample documents only.
 - No payment processor or card network is connected. Any card, confidence score, grant/application, chart or document shown is sample data.
 - Do not describe a demonstration confidence score as real OCR or the preview role switch as sign-in.
 

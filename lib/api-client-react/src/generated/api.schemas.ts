@@ -163,6 +163,8 @@ export interface ApplicantProfile {
   verified: boolean;
   phone: string;
   telegram: string;
+  /** Same-origin URL of the profile photo; absent when none is set */
+  avatarUrl?: string;
 }
 
 export interface ApplicantProfileUpdate {
@@ -224,10 +226,22 @@ export interface ApplicationEvent {
   createdAt: string;
 }
 
+export interface StoredDocument {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+  uploadedAt: string;
+}
+
 export type ApplicationDetail = ApplicantApplication & {
   updatedAt: string;
   canWithdraw: boolean;
   canRespond: boolean;
+  /** Whether documents can still be attached or removed */
+  canAttach: boolean;
+  documents: StoredDocument[];
   events: ApplicationEvent[];
 };
 
@@ -415,12 +429,22 @@ export interface AdminUserSummary {
   depositBalance: number;
   /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
   joinedAt: string;
+  /** Current identity documents awaiting review */
+  pendingKycDocuments: number;
 }
 
 export interface AdminUsersPage {
   items: AdminUserSummary[];
   total: number;
 }
+
+export type KycDocumentKind = typeof KycDocumentKind[keyof typeof KycDocumentKind];
+
+
+export const KycDocumentKind = {
+  Government_ID: 'Government ID',
+  Proof_of_address: 'Proof of address',
+} as const;
 
 export type KycDocumentStatus = typeof KycDocumentStatus[keyof typeof KycDocumentStatus];
 
@@ -434,9 +458,49 @@ export const KycDocumentStatus = {
 export interface KycDocument {
   id: string;
   name: string;
-  kind: string;
+  kind: KycDocumentKind;
   status: KycDocumentStatus;
-  confidence: number;
+  /** Seeded sample document with no file */
+  sample: boolean;
+  /** Demonstration OCR score; only present on sample documents */
+  confidence?: number;
+  /** Same-origin download URL for uploaded documents */
+  url?: string;
+  mimeType?: string;
+  submittedAt: string;
+}
+
+export type ApplicantKycVerificationLevel = typeof ApplicantKycVerificationLevel[keyof typeof ApplicantKycVerificationLevel];
+
+
+export const ApplicantKycVerificationLevel = {
+  Verified: 'Verified',
+  Pending: 'Pending',
+  Rejected: 'Rejected',
+  Unsubmitted: 'Unsubmitted',
+} as const;
+
+export interface ApplicantKyc {
+  verificationLevel: ApplicantKycVerificationLevel;
+  /** Current document per kind (replaced ones are omitted) */
+  documents: KycDocument[];
+}
+
+export interface FileUpload {
+  file: Blob;
+}
+
+export type KycUploadKind = typeof KycUploadKind[keyof typeof KycUploadKind];
+
+
+export const KycUploadKind = {
+  Government_ID: 'Government ID',
+  Proof_of_address: 'Proof of address',
+} as const;
+
+export interface KycUpload {
+  kind: KycUploadKind;
+  file: Blob;
 }
 
 export interface AuditEntry {
@@ -472,6 +536,7 @@ export interface AdminUserProfile {
   telegram: string;
   organization: string;
   maskedId: string;
+  avatarUrl?: string;
   /**
      * @minimum 1
      * @maximum 3

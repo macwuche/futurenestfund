@@ -14,12 +14,20 @@ import {
   ListApplicantMilestonesResponse, CreateApplicantMilestoneBody, UpdateApplicantMilestoneParams, UpdateApplicantMilestoneBody,
   DeleteApplicantMilestoneParams, CreateApplicantMilestoneResponse, UpdateApplicantMilestoneResponse, ListApplicantNotificationsResponse, MarkApplicantNotificationsReadResponse,
 } from "@workspace/api-zod";
+import {
+  UploadApplicantAvatarResponse, DeleteApplicantAvatarResponse, GetApplicantKycResponse, UploadApplicantKycDocumentBody, UploadApplicantKycDocumentResponse,
+  UploadApplicantApplicationDocumentParams, UploadApplicantApplicationDocumentResponse, DeleteApplicantApplicationDocumentParams,
+  DeleteApplicantApplicationDocumentResponse, GetApplicantFileParams, GetAdminFileParams,
+} from "@workspace/api-zod";
 import { db, demoProfilesTable } from "@workspace/db";
+import { receiveFile, findFile, sendFile } from "../lib/uploads";
+import { applicantKyc, uploadKycDocument } from "../lib/kyc";
+import { setAvatar, clearAvatar } from "../lib/avatars";
 import { currentUserId } from "../lib/currentUser";
 import { listNotifications, markAllRead } from "../lib/notifications";
 import {
   listApplications, applicationDetail, createApplication, withdrawApplication, respondToApplication,
-  listMilestones, createMilestone, setMilestoneDone, deleteMilestone,
+  listMilestones, createMilestone, setMilestoneDone, deleteMilestone, attachApplicationDocument, removeApplicationDocument,
 } from "../lib/applicantRecords";
 import { eq } from "drizzle-orm";
 import { adminDashboard, applicantDashboard, applicantProfile, demoApplicantId, listUsers, getUser, changeProfile, adjustBalance, changeGlobalFreeze, applicantAccount, createApplicantRequest, DemoInputError } from "../lib/demoWorkspace";
@@ -85,6 +93,43 @@ router.post("/applicant/applications/:applicationId/respond", async (req, res): 
   res.json(GetApplicantApplicationResponse.parse(detail));
 });
 
+router.post("/applicant/applications/:applicationId/documents", receiveFile, async (req, res): Promise<void> => {
+  const params = UploadApplicantApplicationDocumentParams.safeParse(req.params);
+  const detail = params.success ? await attachApplicationDocument(currentUserId(req), params.data.applicationId, req.file) : undefined;
+  if (!detail) { res.status(404).json({ error: "Application not found." }); return; }
+  res.status(201).json(UploadApplicantApplicationDocumentResponse.parse(detail));
+});
+router.delete("/applicant/applications/:applicationId/documents/:fileId", async (req, res): Promise<void> => {
+  const params = DeleteApplicantApplicationDocumentParams.safeParse(req.params);
+  const detail = params.success ? await removeApplicationDocument(currentUserId(req), params.data.applicationId, params.data.fileId) : undefined;
+  if (!detail) { res.status(404).json({ error: "Document not found." }); return; }
+  res.json(DeleteApplicantApplicationDocumentResponse.parse(detail));
+});
+
+/* ---------- files, profile photo and identity documents ---------- */
+router.get("/applicant/files/:fileId", async (req, res): Promise<void> => {
+  const params = GetApplicantFileParams.safeParse(req.params);
+  await sendFile(req, res, params.success ? await findFile(params.data.fileId, currentUserId(req)) : undefined);
+});
+router.post("/applicant/avatar", receiveFile, async (req, res): Promise<void> => {
+  const id = currentUserId(req);
+  await setAvatar(id, req.file);
+  res.json(UploadApplicantAvatarResponse.parse(await profileOf(id)));
+});
+router.delete("/applicant/avatar", async (req, res): Promise<void> => {
+  const id = currentUserId(req);
+  await clearAvatar(id);
+  res.json(DeleteApplicantAvatarResponse.parse(await profileOf(id)));
+});
+router.get("/applicant/kyc", async (req, res): Promise<void> => {
+  res.json(GetApplicantKycResponse.parse(await applicantKyc(currentUserId(req))));
+});
+router.post("/applicant/kyc/documents", receiveFile, async (req, res): Promise<void> => {
+  const input = UploadApplicantKycDocumentBody.pick({ kind: true }).safeParse(req.body ?? {});
+  if (!input.success) { res.status(400).json({ error: "Choose which document this is: Government ID or Proof of address." }); return; }
+  res.status(201).json(UploadApplicantKycDocumentResponse.parse(await uploadKycDocument(currentUserId(req), input.data.kind, req.file)));
+});
+
 /* ---------- milestones ---------- */
 router.get("/applicant/milestones", async (req, res): Promise<void> => {
   res.json(ListApplicantMilestonesResponse.parse(await listMilestones(currentUserId(req))));
@@ -114,6 +159,11 @@ router.get("/applicant/notifications", async (req, res): Promise<void> => {
 });
 router.post("/applicant/notifications/read", async (req, res): Promise<void> => {
   res.json(MarkApplicantNotificationsReadResponse.parse(await markAllRead(currentUserId(req))));
+});
+
+router.get("/admin/files/:fileId", async (req, res): Promise<void> => {
+  const params = GetAdminFileParams.safeParse(req.params);
+  await sendFile(req, res, params.success ? await findFile(params.data.fileId) : undefined);
 });
 
 router.get("/admin/dashboard", async (_req, res): Promise<void> => {
@@ -163,3 +213,9 @@ router.patch("/admin/system/freeze", async (req, res): Promise<void> => {
 });
 
 export default router;
+
+async function profileOf(id: string) {
+  const [person] = await db.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, id));
+  if (!person) throw new Error("Profile missing");
+  return applicantProfile(person);
+}

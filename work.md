@@ -634,3 +634,94 @@ Still open after Phase 1:
 - Saved grants and setup-card progress are still per-browser.
 - §1 "What is real vs. fake" above describes the state on 2026-10-15. Applications, milestones and notifications have since moved to the server.
 - Next: Phase 2 (U6–U9: files and identity) or Phase 3 (admin operations). Decisions 1–4 in §8e are still open.
+
+### 2026-10-19: Phase 2 done (U6–U9: files and identity)
+
+**U6: upload foundation** (`api-server/src/lib/uploads.ts`)
+- Added `multer` (memory storage) and `sharp` to the API server.
+- Files are written to `UPLOAD_DIR`, by default `artifacts/api-server/uploads/` (git-ignored). Each gets a random server-side name and file mode 0600.
+- New table `demo_files` records the owner, purpose, application, display name, type, size and sha256.
+- Validation:
+  - one file per request, 10 MB maximum
+  - the real type is detected from the file's bytes; the browser's claim is ignored
+  - images (JPG, PNG, WebP) are re-encoded with sharp: rotation applied, metadata (EXIF/GPS) removed, input capped at 50 M pixels (stops "decompression bomb" images), resized (avatar 256px WebP, documents ≤ 2400px JPEG)
+  - PDFs must be complete, and are refused if they contain JavaScript, launch actions, embedded files or rich media
+  - `.docx` files must really be Word documents; macro-enabled files are refused
+  - maximum 200 files per user
+- Writes are atomic: the file is written, then its row is inserted in the same transaction as the business change, and the file is deleted if that transaction fails. Tests confirmed refused uploads leave no orphan files.
+- Downloads:
+  - `GET /applicant/files/:id` is owner-only; `GET /admin/files/:id` serves any file
+  - headers: `nosniff`, a sandbox CSP and private caching
+  - images display inline; documents always download as attachments
+- `lib/api-zod/tsconfig.json` now includes the `dom` lib, because the generated multipart schemas use `Blob`.
+
+**U7: KYC submission** (`lib/kyc.ts`)
+- New table `demo_kyc_documents`. The sample documents moved there from the profile JSONB, which is now legacy and unused.
+- A replaced document is marked `superseded` and kept for the audit trail.
+- `GET /applicant/kyc` and `POST /applicant/kyc/documents` (fields: `kind` and `file`).
+- Verification rules:
+  - Unsubmitted or Rejected → Pending once both document kinds are on file
+  - a Verified user who uploads a replacement stays Verified while it's reviewed
+- Each upload writes an audit row and a notification linking to `/settings#verification`.
+- Settings has a new **Identity verification** section: level badge, explanation, one row per document, Upload/Replace, View. It warns users to upload sample or redacted documents only.
+- Admin side:
+  - the inspector shows the real files (image preview, PDF download, "not machine-checked")
+  - sample documents keep their demo OCR score
+  - users now carry `pendingKycDocuments`
+  - the KYC page also lists verified users with a document awaiting review
+  - the dashboard's Pending KYC counts them too
+- **Approve/reject is not built yet. That's A8 in Phase 3.**
+
+**U8: proposal upload**
+- New Application has an optional PDF/Word attachment. If the upload fails, the application is still created and the user is told to retry from its page.
+- The application detail page has a **Documents** section:
+  - attach (maximum 5), download, and remove with a confirmation
+  - adding and removing are allowed only while the application is Submitted, Under review or Changes requested
+  - the server re-checks this under a row lock
+- `ApplicationDetail` gained `documents` and `canAttach`.
+- Admins can't see proposal files yet. They'll appear in application review (A9).
+
+**U9: profile photo** (`lib/avatars.ts`)
+- `POST` / `DELETE /applicant/avatar`. The old file is deleted once the replacement is committed.
+- The photo shows in Settings (camera button, Remove photo), the sidebar card, the phone dashboard header and the admin inspector.
+- The admin's own avatar picker is still preview-only (A4).
+
+Also:
+- Help Centre has new answers about uploads.
+- A withdrawal refused for missing KYC now points the user to Settings.
+- Bigger touch targets for file controls on phones.
+
+Tested (2026-10-19). The API under test ran as a temporary copy on :8099, because the managed API workflow keeps running the old build in memory until it restarts.
+- **API checks: 44/44 pass**, plus EXIF-stripping and response-header checks. Covered:
+  - avatar: PNG/JPG accepted and re-encoded to a 256px WebP; GIF, PDF, fake JPEG and decompression-bomb image refused; missing file, wrong field name and two files refused; replacing and removing delete the old file
+  - KYC: kind validation; DOCX, PDF with JavaScript, truncated PDF and an 11 MB file refused; EXIF marker present in the original and gone from the stored copy; inline vs `?download`; Unsubmitted → still Unsubmitted after one document → Pending after both; withdrawal blocked while Pending; Verified user stays Verified after a replacement
+  - admin: pending counts, document URLs, can open any file
+  - ownership: another user's file is a 404 from the applicant endpoint and a 200 from the admin endpoint; bad and unknown file IDs give 404
+  - application documents: PDF and DOCX accepted; macro DOCX, plain ZIP and images refused; a 6th document refused; Approved application refused; unknown application 404; remove, remove again (404), and remove via the wrong application (404); audit rows written
+- **Desktop click tests: 25/25 pass.** Covered:
+  - photo upload, reload, the 256px square, remove
+  - client-side and server-side refusals with clear messages
+  - KYC replace and View; the Unsubmitted → Pending flow
+  - notification link scrolling to the section
+  - proposal attached from New Application
+  - download headers
+  - attach, refuse and remove on the application page
+  - documents locked on decided and withdrawn applications
+  - admin preview, PDF download, KYC queue and dashboard count
+  - Help Centre
+- **Phone click tests: 6/6 pass.**
+- **Regression on the new build:** Phase 1 desktop 26/26, phone 10/10, all-routes smoke test 46/46.
+- Two bugs found and fixed during testing:
+  - a proposal uploaded from New Application didn't show up until another action refreshed the page
+  - `/settings#verification` was scrolled back to the top by the layout
+- The DB was backed up before testing and restored afterwards. Test uploads went to the scratchpad and were deleted.
+- New local tooling in `.unlazy/`:
+  - `proxy.mjs` (routes `/api` to a chosen API port, so real multipart uploads work)
+  - `make-fixtures.sh`, `phase2-*.mjs`, `restore-demo-db.sh`, `README.md`
+
+**Needs a restart of the API Server workflow.** It installs `sharp`/`multer`, seeds the KYC documents and serves the new endpoints. Until then, Settings → Identity verification, photo upload and document upload return errors on the live preview. The new DB tables are already pushed (Replit dev DB, not Supabase).
+
+Still open after Phase 2:
+- KYC approve/reject (A8) and admin access to proposal files (A9). Both are Phase 3.
+- Uploaded files live on local disk. Replit deployments don't keep that disk, so persistent storage is needed before real use (P4).
+- No virus scanning. The PDF/DOCX checks are structural only, and files are only ever served as downloads.

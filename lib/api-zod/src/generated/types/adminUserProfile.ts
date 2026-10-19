@@ -21,6 +21,7 @@ export interface AdminUserProfile {
   telegram: string;
   organization: string;
   maskedId: string;
+  avatarUrl?: string;
   /**
      * @minimum 1
      * @maximum 3

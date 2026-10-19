@@ -24,4 +24,6 @@ export interface AdminUserSummary {
   depositBalance: number;
   /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
   joinedAt: string;
+  /** Current identity documents awaiting review */
+  pendingKycDocuments: number;
 }

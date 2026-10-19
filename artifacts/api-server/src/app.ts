@@ -4,6 +4,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { DemoInputError } from "./lib/demoWorkspace";
 import { RecordInputError } from "./lib/applicantRecords";
+import { UploadError } from "./lib/uploads";
 
 const app: Express = express();
 
@@ -37,7 +38,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err instanceof DemoInputError || err instanceof RecordInputError) {
+  if (err instanceof DemoInputError || err instanceof RecordInputError || err instanceof UploadError) {
     res.status(400).json({ error: err.message });
     return;
   }

@@ -398,7 +398,9 @@ const faqs: { topic: (typeof topics)[number]; q: string; a: string }[] = [
   { topic: 'Funding & payments', q: 'Where can I see all my money movements?', a: 'The Transactions page lists deposits, withdrawals and top-ups with their status. You can also download them as CSV from Reports.' },
   { topic: 'Cards', q: 'When will my physical card arrive?', a: 'A physical card shows "Being issued" until it is activated. Your virtual card can be used in the meantime.' },
   { topic: 'Account & security', q: 'How do I change my email or organization?', a: 'Email and organization are locked to protect your account. Contact support and we’ll update them after confirming your identity.' },
-  { topic: 'Account & security', q: 'What is identity verification (KYC)?', a: 'We check a government ID and proof of address before larger money movements. Your verification status is shown in Settings → Account.' },
+  { topic: 'Account & security', q: 'What is identity verification (KYC)?', a: 'We check a government ID and proof of address before money can be withdrawn. Upload both in Settings → Identity verification (images or PDF, up to 10 MB). An administrator reviews them and you are notified of the result.' },
+  { topic: 'Applications', q: 'How do I attach my proposal?', a: 'Add a PDF or Word (.docx) file when you create an application, or open the application and choose Attach document. You can attach up to 5 files and remove them until a decision is made.' },
+  { topic: 'Account & security', q: 'How do I change my profile photo?', a: 'In Settings, select the camera button on your photo and choose a JPG, PNG or WebP image. Photos are cropped to a square and re-saved without location data.' },
 ];
 export function HelpPage() {
   return <Shell title="Help Centre"><HelpBody /></Shell>;

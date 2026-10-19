@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { AlertTriangle, Inbox, RefreshCw, X } from 'lucide-react';
 
 export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(' ');
@@ -131,4 +131,39 @@ export function Field({ label, error, children }: { label: string; error?: strin
       {error && <span role="alert" className="mt-1 block text-xs text-red-700">{error}</span>}
     </label>
   );
+}
+
+/** Round profile photo with an initial fallback (also used while the image fails to load). */
+export function Avatar({ name, url, className, testid }: { name: string; url?: string; className: string; testid?: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [url]);
+  return (
+    <span data-testid={testid} className={cx('grid shrink-0 place-items-center overflow-hidden rounded-full bg-[#1E3A8A] font-semibold text-white', className)}>
+      {url && !failed ? <img src={url} alt="" className="h-full w-full object-cover" onError={() => setFailed(true)} /> : name.charAt(0)}
+    </span>
+  );
+}
+
+export const fileSize = (bytes: number) =>
+  bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+/** Upload kinds mirror the server's rules; the server re-checks the real file contents. */
+export const FILE_RULES = {
+  image: { accept: 'image/jpeg,image/png,image/webp', types: ['image/jpeg', 'image/png', 'image/webp'], label: 'a JPG, PNG or WebP image' },
+  identity: { accept: 'image/jpeg,image/png,image/webp,application/pdf', types: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'], label: 'a JPG, PNG or WebP image, or a PDF' },
+  proposal: {
+    accept: '.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    types: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'], label: 'a PDF or Word (.docx) document',
+  },
+} as const;
+const MAX_UPLOAD = 10 * 1024 * 1024;
+/** Quick client-side check so obvious mistakes fail before uploading. Returns an error message or ''. */
+export function checkFile(file: File, rule: keyof typeof FILE_RULES) {
+  const r = FILE_RULES[rule];
+  const ext = file.name.toLowerCase().split('.').pop() ?? '';
+  const typeOk = (r.types as readonly string[]).includes(file.type) || (rule === 'proposal' && ['pdf', 'docx'].includes(ext));
+  if (!typeOk) return `Choose ${r.label}.`;
+  if (file.size > MAX_UPLOAD) return 'Files must be 10 MB or smaller.';
+  if (file.size === 0) return 'This file is empty.';
+  return '';
 }

@@ -1,4 +1,4 @@
-import { db, demoProfilesTable, demoAuditTable, demoSettingsTable, demoApplicationsTable, demoApplicationEventsTable, demoMilestonesTable } from "@workspace/db";
+import { db, demoProfilesTable, demoAuditTable, demoSettingsTable, demoApplicationsTable, demoApplicationEventsTable, demoMilestonesTable, demoKycDocumentsTable } from "@workspace/db";
 
 export async function seedDemoData(): Promise<void> {
   await db.transaction(async (tx) => {
@@ -24,6 +24,12 @@ export async function seedDemoData(): Promise<void> {
       if (inserted.length) {
         await tx.insert(demoAuditTable).values({ profileId: person.id, action: "Sample profile created", actor: "Demo workspace" });
       }
+      // Sample identity documents (no file behind them; the OCR score is demonstration data).
+      const docStatus = person.verificationLevel === "Verified" ? "Verified" : "Pending";
+      await tx.insert(demoKycDocumentsTable).values([
+        { id: `${person.id}-id`, profileId: person.id, kind: "Government ID", name: "Government ID · sample", status: docStatus, sampleConfidence: 98.4, createdAt: new Date(`${person.joinedAt}T15:00:00Z`) },
+        { id: `${person.id}-bill`, profileId: person.id, kind: "Proof of address", name: "Utility bill · sample", status: docStatus, sampleConfidence: 96.1, createdAt: new Date(`${person.joinedAt}T15:00:00Z`) },
+      ]).onConflictDoNothing();
     }
     await tx.insert(demoSettingsTable).values({ id: "platform", frozen: false }).onConflictDoNothing();
 

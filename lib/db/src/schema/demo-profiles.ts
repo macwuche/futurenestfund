@@ -1,4 +1,4 @@
-import { pgTable, text, integer, jsonb, date } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, jsonb, date, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
 // Isolated sample data: never connect these records to real payment rails.
@@ -17,9 +17,11 @@ export const demoProfilesTable = pgTable("demo_profiles", {
   depositCents: integer("deposit_cents").notNull().default(0),
   cardCents: integer("card_cents").notNull().default(0),
   cards: jsonb("cards").notNull().default([]),
+  /** Legacy sample KYC data; documents now live in demo_kyc_documents. */
   documents: jsonb("documents").notNull().default([]),
   permissions: jsonb("permissions").notNull(),
   joinedAt: date("joined_at", { mode: "string" }).notNull(),
+  avatarFileId: uuid("avatar_file_id"),
 }).enableRLS();
 
 export const insertDemoProfileSchema = createInsertSchema(demoProfilesTable);

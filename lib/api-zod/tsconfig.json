@@ -5,7 +5,9 @@
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    // Generated multipart schemas use `zod.instanceof(Blob)`; Blob is global in Node 18+ but typed by the DOM lib.
+    "lib": ["es2022", "dom"]
   },
   "include": ["src"]
 }

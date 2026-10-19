@@ -1,15 +1,19 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, ne } from "drizzle-orm";
 import {
-  db, demoApplicationsTable, demoApplicationEventsTable, demoMilestonesTable, demoProfilesTable, demoAuditTable,
+  db, demoApplicationsTable, demoApplicationEventsTable, demoMilestonesTable, demoProfilesTable, demoAuditTable, demoFilesTable,
 } from "@workspace/db";
 import { notifyUser } from "./notifications";
+import { fileUrl, findFile, removeFile, storeUpload, type StoredFile } from "./uploads";
 
 /** Thrown for requests the user can fix; the app's error handler turns it into a 400. */
 export class RecordInputError extends Error {}
 
 type AppRow = typeof demoApplicationsTable.$inferSelect;
 const WITHDRAWABLE = ["Submitted", "Review", "Changes requested"];
+/** Documents can be added or removed until a decision is made. */
+const ATTACHABLE = WITHDRAWABLE;
+const MAX_DOCUMENTS = 5;
 
 export const applicationSummary = (a: AppRow) => ({
   id: a.id, title: a.title, category: a.category, status: a.status, amount: a.amountCents / 100, submittedAt: a.submittedAt.toISOString(),
@@ -32,11 +36,15 @@ export async function applicationDetail(profileId: string, id: string) {
   const [a] = await db.select().from(demoApplicationsTable).where(and(eq(demoApplicationsTable.id, id), eq(demoApplicationsTable.profileId, profileId)));
   if (!a) return undefined;
   const events = await db.select().from(demoApplicationEventsTable).where(eq(demoApplicationEventsTable.applicationId, id)).orderBy(asc(demoApplicationEventsTable.createdAt));
+  const files = await db.select().from(demoFilesTable)
+    .where(and(eq(demoFilesTable.applicationId, id), eq(demoFilesTable.profileId, profileId))).orderBy(asc(demoFilesTable.createdAt));
   return {
     ...applicationSummary(a),
     updatedAt: a.updatedAt.toISOString(),
     canWithdraw: WITHDRAWABLE.includes(a.status),
     canRespond: a.status === "Changes requested",
+    canAttach: ATTACHABLE.includes(a.status),
+    documents: files.map(storedDocument),
     events: events.map(e => ({ id: e.id, status: e.status, note: e.note, actor: e.actor, createdAt: e.createdAt.toISOString() })),
   };
 }
@@ -93,6 +101,43 @@ export async function respondToApplication(profileId: string, id: string, input:
     return true;
   });
   return done ? (await applicationDetail(profileId, id))! : undefined;
+}
+
+const storedDocument = (f: StoredFile) => ({
+  id: f.id, name: f.originalName, mimeType: f.mimeType, sizeBytes: f.sizeBytes, url: fileUrl("applicant", f.id), uploadedAt: f.createdAt.toISOString(),
+});
+
+async function ownedApplication(profileId: string, id: string) {
+  const [a] = await db.select().from(demoApplicationsTable).where(and(eq(demoApplicationsTable.id, id), eq(demoApplicationsTable.profileId, profileId)));
+  return a;
+}
+
+/** Attach a proposal document. Status and the per-application limit are checked again under a row lock. */
+export async function attachApplicationDocument(profileId: string, id: string, file: Express.Multer.File | undefined) {
+  const a = await ownedApplication(profileId, id);
+  if (!a) return undefined;
+  if (!ATTACHABLE.includes(a.status)) throw new RecordInputError(`Documents can't be added to an application that is ${a.status.toLowerCase()}.`);
+  const actor = await actorName(profileId);
+  await storeUpload(profileId, "proposal", file, async (stored, tx) => {
+    const [locked] = await tx.select().from(demoApplicationsTable).where(eq(demoApplicationsTable.id, id)).for("update");
+    if (!locked || !ATTACHABLE.includes(locked.status)) throw new RecordInputError("This application can no longer be changed.");
+    // Includes the row just inserted for this upload, hence `>`.
+    const existing = await tx.select({ id: demoFilesTable.id }).from(demoFilesTable).where(eq(demoFilesTable.applicationId, id));
+    if (existing.length > MAX_DOCUMENTS) throw new RecordInputError(`An application can have at most ${MAX_DOCUMENTS} documents.`);
+    await tx.update(demoApplicationsTable).set({ updatedAt: new Date() }).where(eq(demoApplicationsTable.id, id));
+    await tx.insert(demoAuditTable).values({ profileId, actor, action: `Document "${stored.originalName}" attached to ${id}` });
+  }, id);
+  return applicationDetail(profileId, id);
+}
+
+export async function removeApplicationDocument(profileId: string, id: string, fileId: string) {
+  const a = await ownedApplication(profileId, id);
+  const f = a ? await findFile(fileId, profileId) : undefined;
+  if (!a || !f || f.applicationId !== id) return undefined;
+  if (!ATTACHABLE.includes(a.status)) throw new RecordInputError(`Documents can't be removed from an application that is ${a.status.toLowerCase()}.`);
+  await db.insert(demoAuditTable).values({ profileId, actor: await actorName(profileId), action: `Document "${f.originalName}" removed from ${id}` });
+  await removeFile(f.id);
+  return applicationDetail(profileId, id);
 }
 
 /** Applications that count toward totals (withdrawn ones are kept for history but excluded). */

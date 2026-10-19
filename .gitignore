@@ -50,3 +50,6 @@ Thumbs.db
 
 # Local headless-browser test scripts (see replit.md)
 .unlazy/
+
+# Uploaded files written by the API server (UPLOAD_DIR)
+artifacts/api-server/uploads/

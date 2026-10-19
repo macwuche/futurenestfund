@@ -178,7 +178,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
     <div className="space-y-5">
       <section className={cx(card, 'flex flex-wrap items-center gap-4 p-5')} data-testid="section-user-header">
         <div className="relative">
-          <span className="grid h-16 w-16 place-items-center overflow-hidden rounded-full bg-[#111] font-display text-xl font-bold text-[#C6F432]">{avatar ? <img src={avatar} alt={`${u.name} avatar preview`} className="h-full w-full object-cover" /> : initials(u.name)}</span>
+          <span className="grid h-16 w-16 place-items-center overflow-hidden rounded-full bg-[#111] font-display text-xl font-bold text-[#C6F432]" data-testid="avatar-inspector">{avatar ?? u.avatarUrl ? <img src={avatar ?? u.avatarUrl} alt={avatar ? `${u.name} avatar preview` : `${u.name} profile photo`} className="h-full w-full object-cover" /> : initials(u.name)}</span>
           <button aria-label="Choose avatar (preview only, not uploaded)" title="Preview only, not uploaded" data-testid="button-avatar-upload" onClick={() => file.current?.click()} className="press absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full bg-[#C6F432] text-[#111] ring-2 ring-white"><Camera className="h-3.5 w-3.5" /></button>
           <input ref={file} type="file" accept="image/*" hidden data-testid="input-avatar-file" onChange={(e) => { const fl = e.target.files?.[0]; if (fl) { setAvatar(URL.createObjectURL(fl)); toast({ title: 'Avatar preview only', description: 'Not uploaded to any server.' }); } }} />
         </div>
@@ -246,10 +246,10 @@ function Inspector({ u }: { u: AdminUserProfile }) {
       <div className="grid gap-5 lg:grid-cols-2">
         <section className={cx(card, 'p-5')} data-testid="section-kyc">
           <h3 className="mb-3 font-display font-bold">KYC documents</h3>
-          <p className="mb-2 text-xs text-slate-500">Sample documents only. Nothing is uploaded to a server.</p>
+          <p className="mb-2 text-xs text-slate-500">Current document per type. Approve and reject arrive with the KYC review queue.</p>
           {u.documents.length === 0 ? <Empty title="No documents submitted" /> : u.documents.map((d) => (
             <button key={d.id} data-testid={`button-doc-${d.id}`} onClick={() => setDoc(d)} className="press mb-2 flex w-full items-center gap-3 rounded-xl border p-3 text-left transition hover:border-[#111] hover:bg-[#F7FADC]">
-              <FileText className="h-5 w-5" /><span className="min-w-0 flex-1"><span className="block truncate font-semibold">{d.name}</span><span className="block text-xs text-slate-500">{d.kind} · OCR confidence (demo) {d.confidence}%</span></span><StatusBadge status={d.status} />
+              <FileText className="h-5 w-5" /><span className="min-w-0 flex-1"><span className="block truncate font-semibold">{d.name}</span><span className="block text-xs text-slate-500">{d.kind} · {d.sample ? `Sample · OCR confidence (demo) ${d.confidence ?? 0}%` : `Uploaded ${dateFmt(d.submittedAt)} · not machine-checked`}</span></span><StatusBadge status={d.status} />
             </button>
           ))}
         </section>
@@ -261,16 +261,31 @@ function Inspector({ u }: { u: AdminUserProfile }) {
 
       <AdjustModal u={u} account={adj} onClose={() => setAdj(null)} onDone={refresh} />
       <Modal open={!!doc} onClose={() => setDoc(null)} title={doc?.name ?? 'Document'} testid="dialog-document">
-        {doc && (
+        {doc && (doc.sample ? (
           <div>
             <div className="relative grid aspect-[1.5/1] place-items-center overflow-hidden rounded-xl bg-[repeating-linear-gradient(45deg,#f1f5f9,#f1f5f9_10px,#e2e8f0_10px,#e2e8f0_20px)]">
               <span className="rotate-[-12deg] rounded border-2 border-slate-400 px-4 py-2 font-display text-2xl font-extrabold uppercase tracking-widest text-slate-400">Sample document</span>
             </div>
             <p className="mt-3 text-sm font-semibold" data-testid="text-doc-label">Sample document: {doc.kind}</p>
-            <div className="mt-2 h-2 rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#111]" style={{ width: `${doc.confidence}%` }} /></div>
-            <p className="mt-1 text-xs text-slate-500" data-testid="text-doc-confidence">OCR confidence {doc.confidence}% is demonstration data, not a real scan.</p>
+            <div className="mt-2 h-2 rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#111]" style={{ width: `${doc.confidence ?? 0}%` }} /></div>
+            <p className="mt-1 text-xs text-slate-500" data-testid="text-doc-confidence">OCR confidence {doc.confidence ?? 0}% is demonstration data, not a real scan.</p>
           </div>
-        )}
+        ) : (
+          <div>
+            {doc.mimeType?.startsWith('image/') ? (
+              <a href={doc.url} target="_blank" rel="noopener" className="block overflow-hidden rounded-xl border bg-slate-50">
+                <img src={doc.url} alt={`${doc.kind} uploaded by ${u.name}`} data-testid="img-doc-preview" className="max-h-[60dvh] w-full object-contain" />
+              </a>
+            ) : (
+              <div className="grid aspect-[1.5/1] place-items-center rounded-xl border bg-slate-50 text-center">
+                <div><FileText className="mx-auto h-10 w-10 text-slate-400" /><p className="mt-2 text-sm text-slate-600">PDF document</p></div>
+              </div>
+            )}
+            <p className="mt-3 text-sm font-semibold" data-testid="text-doc-label">{doc.kind}: {doc.name}</p>
+            <p className="mt-1 text-xs text-slate-500">Uploaded {dateFmt(doc.submittedAt)}. No OCR has been run on this file.</p>
+            <a href={doc.url} target="_blank" rel="noopener" data-testid="link-doc-open" className={cx(lime, 'mt-3 inline-flex text-xs')}>{doc.mimeType === 'application/pdf' ? 'Download PDF' : 'Open full size'}</a>
+          </div>
+        ))}
       </Modal>
     </div>
   );
@@ -342,7 +357,7 @@ export const AdminTransactionsPage = () => (
   )}</DashGate>
 );
 export const AdminKycPage = () => (
-  <UsersView title="KYC Page" filter={(u) => u.verificationLevel !== 'Verified'} cols={(u) => <><StatusBadge status={u.verificationLevel} /><Link href={`/admin/users/${u.id}`} data-testid={`link-review-${u.id}`} className={cx(lime, '!py-1.5 text-xs')}>Inspect documents</Link></>} />
+  <UsersView title="KYC Page" filter={(u) => u.verificationLevel !== 'Verified' || u.pendingKycDocuments > 0} cols={(u) => <><StatusBadge status={u.verificationLevel} /><Link href={`/admin/users/${u.id}`} data-testid={`link-review-${u.id}`} className={cx(lime, '!py-1.5 text-xs')}>Inspect documents</Link></>} />
 );
 function UsersViewInner({ cols }: { cols: (u: AdminUserSummary) => ReactNode }) {
   const q = useListAdminUsers();

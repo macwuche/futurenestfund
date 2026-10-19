@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -8,15 +8,17 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import {
   useUpdateApplicantProfile, useCreateApplicantRequest, useGetApplicantApplication, getGetApplicantApplicationQueryKey,
   useWithdrawApplicantApplication, useRespondToApplicantApplication, getGetApplicantDashboardQueryKey,
-  type ApplicantDashboard, type ApplicantAccount, type ApplicantApplication, type ApplicationDetail,
+  useUploadApplicantApplicationDocument, useDeleteApplicantApplicationDocument, useUploadApplicantAvatar, useDeleteApplicantAvatar,
+  useGetApplicantKyc, useUploadApplicantKycDocument, getGetApplicantKycQueryKey,
+  type ApplicantDashboard, type ApplicantKyc, type KycDocumentKind, type ApplicantAccount, type ApplicantApplication, type ApplicationDetail,
 } from '@workspace/api-client-react';
 import {
   Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Clock, FileText, PenLine, Sparkles,
   Search, ArrowDownLeft, Undo2, ArrowLeft, ArrowUpRight, Snowflake, Landmark, Wallet,
-  CreditCard, BadgeCheck, Lock, type LucideIcon,
+  CreditCard, BadgeCheck, Lock, Camera, Upload, Download, Trash2, IdCard, House as HouseIcon, Loader2, type LucideIcon,
 } from 'lucide-react';
 import { Shell } from '@/components/shell';
-import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, inputCls, money, statusLabel } from '@/components/bits';
+import { Avatar, Empty, ErrorState, Field, FILE_RULES, Modal, PageSkeleton, Skel, StatusBadge, checkFile, cx, dateFmt, fileSize, inputCls, money, statusLabel } from '@/components/bits';
 import { apiError, matchesSearch, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
@@ -376,6 +378,8 @@ function AppDetail({ a }: { a: ApplicationDetail }) {
         </ol>
       </section>
 
+      <AppDocuments a={a} onChange={(d) => { qc.setQueryData(getGetApplicantApplicationQueryKey(a.id), d); refresh(); }} />
+
       {a.canWithdraw && (
         <div className="flex justify-end">
           <button data-testid="button-withdraw-application" onClick={() => setConfirm(true)} className="press rounded-full border border-[#FECACA] bg-white px-4 py-2 text-sm font-semibold text-[#991B1B] hover:bg-[#FEF2F2]">Withdraw application</button>
@@ -392,6 +396,70 @@ function AppDetail({ a }: { a: ApplicationDetail }) {
         </div>
       </Modal>
     </div>
+  );
+}
+
+const MAX_APP_DOCS = 5;
+function AppDocuments({ a, onChange }: { a: ApplicationDetail; onChange: (d: ApplicationDetail) => void }) {
+  const { toast } = useToast();
+  const upload = useUploadApplicantApplicationDocument();
+  const remove = useDeleteApplicantApplicationDocument();
+  const input = useRef<HTMLInputElement>(null);
+  const [err, setErr] = useState('');
+  const [removing, setRemoving] = useState<ApplicationDetail['documents'][number] | null>(null);
+  const canAdd = a.canAttach && a.documents.length < MAX_APP_DOCS;
+  const pick = (file: File | undefined) => {
+    if (!file) return;
+    const problem = checkFile(file, 'proposal');
+    setErr(problem);
+    if (problem) return;
+    upload.mutate({ applicationId: a.id, data: { file } }, {
+      onSuccess: (d) => { onChange(d); toast({ title: 'Document attached', description: file.name }); },
+      onError: (e) => setErr(apiError(e, 'The document could not be uploaded. Please try again.')),
+    });
+  };
+  return (
+    <section className={cx(card, 'p-5')} aria-labelledby="docs-heading" data-testid="section-documents">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 id="docs-heading" className="text-lg font-semibold text-slate-900">Documents</h2>
+        {canAdd && (
+          <button data-testid="button-attach-document" onClick={() => input.current?.click()} disabled={upload.isPending}
+            className="press inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-[#1E3A8A] hover:border-[#1E3A8A] hover:bg-[#EEF4FB] disabled:opacity-60">
+            {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}{upload.isPending ? 'Uploading…' : 'Attach document'}
+          </button>
+        )}
+        <input ref={input} type="file" accept={FILE_RULES.proposal.accept} hidden data-testid="input-attach-document" onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
+      </div>
+      {err && <p role="alert" className="mb-3 rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-document-error">{err}</p>}
+      {a.documents.length === 0 ? (
+        <p className="text-sm text-slate-500" data-testid="text-no-documents">{a.canAttach ? 'No documents yet. Attach your proposal as a PDF or Word file (up to 10 MB).' : 'No documents were attached.'}</p>
+      ) : (
+        <ul className="space-y-2" data-testid="list-documents">
+          {a.documents.map((d) => (
+            <li key={d.id} data-testid={`row-document-${d.id}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#EEF4FB] text-[#1E3A8A]"><FileText className="h-5 w-5" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold text-slate-900">{d.name}</span>
+                <span className="block text-xs text-slate-500">{fileSize(d.sizeBytes)} · {dateFmt(d.uploadedAt)}</span>
+              </span>
+              <a href={d.url} download={d.name} aria-label={`Download ${d.name}`} data-testid={`link-document-${d.id}`} className="grid h-10 w-10 place-items-center rounded-full text-slate-600 hover:bg-slate-100"><Download className="h-4 w-4" /></a>
+              {a.canAttach && <button aria-label={`Remove ${d.name}`} data-testid={`button-remove-document-${d.id}`} onClick={() => setRemoving(d)} className="grid h-10 w-10 place-items-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-700"><Trash2 className="h-4 w-4" /></button>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {a.canAttach && a.documents.length >= MAX_APP_DOCS && <p className="mt-3 text-xs text-slate-500">You've attached the maximum of {MAX_APP_DOCS} documents. Remove one to add another.</p>}
+      <Modal open={!!removing} onClose={() => setRemoving(null)} title="Remove this document?" testid="dialog-remove-document">
+        <p className="text-[15px] text-slate-600">“{removing?.name}” will be removed from this application.</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button onClick={() => setRemoving(null)} className="rounded-full px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Keep it</button>
+          <button data-testid="button-remove-document-confirm" disabled={remove.isPending} onClick={() => removing && remove.mutate({ applicationId: a.id, fileId: removing.id }, {
+            onSuccess: (d) => { onChange(d); toast({ title: 'Document removed', description: removing.name }); setRemoving(null); },
+            onError: (e) => { setRemoving(null); setErr(apiError(e, 'The document could not be removed.')); },
+          })} className="press rounded-full bg-[#991B1B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#7F1D1D] disabled:opacity-60">{remove.isPending ? 'Removing…' : 'Remove'}</button>
+        </div>
+      </Modal>
+    </section>
   );
 }
 
@@ -638,13 +706,7 @@ function SettingsBody({ d }: { d: ApplicantDashboard }) {
   const a = acct.data;
   return (
     <div className="space-y-5">
-      <section className={cx(card, 'flex flex-wrap items-center gap-4 p-5')} data-testid="section-profile-header">
-        <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-[#1E3A8A] text-2xl font-semibold text-white">{d.profile.name.charAt(0)}</span>
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-xl font-semibold text-slate-900"><span className="truncate">{d.profile.name}</span>{d.profile.verified && <BadgeCheck aria-label="Verified" className="h-5 w-5 shrink-0 fill-[#16A34A] text-white" />}</p>
-          <p className="truncate text-sm text-slate-600">{d.profile.organization} · {d.profile.email}</p>
-        </div>
-      </section>
+      <ProfileHeader d={d} />
       <div className="grid gap-5 lg:grid-cols-5">
         <form data-testid="form-profile" noValidate className={cx(card, 'space-y-4 p-5 lg:col-span-3')} onSubmit={f.handleSubmit((v) => m.mutate({ data: v }, {
           onSuccess: () => { qc.invalidateQueries({ queryKey: getGetApplicantDashboardQueryKey() }); f.reset(v); toast({ title: 'Profile updated' }); },
@@ -684,6 +746,131 @@ function SettingsBody({ d }: { d: ApplicantDashboard }) {
             )}
         </section>
       </div>
+      <IdentitySection />
     </div>
+  );
+}
+
+function ProfileHeader({ d }: { d: ApplicantDashboard }) {
+  const { toast } = useToast();
+  const refresh = useRefreshApplicant();
+  const upload = useUploadApplicantAvatar();
+  const remove = useDeleteApplicantAvatar();
+  const input = useRef<HTMLInputElement>(null);
+  const [err, setErr] = useState('');
+  const busy = upload.isPending || remove.isPending;
+  const pick = (file: File | undefined) => {
+    if (!file) return;
+    const problem = checkFile(file, 'image');
+    setErr(problem);
+    if (problem) return;
+    upload.mutate({ data: { file } }, {
+      onSuccess: () => { refresh(); toast({ title: 'Profile photo updated' }); },
+      onError: (e) => setErr(apiError(e, 'The photo could not be uploaded. Please try again.')),
+    });
+  };
+  return (
+    <section className={cx(card, 'p-5')} data-testid="section-profile-header">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="relative">
+          <Avatar name={d.profile.name} url={d.profile.avatarUrl} className="h-16 w-16 text-2xl" testid="avatar-settings" />
+          {busy && <span className="absolute inset-0 grid place-items-center rounded-full bg-black/40"><Loader2 className="h-6 w-6 animate-spin text-white" /></span>}
+          <button aria-label={d.profile.avatarUrl ? 'Change profile photo' : 'Add profile photo'} data-testid="button-avatar-upload" disabled={busy} onClick={() => input.current?.click()}
+            className="press absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full bg-white text-[#1E3A8A] shadow ring-1 ring-slate-200 hover:bg-[#EEF4FB] disabled:opacity-60"><Camera className="h-4 w-4" /></button>
+          <input ref={input} type="file" accept={FILE_RULES.image.accept} hidden data-testid="input-avatar-file" onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 text-xl font-semibold text-slate-900"><span className="truncate">{d.profile.name}</span>{d.profile.verified && <BadgeCheck aria-label="Verified" className="h-5 w-5 shrink-0 fill-[#16A34A] text-white" />}</p>
+          <p className="truncate text-sm text-slate-600">{d.profile.organization} · {d.profile.email}</p>
+          {d.profile.avatarUrl && (
+            <button data-testid="button-avatar-remove" disabled={busy} onClick={() => remove.mutate(undefined, {
+              onSuccess: () => { refresh(); toast({ title: 'Profile photo removed' }); },
+              onError: (e) => setErr(apiError(e, 'The photo could not be removed.')),
+            })} className="mt-1 text-sm font-semibold text-slate-600 hover:text-[#991B1B] disabled:opacity-60">Remove photo</button>
+          )}
+        </div>
+      </div>
+      {err && <p role="alert" className="mt-3 rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-avatar-error">{err}</p>}
+    </section>
+  );
+}
+
+const KYC_KINDS: { kind: KycDocumentKind; hint: string; icon: LucideIcon }[] = [
+  { kind: 'Government ID', hint: 'Passport, driver’s licence or national ID card', icon: IdCard },
+  { kind: 'Proof of address', hint: 'Utility bill or bank statement from the last 3 months', icon: HouseIcon },
+];
+const kycIntro: Record<ApplicantKyc['verificationLevel'], string> = {
+  Unsubmitted: 'Upload both documents to verify your identity. Verification is needed before you can withdraw funds.',
+  Pending: 'Your documents are waiting for an administrator to review them. We’ll notify you when that’s done.',
+  Verified: 'You’re verified. If a document changes (for example, you move), upload the new one. You stay verified while it’s reviewed.',
+  Rejected: 'A document wasn’t accepted. Upload a clear, complete copy to try again.',
+};
+
+function IdentitySection() {
+  const q = useGetApplicantKyc({ query: { queryKey: getGetApplicantKycQueryKey() } });
+  const ref = useRef<HTMLElement>(null);
+  const ready = !!q.data;
+  useEffect(() => { if (ready && window.location.hash === '#verification') ref.current?.scrollIntoView({ block: 'start' }); }, [ready]);
+  return (
+    <section ref={ref} id="verification" className={cx(card, 'scroll-mt-20 p-5')} aria-labelledby="kyc-heading" data-testid="section-verification">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <h2 id="kyc-heading" className="text-lg font-semibold text-slate-900">Identity verification</h2>
+        {q.data && <StatusBadge status={q.data.verificationLevel} dot={false} testid="badge-kyc-level" />}
+      </div>
+      {q.isLoading ? <div className="space-y-2 pt-2"><Skel className="h-16" /><Skel className="h-16" /></div>
+        : q.isError || !q.data ? <ErrorState onRetry={() => q.refetch()} />
+        : (
+          <>
+            <p className="mb-4 text-sm text-slate-600" data-testid="text-kyc-intro">{kycIntro[q.data.verificationLevel]}</p>
+            <ul className="space-y-3">
+              {KYC_KINDS.map((k) => <KycRow key={k.kind} {...k} doc={q.data.documents.find((d) => d.kind === k.kind)} />)}
+            </ul>
+            <p className="mt-4 text-xs text-slate-500">Images (JPG, PNG, WebP) or PDF, up to 10 MB. Images are re-saved without location data. <strong className="font-semibold">Demo workspace: upload a sample or redacted document, not a real ID.</strong></p>
+          </>
+        )}
+    </section>
+  );
+}
+
+function KycRow({ kind, hint, icon: Icon, doc }: { kind: KycDocumentKind; hint: string; icon: LucideIcon; doc?: ApplicantKyc['documents'][number] }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const refresh = useRefreshApplicant();
+  const upload = useUploadApplicantKycDocument();
+  const input = useRef<HTMLInputElement>(null);
+  const [err, setErr] = useState('');
+  const slug = kind === 'Government ID' ? 'id' : 'address';
+  const pick = (file: File | undefined) => {
+    if (!file) return;
+    const problem = checkFile(file, 'identity');
+    setErr(problem);
+    if (problem) return;
+    upload.mutate({ data: { kind, file } }, {
+      onSuccess: (d) => { qc.setQueryData(getGetApplicantKycQueryKey(), d); refresh(); toast({ title: `${kind} uploaded`, description: 'Queued for review.' }); },
+      onError: (e) => setErr(apiError(e, 'The document could not be uploaded. Please try again.')),
+    });
+  };
+  return (
+    <li className="rounded-xl border border-slate-200 p-3 sm:p-4" data-testid={`row-kyc-${slug}`}>
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#EEF4FB] text-[#1E3A8A]"><Icon className="h-5 w-5" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold text-slate-900">{kind}</span>
+          <span className="block truncate text-sm text-slate-500" data-testid={`text-kyc-${slug}-file`}>
+            {!doc ? hint : doc.sample ? `Sample document on file · ${dateFmt(doc.submittedAt)}` : `${doc.name} · ${dateFmt(doc.submittedAt)}`}
+          </span>
+        </span>
+        <StatusBadge status={doc?.status ?? 'Unsubmitted'} dot={false} testid={`badge-kyc-${slug}`} />
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          {doc?.url && <a href={doc.url} target="_blank" rel="noopener" data-testid={`link-kyc-${slug}`} className="rounded-full px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">View</a>}
+          <button data-testid={`button-kyc-${slug}`} disabled={upload.isPending} onClick={() => input.current?.click()}
+            className="press ml-auto inline-flex items-center gap-1.5 rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60 sm:ml-0">
+            {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}{upload.isPending ? 'Uploading…' : doc ? 'Replace' : 'Upload'}
+          </button>
+          <input ref={input} type="file" accept={FILE_RULES.identity.accept} hidden data-testid={`input-kyc-${slug}`} onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
+        </div>
+      </div>
+      {err && <p role="alert" className="mt-2 rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid={`text-kyc-${slug}-error`}>{err}</p>}
+    </li>
   );
 }

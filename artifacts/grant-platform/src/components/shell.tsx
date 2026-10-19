@@ -6,14 +6,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   useGetAdminDashboard, useUpdateGlobalFreeze, getGetAdminDashboardQueryKey,
-  useCreateApplicantApplication, useMarkApplicantNotificationsRead, getListApplicantNotificationsQueryKey, type NotificationList,
+  useCreateApplicantApplication, useUploadApplicantApplicationDocument, getGetApplicantApplicationQueryKey, useMarkApplicantNotificationsRead, getListApplicantNotificationsQueryKey, type NotificationList,
 } from '@workspace/api-client-react';
 import {
   LayoutDashboard, Layers, FileText, CreditCard, ArrowLeftRight, ArrowUpFromLine, PlusCircle, Settings, Bell, Search, Plus, Menu, X,
   ChevronDown, Users, ArrowDownToLine, ShieldCheck, Snowflake, Building2, ScanLine, House, ClipboardList, ChartPie, Milestone,
-  MessageCircleQuestion, Ellipsis, BadgeCheck, ArrowLeftRight as SwitchIcon,
+  MessageCircleQuestion, Ellipsis, BadgeCheck, Upload, ArrowLeftRight as SwitchIcon,
 } from 'lucide-react';
-import { cx, Field, inputCls, Modal, Skel, useDismiss } from '@/components/bits';
+import { Avatar, checkFile, cx, Field, FILE_RULES, fileSize, inputCls, Modal, Skel, useDismiss } from '@/components/bits';
 import { CATEGORIES, apiError, useApplicantDashboard, useDemo, useNotifications, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
@@ -71,7 +71,8 @@ export function Layout({ admin, children }: { admin: boolean; children: ReactNod
   const [title, setTitle] = useState('');
   const [open, setOpen] = useState(false);
   const [loc] = useLocation();
-  useEffect(() => { setOpen(false); window.scrollTo(0, 0); }, [loc]);
+  // Links to a section (e.g. /settings#verification) let that page scroll itself.
+  useEffect(() => { setOpen(false); if (!window.location.hash) window.scrollTo(0, 0); }, [loc]);
   useEffect(() => {
     if (!title) return;
     document.title = `${title} | GrantApp`;
@@ -199,7 +200,7 @@ function UserCard({ onNav }: { onNav?: () => void }) {
   const go = () => { close(); onNav?.(); };
   return (
     <div ref={ref} className="relative flex items-center gap-3 px-2" data-testid="card-user">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#1E3A8A] text-base font-semibold text-white">{data.profile.name.charAt(0)}</span>
+      <Avatar name={data.profile.name} url={data.profile.avatarUrl} className="h-10 w-10 text-base" testid="avatar-sidebar" />
       <div className="min-w-0 flex-1 leading-tight">
         <p className="truncate text-sm font-semibold text-slate-900" data-testid="text-sidebar-name">{data.profile.name}</p>
         <p className="truncate text-xs text-slate-500">{data.profile.organization}</p>
@@ -332,7 +333,7 @@ function UserTopMobile({ title, isDash, onMenu }: { title: string; isDash: boole
       <div className="flex items-start gap-3">
         {data ? (
           <>
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#1E3A8A] text-lg font-semibold text-white">{data.profile.name.charAt(0)}</span>
+            <Avatar name={data.profile.name} url={data.profile.avatarUrl} className="h-12 w-12 text-lg" testid="avatar-mobile" />
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1.5 text-lg font-semibold text-slate-900"><span className="truncate" data-testid="text-profile-name">{data.profile.name}</span>
                 {data.profile.verified && <BadgeCheck data-testid="badge-verified" aria-label="Verified" className="h-5 w-5 shrink-0 fill-[#16A34A] text-white" />}</p>
@@ -374,19 +375,29 @@ export function NewApplicationModal() {
   const [, nav] = useLocation();
   const { toast } = useToast();
   const create = useCreateApplicantApplication();
+  const upload = useUploadApplicantApplicationDocument();
+  const qc = useQueryClient();
   const refresh = useRefreshApplicant();
   const [serverError, setServerError] = useState('');
+  const [doc, setDoc] = useState<File | null>(null);
+  const [docError, setDocError] = useState('');
+  const docInput = useRef<HTMLInputElement>(null);
   const f = useForm<z.input<typeof appSchema>, unknown, z.output<typeof appSchema>>({ resolver: zodResolver(appSchema), defaultValues: { title: '', category: CATEGORIES[0], amount: 5000 } });
   useEffect(() => {
-    if (newApp) { f.reset({ title: newApp.title ?? '', category: newApp.category ?? CATEGORIES[0], amount: newApp.amount ?? 5000 }); setServerError(''); }
+    if (newApp) { f.reset({ title: newApp.title ?? '', category: newApp.category ?? CATEGORIES[0], amount: newApp.amount ?? 5000 }); setServerError(''); setDoc(null); setDocError(''); }
   }, [newApp, f]);
   return (
     <Modal open={!!newApp} onClose={closeNewApp} title="New application" testid="dialog-new-application">
       <form className="space-y-4" noValidate onSubmit={f.handleSubmit((v) => create.mutate({ data: v }, {
         onSuccess: (app) => {
           refresh(); completeSetup('proposal');
-          toast({ title: 'Application submitted', description: v.title });
           closeNewApp(); nav(`/applications/${app.id}`);
+          if (!doc) { toast({ title: 'Application submitted', description: v.title }); return; }
+          // The application exists either way; a failed upload can be retried from its page.
+          upload.mutate({ applicationId: app.id, data: { file: doc } }, {
+            onSuccess: (d) => { qc.setQueryData(getGetApplicantApplicationQueryKey(app.id), d); refresh(); toast({ title: 'Application submitted', description: `${v.title} · ${doc.name} attached` }); },
+            onError: (e) => toast({ title: 'Application submitted, but the document did not upload', description: apiError(e, 'Try attaching it again from the application page.'), variant: 'destructive' }),
+          });
         },
         onError: (e) => setServerError(apiError(e, 'The application could not be submitted. Please try again.')),
       }))}>
@@ -397,6 +408,24 @@ export function NewApplicationModal() {
           </select>
         </Field>
         <Field label="Requested amount (USD)" error={f.formState.errors.amount?.message}><input data-testid="input-app-amount" type="number" inputMode="decimal" step="any" className={inputCls} {...f.register('amount')} /></Field>
+        <Field label="Proposal document (optional)" error={docError}>
+          <input ref={docInput} type="file" accept={FILE_RULES.proposal.accept} hidden data-testid="input-app-document" onChange={(e) => {
+            const file = e.target.files?.[0]; e.target.value = '';
+            if (!file) return;
+            const err = checkFile(file, 'proposal'); setDocError(err); setDoc(err ? null : file);
+          }} />
+          {doc ? (
+            <div className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2.5" data-testid="text-app-document">
+              <FileText className="h-5 w-5 shrink-0 text-[#1E3A8A]" />
+              <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-slate-900">{doc.name}</span><span className="block text-xs text-slate-500">{fileSize(doc.size)}</span></span>
+              <button type="button" aria-label="Remove document" data-testid="button-app-document-remove" onClick={() => setDoc(null)} className="grid h-10 w-10 place-items-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+            </div>
+          ) : (
+            <button type="button" data-testid="button-app-document" onClick={() => docInput.current?.click()} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 px-3 py-3 text-sm font-semibold text-[#1E3A8A] hover:border-[#1E3A8A] hover:bg-[#EEF4FB]">
+              <Upload className="h-4 w-4" />Attach PDF or Word file · up to 10 MB
+            </button>
+          )}
+        </Field>
         {serverError && <p role="alert" className="rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-application-error">{serverError}</p>}
         <p className="text-xs text-slate-500">Demo: saved to the sample workspace, not sent to a real funder.</p>
         <button data-testid="button-submit-application" type="submit" disabled={create.isPending} className="press w-full rounded-full bg-[#1E3A8A] py-2.5 text-sm font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60">{create.isPending ? 'Submitting…' : 'Submit application'}</button>

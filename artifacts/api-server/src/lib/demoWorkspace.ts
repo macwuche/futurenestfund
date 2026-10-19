@@ -2,14 +2,17 @@ import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db, demoProfilesTable, demoAuditTable, demoLedgerTable, demoSettingsTable, demoRequestsTable, demoApplicationsTable, type DemoProfile } from "@workspace/db";
 import { notifyUser } from "./notifications";
 import { activeApplicationsFilter, applicationSummary } from "./applicantRecords";
+import { currentKycDocuments } from "./kyc";
+import { fileUrl } from "./uploads";
 import { GetAdminUserResponse } from "@workspace/api-zod";
 
 export const demoApplicantId = "usr-jane";
 export class DemoInputError extends Error {}
 
 
-export function summary(person: DemoProfile) {
+export function summary(person: DemoProfile, pendingKycDocuments = 0) {
   return {
+    pendingKycDocuments,
     id: person.id, name: person.name, email: person.email, organization: person.organization,
     tier: person.tier, verificationLevel: person.verificationLevel, status: person.status,
     grantBalance: person.grantCents / 100, depositBalance: person.depositCents / 100,
@@ -21,6 +24,7 @@ export function applicantProfile(person: DemoProfile) {
   return {
     id: person.id, name: person.name, email: person.email, organization: person.organization,
     verified: person.verificationLevel === "Verified", phone: person.phone, telegram: person.telegram,
+    ...(person.avatarFileId ? { avatarUrl: fileUrl("applicant", person.avatarFileId) } : {}),
   };
 }
 
@@ -31,8 +35,11 @@ export async function getUser(id: string) {
   const cards = Array.isArray(person.cards) ? person.cards.map((card: Record<string, unknown>) => ({
     ...card, balance: card.kind === "Virtual" ? person.cardCents / 100 : Number(card.balance ?? 0),
   })) : [];
+  const documents = (await currentKycDocuments([id], "admin")).map(({ profileId: _p, ...d }) => d);
   return GetAdminUserResponse.parse({
     ...person,
+    documents,
+    ...(person.avatarFileId ? { avatarUrl: fileUrl("admin", person.avatarFileId) } : {}),
     balances: { grant: person.grantCents / 100, deposit: person.depositCents / 100, card: person.cardCents / 100 },
     cards,
     audit: audit.map(entry => ({ ...entry, createdAt: entry.createdAt.toISOString() })),
@@ -47,7 +54,16 @@ export async function listUsers(search = "", status = "all") {
   }
   if (status !== "all") terms.push(eq(demoProfilesTable.status, status === "active" ? "Active" : "Frozen"));
   const rows = await db.select().from(demoProfilesTable).where(and(...terms)).orderBy(demoProfilesTable.name);
-  return { items: rows.map(summary), total: rows.length };
+  const pending = await pendingKycByProfile(rows.map(r => r.id));
+  return { items: rows.map(r => summary(r, pending.get(r.id) ?? 0)), total: rows.length };
+}
+
+/** Count of current identity documents awaiting review, per profile. */
+async function pendingKycByProfile(ids: string[]) {
+  const docs = await currentKycDocuments(ids, "admin");
+  const counts = new Map<string, number>();
+  for (const d of docs) if (d.status === "Pending") counts.set(d.profileId, (counts.get(d.profileId) ?? 0) + 1);
+  return counts;
 }
 
 export async function applicantDashboard(monthly: boolean) {
@@ -88,6 +104,7 @@ export async function applicantDashboard(monthly: boolean) {
 
 export async function adminDashboard() {
   const people = await db.select().from(demoProfilesTable);
+  const pendingKyc = await pendingKycByProfile(people.map(p => p.id));
   const appCounts = await db.select({ status: demoApplicationsTable.status, n: sql<number>`count(*)::int` }).from(demoApplicationsTable).groupBy(demoApplicationsTable.status);
   const appsWith = (...statuses: string[]) => appCounts.filter(c => statuses.includes(c.status)).reduce((t, c) => t + c.n, 0);
   const activity = await db.select().from(demoAuditTable).orderBy(desc(demoAuditTable.createdAt)).limit(8);
@@ -98,7 +115,7 @@ export async function adminDashboard() {
   return {
     totalUsers: people.length, activeUsers: people.filter(p => p.status === "Active").length,
     pendingApplications: appsWith("Submitted", "Review"),
-    pendingKyc: people.filter(p => p.verificationLevel === "Pending").length,
+    pendingKyc: people.filter(p => p.verificationLevel === "Pending" || pendingKyc.has(p.id)).length,
     pendingDeposits: pendingOf("Deposit"), pendingWithdrawals: pendingOf("Withdrawal"),
     totalGrantBalances: people.reduce((sum, p) => sum + p.grantCents, 0) / 100,
     totalDepositBalances: people.reduce((sum, p) => sum + p.depositCents, 0) / 100,
@@ -206,7 +223,7 @@ export async function createApplicantRequest(kind: "Deposit" | "Withdrawal", amo
     if (profile.status === "Frozen") throw new DemoInputError("Your account is frozen. Contact support to make changes.");
     const perms = (profile.permissions ?? {}) as { withdrawalKycRequired?: boolean; depositKycRequired?: boolean };
     const kycNeeded = kind === "Withdrawal" ? perms.withdrawalKycRequired : perms.depositKycRequired;
-    if (kycNeeded && profile.verificationLevel !== "Verified") throw new DemoInputError(`Identity verification is required before you can submit a ${kind.toLowerCase()}.`);
+    if (kycNeeded && profile.verificationLevel !== "Verified") throw new DemoInputError(`Identity verification is required before you can submit a ${kind.toLowerCase()}. Upload your documents in Settings.`);
     if (kind === "Withdrawal" && cents > await availableCents(profile, tx)) throw new DemoInputError("This is more than your available grant balance, after pending withdrawals.");
     const [row] = await tx.insert(demoRequestsTable).values({ profileId: profile.id, kind, amountCents: cents, note: note.trim().slice(0, 240) }).returning();
     await tx.insert(demoAuditTable).values({ profileId: profile.id, actor: "Demo applicant", action: `${kind} request submitted +$${(cents / 100).toFixed(2)}` });

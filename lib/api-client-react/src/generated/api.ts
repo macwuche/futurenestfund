@@ -27,6 +27,7 @@ import type {
   ApplicantAccount,
   ApplicantApplication,
   ApplicantDashboard,
+  ApplicantKyc,
   ApplicantProfile,
   ApplicantProfileUpdate,
   ApplicantRequestInput,
@@ -36,10 +37,12 @@ import type {
   ApplicationResponseInput,
   BalanceAdjustmentInput,
   ErrorMessage,
+  FileUpload,
   GetApplicantDashboardParams,
   GlobalFreezeStatus,
   GlobalFreezeUpdate,
   HealthStatus,
+  KycUpload,
   ListAdminUsersParams,
   Milestone,
   MilestoneInput,
@@ -894,6 +897,540 @@ export const useRespondToApplicantApplication = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getRespondToApplicantApplicationMutationOptions(options));
     }
+
+export const getUploadApplicantAvatarUrl = () => {
+
+
+
+
+  return `/api/applicant/avatar`
+}
+
+/**
+ * @summary Upload a profile photo (JPEG, PNG or WebP, re-encoded on the server)
+ */
+export const uploadApplicantAvatar = async (fileUpload: FileUpload, options?: Parameters<typeof customFetch>[1]): Promise<ApplicantProfile> => {
+    const formData = new FormData();
+formData.append(`file`, fileUpload.file);
+
+  return customFetch<ApplicantProfile>(getUploadApplicantAvatarUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadApplicantAvatarMutationKey = () => ['uploadApplicantAvatar'] as const;
+
+export const getUploadApplicantAvatarMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadApplicantAvatar>>, TError,UploadApplicantAvatarMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadApplicantAvatar>>, TError,UploadApplicantAvatarMutationVariables, TContext> => {
+
+const mutationKey = getUploadApplicantAvatarMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadApplicantAvatar>>, UploadApplicantAvatarMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadApplicantAvatar(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadApplicantAvatarMutationResult = NonNullable<Awaited<ReturnType<typeof uploadApplicantAvatar>>>
+    export type UploadApplicantAvatarMutationBody = BodyType<FileUpload>
+    export type UploadApplicantAvatarMutationError = ErrorType<ErrorMessage>
+    export type UploadApplicantAvatarMutationVariables = {data: BodyType<FileUpload>}
+
+    /**
+ * @summary Upload a profile photo (JPEG, PNG or WebP, re-encoded on the server)
+ */
+export const useUploadApplicantAvatar = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadApplicantAvatar>>, TError,UploadApplicantAvatarMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadApplicantAvatar>>,
+        TError,
+        UploadApplicantAvatarMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadApplicantAvatarMutationOptions(options));
+    }
+
+export const getDeleteApplicantAvatarUrl = () => {
+
+
+
+
+  return `/api/applicant/avatar`
+}
+
+/**
+ * @summary Remove the profile photo
+ */
+export const deleteApplicantAvatar = async ( options?: Parameters<typeof customFetch>[1]): Promise<ApplicantProfile> => {
+
+  return customFetch<ApplicantProfile>(getDeleteApplicantAvatarUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteApplicantAvatarMutationKey = () => ['deleteApplicantAvatar'] as const;
+
+export const getDeleteApplicantAvatarMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteApplicantAvatar>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteApplicantAvatar>>, TError,void, TContext> => {
+
+const mutationKey = getDeleteApplicantAvatarMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteApplicantAvatar>>, void> = () => {
+
+
+          return  deleteApplicantAvatar(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteApplicantAvatarMutationResult = NonNullable<Awaited<ReturnType<typeof deleteApplicantAvatar>>>
+
+    export type DeleteApplicantAvatarMutationError = ErrorType<unknown>
+
+
+    /**
+ * @summary Remove the profile photo
+ */
+export const useDeleteApplicantAvatar = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteApplicantAvatar>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteApplicantAvatar>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDeleteApplicantAvatarMutationOptions(options));
+    }
+
+export const getGetApplicantKycUrl = () => {
+
+
+
+
+  return `/api/applicant/kyc`
+}
+
+/**
+ * @summary Get the applicant's identity verification status and current documents
+ */
+export const getApplicantKyc = async ( options?: Parameters<typeof customFetch>[1]): Promise<ApplicantKyc> => {
+
+  return customFetch<ApplicantKyc>(getGetApplicantKycUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetApplicantKycQueryKey = () => {
+    return [
+    `/api/applicant/kyc`
+    ] as const;
+    }
+
+
+export const getGetApplicantKycQueryOptions = <TData = Awaited<ReturnType<typeof getApplicantKyc>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantKyc>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApplicantKycQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApplicantKyc>>> = ({ signal }) => getApplicantKyc({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApplicantKyc>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetApplicantKycQueryResult = NonNullable<Awaited<ReturnType<typeof getApplicantKyc>>>
+export type GetApplicantKycQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the applicant's identity verification status and current documents
+ */
+
+export function useGetApplicantKyc<TData = Awaited<ReturnType<typeof getApplicantKyc>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantKyc>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetApplicantKycQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUploadApplicantKycDocumentUrl = () => {
+
+
+
+
+  return `/api/applicant/kyc/documents`
+}
+
+/**
+ * @summary Upload or replace an identity document (image or PDF)
+ */
+export const uploadApplicantKycDocument = async (kycUpload: KycUpload, options?: Parameters<typeof customFetch>[1]): Promise<ApplicantKyc> => {
+    const formData = new FormData();
+formData.append(`kind`, kycUpload.kind);
+formData.append(`file`, kycUpload.file);
+
+  return customFetch<ApplicantKyc>(getUploadApplicantKycDocumentUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadApplicantKycDocumentMutationKey = () => ['uploadApplicantKycDocument'] as const;
+
+export const getUploadApplicantKycDocumentMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadApplicantKycDocument>>, TError,UploadApplicantKycDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadApplicantKycDocument>>, TError,UploadApplicantKycDocumentMutationVariables, TContext> => {
+
+const mutationKey = getUploadApplicantKycDocumentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadApplicantKycDocument>>, UploadApplicantKycDocumentMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadApplicantKycDocument(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadApplicantKycDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof uploadApplicantKycDocument>>>
+    export type UploadApplicantKycDocumentMutationBody = BodyType<KycUpload>
+    export type UploadApplicantKycDocumentMutationError = ErrorType<ErrorMessage>
+    export type UploadApplicantKycDocumentMutationVariables = {data: BodyType<KycUpload>}
+
+    /**
+ * @summary Upload or replace an identity document (image or PDF)
+ */
+export const useUploadApplicantKycDocument = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadApplicantKycDocument>>, TError,UploadApplicantKycDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadApplicantKycDocument>>,
+        TError,
+        UploadApplicantKycDocumentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadApplicantKycDocumentMutationOptions(options));
+    }
+
+export const getUploadApplicantApplicationDocumentUrl = (applicationId: string,) => {
+
+
+
+
+  return `/api/applicant/applications/${applicationId}/documents`
+}
+
+/**
+ * @summary Attach a proposal document (PDF or Word) to an application
+ */
+export const uploadApplicantApplicationDocument = async (applicationId: string,
+    fileUpload: FileUpload, options?: Parameters<typeof customFetch>[1]): Promise<ApplicationDetail> => {
+    const formData = new FormData();
+formData.append(`file`, fileUpload.file);
+
+  return customFetch<ApplicationDetail>(getUploadApplicantApplicationDocumentUrl(applicationId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadApplicantApplicationDocumentMutationKey = () => ['uploadApplicantApplicationDocument'] as const;
+
+export const getUploadApplicantApplicationDocumentMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadApplicantApplicationDocument>>, TError,UploadApplicantApplicationDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadApplicantApplicationDocument>>, TError,UploadApplicantApplicationDocumentMutationVariables, TContext> => {
+
+const mutationKey = getUploadApplicantApplicationDocumentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadApplicantApplicationDocument>>, UploadApplicantApplicationDocumentMutationVariables> = (props) => {
+          const {applicationId,data} = props ?? {};
+
+          return  uploadApplicantApplicationDocument(applicationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadApplicantApplicationDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof uploadApplicantApplicationDocument>>>
+    export type UploadApplicantApplicationDocumentMutationBody = BodyType<FileUpload>
+    export type UploadApplicantApplicationDocumentMutationError = ErrorType<ErrorMessage>
+    export type UploadApplicantApplicationDocumentMutationVariables = {applicationId: string;data: BodyType<FileUpload>}
+
+    /**
+ * @summary Attach a proposal document (PDF or Word) to an application
+ */
+export const useUploadApplicantApplicationDocument = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadApplicantApplicationDocument>>, TError,UploadApplicantApplicationDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadApplicantApplicationDocument>>,
+        TError,
+        UploadApplicantApplicationDocumentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadApplicantApplicationDocumentMutationOptions(options));
+    }
+
+export const getDeleteApplicantApplicationDocumentUrl = (applicationId: string,
+    fileId: string,) => {
+
+
+
+
+  return `/api/applicant/applications/${applicationId}/documents/${fileId}`
+}
+
+/**
+ * @summary Remove an attached document while the application can still be edited
+ */
+export const deleteApplicantApplicationDocument = async (applicationId: string,
+    fileId: string, options?: Parameters<typeof customFetch>[1]): Promise<ApplicationDetail> => {
+
+  return customFetch<ApplicationDetail>(getDeleteApplicantApplicationDocumentUrl(applicationId,fileId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteApplicantApplicationDocumentMutationKey = () => ['deleteApplicantApplicationDocument'] as const;
+
+export const getDeleteApplicantApplicationDocumentMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteApplicantApplicationDocument>>, TError,DeleteApplicantApplicationDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteApplicantApplicationDocument>>, TError,DeleteApplicantApplicationDocumentMutationVariables, TContext> => {
+
+const mutationKey = getDeleteApplicantApplicationDocumentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteApplicantApplicationDocument>>, DeleteApplicantApplicationDocumentMutationVariables> = (props) => {
+          const {applicationId,fileId} = props ?? {};
+
+          return  deleteApplicantApplicationDocument(applicationId,fileId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteApplicantApplicationDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof deleteApplicantApplicationDocument>>>
+
+    export type DeleteApplicantApplicationDocumentMutationError = ErrorType<ErrorMessage>
+    export type DeleteApplicantApplicationDocumentMutationVariables = {applicationId: string;fileId: string}
+
+    /**
+ * @summary Remove an attached document while the application can still be edited
+ */
+export const useDeleteApplicantApplicationDocument = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteApplicantApplicationDocument>>, TError,DeleteApplicantApplicationDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteApplicantApplicationDocument>>,
+        TError,
+        DeleteApplicantApplicationDocumentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteApplicantApplicationDocumentMutationOptions(options));
+    }
+
+export const getGetApplicantFileUrl = (fileId: string,) => {
+
+
+
+
+  return `/api/applicant/files/${fileId}`
+}
+
+/**
+ * @summary Download one of the applicant's own files
+ */
+export const getApplicantFile = async (fileId: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetApplicantFileUrl(fileId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetApplicantFileQueryKey = (fileId: string,) => {
+    return [
+    `/api/applicant/files/${fileId}`
+    ] as const;
+    }
+
+
+export const getGetApplicantFileQueryOptions = <TData = Awaited<ReturnType<typeof getApplicantFile>>, TError = ErrorType<ErrorMessage>>(fileId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApplicantFileQueryKey(fileId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApplicantFile>>> = ({ signal }) => getApplicantFile(fileId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: fileId !== null && fileId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApplicantFile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetApplicantFileQueryResult = NonNullable<Awaited<ReturnType<typeof getApplicantFile>>>
+export type GetApplicantFileQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary Download one of the applicant's own files
+ */
+
+export function useGetApplicantFile<TData = Awaited<ReturnType<typeof getApplicantFile>>, TError = ErrorType<ErrorMessage>>(
+ fileId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetApplicantFileQueryOptions(fileId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListApplicantMilestonesUrl = () => {
 
@@ -1789,6 +2326,83 @@ export const useCreateUserBalanceAdjustment = <TError = ErrorType<void>,
       > => {
       return useMutation(getCreateUserBalanceAdjustmentMutationOptions(options));
     }
+
+export const getGetAdminFileUrl = (fileId: string,) => {
+
+
+
+
+  return `/api/admin/files/${fileId}`
+}
+
+/**
+ * @summary Download any user's file for review
+ */
+export const getAdminFile = async (fileId: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetAdminFileUrl(fileId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminFileQueryKey = (fileId: string,) => {
+    return [
+    `/api/admin/files/${fileId}`
+    ] as const;
+    }
+
+
+export const getGetAdminFileQueryOptions = <TData = Awaited<ReturnType<typeof getAdminFile>>, TError = ErrorType<ErrorMessage>>(fileId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminFileQueryKey(fileId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminFile>>> = ({ signal }) => getAdminFile(fileId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: fileId !== null && fileId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminFile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminFileQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminFile>>>
+export type GetAdminFileQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary Download any user's file for review
+ */
+
+export function useGetAdminFile<TData = Awaited<ReturnType<typeof getAdminFile>>, TError = ErrorType<ErrorMessage>>(
+ fileId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminFileQueryOptions(fileId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getUpdateGlobalFreezeUrl = () => {
 

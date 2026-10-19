@@ -5,12 +5,20 @@
  * Grant applicant and administration dashboard API
  * OpenAPI spec version: 0.1.0
  */
+import type { KycDocumentKind } from './kycDocumentKind';
 import type { KycDocumentStatus } from './kycDocumentStatus';
 
 export interface KycDocument {
   id: string;
   name: string;
-  kind: string;
+  kind: KycDocumentKind;
   status: KycDocumentStatus;
-  confidence: number;
+  /** Seeded sample document with no file */
+  sample: boolean;
+  /** Demonstration OCR score; only present on sample documents */
+  confidence?: number;
+  /** Same-origin download URL for uploaded documents */
+  url?: string;
+  mimeType?: string;
+  submittedAt: Date;
 }

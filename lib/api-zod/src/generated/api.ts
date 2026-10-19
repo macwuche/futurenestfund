@@ -37,7 +37,8 @@ export const GetApplicantDashboardResponse = zod.object({
   "organization": zod.string(),
   "verified": zod.boolean(),
   "phone": zod.string(),
-  "telegram": zod.string()
+  "telegram": zod.string(),
+  "avatarUrl": zod.string().optional().describe('Same-origin URL of the profile photo; absent when none is set')
 }),
   "totalBudget": zod.number(),
   "allocatedFunds": zod.number(),
@@ -99,7 +100,8 @@ export const UpdateApplicantProfileResponse = zod.object({
   "organization": zod.string(),
   "verified": zod.boolean(),
   "phone": zod.string(),
-  "telegram": zod.string()
+  "telegram": zod.string(),
+  "avatarUrl": zod.string().optional().describe('Same-origin URL of the profile photo; absent when none is set')
 })
 
 
@@ -218,6 +220,15 @@ export const CreateApplicantApplicationResponse = zod.object({
   "updatedAt": zod.coerce.date(),
   "canWithdraw": zod.boolean(),
   "canRespond": zod.boolean(),
+  "canAttach": zod.boolean().describe('Whether documents can still be attached or removed'),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+})),
   "events": zod.array(zod.object({
   "id": zod.string(),
   "status": zod.string(),
@@ -246,6 +257,15 @@ export const GetApplicantApplicationResponse = zod.object({
   "updatedAt": zod.coerce.date(),
   "canWithdraw": zod.boolean(),
   "canRespond": zod.boolean(),
+  "canAttach": zod.boolean().describe('Whether documents can still be attached or removed'),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+})),
   "events": zod.array(zod.object({
   "id": zod.string(),
   "status": zod.string(),
@@ -274,6 +294,15 @@ export const WithdrawApplicantApplicationResponse = zod.object({
   "updatedAt": zod.coerce.date(),
   "canWithdraw": zod.boolean(),
   "canRespond": zod.boolean(),
+  "canAttach": zod.boolean().describe('Whether documents can still be attached or removed'),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+})),
   "events": zod.array(zod.object({
   "id": zod.string(),
   "status": zod.string(),
@@ -315,6 +344,15 @@ export const RespondToApplicantApplicationResponse = zod.object({
   "updatedAt": zod.coerce.date(),
   "canWithdraw": zod.boolean(),
   "canRespond": zod.boolean(),
+  "canAttach": zod.boolean().describe('Whether documents can still be attached or removed'),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+})),
   "events": zod.array(zod.object({
   "id": zod.string(),
   "status": zod.string(),
@@ -323,6 +361,172 @@ export const RespondToApplicantApplicationResponse = zod.object({
   "createdAt": zod.coerce.date()
 }))
 }))
+
+
+/**
+ * @summary Upload a profile photo (JPEG, PNG or WebP, re-encoded on the server)
+ */
+export const UploadApplicantAvatarBody = zod.object({
+  "file": zod.instanceof(Blob)
+})
+
+export const UploadApplicantAvatarResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "organization": zod.string(),
+  "verified": zod.boolean(),
+  "phone": zod.string(),
+  "telegram": zod.string(),
+  "avatarUrl": zod.string().optional().describe('Same-origin URL of the profile photo; absent when none is set')
+})
+
+
+/**
+ * @summary Remove the profile photo
+ */
+export const DeleteApplicantAvatarResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "organization": zod.string(),
+  "verified": zod.boolean(),
+  "phone": zod.string(),
+  "telegram": zod.string(),
+  "avatarUrl": zod.string().optional().describe('Same-origin URL of the profile photo; absent when none is set')
+})
+
+
+/**
+ * @summary Get the applicant's identity verification status and current documents
+ */
+export const GetApplicantKycResponse = zod.object({
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['Government ID', 'Proof of address']),
+  "status": zod.enum(['Verified', 'Pending', 'Rejected']),
+  "sample": zod.boolean().describe('Seeded sample document with no file'),
+  "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
+  "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
+  "mimeType": zod.string().optional(),
+  "submittedAt": zod.coerce.date()
+})).describe('Current document per kind (replaced ones are omitted)')
+})
+
+
+/**
+ * @summary Upload or replace an identity document (image or PDF)
+ */
+export const UploadApplicantKycDocumentBody = zod.object({
+  "kind": zod.enum(['Government ID', 'Proof of address']),
+  "file": zod.instanceof(Blob)
+})
+
+export const UploadApplicantKycDocumentResponse = zod.object({
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['Government ID', 'Proof of address']),
+  "status": zod.enum(['Verified', 'Pending', 'Rejected']),
+  "sample": zod.boolean().describe('Seeded sample document with no file'),
+  "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
+  "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
+  "mimeType": zod.string().optional(),
+  "submittedAt": zod.coerce.date()
+})).describe('Current document per kind (replaced ones are omitted)')
+})
+
+
+/**
+ * @summary Attach a proposal document (PDF or Word) to an application
+ */
+export const UploadApplicantApplicationDocumentParams = zod.object({
+  "applicationId": zod.coerce.string()
+})
+
+export const UploadApplicantApplicationDocumentBody = zod.object({
+  "file": zod.instanceof(Blob)
+})
+
+export const UploadApplicantApplicationDocumentResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "status": zod.enum(['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined', 'Withdrawn']),
+  "amount": zod.number(),
+  "submittedAt": zod.coerce.date()
+}).and(zod.object({
+  "updatedAt": zod.coerce.date(),
+  "canWithdraw": zod.boolean(),
+  "canRespond": zod.boolean(),
+  "canAttach": zod.boolean().describe('Whether documents can still be attached or removed'),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+})),
+  "events": zod.array(zod.object({
+  "id": zod.string(),
+  "status": zod.string(),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Remove an attached document while the application can still be edited
+ */
+export const DeleteApplicantApplicationDocumentParams = zod.object({
+  "applicationId": zod.coerce.string(),
+  "fileId": zod.coerce.string()
+})
+
+export const DeleteApplicantApplicationDocumentResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "status": zod.enum(['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined', 'Withdrawn']),
+  "amount": zod.number(),
+  "submittedAt": zod.coerce.date()
+}).and(zod.object({
+  "updatedAt": zod.coerce.date(),
+  "canWithdraw": zod.boolean(),
+  "canRespond": zod.boolean(),
+  "canAttach": zod.boolean().describe('Whether documents can still be attached or removed'),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+})),
+  "events": zod.array(zod.object({
+  "id": zod.string(),
+  "status": zod.string(),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Download one of the applicant's own files
+ */
+export const GetApplicantFileParams = zod.object({
+  "fileId": zod.coerce.string()
+})
+
+export const GetApplicantFileResponse = zod.unknown()
 
 
 /**
@@ -491,7 +695,8 @@ export const ListAdminUsersResponse = zod.object({
   "status": zod.enum(['Active', 'Frozen']),
   "grantBalance": zod.number(),
   "depositBalance": zod.number(),
-  "joinedAt": zod.string().regex(listAdminUsersResponseItemsItemJoinedAtRegExp)
+  "joinedAt": zod.string().regex(listAdminUsersResponseItemsItemJoinedAtRegExp),
+  "pendingKycDocuments": zod.number().int().describe('Current identity documents awaiting review')
 })),
   "total": zod.number().int()
 })
@@ -516,6 +721,7 @@ export const GetAdminUserResponse = zod.object({
   "telegram": zod.string(),
   "organization": zod.string(),
   "maskedId": zod.string(),
+  "avatarUrl": zod.string().optional(),
   "tier": zod.number().int().min(1).max(getAdminUserResponseTierMax),
   "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
   "status": zod.enum(['Active', 'Frozen']),
@@ -535,9 +741,13 @@ export const GetAdminUserResponse = zod.object({
   "documents": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "kind": zod.string(),
+  "kind": zod.enum(['Government ID', 'Proof of address']),
   "status": zod.enum(['Verified', 'Pending', 'Rejected']),
-  "confidence": zod.number()
+  "sample": zod.boolean().describe('Seeded sample document with no file'),
+  "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
+  "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
+  "mimeType": zod.string().optional(),
+  "submittedAt": zod.coerce.date()
 })),
   "permissions": zod.object({
   "emailNotifications": zod.boolean(),
@@ -596,6 +806,7 @@ export const UpdateAdminUserResponse = zod.object({
   "telegram": zod.string(),
   "organization": zod.string(),
   "maskedId": zod.string(),
+  "avatarUrl": zod.string().optional(),
   "tier": zod.number().int().min(1).max(updateAdminUserResponseTierMax),
   "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
   "status": zod.enum(['Active', 'Frozen']),
@@ -615,9 +826,13 @@ export const UpdateAdminUserResponse = zod.object({
   "documents": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "kind": zod.string(),
+  "kind": zod.enum(['Government ID', 'Proof of address']),
   "status": zod.enum(['Verified', 'Pending', 'Rejected']),
-  "confidence": zod.number()
+  "sample": zod.boolean().describe('Seeded sample document with no file'),
+  "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
+  "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
+  "mimeType": zod.string().optional(),
+  "submittedAt": zod.coerce.date()
 })),
   "permissions": zod.object({
   "emailNotifications": zod.boolean(),
@@ -658,6 +873,16 @@ export const CreateUserBalanceAdjustmentResponse = zod.object({
   "deposit": zod.number(),
   "card": zod.number()
 })
+
+
+/**
+ * @summary Download any user's file for review
+ */
+export const GetAdminFileParams = zod.object({
+  "fileId": zod.coerce.string()
+})
+
+export const GetAdminFileResponse = zod.unknown()
 
 
 /**

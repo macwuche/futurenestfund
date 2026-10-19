@@ -14,4 +14,6 @@ export interface ApplicantProfile {
   verified: boolean;
   phone: string;
   telegram: string;
+  /** Same-origin URL of the profile photo; absent when none is set */
+  avatarUrl?: string;
 }

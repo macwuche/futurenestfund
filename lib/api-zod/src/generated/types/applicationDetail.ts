@@ -7,10 +7,14 @@
  */
 import type { ApplicantApplication } from './applicantApplication';
 import type { ApplicationEvent } from './applicationEvent';
+import type { StoredDocument } from './storedDocument';
 
 export type ApplicationDetail = ApplicantApplication & {
   updatedAt: Date;
   canWithdraw: boolean;
   canRespond: boolean;
+  /** Whether documents can still be attached or removed */
+  canAttach: boolean;
+  documents: StoredDocument[];
   events: ApplicationEvent[];
 };
