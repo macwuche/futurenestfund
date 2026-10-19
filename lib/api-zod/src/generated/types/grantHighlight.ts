@@ -11,6 +11,7 @@ export interface GrantHighlight {
   title: string;
   category: string;
   amount: number;
-  deadline: Date;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  deadline: string;
   recommended: boolean;
 }

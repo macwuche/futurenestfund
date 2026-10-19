@@ -186,6 +186,7 @@ export const ApplicantApplicationStatus = {
   Approved: 'Approved',
   Changes_requested: 'Changes requested',
   Declined: 'Declined',
+  Withdrawn: 'Withdrawn',
 } as const;
 
 export interface ApplicantApplication {
@@ -195,6 +196,93 @@ export interface ApplicantApplication {
   status: ApplicantApplicationStatus;
   amount: number;
   submittedAt: string;
+}
+
+export interface ApplicationInput {
+  /**
+     * @minLength 3
+     * @maxLength 120
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  category: string;
+  /**
+     * @minimum 100
+     * @maximum 10000000
+     */
+  amount: number;
+}
+
+export interface ApplicationEvent {
+  id: string;
+  status: string;
+  note: string;
+  actor: string;
+  createdAt: string;
+}
+
+export type ApplicationDetail = ApplicantApplication & {
+  updatedAt: string;
+  canWithdraw: boolean;
+  canRespond: boolean;
+  events: ApplicationEvent[];
+};
+
+export interface ApplicationResponseInput {
+  /**
+     * @minLength 5
+     * @maxLength 1000
+     */
+  note: string;
+  /**
+     * @minimum 100
+     * @maximum 10000000
+     */
+  amount?: number;
+}
+
+export interface Milestone {
+  id: string;
+  title: string;
+  grant: string;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  due: string;
+  done: boolean;
+}
+
+export interface MilestoneInput {
+  /**
+     * @minLength 3
+     * @maxLength 120
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  grant: string;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  due: string;
+}
+
+export interface MilestoneUpdate {
+  done: boolean;
+}
+
+export interface Notification {
+  id: string;
+  message: string;
+  link?: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface NotificationList {
+  items: Notification[];
+  unread: number;
 }
 
 export interface FundingPoint {
@@ -216,6 +304,7 @@ export interface GrantHighlight {
   title: string;
   category: string;
   amount: number;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
   deadline: string;
   recommended: boolean;
 }
@@ -324,6 +413,7 @@ export interface AdminUserSummary {
   status: AdminUserSummaryStatus;
   grantBalance: number;
   depositBalance: number;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
   joinedAt: string;
 }
 

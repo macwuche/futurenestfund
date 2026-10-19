@@ -102,6 +102,160 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+  /applicant/applications:
+    get:
+      operationId: listApplicantApplications
+      tags: [applicant]
+      summary: List the applicant's applications
+      responses:
+        "200":
+          description: Applications, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ApplicantApplication" }
+    post:
+      operationId: createApplicantApplication
+      tags: [applicant]
+      summary: Submit a new application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApplicationInput" }
+      responses:
+        "201":
+          description: Created application
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicationDetail" }
+  /applicant/applications/{applicationId}:
+    get:
+      operationId: getApplicantApplication
+      tags: [applicant]
+      summary: Get one application with its status history
+      parameters:
+        - { name: applicationId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Application detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicationDetail" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /applicant/applications/{applicationId}/withdraw:
+    post:
+      operationId: withdrawApplicantApplication
+      tags: [applicant]
+      summary: Withdraw a submitted application
+      parameters:
+        - { name: applicationId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Updated application
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicationDetail" }
+  /applicant/applications/{applicationId}/respond:
+    post:
+      operationId: respondToApplicantApplication
+      tags: [applicant]
+      summary: Reply to requested changes and resubmit
+      parameters:
+        - { name: applicationId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApplicationResponseInput" }
+      responses:
+        "200":
+          description: Updated application
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicationDetail" }
+  /applicant/milestones:
+    get:
+      operationId: listApplicantMilestones
+      tags: [applicant]
+      summary: List milestones
+      responses:
+        "200":
+          description: Milestones
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Milestone" }
+    post:
+      operationId: createApplicantMilestone
+      tags: [applicant]
+      summary: Add a milestone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MilestoneInput" }
+      responses:
+        "201":
+          description: Created milestone
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Milestone" }
+  /applicant/milestones/{milestoneId}:
+    patch:
+      operationId: updateApplicantMilestone
+      tags: [applicant]
+      summary: Mark a milestone done or not done
+      parameters:
+        - { name: milestoneId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MilestoneUpdate" }
+      responses:
+        "200":
+          description: Updated milestone
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Milestone" }
+    delete:
+      operationId: deleteApplicantMilestone
+      tags: [applicant]
+      summary: Delete a milestone
+      parameters:
+        - { name: milestoneId, in: path, required: true, schema: { type: string } }
+      responses:
+        "204":
+          description: Deleted
+  /applicant/notifications:
+    get:
+      operationId: listApplicantNotifications
+      tags: [applicant]
+      summary: Recent notifications
+      responses:
+        "200":
+          description: Notifications, newest first
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotificationList" }
+  /applicant/notifications/read:
+    post:
+      operationId: markApplicantNotificationsRead
+      tags: [applicant]
+      summary: Mark all notifications as read
+      responses:
+        "200":
+          description: Updated list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotificationList" }
   /admin/dashboard:
     get:
       operationId: getAdminDashboard
@@ -302,10 +456,82 @@ components:
         category: { type: string }
         status:
           type: string
-          enum: [Submitted, Review, Approved, Changes requested, Declined]
+          enum: [Submitted, Review, Approved, Changes requested, Declined, Withdrawn]
         amount: { type: number }
-        submittedAt: { type: string, format: date }
+        submittedAt: { type: string, format: date-time }
       required: [id, title, category, status, amount, submittedAt]
+    ApplicationInput:
+      type: object
+      properties:
+        title: { type: string, minLength: 3, maxLength: 120 }
+        category: { type: string, minLength: 1, maxLength: 60 }
+        amount: { type: number, minimum: 100, maximum: 10000000 }
+      required: [title, category, amount]
+    ApplicationEvent:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string }
+        note: { type: string }
+        actor: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [id, status, note, actor, createdAt]
+    ApplicationDetail:
+      allOf:
+        - $ref: "#/components/schemas/ApplicantApplication"
+        - type: object
+          properties:
+            updatedAt: { type: string, format: date-time }
+            canWithdraw: { type: boolean }
+            canRespond: { type: boolean }
+            events:
+              type: array
+              items: { $ref: "#/components/schemas/ApplicationEvent" }
+          required: [updatedAt, canWithdraw, canRespond, events]
+    ApplicationResponseInput:
+      type: object
+      properties:
+        note: { type: string, minLength: 5, maxLength: 1000 }
+        amount: { type: number, minimum: 100, maximum: 10000000 }
+      required: [note]
+    Milestone:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        grant: { type: string }
+        due: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+        done: { type: boolean }
+      required: [id, title, grant, due, done]
+    MilestoneInput:
+      type: object
+      properties:
+        title: { type: string, minLength: 3, maxLength: 120 }
+        grant: { type: string, minLength: 1, maxLength: 120 }
+        due: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+      required: [title, grant, due]
+    MilestoneUpdate:
+      type: object
+      properties:
+        done: { type: boolean }
+      required: [done]
+    Notification:
+      type: object
+      properties:
+        id: { type: string }
+        message: { type: string }
+        link: { type: string }
+        read: { type: boolean }
+        createdAt: { type: string, format: date-time }
+      required: [id, message, read, createdAt]
+    NotificationList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Notification" }
+        unread: { type: integer }
+      required: [items, unread]
     FundingPoint:
       type: object
       properties:
@@ -329,7 +555,7 @@ components:
         title: { type: string }
         category: { type: string }
         amount: { type: number }
-        deadline: { type: string, format: date }
+        deadline: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
         recommended: { type: boolean }
       required: [id, title, category, amount, deadline, recommended]
     ApplicantDashboard:
@@ -407,7 +633,7 @@ components:
         status: { type: string, enum: [Active, Frozen] }
         grantBalance: { type: number }
         depositBalance: { type: number }
-        joinedAt: { type: string, format: date }
+        joinedAt: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
       required: [id, name, email, organization, tier, verificationLevel, status, grantBalance, depositBalance, joinedAt]
     AdminUsersPage:
       type: object

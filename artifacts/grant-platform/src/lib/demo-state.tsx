@@ -1,8 +1,12 @@
 import { createContext, useCallback, useEffect, useContext, useMemo, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   useGetApplicantDashboard, getGetApplicantDashboardQueryKey, useGetApplicantAccount, getGetApplicantAccountQueryKey,
-  type ApplicantApplication, type ApplicantDashboard, type ApplicantAccount,
+  useListApplicantApplications, getListApplicantApplicationsQueryKey, useListApplicantMilestones, getListApplicantMilestonesQueryKey,
+  useListApplicantNotifications, getListApplicantNotificationsQueryKey,
+  type ApplicantApplication, type ApplicantDashboard, type ApplicantAccount, type Milestone, type NotificationList,
 } from '@workspace/api-client-react';
+export type { Milestone };
 
 /** One category list shared by grant cards, the new-application form and sample applications. */
 export const CATEGORIES = ['Technology & innovation', 'Arts & culture', 'Community', 'Environment', 'Education', 'Health'] as const;
@@ -27,6 +31,32 @@ export function useApplicantAccount() {
   return useGetApplicantAccount({ query: { queryKey: getGetApplicantAccountQueryKey(), select: asAccount } });
 }
 
+const asArray = <T,>(d: unknown): T[] => { if (!Array.isArray(d)) throw new Error('Unexpected list response'); return d as T[]; };
+function asNotifications(d: unknown): NotificationList {
+  if (!d || typeof d !== 'object' || !('items' in d)) throw new Error('Unexpected notifications response');
+  return d as NotificationList;
+}
+/** All of the applicant's applications, newest first (includes withdrawn ones). */
+export function useApplications() {
+  return useListApplicantApplications({ query: { queryKey: getListApplicantApplicationsQueryKey(), select: asArray<ApplicantApplication> } });
+}
+export function useMilestones() {
+  return useListApplicantMilestones({ query: { queryKey: getListApplicantMilestonesQueryKey(), select: asArray<Milestone> } });
+}
+/** Server notifications; polled so events created elsewhere (e.g. admin top-ups) show up. */
+export function useNotifications() {
+  return useListApplicantNotifications({ query: { queryKey: getListApplicantNotificationsQueryKey(), select: asNotifications, refetchInterval: 30_000 } });
+}
+/** Refetch everything that changes after an applicant action. */
+export function useRefreshApplicant() {
+  const qc = useQueryClient();
+  return useCallback(() => {
+    for (const key of [getListApplicantApplicationsQueryKey(), getGetApplicantDashboardQueryKey(), getGetApplicantAccountQueryKey(), getListApplicantNotificationsQueryKey(), getListApplicantMilestonesQueryKey()]) {
+      qc.invalidateQueries({ queryKey: key });
+    }
+  }, [qc]);
+}
+
 /** Pull the API's `{ error }` message out of a failed request. */
 export const apiError = (e: unknown, fallback: string) =>
   (e as { data?: { error?: string } } | null)?.data?.error ?? fallback;
@@ -36,18 +66,8 @@ export const matchesSearch = (a: { title: string; category: string }, s: string)
   return !q || a.title.toLowerCase().includes(q) || a.category.toLowerCase().includes(q);
 };
 
-export interface Milestone { id: string; title: string; grant: string; due: string; done: boolean }
-const seedMilestones: Milestone[] = [
-  { id: 'ms-1', title: 'Project kickoff', grant: 'Sustainable Futures Fund', due: '2026-10-01', done: true },
-  { id: 'ms-2', title: 'Interim progress report', grant: 'Sustainable Futures Fund', due: '2026-11-15', done: false },
-  { id: 'ms-3', title: 'Budget review with funder', grant: 'Sustainable Futures Fund', due: '2026-12-10', done: false },
-  { id: 'ms-4', title: 'Final impact report', grant: 'Sustainable Futures Fund', due: '2027-03-31', done: false },
-];
-
 export interface NewAppPrefill { title?: string; category?: string; amount?: number }
 interface Demo {
-  apps: ApplicantApplication[];
-  addApp: (a: { title: string; category: string; amount: number }) => void;
   search: string;
   setSearch: (s: string) => void;
   adminSearch: string;
@@ -59,14 +79,6 @@ interface Demo {
   closeNewApp: () => void;
   savedGrants: string[];
   toggleSavedGrant: (id: string) => boolean;
-  milestones: Milestone[];
-  addMilestone: (m: Omit<Milestone, 'id' | 'done'>) => void;
-  toggleMilestone: (id: string) => void;
-  removeMilestone: (id: string) => void;
-  notes: string[];
-  unread: number;
-  markRead: () => void;
-  notify: (s: string) => void;
 }
 const Ctx = createContext<Demo | null>(null);
 
@@ -79,37 +91,23 @@ function usePersisted<T>(key: string, init: T) {
 }
 
 export function DemoProvider({ children }: { children: ReactNode }) {
-  const [apps, setApps] = usePersisted<ApplicantApplication[]>('apps', []);
   const [search, setSearch] = useState('');
   const [adminSearch, setAdminSearch] = useState('');
   const [doneSetup, setDone] = usePersisted<string[]>('setup', []);
   const [savedGrants, setSaved] = usePersisted<string[]>('saved-grants', []);
   const [newApp, setNewApp] = useState<NewAppPrefill | null>(null);
-  const [milestones, setMilestones] = usePersisted<Milestone[]>('milestones', seedMilestones);
-  const [notes, setNotes] = useState<string[]>([]);
-  const [unread, setUnread] = useState(0);
-  const notify = useCallback((s: string) => { setNotes((n) => [s, ...n].slice(0, 8)); setUnread((u) => u + 1); }, []);
   const completeSetup = useCallback((id: string) => setDone((p) => (p.includes(id) ? p : [...p, id])), [setDone]);
   const value = useMemo<Demo>(() => ({
-    apps, search, setSearch, adminSearch, setAdminSearch, doneSetup, completeSetup, newApp, savedGrants, notes, unread, notify, milestones,
-    addMilestone: (m) => { setMilestones((p) => [...p, { ...m, id: `ms-${Date.now()}`, done: false }]); notify(`Milestone "${m.title}" added`); },
-    toggleMilestone: (id) => setMilestones((p) => p.map((x) => (x.id === id ? { ...x, done: !x.done } : x))),
-    removeMilestone: (id) => setMilestones((p) => p.filter((x) => x.id !== id)),
+    search, setSearch, adminSearch, setAdminSearch, doneSetup, completeSetup, newApp, savedGrants,
     openNewApp: (prefill) => setNewApp(prefill ?? {}),
     closeNewApp: () => setNewApp(null),
-    markRead: () => setUnread(0),
-    addApp: (a) => {
-      setApps((p) => [{ id: `local-${Date.now()}`, status: 'Submitted', submittedAt: new Date().toISOString(), ...a } as ApplicantApplication, ...p]);
-      completeSetup('proposal');
-      notify(`Demo application "${a.title}" saved in this browser only`);
-    },
     toggleSavedGrant: (id) => {
       const saving = !savedGrants.includes(id);
       setSaved((p) => (saving ? [...p, id] : p.filter((x) => x !== id)));
       if (saving) completeSetup('matchmaking');
       return saving;
     },
-  }), [apps, search, adminSearch, doneSetup, completeSetup, newApp, savedGrants, notes, unread, notify, milestones, setApps, setSaved, setMilestones]);
+  }), [search, adminSearch, doneSetup, completeSetup, newApp, savedGrants, setSaved]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 export function useDemo() {

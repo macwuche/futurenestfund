@@ -20,3 +20,4 @@
 export * from "./demo-profiles";
 export * from "./demo-audit";
 export * from "./demo-settings";export * from "./demo-requests";
+export * from "./demo-applications";

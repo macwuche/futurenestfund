@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   useGetAdminDashboard, useUpdateGlobalFreeze, getGetAdminDashboardQueryKey,
+  useCreateApplicantApplication, useMarkApplicantNotificationsRead, getListApplicantNotificationsQueryKey, type NotificationList,
 } from '@workspace/api-client-react';
 import {
   LayoutDashboard, Layers, FileText, CreditCard, ArrowLeftRight, ArrowUpFromLine, PlusCircle, Settings, Bell, Search, Plus, Menu, X,
@@ -13,7 +14,7 @@ import {
   MessageCircleQuestion, Ellipsis, BadgeCheck, ArrowLeftRight as SwitchIcon,
 } from 'lucide-react';
 import { cx, Field, inputCls, Modal, Skel, useDismiss } from '@/components/bits';
-import { CATEGORIES, useApplicantDashboard, useDemo } from '@/lib/demo-state';
+import { CATEGORIES, apiError, useApplicantDashboard, useDemo, useNotifications, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
 type NavItem = { href: string; label: string; icon: typeof House };
@@ -53,7 +54,7 @@ const bottomNav: NavItem[] = [
 ];
 
 const isActive = (loc: string, href: string) =>
-  loc === href || (href === '/dashboard' && loc === '/') || (href === '/admin/users' && loc.startsWith('/admin/users'));
+  loc === href || (href === '/dashboard' && loc === '/') || (href === '/admin/users' && loc.startsWith('/admin/users')) || (href === '/applications' && loc.startsWith('/applications/'));
 const testId = (href: string) => `link-nav-${href.replace(/\//g, '-').slice(1)}`;
 
 /* ---------- Page title plumbing: pages render <Shell title>, the persistent layout renders the chrome ---------- */
@@ -172,9 +173,8 @@ function NavRow({ item, active, onNav, count }: { item: NavItem; active: boolean
 
 function UserSidebar({ onNav }: { onNav?: () => void }) {
   const [loc] = useLocation();
-  const { apps } = useDemo();
   const { data } = useApplicantDashboard();
-  const count = data ? data.applicationCount + apps.length : undefined;
+  const count = data?.applicationCount;
   return (
     <div className="flex flex-1 flex-col gap-4">
       <nav aria-label="User navigation" className="flex flex-col gap-0.5">
@@ -236,22 +236,58 @@ function OrgSwitcher({ name }: { name: string }) {
   );
 }
 
-function NotificationBell() {
-  const { notes, unread, markRead } = useDemo();
+const ago = (iso: string) => {
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} h ago`;
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+function NotificationBell({ compact }: { compact?: boolean }) {
+  const q = useNotifications();
+  const qc = useQueryClient();
+  const markRead = useMarkApplicantNotificationsRead();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setOpen(false), []);
   useDismiss(ref, open, close);
+  const unread = q.data?.unread ?? 0;
+  const items = q.data?.items ?? [];
+  const toggle = async () => {
+    setOpen(!open);
+    if (open || unread === 0) return;
+    // Cancel any in-flight refetch so a stale response can't bring the dot back, clear it now, then confirm with the server.
+    const key = getListApplicantNotificationsQueryKey();
+    await qc.cancelQueries({ queryKey: key });
+    qc.setQueryData<NotificationList>(key, (d) => (d ? { unread: 0, items: d.items.map((n) => ({ ...n, read: true })) } : d));
+    markRead.mutate(undefined, { onSuccess: (d) => qc.setQueryData(key, d), onError: () => qc.invalidateQueries({ queryKey: key }) });
+  };
   return (
     <div ref={ref} className="relative">
-      <button aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'} data-testid="button-notifications" onClick={() => { setOpen(!open); markRead(); }} className="relative grid h-10 w-10 place-items-center rounded-full text-slate-700 hover:bg-slate-100">
+      <button aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'} aria-expanded={open} data-testid="button-notifications" onClick={toggle}
+        className={cx('relative grid place-items-center rounded-full text-slate-700', compact ? 'h-11 w-11 bg-slate-100 hover:bg-slate-200' : 'h-10 w-10 hover:bg-slate-100')}>
         <Bell className="h-5 w-5" />
         {unread > 0 && <span data-testid="badge-notification-dot" className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />}
       </button>
       {open && (
-        <div className="pop absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl" data-testid="panel-notifications">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Notifications</p>
-          {notes.length === 0 ? <p className="text-sm text-slate-500">Nothing yet. Actions you take appear here.</p> : notes.map((n, i) => <p key={i} className="border-t border-slate-100 py-2 text-sm first:border-0">{n}</p>)}
+        <div className="pop absolute right-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-2 shadow-xl" data-testid="panel-notifications">
+          <p className="px-2 pb-1 pt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Notifications</p>
+          {q.isError ? <p className="px-2 py-3 text-sm text-red-700">Couldn't load notifications.</p>
+            : items.length === 0 ? <p className="px-2 py-3 text-sm text-slate-500">You're all caught up.</p>
+            : (
+              <ul className="max-h-80 overflow-y-auto">
+                {items.map((n) => {
+                  const body = <><span className="block text-sm text-slate-800">{n.message}</span><span className="block text-xs text-slate-500">{ago(n.createdAt)}</span></>;
+                  return (
+                    <li key={n.id} className="border-t border-slate-100 first:border-0" data-testid={`notification-${n.id}`}>
+                      {n.link ? <Link href={n.link} onClick={close} className="block rounded-lg px-2 py-2 hover:bg-slate-50">{body}</Link> : <div className="px-2 py-2">{body}</div>}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
         </div>
       )}
     </div>
@@ -286,6 +322,7 @@ function UserTopMobile({ title, isDash, onMenu }: { title: string; isDash: boole
     return (
       <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
         <h1 className="flex-1 truncate text-lg font-bold text-slate-900" data-testid="text-page-title-mobile">{title}</h1>
+        <NotificationBell compact />
         {menu}
       </header>
     );
@@ -303,6 +340,7 @@ function UserTopMobile({ title, isDash, onMenu }: { title: string; isDash: boole
             </div>
           </>
         ) : <Skel className="h-12 flex-1" />}
+        <NotificationBell compact />
         {menu}
       </div>
       <p className="mt-2 text-[15px] text-slate-600">Here are your account's highlights.</p>
@@ -332,18 +370,26 @@ const appSchema = z.object({
   amount: z.coerce.number().min(100, 'Minimum is $100').max(10_000_000, 'Maximum is $10,000,000'),
 });
 export function NewApplicationModal() {
-  const { newApp, closeNewApp, addApp } = useDemo();
+  const { newApp, closeNewApp, completeSetup } = useDemo();
   const [, nav] = useLocation();
   const { toast } = useToast();
+  const create = useCreateApplicantApplication();
+  const refresh = useRefreshApplicant();
+  const [serverError, setServerError] = useState('');
   const f = useForm<z.input<typeof appSchema>, unknown, z.output<typeof appSchema>>({ resolver: zodResolver(appSchema), defaultValues: { title: '', category: CATEGORIES[0], amount: 5000 } });
   useEffect(() => {
-    if (newApp) f.reset({ title: newApp.title ?? '', category: newApp.category ?? CATEGORIES[0], amount: newApp.amount ?? 5000 });
+    if (newApp) { f.reset({ title: newApp.title ?? '', category: newApp.category ?? CATEGORIES[0], amount: newApp.amount ?? 5000 }); setServerError(''); }
   }, [newApp, f]);
   return (
     <Modal open={!!newApp} onClose={closeNewApp} title="New application" testid="dialog-new-application">
-      <form className="space-y-4" onSubmit={f.handleSubmit((v) => {
-        addApp(v); toast({ title: 'Application added', description: v.title }); closeNewApp(); nav('/applications');
-      })}>
+      <form className="space-y-4" noValidate onSubmit={f.handleSubmit((v) => create.mutate({ data: v }, {
+        onSuccess: (app) => {
+          refresh(); completeSetup('proposal');
+          toast({ title: 'Application submitted', description: v.title });
+          closeNewApp(); nav(`/applications/${app.id}`);
+        },
+        onError: (e) => setServerError(apiError(e, 'The application could not be submitted. Please try again.')),
+      }))}>
         <Field label="Project title" error={f.formState.errors.title?.message}><input data-testid="input-app-title" className={inputCls} {...f.register('title')} /></Field>
         <Field label="Category" error={f.formState.errors.category?.message}>
           <select data-testid="select-app-category" className={inputCls} {...f.register('category')}>
@@ -351,8 +397,9 @@ export function NewApplicationModal() {
           </select>
         </Field>
         <Field label="Requested amount (USD)" error={f.formState.errors.amount?.message}><input data-testid="input-app-amount" type="number" inputMode="decimal" step="any" className={inputCls} {...f.register('amount')} /></Field>
-        <p className="text-xs text-slate-500">Demo: saved in this browser only. Not submitted to a funder.</p>
-        <button data-testid="button-submit-application" type="submit" className="press w-full rounded-full bg-[#1E3A8A] py-2.5 text-sm font-semibold text-white hover:bg-[#0F172A]">Add application</button>
+        {serverError && <p role="alert" className="rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-application-error">{serverError}</p>}
+        <p className="text-xs text-slate-500">Demo: saved to the sample workspace, not sent to a real funder.</p>
+        <button data-testid="button-submit-application" type="submit" disabled={create.isPending} className="press w-full rounded-full bg-[#1E3A8A] py-2.5 text-sm font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60">{create.isPending ? 'Submitting…' : 'Submit application'}</button>
       </form>
     </Modal>
   );

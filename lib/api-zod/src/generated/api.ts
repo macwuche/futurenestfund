@@ -26,6 +26,9 @@ export const GetApplicantDashboardQueryParams = zod.object({
   "period": zod.enum(['weekly', 'monthly']).default(getApplicantDashboardQueryPeriodDefault)
 })
 
+export const getApplicantDashboardResponseRecommendationsItemDeadlineRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
 export const GetApplicantDashboardResponse = zod.object({
   "profile": zod.object({
   "id": zod.string(),
@@ -55,7 +58,7 @@ export const GetApplicantDashboardResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "category": zod.string(),
-  "status": zod.enum(['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined']),
+  "status": zod.enum(['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined', 'Withdrawn']),
   "amount": zod.number(),
   "submittedAt": zod.coerce.date()
 })),
@@ -64,7 +67,7 @@ export const GetApplicantDashboardResponse = zod.object({
   "title": zod.string(),
   "category": zod.string(),
   "amount": zod.number(),
-  "deadline": zod.coerce.date(),
+  "deadline": zod.string().regex(getApplicantDashboardResponseRecommendationsItemDeadlineRegExp),
   "recommended": zod.boolean()
 })),
   "applicationCount": zod.number().int()
@@ -172,6 +175,265 @@ export const CreateApplicantRequestResponse = zod.object({
 
 
 /**
+ * @summary List the applicant's applications
+ */
+export const ListApplicantApplicationsResponseItem = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "status": zod.enum(['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined', 'Withdrawn']),
+  "amount": zod.number(),
+  "submittedAt": zod.coerce.date()
+})
+export const ListApplicantApplicationsResponse = zod.array(ListApplicantApplicationsResponseItem)
+
+
+/**
+ * @summary Submit a new application
+ */
+export const createApplicantApplicationBodyTitleMin = 3;
+export const createApplicantApplicationBodyTitleMax = 120;
+
+export const createApplicantApplicationBodyCategoryMax = 60;
+
+export const createApplicantApplicationBodyAmountMin = 100;
+export const createApplicantApplicationBodyAmountMax = 10000000;
+
+
+
+export const CreateApplicantApplicationBody = zod.object({
+  "title": zod.string().min(createApplicantApplicationBodyTitleMin).max(createApplicantApplicationBodyTitleMax),
+  "category": zod.string().min(1).max(createApplicantApplicationBodyCategoryMax),
+  "amount": zod.number().min(createApplicantApplicationBodyAmountMin).max(createApplicantApplicationBodyAmountMax)
+})
+
+export const CreateApplicantApplicationResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "status": zod.enum(['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined', 'Withdrawn']),
+  "amount": zod.number(),
+  "submittedAt": zod.coerce.date()
+}).and(zod.object({
+  "updatedAt": zod.coerce.date(),
+  "canWithdraw": zod.boolean(),
+  "canRespond": zod.boolean(),
+  "events": zod.array(zod.object({
+  "id": zod.string(),
+  "status": zod.string(),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Get one application with its status history
+ */
+export const GetApplicantApplicationParams = zod.object({
+  "applicationId": zod.coerce.string()
+})
+
+export const GetApplicantApplicationResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "status": zod.enum(['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined', 'Withdrawn']),
+  "amount": zod.number(),
+  "submittedAt": zod.coerce.date()
+}).and(zod.object({
+  "updatedAt": zod.coerce.date(),
+  "canWithdraw": zod.boolean(),
+  "canRespond": zod.boolean(),
+  "events": zod.array(zod.object({
+  "id": zod.string(),
+  "status": zod.string(),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Withdraw a submitted application
+ */
+export const WithdrawApplicantApplicationParams = zod.object({
+  "applicationId": zod.coerce.string()
+})
+
+export const WithdrawApplicantApplicationResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "status": zod.enum(['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined', 'Withdrawn']),
+  "amount": zod.number(),
+  "submittedAt": zod.coerce.date()
+}).and(zod.object({
+  "updatedAt": zod.coerce.date(),
+  "canWithdraw": zod.boolean(),
+  "canRespond": zod.boolean(),
+  "events": zod.array(zod.object({
+  "id": zod.string(),
+  "status": zod.string(),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Reply to requested changes and resubmit
+ */
+export const RespondToApplicantApplicationParams = zod.object({
+  "applicationId": zod.coerce.string()
+})
+
+export const respondToApplicantApplicationBodyNoteMin = 5;
+export const respondToApplicantApplicationBodyNoteMax = 1000;
+
+export const respondToApplicantApplicationBodyAmountMin = 100;
+export const respondToApplicantApplicationBodyAmountMax = 10000000;
+
+
+
+export const RespondToApplicantApplicationBody = zod.object({
+  "note": zod.string().min(respondToApplicantApplicationBodyNoteMin).max(respondToApplicantApplicationBodyNoteMax),
+  "amount": zod.number().min(respondToApplicantApplicationBodyAmountMin).max(respondToApplicantApplicationBodyAmountMax).optional()
+})
+
+export const RespondToApplicantApplicationResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "status": zod.enum(['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined', 'Withdrawn']),
+  "amount": zod.number(),
+  "submittedAt": zod.coerce.date()
+}).and(zod.object({
+  "updatedAt": zod.coerce.date(),
+  "canWithdraw": zod.boolean(),
+  "canRespond": zod.boolean(),
+  "events": zod.array(zod.object({
+  "id": zod.string(),
+  "status": zod.string(),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary List milestones
+ */
+export const listApplicantMilestonesResponseDueRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const ListApplicantMilestonesResponseItem = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "grant": zod.string(),
+  "due": zod.string().regex(listApplicantMilestonesResponseDueRegExp),
+  "done": zod.boolean()
+})
+export const ListApplicantMilestonesResponse = zod.array(ListApplicantMilestonesResponseItem)
+
+
+/**
+ * @summary Add a milestone
+ */
+export const createApplicantMilestoneBodyTitleMin = 3;
+export const createApplicantMilestoneBodyTitleMax = 120;
+
+export const createApplicantMilestoneBodyGrantMax = 120;
+
+export const createApplicantMilestoneBodyDueRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const CreateApplicantMilestoneBody = zod.object({
+  "title": zod.string().min(createApplicantMilestoneBodyTitleMin).max(createApplicantMilestoneBodyTitleMax),
+  "grant": zod.string().min(1).max(createApplicantMilestoneBodyGrantMax),
+  "due": zod.string().regex(createApplicantMilestoneBodyDueRegExp)
+})
+
+export const createApplicantMilestoneResponseDueRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const CreateApplicantMilestoneResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "grant": zod.string(),
+  "due": zod.string().regex(createApplicantMilestoneResponseDueRegExp),
+  "done": zod.boolean()
+})
+
+
+/**
+ * @summary Mark a milestone done or not done
+ */
+export const UpdateApplicantMilestoneParams = zod.object({
+  "milestoneId": zod.coerce.string()
+})
+
+export const UpdateApplicantMilestoneBody = zod.object({
+  "done": zod.boolean()
+})
+
+export const updateApplicantMilestoneResponseDueRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const UpdateApplicantMilestoneResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "grant": zod.string(),
+  "due": zod.string().regex(updateApplicantMilestoneResponseDueRegExp),
+  "done": zod.boolean()
+})
+
+
+/**
+ * @summary Delete a milestone
+ */
+export const DeleteApplicantMilestoneParams = zod.object({
+  "milestoneId": zod.coerce.string()
+})
+
+export const DeleteApplicantMilestoneResponse = zod.void()
+
+
+/**
+ * @summary Recent notifications
+ */
+export const ListApplicantNotificationsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "message": zod.string(),
+  "link": zod.string().optional(),
+  "read": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})),
+  "unread": zod.number().int()
+})
+
+
+/**
+ * @summary Mark all notifications as read
+ */
+export const MarkApplicantNotificationsReadResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "message": zod.string(),
+  "link": zod.string().optional(),
+  "read": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})),
+  "unread": zod.number().int()
+})
+
+
+/**
  * @summary Get platform operations overview
  */
 export const GetAdminDashboardResponse = zod.object({
@@ -215,6 +477,7 @@ export const ListAdminUsersQueryParams = zod.object({
 
 export const listAdminUsersResponseItemsItemTierMax = 3;
 
+export const listAdminUsersResponseItemsItemJoinedAtRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 
 
 export const ListAdminUsersResponse = zod.object({
@@ -228,7 +491,7 @@ export const ListAdminUsersResponse = zod.object({
   "status": zod.enum(['Active', 'Frozen']),
   "grantBalance": zod.number(),
   "depositBalance": zod.number(),
-  "joinedAt": zod.coerce.date()
+  "joinedAt": zod.string().regex(listAdminUsersResponseItemsItemJoinedAtRegExp)
 })),
   "total": zod.number().int()
 })

@@ -47,3 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Local headless-browser test scripts (see replit.md)
+.unlazy/

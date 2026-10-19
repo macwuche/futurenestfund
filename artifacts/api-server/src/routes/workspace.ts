@@ -8,7 +8,19 @@ import {
   CreateUserBalanceAdjustmentBody, CreateUserBalanceAdjustmentParams, CreateUserBalanceAdjustmentResponse,
   UpdateGlobalFreezeBody, UpdateGlobalFreezeResponse,
 } from "@workspace/api-zod";
+import {
+  ListApplicantApplicationsResponse, CreateApplicantApplicationBody, GetApplicantApplicationParams, GetApplicantApplicationResponse,
+  WithdrawApplicantApplicationParams, RespondToApplicantApplicationParams, RespondToApplicantApplicationBody,
+  ListApplicantMilestonesResponse, CreateApplicantMilestoneBody, UpdateApplicantMilestoneParams, UpdateApplicantMilestoneBody,
+  DeleteApplicantMilestoneParams, CreateApplicantMilestoneResponse, UpdateApplicantMilestoneResponse, ListApplicantNotificationsResponse, MarkApplicantNotificationsReadResponse,
+} from "@workspace/api-zod";
 import { db, demoProfilesTable } from "@workspace/db";
+import { currentUserId } from "../lib/currentUser";
+import { listNotifications, markAllRead } from "../lib/notifications";
+import {
+  listApplications, applicationDetail, createApplication, withdrawApplication, respondToApplication,
+  listMilestones, createMilestone, setMilestoneDone, deleteMilestone,
+} from "../lib/applicantRecords";
 import { eq } from "drizzle-orm";
 import { adminDashboard, applicantDashboard, applicantProfile, demoApplicantId, listUsers, getUser, changeProfile, adjustBalance, changeGlobalFreeze, applicantAccount, createApplicantRequest, DemoInputError } from "../lib/demoWorkspace";
 
@@ -41,6 +53,67 @@ router.post("/applicant/requests", async (req, res): Promise<void> => {
   const input = CreateApplicantRequestBody.safeParse(req.body);
   if (!input.success) { res.status(400).json({ error: "Enter an amount of at least $0.01 and a note under 240 characters." }); return; }
   res.status(201).json(CreateApplicantRequestResponse.parse(await createApplicantRequest(input.data.kind, input.data.amount, input.data.note)));
+});
+
+/* ---------- applications ---------- */
+router.get("/applicant/applications", async (req, res): Promise<void> => {
+  res.json(ListApplicantApplicationsResponse.parse(await listApplications(currentUserId(req))));
+});
+router.post("/applicant/applications", async (req, res): Promise<void> => {
+  const input = CreateApplicantApplicationBody.safeParse(req.body);
+  if (!input.success) { res.status(400).json({ error: "Enter a title (3–120 characters), a category and an amount between $100 and $10,000,000." }); return; }
+  res.status(201).json(GetApplicantApplicationResponse.parse(await createApplication(currentUserId(req), input.data)));
+});
+router.get("/applicant/applications/:applicationId", async (req, res): Promise<void> => {
+  const params = GetApplicantApplicationParams.safeParse(req.params);
+  const detail = params.success ? await applicationDetail(currentUserId(req), params.data.applicationId) : undefined;
+  if (!detail) { res.status(404).json({ error: "Application not found." }); return; }
+  res.json(GetApplicantApplicationResponse.parse(detail));
+});
+router.post("/applicant/applications/:applicationId/withdraw", async (req, res): Promise<void> => {
+  const params = WithdrawApplicantApplicationParams.safeParse(req.params);
+  const detail = params.success ? await withdrawApplication(currentUserId(req), params.data.applicationId) : undefined;
+  if (!detail) { res.status(404).json({ error: "Application not found." }); return; }
+  res.json(GetApplicantApplicationResponse.parse(detail));
+});
+router.post("/applicant/applications/:applicationId/respond", async (req, res): Promise<void> => {
+  const params = RespondToApplicantApplicationParams.safeParse(req.params);
+  const input = RespondToApplicantApplicationBody.safeParse(req.body);
+  if (!input.success) { res.status(400).json({ error: "Write a reply of 5–1000 characters; a revised amount must be at least $100." }); return; }
+  const detail = params.success ? await respondToApplication(currentUserId(req), params.data.applicationId, input.data) : undefined;
+  if (!detail) { res.status(404).json({ error: "Application not found." }); return; }
+  res.json(GetApplicantApplicationResponse.parse(detail));
+});
+
+/* ---------- milestones ---------- */
+router.get("/applicant/milestones", async (req, res): Promise<void> => {
+  res.json(ListApplicantMilestonesResponse.parse(await listMilestones(currentUserId(req))));
+});
+router.post("/applicant/milestones", async (req, res): Promise<void> => {
+  const input = CreateApplicantMilestoneBody.safeParse(req.body);
+  if (!input.success) { res.status(400).json({ error: "Enter a milestone (3–120 characters), a grant and a due date." }); return; }
+  res.status(201).json(CreateApplicantMilestoneResponse.parse(await createMilestone(currentUserId(req), input.data)));
+});
+router.patch("/applicant/milestones/:milestoneId", async (req, res): Promise<void> => {
+  const params = UpdateApplicantMilestoneParams.safeParse(req.params);
+  const input = UpdateApplicantMilestoneBody.safeParse(req.body);
+  if (!input.success) { res.status(400).json({ error: "Send done: true or false." }); return; }
+  const row = params.success ? await setMilestoneDone(currentUserId(req), params.data.milestoneId, input.data.done) : undefined;
+  if (!row) { res.status(404).json({ error: "Milestone not found." }); return; }
+  res.json(UpdateApplicantMilestoneResponse.parse(row));
+});
+router.delete("/applicant/milestones/:milestoneId", async (req, res): Promise<void> => {
+  const params = DeleteApplicantMilestoneParams.safeParse(req.params);
+  if (!params.success || !await deleteMilestone(currentUserId(req), params.data.milestoneId)) { res.status(404).json({ error: "Milestone not found." }); return; }
+  res.status(204).end();
+});
+
+/* ---------- notifications ---------- */
+router.get("/applicant/notifications", async (req, res): Promise<void> => {
+  res.json(ListApplicantNotificationsResponse.parse(await listNotifications(currentUserId(req))));
+});
+router.post("/applicant/notifications/read", async (req, res): Promise<void> => {
+  res.json(MarkApplicantNotificationsReadResponse.parse(await markAllRead(currentUserId(req))));
 });
 
 router.get("/admin/dashboard", async (_req, res): Promise<void> => {

@@ -561,3 +561,76 @@ Why this order:
 - Tweak: transaction rows on phones drop the "account" label so the date stays visible.
 - Committed on branch `user-side-redesign` (4df02af).
 - **Still needed:** a real restart of the API Server workflow, so the live preview serves the new API.
+
+### 2026-10-19: Phase 1 done (U2–U5: user data on the server)
+
+Applications, milestones and notifications now live in Postgres. Nothing important lives only in the browser any more (saved grants and setup-card progress are still localStorage, by design for now).
+
+Backend:
+- New tables in `lib/db/src/schema/demo-applications.ts` (pushed to the Replit dev DB, **not** Supabase):
+  - `demo_applications` and `demo_application_events` (an append-only status history)
+  - `demo_milestones`
+  - `demo_notifications`
+- `currentUserId(req)` in `api-server/src/lib/currentUser.ts`. Every new endpoint goes through it (still `usr-jane`), so P1 is a one-place swap.
+- Applications (`lib/applicantRecords.ts`):
+  - list, create, detail with timeline, withdraw, and respond to "Changes requested" (optionally revising the amount)
+  - amounts from $100 to $10M, 2 decimals
+  - only Submitted / Review / Changes requested can be withdrawn
+  - every change writes an event, an audit row and a notification in one transaction
+  - every query is scoped to the current user
+- Milestones: list, create, tick and delete, scoped per user.
+- Notifications (`lib/notifications.ts`): list (latest 20, plus the unread count) and mark all read. They're created by applications, deposit/withdrawal requests, admin top-ups and account freeze/unfreeze.
+- Seeds: 4 applications (including "Youth Coding Bootcamp", which is in Changes requested) with history, and 4 milestones.
+- The admin dashboard's pending applications and applications-by-status now come from the DB (#6). Withdrawn applications are excluded from totals but kept in history.
+
+Frontend:
+- **New `/applications/:id` detail page:**
+  - header with status and amount
+  - "Changes requested" reply form
+  - status history timeline
+  - withdraw with a confirmation dialog
+  - "Application not found" state
+- New Application saves to the server and opens the new application's page.
+- My Applications has filter chips (All, Active, Needs changes, Approved, Withdrawn).
+- The bell reads server notifications (polled every 30s). Opening it marks everything read, and items link to the relevant page. The bell is also on phones (U5, and part of U13).
+- Milestones read and write the server, with optimistic tick and delete.
+- Removed localStorage storage of applications and milestones, and the in-memory notifications.
+
+Tested (2026-10-19, against the live API, which had restarted with this build):
+- **API checks: 18/18 pass.** Covered:
+  - validation 400s
+  - unknown ID 404s
+  - withdrawing an approved application → 400
+  - responding when no changes were requested → 400
+  - milestone bad ID, body and date
+  - another user's application is invisible and can't be withdrawn or answered (404)
+- **Desktop click tests: 26/26 pass.** Covered:
+  - dashboard and sidebar count from the server
+  - filters
+  - detail page, reply validation, resubmit with a revised amount, timeline
+  - notification dot, panel, Escape, read state surviving a reload, links
+  - New Application validation, save and redirect, count 4 → 5 → 4 after withdrawal
+  - withdraw cancel and confirm
+  - 404 page
+  - admin top-up shows up as a notification
+  - milestone add, validate, reload, tick, delete
+  - tracker excludes withdrawn applications
+  - admin "Pending applications" stat
+- **Phone (390px) click tests: 10/10 pass.** Covered:
+  - bell in the profile header (44px tap target)
+  - no sideways scroll on list, detail, milestones and 404
+  - resubmit
+  - panel and dialog stay on screen
+  - withdraw, milestone add and tick
+- **Smoke test: all 22 applicant and admin routes, desktop and phone, 44/44 pass.** No error states, no console errors.
+- The DB was backed up before testing and restored afterwards.
+- The scripts are now kept in `.unlazy/` (added to `.gitignore`, as `replit.md` intended):
+  - `harness.mjs` (Chromium over the DevTools protocol, with `/api` routed to :8080)
+  - `phase1-desktop.mjs`, `phase1-phone.mjs`, `smoke.mjs`
+  - run with `node .unlazy/<file>` while both servers are up
+
+Still open after Phase 1:
+- Nothing in the admin UI can move an application to Review, Approved, Declined or Changes requested yet. Only the seed data has those states. That's A9 (Phase 3).
+- Saved grants and setup-card progress are still per-browser.
+- §1 "What is real vs. fake" above describes the state on 2026-10-15. Applications, milestones and notifications have since moved to the server.
+- Next: Phase 2 (U6–U9: files and identity) or Phase 3 (admin operations). Decisions 1–4 in §8e are still open.

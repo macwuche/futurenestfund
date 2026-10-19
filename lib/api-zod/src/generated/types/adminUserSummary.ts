@@ -22,5 +22,6 @@ export interface AdminUserSummary {
   status: AdminUserSummaryStatus;
   grantBalance: number;
   depositBalance: number;
-  joinedAt: Date;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  joinedAt: string;
 }

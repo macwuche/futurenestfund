@@ -15,4 +15,5 @@ export const ApplicantApplicationStatus = {
   Approved: 'Approved',
   Changes_requested: 'Changes requested',
   Declined: 'Declined',
+  Withdrawn: 'Withdrawn',
 } as const;

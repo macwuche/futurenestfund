@@ -4,14 +4,18 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import type { ApplicantDashboard, ApplicantApplication } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  useCreateApplicantMilestone, useUpdateApplicantMilestone, useDeleteApplicantMilestone, getListApplicantMilestonesQueryKey,
+  type ApplicantDashboard, type ApplicantApplication,
+} from '@workspace/api-client-react';
 import {
   Search, SlidersHorizontal, Download, FileText, ArrowLeftRight, ChartColumn, Plus, Trash2, Check, Mail, Clock,
   CreditCard, Settings, ChevronDown, type LucideIcon,
 } from 'lucide-react';
 import { Shell } from '@/components/shell';
 import { Empty, ErrorState, Field, Modal, Skel, StatusBadge, cx, dateFmt, inputCls, money, statusLabel } from '@/components/bits';
-import { useApplicantAccount, useApplicantDashboard, useDemo, type Milestone } from '@/lib/demo-state';
+import { apiError, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useMilestones, useRefreshApplicant, type Milestone } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 import { Gate, GrantCard, GREY, Legend, NAVY, card, usd0 } from '@/pages/applicant';
 
@@ -25,9 +29,10 @@ const today = () => { const t = new Date(); t.setHours(0, 0, 0, 0); return t; };
 const daysUntil = (s: string) => Math.round((localDate(s).getTime() - today().getTime()) / 86_400_000);
 const isoToday = () => { const t = today(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
 
+/** Active (not withdrawn) applications from the server; the dashboard's highlights stand in while loading. */
 function useAllApps(d: ApplicantDashboard): ApplicantApplication[] {
-  const { apps } = useDemo();
-  return useMemo(() => [...apps, ...d.highlights], [apps, d.highlights]);
+  const q = useApplications();
+  return useMemo(() => (q.data ?? d.highlights).filter((a) => a.status !== 'Withdrawn'), [q.data, d.highlights]);
 }
 
 function Select({ label, value, onChange, children, testid }: { label: string; value: string; onChange: (v: string) => void; children: ReactNode; testid: string }) {
@@ -280,10 +285,30 @@ function msState(m: Milestone) {
 }
 
 export function MilestonesPage() {
-  return <Gate title="Milestones">{(d) => <MilestonesBody d={d} />}</Gate>;
+  return <Gate title="Milestones">{(d) => <MilestonesGate d={d} />}</Gate>;
 }
-function MilestonesBody({ d }: { d: ApplicantDashboard }) {
-  const { milestones, toggleMilestone, removeMilestone } = useDemo();
+function MilestonesGate({ d }: { d: ApplicantDashboard }) {
+  const q = useMilestones();
+  if (q.isLoading) return <div className="space-y-3"><Skel className="h-28" /><Skel className="h-64" /></div>;
+  if (q.isError || !q.data) return <ErrorState onRetry={() => q.refetch()} />;
+  return <MilestonesBody d={d} milestones={q.data} />;
+}
+function MilestonesBody({ d, milestones }: { d: ApplicantDashboard; milestones: Milestone[] }) {
+  const qc = useQueryClient();
+  const key = getListApplicantMilestonesQueryKey();
+  const update = useUpdateApplicantMilestone();
+  const del = useDeleteApplicantMilestone();
+  const fail = (e: unknown) => { qc.invalidateQueries({ queryKey: key }); toast({ title: 'Could not save that change', description: apiError(e, 'Please try again.'), variant: 'destructive' }); };
+  // Optimistic: flip/remove locally, then reconcile with the server.
+  const toggleMilestone = (id: string) => {
+    const m = milestones.find((x) => x.id === id)!;
+    qc.setQueryData<Milestone[]>(key, (p) => p?.map((x) => (x.id === id ? { ...x, done: !x.done } : x)));
+    update.mutate({ milestoneId: id, data: { done: !m.done } }, { onError: fail });
+  };
+  const removeMilestone = (id: string) => {
+    qc.setQueryData<Milestone[]>(key, (p) => p?.filter((x) => x.id !== id));
+    del.mutate({ milestoneId: id }, { onError: fail });
+  };
   const { toast } = useToast();
   const [adding, setAdding] = useState(false);
   const all = useAllApps(d);
@@ -333,22 +358,28 @@ function MilestonesBody({ d }: { d: ApplicantDashboard }) {
           <ul className="space-y-3" data-testid="list-milestones-done">{done.map(row)}</ul>
         </section>
       )}
-      <p className="text-xs text-slate-500">Demo: milestones are saved in this browser only.</p>
       <AddMilestoneModal open={adding} onClose={() => setAdding(false)} grants={grants} />
     </div>
   );
 }
 function AddMilestoneModal({ open, onClose, grants }: { open: boolean; onClose: () => void; grants: string[] }) {
-  const { addMilestone } = useDemo();
+  const create = useCreateApplicantMilestone();
+  const refresh = useRefreshApplicant();
+  const { toast } = useToast();
+  const [err, setErr] = useState('');
   const f = useForm<z.infer<typeof msSchema>>({ resolver: zodResolver(msSchema), defaultValues: { title: '', grant: grants[1] ?? 'General', due: '' } });
-  const close = () => { f.reset({ title: '', grant: grants[1] ?? 'General', due: '' }); onClose(); };
+  const close = () => { f.reset({ title: '', grant: grants[1] ?? 'General', due: '' }); setErr(''); onClose(); };
   return (
     <Modal open={open} onClose={close} title="Add milestone" testid="dialog-add-milestone">
-      <form className="space-y-4" noValidate onSubmit={f.handleSubmit((v) => { addMilestone(v); close(); })}>
+      <form className="space-y-4" noValidate onSubmit={f.handleSubmit((v) => create.mutate({ data: v }, {
+        onSuccess: () => { refresh(); toast({ title: 'Milestone added', description: v.title }); close(); },
+        onError: (e) => setErr(apiError(e, 'Could not add the milestone. Please try again.')),
+      }))}>
         <Field label="Milestone" error={f.formState.errors.title?.message}><input data-testid="input-milestone-title" placeholder="e.g. Submit interim report" className={inputCls} {...f.register('title')} /></Field>
         <Field label="Grant"><select data-testid="select-milestone-grant" className={inputCls} {...f.register('grant')}>{grants.map((g) => <option key={g}>{g}</option>)}</select></Field>
         <Field label="Due date" error={f.formState.errors.due?.message}><input data-testid="input-milestone-due" type="date" className={inputCls} {...f.register('due')} /></Field>
-        <button data-testid="button-submit-milestone" type="submit" className="press w-full rounded-full bg-[#1E3A8A] py-2.5 text-sm font-semibold text-white hover:bg-[#0F172A]">Add milestone</button>
+        {err && <p role="alert" className="text-sm text-[#991B1B]">{err}</p>}
+        <button data-testid="button-submit-milestone" type="submit" disabled={create.isPending} className="press w-full rounded-full bg-[#1E3A8A] py-2.5 text-sm font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60">{create.isPending ? 'Adding…' : 'Add milestone'}</button>
       </form>
     </Modal>
   );

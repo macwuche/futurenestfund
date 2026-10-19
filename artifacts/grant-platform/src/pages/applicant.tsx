@@ -1,23 +1,23 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useParams } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import {
-  useUpdateApplicantProfile, useCreateApplicantRequest,
-  getGetApplicantDashboardQueryKey, getGetApplicantAccountQueryKey,
-  type ApplicantDashboard, type ApplicantAccount,
+  useUpdateApplicantProfile, useCreateApplicantRequest, useGetApplicantApplication, getGetApplicantApplicationQueryKey,
+  useWithdrawApplicantApplication, useRespondToApplicantApplication, getGetApplicantDashboardQueryKey,
+  type ApplicantDashboard, type ApplicantAccount, type ApplicantApplication, type ApplicationDetail,
 } from '@workspace/api-client-react';
 import {
   Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Clock, FileText, PenLine, Sparkles,
-  Search, ArrowDownLeft, ArrowUpRight, Snowflake, Landmark, Wallet,
+  Search, ArrowDownLeft, Undo2, ArrowLeft, ArrowUpRight, Snowflake, Landmark, Wallet,
   CreditCard, BadgeCheck, Lock, type LucideIcon,
 } from 'lucide-react';
 import { Shell } from '@/components/shell';
-import { Empty, ErrorState, Field, PageSkeleton, Skel, StatusBadge, cx, dateFmt, inputCls, money, statusLabel } from '@/components/bits';
-import { apiError, matchesSearch, useApplicantAccount, useApplicantDashboard, useDemo } from '@/lib/demo-state';
+import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, inputCls, money, statusLabel } from '@/components/bits';
+import { apiError, matchesSearch, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
 export const card = 'rounded-2xl border border-[#E5E7EB] bg-white shadow-sm';
@@ -143,7 +143,7 @@ function SetupCards({ d }: { d: ApplicantDashboard }) {
   );
 }
 
-const statusIcon: Record<string, LucideIcon> = { Submitted: FileText, Review: Clock, Approved: CircleCheck, 'Changes requested': PenLine, Declined: CircleX };
+export const statusIcon: Record<string, LucideIcon> = { Submitted: FileText, Review: Clock, Approved: CircleCheck, 'Changes requested': PenLine, Declined: CircleX, Withdrawn: Undo2 };
 const revenueRanges = [
   { k: 'all', label: 'All Revenue', test: () => true },
   { k: 'lt10', label: 'Under $10,000', test: (n: number) => n < 10000 },
@@ -152,10 +152,10 @@ const revenueRanges = [
 ] as const;
 
 function Highlights({ d }: { d: ApplicantDashboard }) {
-  const { apps, search } = useDemo();
+  const { search } = useDemo();
   const [range, setRange] = useState<(typeof revenueRanges)[number]['k']>('all');
   const test = revenueRanges.find((r) => r.k === range)!.test;
-  const list = [...apps, ...d.highlights].filter((a) => test(a.amount) && matchesSearch(a, search));
+  const list = d.highlights.filter((a) => test(a.amount) && matchesSearch(a, search));
   return (
     <section className={cx(card, 'p-4 sm:p-5')} data-testid="section-highlights" aria-labelledby="highlights-heading">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -174,7 +174,7 @@ function Highlights({ d }: { d: ApplicantDashboard }) {
             const Icon = statusIcon[a.status] ?? FileText;
             return (
               <li key={a.id}>
-                <Link href="/applications" data-testid={`row-application-${a.id}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-slate-300 hover:bg-slate-50 sm:px-4">
+                <Link href={`/applications/${a.id}`} data-testid={`row-application-${a.id}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-slate-300 hover:bg-slate-50 sm:px-4">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#EEF4FB] text-[#1E3A8A]"><Icon className="h-5 w-5" /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold text-slate-900" data-testid={`text-app-title-${a.id}`}>{a.title}</span>
@@ -192,18 +192,21 @@ function Highlights({ d }: { d: ApplicantDashboard }) {
   );
 }
 
-function AppList({ list }: { list: ApplicantDashboard['highlights'] }) {
+function AppList({ list }: { list: ApplicantApplication[] }) {
   if (list.length === 0) return <Empty title="No applications match" hint="Clear the search, or start a new application." />;
   return (
     <ul className="divide-y divide-slate-100" data-testid="list-applications">
       {list.map((a) => (
-        <li key={a.id} data-testid={`row-application-${a.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-3 sm:px-2">
-          <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
-            <p className="truncate font-semibold text-slate-900" data-testid={`text-app-title-${a.id}`}>{a.title}</p>
-            <p className="text-xs text-slate-500">{a.category} · Submitted {dateFmt(a.submittedAt)}</p>
-          </div>
-          <span className="text-sm font-semibold tabular-nums" data-testid={`text-app-amount-${a.id}`}>{money(a.amount)}</span>
-          <StatusBadge status={a.status} dot={false} testid={`badge-app-status-${a.id}`} />
+        <li key={a.id}>
+          <Link href={`/applications/${a.id}`} data-testid={`row-application-${a.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg py-3 transition hover:bg-slate-50 sm:px-2">
+            <span className="min-w-0 basis-full sm:basis-auto sm:flex-1">
+              <span className={cx('block truncate font-semibold', a.status === 'Withdrawn' ? 'text-slate-500' : 'text-slate-900')} data-testid={`text-app-title-${a.id}`}>{a.title}</span>
+              <span className="block text-xs text-slate-500">{a.category} · Submitted {dateFmt(a.submittedAt)}</span>
+            </span>
+            <span className="text-sm font-semibold tabular-nums" data-testid={`text-app-amount-${a.id}`}>{money(a.amount)}</span>
+            <StatusBadge status={a.status} dot={false} testid={`badge-app-status-${a.id}`} />
+            <ChevronRight className="hidden h-5 w-5 shrink-0 text-slate-400 sm:block" />
+          </Link>
         </li>
       ))}
     </ul>
@@ -215,7 +218,7 @@ export function GrantsPage() {
   return <Gate title="Grant categories">{(d) => <GrantsBody d={d} />}</Gate>;
 }
 export function GrantCard({ g }: { g: ApplicantDashboard['recommendations'][number] }) {
-  const { openNewApp, notify, savedGrants, toggleSavedGrant } = useDemo();
+  const { openNewApp, savedGrants, toggleSavedGrant } = useDemo();
   const { toast } = useToast();
   const saved = savedGrants.includes(g.id);
   return (
@@ -228,7 +231,6 @@ export function GrantCard({ g }: { g: ApplicantDashboard['recommendations'][numb
         <button data-testid={`button-apply-${g.id}`} onClick={() => openNewApp({ title: g.title, category: g.category, amount: g.amount })} className="press rounded-full bg-[#1E3A8A] px-4 py-1.5 text-sm font-semibold text-white hover:bg-[#0F172A]">Apply</button>
         <button data-testid={`button-save-${g.id}`} aria-pressed={saved} onClick={() => {
           const nowSaved = toggleSavedGrant(g.id);
-          notify(nowSaved ? `Saved "${g.title}"` : `Removed "${g.title}" from saved`);
           toast({ title: nowSaved ? 'Saved to your shortlist' : 'Removed from your shortlist' });
         }} className={cx('press rounded-full border px-4 py-1.5 text-sm font-semibold', saved ? 'border-[#1E3A8A] bg-[#EEF4FB] text-[#1E3A8A]' : 'border-slate-300 hover:border-[#1E3A8A]')}>{saved ? 'Saved' : 'Save'}</button>
       </div>
@@ -256,11 +258,17 @@ function GrantsBody({ d }: { d: ApplicantDashboard }) {
 
 /* ---------- Applications ---------- */
 export function ApplicationsPage() {
-  return <Gate title="My Applications">{(d) => <AppsBody d={d} />}</Gate>;
+  return <Shell title="My Applications"><AppsBody /></Shell>;
 }
-function AppsBody({ d }: { d: ApplicantDashboard }) {
-  const { apps, search, setSearch, openNewApp } = useDemo();
-  const list = [...apps, ...d.highlights].filter((a) => matchesSearch(a, search));
+const appFilters = ['All', 'Active', 'Changes requested', 'Approved', 'Withdrawn'] as const;
+function AppsBody() {
+  const { search, setSearch, openNewApp } = useDemo();
+  const q = useApplications();
+  const [filter, setFilter] = useState<(typeof appFilters)[number]>('All');
+  if (q.isLoading) return <PageSkeleton />;
+  if (q.isError || !q.data) return <ErrorState onRetry={() => q.refetch()} />;
+  const keep = (s: string) => filter === 'All' || (filter === 'Active' ? ['Submitted', 'Review', 'Changes requested'].includes(s) : s === filter);
+  const list = q.data.filter((a) => keep(a.status) && matchesSearch(a, search));
   return (
     <div className={cx(card, 'p-4 sm:p-5')}>
       <div className="mb-4 flex flex-wrap gap-3">
@@ -270,8 +278,119 @@ function AppsBody({ d }: { d: ApplicantDashboard }) {
         </div>
         <button data-testid="button-new-application-page" onClick={() => openNewApp()} className="press rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0F172A] sm:ml-auto">New application</button>
       </div>
-      <p className="mb-2 text-xs text-slate-500" data-testid="text-application-total">{list.length} shown · {d.applicationCount + apps.length} total</p>
+      <div className="noscroll -mx-1 mb-3 flex gap-2 overflow-x-auto px-1" role="group" aria-label="Filter by status">
+        {appFilters.map((k) => (
+          <button key={k} aria-pressed={filter === k} data-testid={`filter-app-${k.toLowerCase().replace(/\s/g, '-')}`} onClick={() => setFilter(k)}
+            className={cx('press whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold', filter === k ? 'border-[#1E3A8A] bg-[#1E3A8A] text-white' : 'border-slate-300 bg-white text-slate-600 hover:border-[#1E3A8A]')}>{k === 'Changes requested' ? 'Needs changes' : k}</button>
+        ))}
+      </div>
+      <p className="mb-2 text-xs text-slate-500" data-testid="text-application-total">{list.length} shown · {q.data.length} total</p>
       <AppList list={list} />
+    </div>
+  );
+}
+
+/* ---------- Application detail ---------- */
+const respondSchema = z.object({
+  note: z.string().trim().min(5, 'Write at least 5 characters').max(1000, 'Keep it under 1,000 characters'),
+  amount: z.coerce.number().min(100, 'Minimum is $100').max(10_000_000, 'Maximum is $10,000,000'),
+});
+const eventDot: Record<string, string> = { Submitted: '#16A34A', Review: '#F59E0B', Approved: '#1E3A8A', 'Changes requested': '#A855F7', Declined: '#DC2626', Withdrawn: '#94A3B8' };
+const dateTime = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+export function ApplicationDetailPage() {
+  const { id = '' } = useParams<{ id: string }>();
+  const q = useGetApplicantApplication(id, { query: { queryKey: getGetApplicantApplicationQueryKey(id), enabled: !!id, retry: (n, e) => (e as { status?: number })?.status !== 404 && n < 1 } });
+  const notFound = (q.error as { status?: number } | null)?.status === 404;
+  return (
+    <Shell title={q.data?.title ?? 'Application'}>
+      <Link href="/applications" data-testid="link-back-applications" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#1E3A8A] hover:underline"><ArrowLeft className="h-4 w-4" />My Applications</Link>
+      {q.isLoading ? <PageSkeleton />
+        : notFound ? <Empty title="Application not found" hint="It may have been removed, or the link is wrong." />
+        : q.isError || !q.data ? <ErrorState onRetry={() => q.refetch()} />
+        : <AppDetail a={q.data} />}
+    </Shell>
+  );
+}
+
+function AppDetail({ a }: { a: ApplicationDetail }) {
+  const qc = useQueryClient();
+  const refresh = useRefreshApplicant();
+  const { toast } = useToast();
+  const withdraw = useWithdrawApplicantApplication();
+  const respond = useRespondToApplicantApplication();
+  const [confirm, setConfirm] = useState(false);
+  const [err, setErr] = useState('');
+  const Icon = statusIcon[a.status] ?? FileText;
+  const lastRequest = [...a.events].reverse().find((e) => e.status === 'Changes requested');
+  const f = useForm<z.input<typeof respondSchema>, unknown, z.output<typeof respondSchema>>({ resolver: zodResolver(respondSchema), defaultValues: { note: '', amount: a.amount } });
+  const done = (msg: string) => (d: ApplicationDetail) => { qc.setQueryData(getGetApplicantApplicationQueryKey(a.id), d); refresh(); toast({ title: msg }); };
+  return (
+    <div className="space-y-5">
+      <section className={cx(card, 'p-5')} data-testid="section-application-header">
+        <div className="flex flex-wrap items-start gap-4">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#EEF4FB] text-[#1E3A8A]"><Icon className="h-6 w-6" /></span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl font-semibold text-slate-900" data-testid="text-application-title">{a.title}</h2>
+            <p className="text-sm text-slate-500">{a.id} · {a.category}</p>
+          </div>
+          <StatusBadge status={a.status} dot={false} testid="badge-application-status" />
+        </div>
+        <dl className="mt-5 grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-3">
+          <div><dt className="text-sm text-slate-500">Requested amount</dt><dd className="text-lg font-bold tabular-nums text-slate-900" data-testid="text-application-amount">{money(a.amount)}</dd></div>
+          <div><dt className="text-sm text-slate-500">Submitted</dt><dd className="font-semibold text-slate-900">{dateFmt(a.submittedAt)}</dd></div>
+          <div><dt className="text-sm text-slate-500">Last updated</dt><dd className="font-semibold text-slate-900">{dateFmt(a.updatedAt)}</dd></div>
+        </dl>
+      </section>
+
+      {a.canRespond && (
+        <section className="rounded-2xl border border-[#E9D5FF] bg-[#FAF5FF] p-5" aria-labelledby="respond-heading" data-testid="section-respond">
+          <h2 id="respond-heading" className="text-lg font-semibold text-slate-900">Changes requested</h2>
+          {lastRequest && <p className="mt-1 text-[15px] text-slate-700" data-testid="text-funder-request">“{lastRequest.note}”<span className="block text-xs text-slate-500">{lastRequest.actor} · {dateFmt(lastRequest.createdAt)}</span></p>}
+          <form noValidate className="mt-4 space-y-4" onSubmit={f.handleSubmit((v) => {
+            setErr('');
+            respond.mutate({ applicationId: a.id, data: { note: v.note, ...(v.amount !== a.amount ? { amount: v.amount } : {}) } }, {
+              onSuccess: (d) => { done('Application resubmitted')(d); f.reset({ note: '', amount: d.amount }); },
+              onError: (e) => setErr(apiError(e, 'Could not resubmit. Please try again.')),
+            });
+          })}>
+            <Field label="Your reply" error={f.formState.errors.note?.message}><textarea data-testid="input-respond-note" rows={4} placeholder="Explain what you changed…" className={cx(inputCls, 'resize-y')} {...f.register('note')} /></Field>
+            <Field label="Requested amount (USD)" error={f.formState.errors.amount?.message}><input data-testid="input-respond-amount" type="number" inputMode="decimal" step="0.01" className={cx(inputCls, 'tabular-nums sm:max-w-xs')} {...f.register('amount')} /></Field>
+            {err && <p role="alert" className="text-sm text-[#991B1B]">{err}</p>}
+            <button data-testid="button-resubmit" type="submit" disabled={respond.isPending} className="press rounded-full bg-[#1E3A8A] px-5 py-2.5 text-[15px] font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60">{respond.isPending ? 'Resubmitting…' : 'Resubmit application'}</button>
+          </form>
+        </section>
+      )}
+
+      <section className={cx(card, 'p-5')} aria-labelledby="timeline-heading">
+        <h2 id="timeline-heading" className="mb-4 text-lg font-semibold text-slate-900">Status history</h2>
+        <ol className="relative space-y-5 border-l-2 border-slate-100 pl-6" data-testid="list-timeline">
+          {[...a.events].reverse().map((e) => (
+            <li key={e.id} className="relative">
+              <span className="absolute -left-[31px] top-1 h-3.5 w-3.5 rounded-full ring-4 ring-white" style={{ background: eventDot[e.status] ?? '#94A3B8' }} aria-hidden="true" />
+              <p className="font-semibold text-slate-900">{statusLabel(e.status)}</p>
+              {e.note && <p className="text-[15px] text-slate-600">{e.note}</p>}
+              <p className="text-xs text-slate-500">{e.actor} · {dateTime(e.createdAt)}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {a.canWithdraw && (
+        <div className="flex justify-end">
+          <button data-testid="button-withdraw-application" onClick={() => setConfirm(true)} className="press rounded-full border border-[#FECACA] bg-white px-4 py-2 text-sm font-semibold text-[#991B1B] hover:bg-[#FEF2F2]">Withdraw application</button>
+        </div>
+      )}
+      <Modal open={confirm} onClose={() => setConfirm(false)} title="Withdraw this application?" testid="dialog-withdraw">
+        <p className="text-[15px] text-slate-600">“{a.title}” will be withdrawn and the funder will stop reviewing it. This can’t be undone. You can always submit a new application.</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button data-testid="button-withdraw-cancel" onClick={() => setConfirm(false)} className="rounded-full px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Keep it</button>
+          <button data-testid="button-withdraw-confirm" disabled={withdraw.isPending} onClick={() => withdraw.mutate({ applicationId: a.id }, {
+            onSuccess: (d) => { setConfirm(false); done('Application withdrawn')(d); },
+            onError: (e) => { setConfirm(false); toast({ title: 'Could not withdraw', description: apiError(e, 'Please try again.'), variant: 'destructive' }); },
+          })} className="press rounded-full bg-[#991B1B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#7F1D1D] disabled:opacity-60">{withdraw.isPending ? 'Withdrawing…' : 'Withdraw'}</button>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -427,8 +546,7 @@ function MoneyPage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
 }
 const quickAmounts = [100, 500, 1000];
 function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) {
-  const qc = useQueryClient();
-  const { notify } = useDemo();
+  const refresh = useRefreshApplicant();
   const { toast } = useToast();
   const m = useCreateApplicantRequest();
   const [amt, setAmt] = useState('');
@@ -447,9 +565,8 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
     setErr('');
     m.mutate({ data: { kind, amount: n, note: note.trim() || undefined } }, {
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getGetApplicantAccountQueryKey() });
+        refresh();
         setAmt(''); setNote('');
-        notify(`${kind} request for ${money(n)} submitted`);
         toast({ title: `${kind} request submitted`, description: 'It will show as Pending until it is reviewed.' });
       },
       onError: (e2) => setErr(apiError(e2, 'The request could not be submitted. Please try again.')),

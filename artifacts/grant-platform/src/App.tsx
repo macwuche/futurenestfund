@@ -6,7 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { DemoProvider } from '@/lib/demo-state';
 import {
-  DashboardPage, GrantsPage, ApplicationsPage, CardsPage, TransactionsPage, WithdrawalsPage, DepositsPage, SettingsPage,
+  DashboardPage, GrantsPage, ApplicationsPage, ApplicationDetailPage, CardsPage, TransactionsPage, WithdrawalsPage, DepositsPage, SettingsPage,
 } from '@/pages/applicant';
 import { GrantSearchPage, FundingTrackerPage, ReportsPage, MilestonesPage, HelpPage } from '@/pages/applicant-more';
 import { Layout } from '@/components/shell';
@@ -33,6 +33,7 @@ function Router() {
         <Route path="/dashboard" component={DashboardPage} />
         <Route path="/grants" component={GrantsPage} />
         <Route path="/applications" component={ApplicationsPage} />
+        <Route path="/applications/:id" component={ApplicationDetailPage} />
         <Route path="/cards" component={CardsPage} />
         <Route path="/transactions" component={TransactionsPage} />
         <Route path="/withdrawals" component={WithdrawalsPage} />

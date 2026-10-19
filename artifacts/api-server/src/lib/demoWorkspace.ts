@@ -1,15 +1,12 @@
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
-import { db, demoProfilesTable, demoAuditTable, demoLedgerTable, demoSettingsTable, demoRequestsTable, type DemoProfile } from "@workspace/db";
+import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { db, demoProfilesTable, demoAuditTable, demoLedgerTable, demoSettingsTable, demoRequestsTable, demoApplicationsTable, type DemoProfile } from "@workspace/db";
+import { notifyUser } from "./notifications";
+import { activeApplicationsFilter, applicationSummary } from "./applicantRecords";
 import { GetAdminUserResponse } from "@workspace/api-zod";
 
 export const demoApplicantId = "usr-jane";
 export class DemoInputError extends Error {}
 
-export const applications = [
-  { id: "APP-2026-001", title: "AI Innovation Grant", category: "Technology & innovation", status: "Review", amount: 25000, submittedAt: "2026-10-08" },
-  { id: "APP-2026-002", title: "Community Arts Support", category: "Arts & culture", status: "Submitted", amount: 10000, submittedAt: "2026-10-12" },
-  { id: "APP-2026-003", title: "Sustainable Futures Fund", category: "Environment", status: "Approved", amount: 15000, submittedAt: "2026-09-24" },
-];
 
 export function summary(person: DemoProfile) {
   return {
@@ -60,6 +57,8 @@ export async function applicantDashboard(monthly: boolean) {
   const labels = monthly ? ["Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"] : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const submitted = monthly ? [26000, 18000, 7500, 15500, 21500, 9000, 17500, 11000] : [4000, 6500, 2500, 5000, 7000, 3000, 1500];
   const review = monthly ? [4000, 16000, 4500, 12000, 6500, 4500, 9500, 6000] : [1500, 2000, 1000, 3500, 2500, 1000, 500];
+  const apps = await db.select().from(demoApplicationsTable)
+    .where(and(eq(demoApplicationsTable.profileId, person.id), activeApplicationsFilter)).orderBy(desc(demoApplicationsTable.submittedAt));
   return {
     profile: applicantProfile(person),
     totalBudget: 50000, allocatedFunds: person.grantCents / 100, remainingFunds: 50000 - person.grantCents / 100,
@@ -68,7 +67,7 @@ export async function applicantDashboard(monthly: boolean) {
       { id: "matchmaking", title: "AI Grant Matchmaking", description: "Save time by enabling AI to integrate with your facturas and retrieve your business information.", actionLabel: "Complete Setup", complete: false },
       { id: "proposal", title: "Submit First Proposal", description: "Upload your first proposal and we'll use your facturas to pre-fill your business information.", actionLabel: "Complete Setup", complete: false },
     ],
-    highlights: applications,
+    highlights: apps.slice(0, 5).map(applicationSummary),
     recommendations: [
       { id: "grant-tech", title: "Digital Impact Fellowship", category: "Technology & innovation", amount: 30000, deadline: "2026-11-30", recommended: true },
       { id: "grant-community", title: "Community Builders Fund", category: "Community", amount: 15000, deadline: "2026-12-15", recommended: true },
@@ -83,12 +82,14 @@ export async function applicantDashboard(monthly: boolean) {
       { id: "grant-stem", title: "STEM Scholars Program", category: "Education", amount: 5000, deadline: "2026-11-25", recommended: true },
       { id: "grant-mental", title: "Mental Health Outreach Grant", category: "Health", amount: 22000, deadline: "2026-12-20", recommended: false },
     ],
-    applicationCount: applications.length,
+    applicationCount: apps.length,
   };
 }
 
 export async function adminDashboard() {
   const people = await db.select().from(demoProfilesTable);
+  const appCounts = await db.select({ status: demoApplicationsTable.status, n: sql<number>`count(*)::int` }).from(demoApplicationsTable).groupBy(demoApplicationsTable.status);
+  const appsWith = (...statuses: string[]) => appCounts.filter(c => statuses.includes(c.status)).reduce((t, c) => t + c.n, 0);
   const activity = await db.select().from(demoAuditTable).orderBy(desc(demoAuditTable.createdAt)).limit(8);
   const [settings] = await db.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
   const pending = await db.select({ kind: demoRequestsTable.kind, n: sql<number>`count(*)::int` }).from(demoRequestsTable)
@@ -96,12 +97,12 @@ export async function adminDashboard() {
   const pendingOf = (kind: string) => pending.find(p => p.kind === kind)?.n ?? 0;
   return {
     totalUsers: people.length, activeUsers: people.filter(p => p.status === "Active").length,
-    pendingApplications: applications.filter(a => a.status === "Review" || a.status === "Submitted").length,
+    pendingApplications: appsWith("Submitted", "Review"),
     pendingKyc: people.filter(p => p.verificationLevel === "Pending").length,
     pendingDeposits: pendingOf("Deposit"), pendingWithdrawals: pendingOf("Withdrawal"),
     totalGrantBalances: people.reduce((sum, p) => sum + p.grantCents, 0) / 100,
     totalDepositBalances: people.reduce((sum, p) => sum + p.depositCents, 0) / 100,
-    applicationsByStatus: ["Submitted", "Review", "Approved", "Declined"].map(status => ({ status, count: applications.filter(a => a.status === status).length })),
+    applicationsByStatus: ["Submitted", "Review", "Changes requested", "Approved", "Declined"].map(status => ({ status, count: appsWith(status) })),
     recentActivity: activity.map(a => ({ id: a.id, action: a.action, subject: people.find(p => p.id === a.profileId)?.name ?? "Platform", createdAt: a.createdAt.toISOString() })),
     systemHealth: { api: "Operational", database: "Operational", auditLog: "Intact", fourEyes: false },
     globalFrozen: settings?.frozen ?? false,
@@ -120,6 +121,9 @@ export async function changeProfile(id: string, changes: ProfileChanges, actor: 
     if (!fields.length) return true;
     await tx.update(demoProfilesTable).set(normalized).where(eq(demoProfilesTable.id, id));
     await tx.insert(demoAuditTable).values({ profileId: id, actor, action: `Updated ${fields.join(", ")}${changes.status ? ` (${changes.status.toLowerCase()})` : ""}` });
+    if (changes.status && changes.status !== current.status) {
+      await notifyUser(id, changes.status === "Frozen" ? "Your account has been frozen. Deposits and withdrawals are paused." : "Your account is active again.", "/settings", tx);
+    }
     return true;
   });
 }
@@ -140,6 +144,7 @@ export async function adjustBalance(id: string, account: "grant" | "deposit" | "
     await tx.update(demoProfilesTable).set({ [key]: next }).where(eq(demoProfilesTable.id, id));
     await tx.insert(demoLedgerTable).values({ profileId: id, account, amountCents: cents, reason: reason.trim() });
     await tx.insert(demoAuditTable).values({ profileId: id, action: `Demo ${account} top-up +$${amount.toFixed(2)} · ${reason.trim()}` });
+    await notifyUser(id, `$${amount.toFixed(2)} was added to your ${account} balance`, "/transactions", tx);
     return {
       grant: (account === "grant" ? next : current.grantCents) / 100,
       deposit: (account === "deposit" ? next : current.depositCents) / 100,
@@ -205,6 +210,7 @@ export async function createApplicantRequest(kind: "Deposit" | "Withdrawal", amo
     if (kind === "Withdrawal" && cents > await availableCents(profile, tx)) throw new DemoInputError("This is more than your available grant balance, after pending withdrawals.");
     const [row] = await tx.insert(demoRequestsTable).values({ profileId: profile.id, kind, amountCents: cents, note: note.trim().slice(0, 240) }).returning();
     await tx.insert(demoAuditTable).values({ profileId: profile.id, actor: "Demo applicant", action: `${kind} request submitted +$${(cents / 100).toFixed(2)}` });
+    await notifyUser(profile.id, `${kind} request for $${(cents / 100).toFixed(2)} submitted for review`, kind === "Deposit" ? "/deposits" : "/withdrawals", tx);
     return requestTransaction(row!);
   });
 }

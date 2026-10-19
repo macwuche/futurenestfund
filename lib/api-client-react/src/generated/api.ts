@@ -25,11 +25,15 @@ import type {
   AdminUserUpdate,
   AdminUsersPage,
   ApplicantAccount,
+  ApplicantApplication,
   ApplicantDashboard,
   ApplicantProfile,
   ApplicantProfileUpdate,
   ApplicantRequestInput,
   ApplicantTransaction,
+  ApplicationDetail,
+  ApplicationInput,
+  ApplicationResponseInput,
   BalanceAdjustmentInput,
   ErrorMessage,
   GetApplicantDashboardParams,
@@ -37,6 +41,10 @@ import type {
   GlobalFreezeUpdate,
   HealthStatus,
   ListAdminUsersParams,
+  Milestone,
+  MilestoneInput,
+  MilestoneUpdate,
+  NotificationList,
   UserBalances
 } from './api.schemas';
 
@@ -480,6 +488,890 @@ export const useCreateApplicantRequest = <TError = ErrorType<ErrorMessage>,
         TContext
       > => {
       return useMutation(getCreateApplicantRequestMutationOptions(options));
+    }
+
+export const getListApplicantApplicationsUrl = () => {
+
+
+
+
+  return `/api/applicant/applications`
+}
+
+/**
+ * @summary List the applicant's applications
+ */
+export const listApplicantApplications = async ( options?: Parameters<typeof customFetch>[1]): Promise<ApplicantApplication[]> => {
+
+  return customFetch<ApplicantApplication[]>(getListApplicantApplicationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListApplicantApplicationsQueryKey = () => {
+    return [
+    `/api/applicant/applications`
+    ] as const;
+    }
+
+
+export const getListApplicantApplicationsQueryOptions = <TData = Awaited<ReturnType<typeof listApplicantApplications>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicantApplications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListApplicantApplicationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listApplicantApplications>>> = ({ signal }) => listApplicantApplications({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listApplicantApplications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListApplicantApplicationsQueryResult = NonNullable<Awaited<ReturnType<typeof listApplicantApplications>>>
+export type ListApplicantApplicationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the applicant's applications
+ */
+
+export function useListApplicantApplications<TData = Awaited<ReturnType<typeof listApplicantApplications>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicantApplications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListApplicantApplicationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateApplicantApplicationUrl = () => {
+
+
+
+
+  return `/api/applicant/applications`
+}
+
+/**
+ * @summary Submit a new application
+ */
+export const createApplicantApplication = async (applicationInput: ApplicationInput, options?: Parameters<typeof customFetch>[1]): Promise<ApplicationDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ApplicationDetail>(getCreateApplicantApplicationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(applicationInput)
+  }
+);}
+
+
+
+
+
+export const getCreateApplicantApplicationMutationKey = () => ['createApplicantApplication'] as const;
+
+export const getCreateApplicantApplicationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApplicantApplication>>, TError,CreateApplicantApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createApplicantApplication>>, TError,CreateApplicantApplicationMutationVariables, TContext> => {
+
+const mutationKey = getCreateApplicantApplicationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createApplicantApplication>>, CreateApplicantApplicationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createApplicantApplication(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateApplicantApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof createApplicantApplication>>>
+    export type CreateApplicantApplicationMutationBody = BodyType<ApplicationInput>
+    export type CreateApplicantApplicationMutationError = ErrorType<unknown>
+    export type CreateApplicantApplicationMutationVariables = {data: BodyType<ApplicationInput>}
+
+    /**
+ * @summary Submit a new application
+ */
+export const useCreateApplicantApplication = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApplicantApplication>>, TError,CreateApplicantApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createApplicantApplication>>,
+        TError,
+        CreateApplicantApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateApplicantApplicationMutationOptions(options));
+    }
+
+export const getGetApplicantApplicationUrl = (applicationId: string,) => {
+
+
+
+
+  return `/api/applicant/applications/${applicationId}`
+}
+
+/**
+ * @summary Get one application with its status history
+ */
+export const getApplicantApplication = async (applicationId: string, options?: Parameters<typeof customFetch>[1]): Promise<ApplicationDetail> => {
+
+  return customFetch<ApplicationDetail>(getGetApplicantApplicationUrl(applicationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetApplicantApplicationQueryKey = (applicationId: string,) => {
+    return [
+    `/api/applicant/applications/${applicationId}`
+    ] as const;
+    }
+
+
+export const getGetApplicantApplicationQueryOptions = <TData = Awaited<ReturnType<typeof getApplicantApplication>>, TError = ErrorType<ErrorMessage>>(applicationId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantApplication>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApplicantApplicationQueryKey(applicationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApplicantApplication>>> = ({ signal }) => getApplicantApplication(applicationId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: applicationId !== null && applicationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApplicantApplication>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetApplicantApplicationQueryResult = NonNullable<Awaited<ReturnType<typeof getApplicantApplication>>>
+export type GetApplicantApplicationQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary Get one application with its status history
+ */
+
+export function useGetApplicantApplication<TData = Awaited<ReturnType<typeof getApplicantApplication>>, TError = ErrorType<ErrorMessage>>(
+ applicationId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantApplication>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetApplicantApplicationQueryOptions(applicationId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getWithdrawApplicantApplicationUrl = (applicationId: string,) => {
+
+
+
+
+  return `/api/applicant/applications/${applicationId}/withdraw`
+}
+
+/**
+ * @summary Withdraw a submitted application
+ */
+export const withdrawApplicantApplication = async (applicationId: string, options?: Parameters<typeof customFetch>[1]): Promise<ApplicationDetail> => {
+
+  return customFetch<ApplicationDetail>(getWithdrawApplicantApplicationUrl(applicationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getWithdrawApplicantApplicationMutationKey = () => ['withdrawApplicantApplication'] as const;
+
+export const getWithdrawApplicantApplicationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawApplicantApplication>>, TError,WithdrawApplicantApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof withdrawApplicantApplication>>, TError,WithdrawApplicantApplicationMutationVariables, TContext> => {
+
+const mutationKey = getWithdrawApplicantApplicationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof withdrawApplicantApplication>>, WithdrawApplicantApplicationMutationVariables> = (props) => {
+          const {applicationId} = props ?? {};
+
+          return  withdrawApplicantApplication(applicationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WithdrawApplicantApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawApplicantApplication>>>
+
+    export type WithdrawApplicantApplicationMutationError = ErrorType<unknown>
+    export type WithdrawApplicantApplicationMutationVariables = {applicationId: string}
+
+    /**
+ * @summary Withdraw a submitted application
+ */
+export const useWithdrawApplicantApplication = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawApplicantApplication>>, TError,WithdrawApplicantApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof withdrawApplicantApplication>>,
+        TError,
+        WithdrawApplicantApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWithdrawApplicantApplicationMutationOptions(options));
+    }
+
+export const getRespondToApplicantApplicationUrl = (applicationId: string,) => {
+
+
+
+
+  return `/api/applicant/applications/${applicationId}/respond`
+}
+
+/**
+ * @summary Reply to requested changes and resubmit
+ */
+export const respondToApplicantApplication = async (applicationId: string,
+    applicationResponseInput: ApplicationResponseInput, options?: Parameters<typeof customFetch>[1]): Promise<ApplicationDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ApplicationDetail>(getRespondToApplicantApplicationUrl(applicationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(applicationResponseInput)
+  }
+);}
+
+
+
+
+
+export const getRespondToApplicantApplicationMutationKey = () => ['respondToApplicantApplication'] as const;
+
+export const getRespondToApplicantApplicationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof respondToApplicantApplication>>, TError,RespondToApplicantApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof respondToApplicantApplication>>, TError,RespondToApplicantApplicationMutationVariables, TContext> => {
+
+const mutationKey = getRespondToApplicantApplicationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof respondToApplicantApplication>>, RespondToApplicantApplicationMutationVariables> = (props) => {
+          const {applicationId,data} = props ?? {};
+
+          return  respondToApplicantApplication(applicationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RespondToApplicantApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof respondToApplicantApplication>>>
+    export type RespondToApplicantApplicationMutationBody = BodyType<ApplicationResponseInput>
+    export type RespondToApplicantApplicationMutationError = ErrorType<unknown>
+    export type RespondToApplicantApplicationMutationVariables = {applicationId: string;data: BodyType<ApplicationResponseInput>}
+
+    /**
+ * @summary Reply to requested changes and resubmit
+ */
+export const useRespondToApplicantApplication = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof respondToApplicantApplication>>, TError,RespondToApplicantApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof respondToApplicantApplication>>,
+        TError,
+        RespondToApplicantApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRespondToApplicantApplicationMutationOptions(options));
+    }
+
+export const getListApplicantMilestonesUrl = () => {
+
+
+
+
+  return `/api/applicant/milestones`
+}
+
+/**
+ * @summary List milestones
+ */
+export const listApplicantMilestones = async ( options?: Parameters<typeof customFetch>[1]): Promise<Milestone[]> => {
+
+  return customFetch<Milestone[]>(getListApplicantMilestonesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListApplicantMilestonesQueryKey = () => {
+    return [
+    `/api/applicant/milestones`
+    ] as const;
+    }
+
+
+export const getListApplicantMilestonesQueryOptions = <TData = Awaited<ReturnType<typeof listApplicantMilestones>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicantMilestones>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListApplicantMilestonesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listApplicantMilestones>>> = ({ signal }) => listApplicantMilestones({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listApplicantMilestones>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListApplicantMilestonesQueryResult = NonNullable<Awaited<ReturnType<typeof listApplicantMilestones>>>
+export type ListApplicantMilestonesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List milestones
+ */
+
+export function useListApplicantMilestones<TData = Awaited<ReturnType<typeof listApplicantMilestones>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicantMilestones>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListApplicantMilestonesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateApplicantMilestoneUrl = () => {
+
+
+
+
+  return `/api/applicant/milestones`
+}
+
+/**
+ * @summary Add a milestone
+ */
+export const createApplicantMilestone = async (milestoneInput: MilestoneInput, options?: Parameters<typeof customFetch>[1]): Promise<Milestone> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Milestone>(getCreateApplicantMilestoneUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(milestoneInput)
+  }
+);}
+
+
+
+
+
+export const getCreateApplicantMilestoneMutationKey = () => ['createApplicantMilestone'] as const;
+
+export const getCreateApplicantMilestoneMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApplicantMilestone>>, TError,CreateApplicantMilestoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createApplicantMilestone>>, TError,CreateApplicantMilestoneMutationVariables, TContext> => {
+
+const mutationKey = getCreateApplicantMilestoneMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createApplicantMilestone>>, CreateApplicantMilestoneMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createApplicantMilestone(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateApplicantMilestoneMutationResult = NonNullable<Awaited<ReturnType<typeof createApplicantMilestone>>>
+    export type CreateApplicantMilestoneMutationBody = BodyType<MilestoneInput>
+    export type CreateApplicantMilestoneMutationError = ErrorType<unknown>
+    export type CreateApplicantMilestoneMutationVariables = {data: BodyType<MilestoneInput>}
+
+    /**
+ * @summary Add a milestone
+ */
+export const useCreateApplicantMilestone = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApplicantMilestone>>, TError,CreateApplicantMilestoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createApplicantMilestone>>,
+        TError,
+        CreateApplicantMilestoneMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateApplicantMilestoneMutationOptions(options));
+    }
+
+export const getUpdateApplicantMilestoneUrl = (milestoneId: string,) => {
+
+
+
+
+  return `/api/applicant/milestones/${milestoneId}`
+}
+
+/**
+ * @summary Mark a milestone done or not done
+ */
+export const updateApplicantMilestone = async (milestoneId: string,
+    milestoneUpdate: MilestoneUpdate, options?: Parameters<typeof customFetch>[1]): Promise<Milestone> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Milestone>(getUpdateApplicantMilestoneUrl(milestoneId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(milestoneUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateApplicantMilestoneMutationKey = () => ['updateApplicantMilestone'] as const;
+
+export const getUpdateApplicantMilestoneMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateApplicantMilestone>>, TError,UpdateApplicantMilestoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateApplicantMilestone>>, TError,UpdateApplicantMilestoneMutationVariables, TContext> => {
+
+const mutationKey = getUpdateApplicantMilestoneMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateApplicantMilestone>>, UpdateApplicantMilestoneMutationVariables> = (props) => {
+          const {milestoneId,data} = props ?? {};
+
+          return  updateApplicantMilestone(milestoneId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateApplicantMilestoneMutationResult = NonNullable<Awaited<ReturnType<typeof updateApplicantMilestone>>>
+    export type UpdateApplicantMilestoneMutationBody = BodyType<MilestoneUpdate>
+    export type UpdateApplicantMilestoneMutationError = ErrorType<unknown>
+    export type UpdateApplicantMilestoneMutationVariables = {milestoneId: string;data: BodyType<MilestoneUpdate>}
+
+    /**
+ * @summary Mark a milestone done or not done
+ */
+export const useUpdateApplicantMilestone = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateApplicantMilestone>>, TError,UpdateApplicantMilestoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateApplicantMilestone>>,
+        TError,
+        UpdateApplicantMilestoneMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateApplicantMilestoneMutationOptions(options));
+    }
+
+export const getDeleteApplicantMilestoneUrl = (milestoneId: string,) => {
+
+
+
+
+  return `/api/applicant/milestones/${milestoneId}`
+}
+
+/**
+ * @summary Delete a milestone
+ */
+export const deleteApplicantMilestone = async (milestoneId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteApplicantMilestoneUrl(milestoneId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteApplicantMilestoneMutationKey = () => ['deleteApplicantMilestone'] as const;
+
+export const getDeleteApplicantMilestoneMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteApplicantMilestone>>, TError,DeleteApplicantMilestoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteApplicantMilestone>>, TError,DeleteApplicantMilestoneMutationVariables, TContext> => {
+
+const mutationKey = getDeleteApplicantMilestoneMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteApplicantMilestone>>, DeleteApplicantMilestoneMutationVariables> = (props) => {
+          const {milestoneId} = props ?? {};
+
+          return  deleteApplicantMilestone(milestoneId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteApplicantMilestoneMutationResult = NonNullable<Awaited<ReturnType<typeof deleteApplicantMilestone>>>
+
+    export type DeleteApplicantMilestoneMutationError = ErrorType<unknown>
+    export type DeleteApplicantMilestoneMutationVariables = {milestoneId: string}
+
+    /**
+ * @summary Delete a milestone
+ */
+export const useDeleteApplicantMilestone = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteApplicantMilestone>>, TError,DeleteApplicantMilestoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteApplicantMilestone>>,
+        TError,
+        DeleteApplicantMilestoneMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteApplicantMilestoneMutationOptions(options));
+    }
+
+export const getListApplicantNotificationsUrl = () => {
+
+
+
+
+  return `/api/applicant/notifications`
+}
+
+/**
+ * @summary Recent notifications
+ */
+export const listApplicantNotifications = async ( options?: Parameters<typeof customFetch>[1]): Promise<NotificationList> => {
+
+  return customFetch<NotificationList>(getListApplicantNotificationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListApplicantNotificationsQueryKey = () => {
+    return [
+    `/api/applicant/notifications`
+    ] as const;
+    }
+
+
+export const getListApplicantNotificationsQueryOptions = <TData = Awaited<ReturnType<typeof listApplicantNotifications>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicantNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListApplicantNotificationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listApplicantNotifications>>> = ({ signal }) => listApplicantNotifications({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listApplicantNotifications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListApplicantNotificationsQueryResult = NonNullable<Awaited<ReturnType<typeof listApplicantNotifications>>>
+export type ListApplicantNotificationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Recent notifications
+ */
+
+export function useListApplicantNotifications<TData = Awaited<ReturnType<typeof listApplicantNotifications>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicantNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListApplicantNotificationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMarkApplicantNotificationsReadUrl = () => {
+
+
+
+
+  return `/api/applicant/notifications/read`
+}
+
+/**
+ * @summary Mark all notifications as read
+ */
+export const markApplicantNotificationsRead = async ( options?: Parameters<typeof customFetch>[1]): Promise<NotificationList> => {
+
+  return customFetch<NotificationList>(getMarkApplicantNotificationsReadUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkApplicantNotificationsReadMutationKey = () => ['markApplicantNotificationsRead'] as const;
+
+export const getMarkApplicantNotificationsReadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markApplicantNotificationsRead>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markApplicantNotificationsRead>>, TError,void, TContext> => {
+
+const mutationKey = getMarkApplicantNotificationsReadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markApplicantNotificationsRead>>, void> = () => {
+
+
+          return  markApplicantNotificationsRead(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkApplicantNotificationsReadMutationResult = NonNullable<Awaited<ReturnType<typeof markApplicantNotificationsRead>>>
+
+    export type MarkApplicantNotificationsReadMutationError = ErrorType<unknown>
+
+
+    /**
+ * @summary Mark all notifications as read
+ */
+export const useMarkApplicantNotificationsRead = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markApplicantNotificationsRead>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markApplicantNotificationsRead>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getMarkApplicantNotificationsReadMutationOptions(options));
     }
 
 export const getGetAdminDashboardUrl = () => {
