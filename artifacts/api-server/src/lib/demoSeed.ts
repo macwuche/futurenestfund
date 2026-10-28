@@ -1,4 +1,16 @@
-import { db, demoProfilesTable, demoAuditTable, demoSettingsTable, demoApplicationsTable, demoApplicationEventsTable, demoMilestonesTable, demoKycDocumentsTable } from "@workspace/db";
+import { createHash } from "node:crypto";
+import { sql } from "drizzle-orm";
+import { db, demoProfilesTable, demoAuditTable, demoSettingsTable, demoApplicationsTable, demoApplicationEventsTable, demoMilestonesTable, demoKycDocumentsTable, demoLedgerTable } from "@workspace/db";
+
+/** Logs that must never change once written. Truncating (test resets) is still allowed. */
+const APPEND_ONLY = { demo_audit: "demo_audit_append_only", demo_ledger: "demo_ledger_append_only", demo_application_events: "demo_application_events_append_only" } as const;
+export const APPEND_ONLY_TRIGGERS = Object.values(APPEND_ONLY);
+
+/** Stable, random-looking UUID for a seeded row, so re-seeding never inserts it twice. */
+const seedUuid = (key: string) => {
+  const h = createHash("sha256").update(key).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
+};
 
 export async function seedDemoData(): Promise<void> {
   await db.transaction(async (tx) => {
@@ -32,6 +44,28 @@ export async function seedDemoData(): Promise<void> {
       ]).onConflictDoNothing();
     }
     await tx.insert(demoSettingsTable).values({ id: "platform", frozen: false }).onConflictDoNothing();
+
+    // Ledger entries explaining the sample balances (fixed ids, so they're inserted once).
+    // Jane's grant balance is the award for her approved application.
+    const opening = people.flatMap((person) => ([["grant", person.grantCents], ["deposit", person.depositCents], ["card", person.cardCents]] as const)
+      .filter(([, cents]) => cents > 0)
+      .map(([account, cents]) => {
+        const award = person.id === "usr-jane" && account === "grant";
+        return {
+          id: seedUuid(`ledger:${person.id}:${account}`), profileId: person.id, account, amountCents: cents,
+          kind: award ? "Grant award" : "Opening balance", actor: award ? "Grant review team" : "Demo workspace",
+          reason: award ? "Grant award · Sustainable Futures Fund" : "Opening balance (sample)",
+          ...(award ? { applicationId: "APP-2026-003" } : {}),
+          createdAt: new Date(`${award ? "2026-10-03" : person.joinedAt}T15:00:00Z`),
+        };
+      }));
+    await tx.insert(demoLedgerTable).values(opening).onConflictDoNothing();
+
+    await tx.execute(sql`create or replace function demo_append_only() returns trigger language plpgsql as $$
+      begin raise exception '% is append-only', tg_table_name; end $$`);
+    for (const [table, trigger] of Object.entries(APPEND_ONLY)) {
+      await tx.execute(sql.raw(`create or replace trigger ${trigger} before update or delete on ${table} for each row execute function demo_append_only()`));
+    }
 
     // Sample applications with their status history. Each is inserted once; history only for newly inserted rows.
     const at = (d: string) => new Date(`${d}T15:00:00Z`);

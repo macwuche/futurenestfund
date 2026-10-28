@@ -518,7 +518,7 @@ Why this order:
 - Login comes before true 4-eyes because two-person approval is meaningless without knowing who the two people are.
 - Tests come last as a phase, but each phase adds tests for the money rules it touches.
 
-### 8e. Decisions needed
+### 8e. Decisions needed (1 and 2 settled on 2026-10-21, see the Phase 3 log)
 
 1. **Admin design:** is there a design image for the admin side, or should we follow the written admin spec?
 2. **Applications review (A9):** admins need somewhere to approve applications. Should we add an "Applications" item to the admin menu, or put it inside Users?
@@ -725,3 +725,47 @@ Still open after Phase 2:
 - KYC approve/reject (A8) and admin access to proposal files (A9). Both are Phase 3.
 - Uploaded files live on local disk. Replit deployments don't keep that disk, so persistent storage is needed before real use (P4).
 - No virus scanning. The PDF/DOCX checks are structural only, and files are only ever served as downloads.
+
+### 2026-10-21: Phase 3 done (A1, A2, A5, A6, A8, A9: admin operations core)
+
+Decisions taken (§8e):
+- **1. Admin design:** follow the written admin spec (user's choice).
+- **2. Applications review (A9):** kept inside **Users**, so the admin menu stays exactly the spec's 7 items. Review page is `/admin/users/:userId/applications/:id`, reached from the inspector's new Applications section, the dashboard's review queue and header search.
+
+Backend (`api-server/src/lib/adminOps.ts`, new endpoints in OpenAPI, codegen run):
+- **Schema** (pushed to the Replit dev DB, **not** Supabase): `demo_ledger` gained `kind`, `request_id`, `application_id`, `actor`; `demo_requests` and `demo_kyc_documents` gained `review_note`, `reviewed_by`, `reviewed_at`.
+- **One ledger for all money.** Signed amounts, linked to the request or application. Seeded "Opening balance" rows (and Jane's $15,000 grant award) explain the sample balances; fixed hashed ids so they insert once.
+- **Append-only logs.** Boot installs triggers that refuse UPDATE/DELETE on `demo_audit`, `demo_ledger`, `demo_application_events`. Dashboard "Audit log: Intact" now checks they exist; "Database" is a real round-trip timing.
+- **Application decisions (A9).** Submitted → Review / Approved / Declined / Changes requested; Review → the last three. Decline and Changes requested need a note. Approve credits the grant balance through the ledger and is refused during a global or account freeze. Each decision writes an event, an audit row and a notification. Admins can download proposal files.
+- **Deposit / withdrawal queues (A6, plus single-approval A7).** Approve deposit → deposit balance up; approve withdrawal → grant balance down (refused if the balance is now too small). Approvals re-check global freeze, account freeze and the user's KYC requirement at approval time. Decline needs a reason (allowed during a freeze; no money moves). The applicant sees "Declined: reason".
+- **KYC review (A8).** Approve / reject the current document (reject needs a reason; a replaced document can't be reviewed). Level recomputed: both kinds verified → Verified; any current document rejected → Rejected; otherwise unchanged. The applicant sees the reason in Settings → Identity verification.
+- **Ledger (A5).** `GET /admin/transactions` with type / user / date (UTC, inclusive) / search (entry, request or application id, reason, user), 25 per page, money in/out totals; `GET /admin/transactions/export` CSV (≤10,000 rows, spreadsheet-formula cells neutralised).
+- **Header search.** `GET /admin/search` over users (incl. id), applications, ledger entries and audit log.
+- **Dashboard (A2).** Six-month money in/out trend from the ledger; real health checks; pending counters link to their queues.
+- `currentAdmin(req)` (still "Demo administrator") is recorded on every admin action, next to `currentUserId()`, so P1 stays a swap.
+- Fixed **#13**: profile audits list only changed fields (e.g. "Updated depositKycRequired on").
+
+Frontend:
+- **Dashboard:** KPI tiles (linked), money-movement chart, system health, "Applications awaiting a decision" queue (oldest first), status bars, recent activity.
+- **Users / inspector:** directory search is page-local again (no shared state with the header; reads `?q=`), user ID shown. Inspector: separate saving state per control group (**#19**), Save enabled only when the form changed, Applications section, KYC approve/reject inline and in the viewer, "Credit" wording (the dialog only credits, **#36**).
+- **Application review page:** summary, proposal documents, history timeline, decision panel (only allowed decisions; approve disabled with the reason when frozen), confirmation dialog with note.
+- **Deposit Page / Withdrawal Page:** pending queue with balances, KYC and account status; approve (confirmation shows the balance change) / decline (reason); buttons explain why an approval is blocked; recent decisions; Deposit Page keeps manual balance injection (user picker). Withdrawal Page states plainly that 4-eyes is not active.
+- **Transactions:** ledger table, filters, pagination, totals, CSV export, links to the source application.
+- **KYC Page:** global document queue with thumbnails, viewer, approve/reject, recent decisions.
+- **Settings:** freeze now uses the same confirmation + reason dialog as the header (**#18**); rules list says what is and isn't enforced.
+- **Header:** search with grouped results (**header search scope**), honest "4-Eyes not active" badge (**#35**), freeze banner says what is actually paused, workspace switch only in the sidebar (**duplicate switch**; also fixed its overflow). Stat tile class conflict removed (**#28**). Modal close buttons are 44px.
+- **Applicant side:** Transactions has a "Grant awards" filter; Reports shows grant awards received; KYC rows show rejection reasons; Help Centre answers updated.
+
+Tested (2026-10-21, API under test on :8099 through the local proxy; DB backed up and restored after each run):
+- **API checks 24/24** (`phase3-api.mjs`): append-only triggers; deposit approve under freeze / frozen account / success / double approval; ledger link and no duplicate applicant row; withdrawal decline (reason required, allowed while frozen) and approve (negative ledger), insufficient balance, KYC re-check; 404s; application queue order, transitions, notes, changes-requested → applicant can respond, approve blocked by freeze then credits $25,000; KYC level rules incl. superseded document and applicant-visible reason; ledger filters, paging, wildcard escaping, sums; CSV headers, filtering, formula neutralising; search; no-op profile save writes no audit.
+- **Desktop click tests 22/22** (`phase3-desktop.mjs`) and **phone 16/16** (`phase3-phone.mjs`: no sideways scroll on 9 admin pages, ledger scrolls in its own container, left drawer with the 7 items, search panel and dialogs on screen, 44px close).
+- **Regression:** Phase 1 desktop 26/26, phone 10/10; Phase 2 desktop 25/25 (one check updated for the new KYC queue), phone 6/6; smoke 46/46.
+- Found and fixed while testing: dashboard grid overflowed on phones (grid children needed `min-w-0`); sidebar workspace switch overflowed; seeded ledger ids all looked identical.
+
+**Needs a restart of the API Server workflow.** The managed :8080 process still runs the Phase 2 build, so every new admin endpoint returns 404 on the live preview until it restarts (the frontend is already live through Vite). The schema is already pushed.
+
+Still open after Phase 3:
+- True 4-eyes withdrawal sign-off (A7) needs real admin identities (P1). Today one administrator approves.
+- Debit adjustments, card controls, real admin avatar upload (A4); threshold limits (A10); full audit-log viewer (A11); directory sorting/pagination (A3).
+- Decisions 3 (dedicated Supabase project) and 4 (rule-based vs AI matchmaking) in §8e are still open.
+- Next: Phase 4 (real accounts: P1, P2, U12).

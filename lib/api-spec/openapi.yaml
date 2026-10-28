@@ -533,6 +533,192 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GlobalFreezeStatus"
+  /admin/search:
+    get:
+      operationId: searchAdmin
+      tags: [admin]
+      summary: Search users, applications, ledger entries and audit logs by name or ID
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 100 } }
+      responses:
+        "200":
+          description: Up to five matches per group
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminSearchResults" }
+  /admin/applications:
+    get:
+      operationId: listAdminApplications
+      tags: [admin]
+      summary: List applications for review
+      parameters:
+        - { name: status, in: query, required: false, schema: { type: string, enum: [pending, all], default: all } }
+        - { name: userId, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: Applications, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AdminApplication" }
+  /admin/applications/{applicationId}:
+    get:
+      operationId: getAdminApplication
+      tags: [admin]
+      summary: Get an application with its documents and history
+      parameters:
+        - { name: applicationId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Application detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminApplicationDetail" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/applications/{applicationId}/decision:
+    post:
+      operationId: decideAdminApplication
+      tags: [admin]
+      summary: Move an application to review, approve, decline or request changes
+      parameters:
+        - { name: applicationId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApplicationDecisionInput" }
+      responses:
+        "200":
+          description: Updated application
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminApplicationDetail" }
+        "400":
+          description: Decision refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/requests:
+    get:
+      operationId: listAdminRequests
+      tags: [admin]
+      summary: List deposit or withdrawal requests
+      parameters:
+        - { name: kind, in: query, required: true, schema: { type: string, enum: [Deposit, Withdrawal] } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [pending, decided], default: pending } }
+      responses:
+        "200":
+          description: Requests (pending oldest first, decided newest first)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AdminRequest" }
+  /admin/requests/{requestId}/approve:
+    post:
+      operationId: approveAdminRequest
+      tags: [admin]
+      summary: Approve a pending request and move the money
+      parameters:
+        - { name: requestId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Approved request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminRequest" }
+        "400":
+          description: Approval refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/requests/{requestId}/reject:
+    post:
+      operationId: rejectAdminRequest
+      tags: [admin]
+      summary: Decline a pending request with a reason
+      parameters:
+        - { name: requestId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReasonInput" }
+      responses:
+        "200":
+          description: Declined request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminRequest" }
+  /admin/transactions:
+    get:
+      operationId: listAdminTransactions
+      tags: [admin]
+      summary: Search the ledger
+      parameters: &ledgerFilters
+        - { name: type, in: query, required: false, schema: { type: string, enum: [all, Top-up, Deposit, Withdrawal, Grant award, Opening balance], default: all } }
+        - { name: userId, in: query, required: false, schema: { type: string } }
+        - { name: from, in: query, required: false, schema: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" } }
+        - { name: to, in: query, required: false, schema: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" } }
+        - { name: search, in: query, required: false, schema: { type: string, maxLength: 100 } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1, default: 1 } }
+      responses:
+        "200":
+          description: One page of ledger entries, newest first
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminLedgerPage" }
+  /admin/transactions/export:
+    get:
+      operationId: exportAdminTransactions
+      tags: [admin]
+      summary: Download the filtered ledger as CSV
+      parameters: *ledgerFilters
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema: { type: string }
+  /admin/kyc:
+    get:
+      operationId: getAdminKycQueue
+      tags: [admin]
+      summary: Identity documents awaiting review, and recent decisions
+      responses:
+        "200":
+          description: KYC queue
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminKycQueue" }
+  /admin/kyc/documents/{documentId}/review:
+    post:
+      operationId: reviewAdminKycDocument
+      tags: [admin]
+      summary: Approve or reject an identity document
+      parameters:
+        - { name: documentId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/KycReviewInput" }
+      responses:
+        "200":
+          description: Reviewed document
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminKycItem" }
+        "400":
+          description: Review refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
 components:
   schemas:
     ErrorMessage:
@@ -544,7 +730,7 @@ components:
       type: object
       properties:
         id: { type: string }
-        type: { type: string, enum: [Deposit, Withdrawal, Top-up] }
+        type: { type: string, enum: [Deposit, Withdrawal, Top-up, Grant award, Opening balance] }
         account: { type: string, enum: [grant, deposit, card] }
         direction: { type: string, enum: [in, out] }
         amount: { type: number }
@@ -754,7 +940,18 @@ components:
           items: { $ref: "#/components/schemas/AdminActivity" }
         systemHealth: { $ref: "#/components/schemas/SystemHealth" }
         globalFrozen: { type: boolean }
-      required: [totalUsers, activeUsers, pendingApplications, pendingKyc, pendingDeposits, pendingWithdrawals, totalGrantBalances, totalDepositBalances, applicationsByStatus, recentActivity, systemHealth, globalFrozen]
+        moneyTrend:
+          type: array
+          description: Ledger money in and out per month, last six months
+          items: { $ref: "#/components/schemas/MoneyPoint" }
+      required: [totalUsers, activeUsers, pendingApplications, pendingKyc, pendingDeposits, pendingWithdrawals, totalGrantBalances, totalDepositBalances, applicationsByStatus, recentActivity, systemHealth, globalFrozen, moneyTrend]
+    MoneyPoint:
+      type: object
+      properties:
+        label: { type: string }
+        inflow: { type: number }
+        outflow: { type: number }
+      required: [label, inflow, outflow]
     StatusCount:
       type: object
       properties:
@@ -829,6 +1026,8 @@ components:
         url: { type: string, description: "Same-origin download URL for uploaded documents" }
         mimeType: { type: string }
         submittedAt: { type: string, format: date-time }
+        reviewNote: { type: string, description: "Reviewer's reason, shown when a document is rejected" }
+        reviewedAt: { type: string, format: date-time }
       required: [id, name, kind, status, sample, submittedAt]
     ApplicantKyc:
       type: object
@@ -928,3 +1127,151 @@ components:
       properties:
         frozen: { type: boolean }
       required: [frozen]
+    ReasonInput:
+      type: object
+      properties:
+        reason: { type: string, minLength: 5, maxLength: 240 }
+      required: [reason]
+    AdminApplication:
+      allOf:
+        - $ref: "#/components/schemas/ApplicantApplication"
+        - type: object
+          properties:
+            userId: { type: string }
+            userName: { type: string }
+            organization: { type: string }
+          required: [userId, userName, organization]
+    AdminApplicationDetail:
+      allOf:
+        - $ref: "#/components/schemas/AdminApplication"
+        - type: object
+          properties:
+            updatedAt: { type: string, format: date-time }
+            userStatus: { type: string, enum: [Active, Frozen] }
+            platformFrozen: { type: boolean }
+            allowedDecisions:
+              type: array
+              items: { type: string, enum: [Review, Approved, Declined, Changes requested] }
+            documents:
+              type: array
+              items: { $ref: "#/components/schemas/StoredDocument" }
+            events:
+              type: array
+              items: { $ref: "#/components/schemas/ApplicationEvent" }
+          required: [updatedAt, userStatus, platformFrozen, allowedDecisions, documents, events]
+    ApplicationDecisionInput:
+      type: object
+      properties:
+        status: { type: string, enum: [Review, Approved, Declined, Changes requested] }
+        note: { type: string, maxLength: 1000 }
+      required: [status]
+    AdminRequest:
+      type: object
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [Deposit, Withdrawal] }
+        amount: { type: number }
+        note: { type: string }
+        status: { type: string, enum: [Pending, Completed, Declined] }
+        createdAt: { type: string, format: date-time }
+        userId: { type: string }
+        userName: { type: string }
+        organization: { type: string }
+        userStatus: { type: string, enum: [Active, Frozen] }
+        verificationLevel: { type: string, enum: [Verified, Pending, Rejected, Unsubmitted] }
+        kycRequired: { type: boolean, description: "Whether this user's settings require verification for this kind of request" }
+        grantBalance: { type: number }
+        depositBalance: { type: number }
+        reviewNote: { type: string }
+        reviewedBy: { type: string }
+        reviewedAt: { type: string, format: date-time }
+      required: [id, kind, amount, note, status, createdAt, userId, userName, organization, userStatus, verificationLevel, kycRequired, grantBalance, depositBalance]
+    LedgerEntry:
+      type: object
+      properties:
+        id: { type: string }
+        createdAt: { type: string, format: date-time }
+        userId: { type: string }
+        userName: { type: string }
+        kind: { type: string, enum: [Top-up, Deposit, Withdrawal, Grant award, Opening balance] }
+        account: { type: string, enum: [grant, deposit, card] }
+        amount: { type: number, description: "Signed: negative amounts left the account" }
+        reason: { type: string }
+        actor: { type: string }
+        requestId: { type: string }
+        applicationId: { type: string }
+      required: [id, createdAt, userId, userName, kind, account, amount, reason, actor]
+    AdminLedgerPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/LedgerEntry" }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+        inflow: { type: number, description: "Sum of positive amounts across all matching entries" }
+        outflow: { type: number, description: "Sum of negative amounts across all matching entries, as a positive number" }
+      required: [items, total, page, pageSize, inflow, outflow]
+    AdminKycItem:
+      allOf:
+        - $ref: "#/components/schemas/KycDocument"
+        - type: object
+          properties:
+            userId: { type: string }
+            userName: { type: string }
+            organization: { type: string }
+            verificationLevel: { type: string, enum: [Verified, Pending, Rejected, Unsubmitted] }
+            reviewedBy: { type: string }
+          required: [userId, userName, organization, verificationLevel]
+    AdminKycQueue:
+      type: object
+      properties:
+        pending:
+          type: array
+          items: { $ref: "#/components/schemas/AdminKycItem" }
+        reviewed:
+          type: array
+          description: The 20 most recent decisions
+          items: { $ref: "#/components/schemas/AdminKycItem" }
+      required: [pending, reviewed]
+    KycReviewInput:
+      type: object
+      properties:
+        decision: { type: string, enum: [Verified, Rejected] }
+        note: { type: string, maxLength: 240 }
+      required: [decision]
+    AdminSearchUser:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        organization: { type: string }
+      required: [id, name, email, organization]
+    AdminSearchAudit:
+      type: object
+      properties:
+        id: { type: string }
+        action: { type: string }
+        actor: { type: string }
+        userId: { type: string }
+        subject: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [id, action, actor, subject, createdAt]
+    AdminSearchResults:
+      type: object
+      properties:
+        users:
+          type: array
+          items: { $ref: "#/components/schemas/AdminSearchUser" }
+        applications:
+          type: array
+          items: { $ref: "#/components/schemas/AdminApplication" }
+        transactions:
+          type: array
+          items: { $ref: "#/components/schemas/LedgerEntry" }
+        audit:
+          type: array
+          items: { $ref: "#/components/schemas/AdminSearchAudit" }
+      required: [users, applications, transactions, audit]

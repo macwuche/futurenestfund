@@ -10,9 +10,8 @@ import {
 } from '@/pages/applicant';
 import { GrantSearchPage, FundingTrackerPage, ReportsPage, MilestonesPage, HelpPage } from '@/pages/applicant-more';
 import { Layout } from '@/components/shell';
-import {
-  AdminOverviewPage, AdminUsersPage, AdminUserPage, AdminTransactionsPage, AdminDepositsPage, AdminWithdrawalsPage, AdminKycPage, AdminSettingsPage,
-} from '@/pages/admin';
+import { AdminOverviewPage, AdminUsersPage, AdminUserPage, AdminSettingsPage } from '@/pages/admin';
+import { AdminTransactionsPage, AdminDepositsPage, AdminWithdrawalsPage, AdminKycPage, AdminApplicationPage } from '@/pages/admin-ops';
 import {
   Route,
   Switch,
@@ -47,6 +46,7 @@ function Router() {
         <Route path="/admin" component={AdminOverviewPage} />
         <Route path="/admin/users" component={AdminUsersPage} />
         <Route path="/admin/users/:userId" component={AdminUserPage} />
+        <Route path="/admin/users/:userId/applications/:applicationId" component={AdminApplicationPage} />
         <Route path="/admin/transactions" component={AdminTransactionsPage} />
         <Route path="/admin/deposits" component={AdminDepositsPage} />
         <Route path="/admin/withdrawals" component={AdminWithdrawalsPage} />

@@ -16,6 +16,8 @@ export const ApplicantTransactionType = {
   Deposit: 'Deposit',
   Withdrawal: 'Withdrawal',
   'Top-up': 'Top-up',
+  Grant_award: 'Grant award',
+  Opening_balance: 'Opening balance',
 } as const;
 
 export type ApplicantTransactionAccount = typeof ApplicantTransactionAccount[keyof typeof ApplicantTransactionAccount];
@@ -380,6 +382,12 @@ export interface SystemHealth {
   fourEyes: boolean;
 }
 
+export interface MoneyPoint {
+  label: string;
+  inflow: number;
+  outflow: number;
+}
+
 export interface AdminDashboard {
   totalUsers: number;
   activeUsers: number;
@@ -393,6 +401,8 @@ export interface AdminDashboard {
   recentActivity: AdminActivity[];
   systemHealth: SystemHealth;
   globalFrozen: boolean;
+  /** Ledger money in and out per month, last six months */
+  moneyTrend: MoneyPoint[];
 }
 
 export type AdminUserSummaryVerificationLevel = typeof AdminUserSummaryVerificationLevel[keyof typeof AdminUserSummaryVerificationLevel];
@@ -468,6 +478,9 @@ export interface KycDocument {
   url?: string;
   mimeType?: string;
   submittedAt: string;
+  /** Reviewer's reason, shown when a document is rejected */
+  reviewNote?: string;
+  reviewedAt?: string;
 }
 
 export type ApplicantKycVerificationLevel = typeof ApplicantKycVerificationLevel[keyof typeof ApplicantKycVerificationLevel];
@@ -608,6 +621,226 @@ export interface GlobalFreezeStatus {
   frozen: boolean;
 }
 
+export interface ReasonInput {
+  /**
+     * @minLength 5
+     * @maxLength 240
+     */
+  reason: string;
+}
+
+export type AdminApplication = ApplicantApplication & {
+  userId: string;
+  userName: string;
+  organization: string;
+};
+
+export type AdminApplicationDetailUserStatus = typeof AdminApplicationDetailUserStatus[keyof typeof AdminApplicationDetailUserStatus];
+
+
+export const AdminApplicationDetailUserStatus = {
+  Active: 'Active',
+  Frozen: 'Frozen',
+} as const;
+
+export type AdminApplicationDetailAllowedDecisionsItem = typeof AdminApplicationDetailAllowedDecisionsItem[keyof typeof AdminApplicationDetailAllowedDecisionsItem];
+
+
+export const AdminApplicationDetailAllowedDecisionsItem = {
+  Review: 'Review',
+  Approved: 'Approved',
+  Declined: 'Declined',
+  Changes_requested: 'Changes requested',
+} as const;
+
+export type AdminApplicationDetail = AdminApplication & {
+  updatedAt: string;
+  userStatus: AdminApplicationDetailUserStatus;
+  platformFrozen: boolean;
+  allowedDecisions: AdminApplicationDetailAllowedDecisionsItem[];
+  documents: StoredDocument[];
+  events: ApplicationEvent[];
+};
+
+export type ApplicationDecisionInputStatus = typeof ApplicationDecisionInputStatus[keyof typeof ApplicationDecisionInputStatus];
+
+
+export const ApplicationDecisionInputStatus = {
+  Review: 'Review',
+  Approved: 'Approved',
+  Declined: 'Declined',
+  Changes_requested: 'Changes requested',
+} as const;
+
+export interface ApplicationDecisionInput {
+  status: ApplicationDecisionInputStatus;
+  /** @maxLength 1000 */
+  note?: string;
+}
+
+export type AdminRequestKind = typeof AdminRequestKind[keyof typeof AdminRequestKind];
+
+
+export const AdminRequestKind = {
+  Deposit: 'Deposit',
+  Withdrawal: 'Withdrawal',
+} as const;
+
+export type AdminRequestStatus = typeof AdminRequestStatus[keyof typeof AdminRequestStatus];
+
+
+export const AdminRequestStatus = {
+  Pending: 'Pending',
+  Completed: 'Completed',
+  Declined: 'Declined',
+} as const;
+
+export type AdminRequestUserStatus = typeof AdminRequestUserStatus[keyof typeof AdminRequestUserStatus];
+
+
+export const AdminRequestUserStatus = {
+  Active: 'Active',
+  Frozen: 'Frozen',
+} as const;
+
+export type AdminRequestVerificationLevel = typeof AdminRequestVerificationLevel[keyof typeof AdminRequestVerificationLevel];
+
+
+export const AdminRequestVerificationLevel = {
+  Verified: 'Verified',
+  Pending: 'Pending',
+  Rejected: 'Rejected',
+  Unsubmitted: 'Unsubmitted',
+} as const;
+
+export interface AdminRequest {
+  id: string;
+  kind: AdminRequestKind;
+  amount: number;
+  note: string;
+  status: AdminRequestStatus;
+  createdAt: string;
+  userId: string;
+  userName: string;
+  organization: string;
+  userStatus: AdminRequestUserStatus;
+  verificationLevel: AdminRequestVerificationLevel;
+  /** Whether this user's settings require verification for this kind of request */
+  kycRequired: boolean;
+  grantBalance: number;
+  depositBalance: number;
+  reviewNote?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+}
+
+export type LedgerEntryKind = typeof LedgerEntryKind[keyof typeof LedgerEntryKind];
+
+
+export const LedgerEntryKind = {
+  'Top-up': 'Top-up',
+  Deposit: 'Deposit',
+  Withdrawal: 'Withdrawal',
+  Grant_award: 'Grant award',
+  Opening_balance: 'Opening balance',
+} as const;
+
+export type LedgerEntryAccount = typeof LedgerEntryAccount[keyof typeof LedgerEntryAccount];
+
+
+export const LedgerEntryAccount = {
+  grant: 'grant',
+  deposit: 'deposit',
+  card: 'card',
+} as const;
+
+export interface LedgerEntry {
+  id: string;
+  createdAt: string;
+  userId: string;
+  userName: string;
+  kind: LedgerEntryKind;
+  account: LedgerEntryAccount;
+  /** Signed: negative amounts left the account */
+  amount: number;
+  reason: string;
+  actor: string;
+  requestId?: string;
+  applicationId?: string;
+}
+
+export interface AdminLedgerPage {
+  items: LedgerEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+  /** Sum of positive amounts across all matching entries */
+  inflow: number;
+  /** Sum of negative amounts across all matching entries, as a positive number */
+  outflow: number;
+}
+
+export type AdminKycItemVerificationLevel = typeof AdminKycItemVerificationLevel[keyof typeof AdminKycItemVerificationLevel];
+
+
+export const AdminKycItemVerificationLevel = {
+  Verified: 'Verified',
+  Pending: 'Pending',
+  Rejected: 'Rejected',
+  Unsubmitted: 'Unsubmitted',
+} as const;
+
+export type AdminKycItem = KycDocument & {
+  userId: string;
+  userName: string;
+  organization: string;
+  verificationLevel: AdminKycItemVerificationLevel;
+  reviewedBy?: string;
+};
+
+export interface AdminKycQueue {
+  pending: AdminKycItem[];
+  /** The 20 most recent decisions */
+  reviewed: AdminKycItem[];
+}
+
+export type KycReviewInputDecision = typeof KycReviewInputDecision[keyof typeof KycReviewInputDecision];
+
+
+export const KycReviewInputDecision = {
+  Verified: 'Verified',
+  Rejected: 'Rejected',
+} as const;
+
+export interface KycReviewInput {
+  decision: KycReviewInputDecision;
+  /** @maxLength 240 */
+  note?: string;
+}
+
+export interface AdminSearchUser {
+  id: string;
+  name: string;
+  email: string;
+  organization: string;
+}
+
+export interface AdminSearchAudit {
+  id: string;
+  action: string;
+  actor: string;
+  userId?: string;
+  subject: string;
+  createdAt: string;
+}
+
+export interface AdminSearchResults {
+  users: AdminSearchUser[];
+  applications: AdminApplication[];
+  transactions: LedgerEntry[];
+  audit: AdminSearchAudit[];
+}
+
 export type GetApplicantDashboardParams = {
 period?: GetApplicantDashboardPeriod;
 };
@@ -632,5 +865,113 @@ export const ListAdminUsersStatus = {
   all: 'all',
   active: 'active',
   frozen: 'frozen',
+} as const;
+
+export type SearchAdminParams = {
+/**
+ * @minLength 1
+ * @maxLength 100
+ */
+q: string;
+};
+
+export type ListAdminApplicationsParams = {
+status?: ListAdminApplicationsStatus;
+userId?: string;
+};
+
+export type ListAdminApplicationsStatus = typeof ListAdminApplicationsStatus[keyof typeof ListAdminApplicationsStatus];
+
+
+export const ListAdminApplicationsStatus = {
+  pending: 'pending',
+  all: 'all',
+} as const;
+
+export type ListAdminRequestsParams = {
+kind: ListAdminRequestsKind;
+status?: ListAdminRequestsStatus;
+};
+
+export type ListAdminRequestsKind = typeof ListAdminRequestsKind[keyof typeof ListAdminRequestsKind];
+
+
+export const ListAdminRequestsKind = {
+  Deposit: 'Deposit',
+  Withdrawal: 'Withdrawal',
+} as const;
+
+export type ListAdminRequestsStatus = typeof ListAdminRequestsStatus[keyof typeof ListAdminRequestsStatus];
+
+
+export const ListAdminRequestsStatus = {
+  pending: 'pending',
+  decided: 'decided',
+} as const;
+
+export type ListAdminTransactionsParams = {
+type?: ListAdminTransactionsType;
+userId?: string;
+/**
+ * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+ */
+from?: string;
+/**
+ * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+ */
+to?: string;
+/**
+ * @maxLength 100
+ */
+search?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+};
+
+export type ListAdminTransactionsType = typeof ListAdminTransactionsType[keyof typeof ListAdminTransactionsType];
+
+
+export const ListAdminTransactionsType = {
+  all: 'all',
+  'Top-up': 'Top-up',
+  Deposit: 'Deposit',
+  Withdrawal: 'Withdrawal',
+  Grant_award: 'Grant award',
+  Opening_balance: 'Opening balance',
+} as const;
+
+export type ExportAdminTransactionsParams = {
+type?: ExportAdminTransactionsType;
+userId?: string;
+/**
+ * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+ */
+from?: string;
+/**
+ * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+ */
+to?: string;
+/**
+ * @maxLength 100
+ */
+search?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+};
+
+export type ExportAdminTransactionsType = typeof ExportAdminTransactionsType[keyof typeof ExportAdminTransactionsType];
+
+
+export const ExportAdminTransactionsType = {
+  all: 'all',
+  'Top-up': 'Top-up',
+  Deposit: 'Deposit',
+  Withdrawal: 'Withdrawal',
+  Grant_award: 'Grant award',
+  Opening_balance: 'Opening balance',
 } as const;
 

@@ -1,0 +1,395 @@
+import { useDeferredValue, useEffect, useState } from 'react';
+import { Link, useParams, useSearch } from 'wouter';
+import {
+  useListAdminRequests, useApproveAdminRequest, useRejectAdminRequest, useListAdminTransactions, getListAdminTransactionsQueryKey, getExportAdminTransactionsUrl,
+  useListAdminUsers, useGetAdminKycQueue, useGetAdminApplication, useDecideAdminApplication, getGetAdminApplicationQueryKey,
+  type AdminRequest, type AdminKycItem, type ListAdminTransactionsType, type ApplicationDecisionInputStatus,
+} from '@workspace/api-client-react';
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Download, FileText, Plus, ShieldAlert, X } from 'lucide-react';
+import { keepPreviousData, useQueryClient } from '@tanstack/react-query';
+import { Shell } from '@/components/shell';
+import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, fileSize, money, statusLabel } from '@/components/bits';
+import { card, ainput, lime, dark, ghost, danger, Stat, SectionTitle, useAdminRefresh, ReasonModal, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
+import { apiError } from '@/lib/demo-state';
+import { useToast } from '@/hooks/use-toast';
+
+const dateTime = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+const signed = (n: number) => `${n < 0 ? '−' : '+'}${money(Math.abs(n))}`;
+
+/* ================================================================== */
+/* Deposit Page and Withdrawal Page: request queues                    */
+/* ================================================================== */
+
+function RequestQueuePage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
+  const pending = useListAdminRequests({ kind, status: 'pending' });
+  const decided = useListAdminRequests({ kind, status: 'decided' });
+  const users = useListAdminUsers();
+  const [inject, setInject] = useState(false);
+  const deposit = kind === 'Deposit';
+  const total = pending.data?.reduce((s, r) => s + r.amount, 0) ?? 0;
+  return (
+    <Shell admin title={deposit ? 'Deposit Page' : 'Withdrawal Page'}>
+      <div className="space-y-5">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Stat id={`queue-pending-${kind.toLowerCase()}s`} accent label={deposit ? 'Pending deposits' : 'Pending withdrawals'} value={pending.data?.length ?? '–'} />
+          <Stat id={`queue-total-${kind.toLowerCase()}s`} label="Amount waiting" value={pending.data ? money(total) : '–'} />
+        </div>
+        {!deposit && (
+          <p className="flex items-start gap-2 rounded-xl border border-[#FDE68A] bg-[#FEF3C7] p-3 text-sm text-[#92400E]" data-testid="text-four-eyes-note">
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />4-eyes sign-off is not active: in this demo one administrator's approval releases the payout. Two-person approval needs real admin accounts.
+          </p>
+        )}
+        <section className={cx(card, 'p-5')} data-testid="section-request-queue">
+          <SectionTitle action={deposit && <button data-testid="button-manual-injection" onClick={() => setInject(true)} className={cx(dark, 'inline-flex items-center gap-1.5 !py-1.5 text-xs')}><Plus className="h-3.5 w-3.5" />Manual balance injection</button>}>
+            {deposit ? 'Deposits awaiting approval' : 'Payouts awaiting sign-off'}
+          </SectionTitle>
+          <p className="-mt-2 mb-4 text-xs text-slate-500">
+            {deposit ? 'Approving credits the deposit balance and writes a ledger entry.' : 'Approving pays the amount out of the grant balance and writes a ledger entry.'} Oldest first. No real money moves.
+          </p>
+          {pending.isLoading ? <div className="space-y-2">{[1, 2].map((i) => <Skel key={i} className="h-16" />)}</div>
+            : pending.isError || !pending.data ? <ErrorState onRetry={() => pending.refetch()} />
+            : pending.data.length === 0 ? <Empty title="Queue is clear" hint={`New ${kind.toLowerCase()} requests from applicants appear here.`} />
+            : <ul className="space-y-3" data-testid="list-queue">{pending.data.map((r) => <RequestRow key={r.id} r={r} />)}</ul>}
+        </section>
+        <section className={cx(card, 'p-5')} data-testid="section-request-history">
+          <SectionTitle>Recent decisions</SectionTitle>
+          {decided.isLoading ? <Skel className="h-24" /> : decided.isError || !decided.data ? <ErrorState onRetry={() => decided.refetch()} />
+            : decided.data.length === 0 ? <Empty title="No decisions yet" />
+            : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead><tr className="border-b text-xs uppercase tracking-wide text-slate-500"><th className="py-2 pr-3">User</th><th className="text-right">Amount</th><th className="pl-4">Decision</th><th>Reviewed</th><th>Note</th></tr></thead>
+                  <tbody>{decided.data.map((r) => (
+                    <tr key={r.id} className="border-b align-top" data-testid={`row-decided-${r.id}`}>
+                      <td className="py-2.5 pr-3"><Link href={`/admin/users/${r.userId}`} className="font-semibold hover:underline">{r.userName}</Link><span className="block text-xs text-slate-500">{dateFmt(r.createdAt)}</span></td>
+                      <td className="font-num py-2.5 text-right">{money(r.amount)}</td>
+                      <td className="py-2.5 pl-4"><StatusBadge status={r.status === 'Completed' ? 'Approved' : r.status} /></td>
+                      <td className="py-2.5 text-xs text-slate-500">{r.reviewedAt ? dateTime(r.reviewedAt) : '–'}<span className="block">{r.reviewedBy}</span></td>
+                      <td className="max-w-[16rem] py-2.5 text-xs text-slate-600">{r.reviewNote ?? r.note}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            )}
+        </section>
+      </div>
+      {deposit && <CreditModal open={inject} onClose={() => setInject(false)} account="deposit" users={users.data?.items} />}
+    </Shell>
+  );
+}
+
+/** Why an approval would be refused right now, so the button can say so before the server does. */
+function blocker(r: AdminRequest) {
+  if (r.userStatus === 'Frozen') return 'Account is frozen';
+  if (r.kycRequired && r.verificationLevel !== 'Verified') return 'Identity not verified';
+  if (r.kind === 'Withdrawal' && r.amount > r.grantBalance) return 'More than the grant balance';
+  return '';
+}
+
+function RequestRow({ r }: { r: AdminRequest }) {
+  const approve = useApproveAdminRequest();
+  const reject = useRejectAdminRequest();
+  const refresh = useAdminRefresh();
+  const { toast } = useToast();
+  const [confirm, setConfirm] = useState(false);
+  const [declining, setDeclining] = useState(false);
+  const [error, setError] = useState('');
+  const why = blocker(r);
+  const deposit = r.kind === 'Deposit';
+  return (
+    <li className="rounded-xl border border-[#E2E8F0] p-4" data-testid={`row-request-${r.id}`}>
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+        <div className="min-w-0 flex-1">
+          <Link href={`/admin/users/${r.userId}`} className="font-semibold hover:underline">{r.userName}</Link>
+          <p className="text-xs text-slate-500">{r.organization} · requested {dateTime(r.createdAt)} · <span className="font-num">{r.id.slice(0, 8)}</span></p>
+          {r.note && <p className="mt-1 text-sm text-slate-700">“{r.note}”</p>}
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            <StatusBadge status={r.verificationLevel} /><StatusBadge status={r.userStatus} />
+            <span className="text-slate-500">{deposit ? `Deposit balance ${money(r.depositBalance)}` : `Grant balance ${money(r.grantBalance)}`}</span>
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          <span className="font-num text-xl font-semibold" data-testid={`text-request-amount-${r.id}`}>{money(r.amount)}</span>
+          <div className="flex gap-2">
+            <button data-testid={`button-reject-${r.id}`} onClick={() => { setError(''); setDeclining(true); }} className={cx(ghost, 'inline-flex items-center gap-1 !py-1.5 text-xs')}><X className="h-3.5 w-3.5" />Decline</button>
+            <button data-testid={`button-approve-${r.id}`} disabled={!!why} title={why || undefined} onClick={() => { setError(''); setConfirm(true); }} className={cx(lime, 'inline-flex items-center gap-1 !py-1.5 text-xs disabled:cursor-not-allowed')}><Check className="h-3.5 w-3.5" />Approve</button>
+          </div>
+          {why && <p className="text-xs text-red-700" data-testid={`text-blocker-${r.id}`}>{why}</p>}
+        </div>
+      </div>
+      <Modal open={confirm} onClose={() => setConfirm(false)} title={`Approve ${money(r.amount)} ${deposit ? 'deposit' : 'withdrawal'}?`} testid="dialog-approve-request">
+        <p className="text-sm text-slate-600">
+          {deposit ? `${r.userName}'s deposit balance goes from ${money(r.depositBalance)} to ${money(r.depositBalance + r.amount)}.`
+            : `${money(r.amount)} is paid out of ${r.userName}'s grant balance, leaving ${money(r.grantBalance - r.amount)}.`} A ledger entry and an audit record are written, and the applicant is notified.
+        </p>
+        {error && <p role="alert" className="mt-3 rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-approve-error">{error}</p>}
+        <div className="mt-4 flex justify-end gap-2">
+          <button data-testid="button-approve-cancel" onClick={() => setConfirm(false)} className="press rounded-lg px-4 py-2 text-sm font-semibold hover:bg-slate-100">Cancel</button>
+          <button data-testid="button-approve-confirm" disabled={approve.isPending} className={dark} onClick={() => approve.mutate({ requestId: r.id }, {
+            onSuccess: () => { refresh(); setConfirm(false); toast({ title: `${r.kind} approved`, description: `${money(r.amount)} · ${r.userName}` }); },
+            onError: (e) => setError(apiError(e, 'The approval was refused.')),
+          })}>{approve.isPending ? 'Approving…' : 'Approve'}</button>
+        </div>
+      </Modal>
+      <ReasonModal open={declining} onClose={() => setDeclining(false)} testid="dialog-decline-request" title={`Decline ${money(r.amount)} ${deposit ? 'deposit' : 'withdrawal'}?`} confirmLabel="Decline request"
+        intro={<p>No money moves. {r.userName} is notified with your reason.</p>} pending={reject.isPending} error={error}
+        onSubmit={(reason) => reject.mutate({ requestId: r.id, data: { reason } }, {
+          onSuccess: () => { refresh(); setDeclining(false); toast({ title: `${r.kind} declined` }); },
+          onError: (e) => setError(apiError(e, 'The request could not be declined.')),
+        })} />
+    </li>
+  );
+}
+
+export const AdminDepositsPage = () => <RequestQueuePage kind="Deposit" />;
+export const AdminWithdrawalsPage = () => <RequestQueuePage kind="Withdrawal" />;
+
+/* ================================================================== */
+/* Transactions: the ledger                                            */
+/* ================================================================== */
+
+const LEDGER_TYPES: { value: ListAdminTransactionsType; label: string }[] = [
+  { value: 'all', label: 'All types' }, { value: 'Deposit', label: 'Deposits' }, { value: 'Withdrawal', label: 'Withdrawals' },
+  { value: 'Grant award', label: 'Grant awards' }, { value: 'Top-up', label: 'Top-ups' }, { value: 'Opening balance', label: 'Opening balances' },
+];
+
+export function AdminTransactionsPage() {
+  const initial = new URLSearchParams(useSearch()).get('q') ?? '';
+  const [type, setType] = useState<ListAdminTransactionsType>('all');
+  const [userId, setUserId] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [search, setSearch] = useState(initial);
+  const [page, setPage] = useState(1);
+  useEffect(() => { setSearch(initial); }, [initial]);
+  const s = useDeferredValue(search.trim());
+  const filters = { type, ...(userId ? { userId } : {}), ...(from ? { from } : {}), ...(to ? { to } : {}), ...(s ? { search: s } : {}) };
+  useEffect(() => { setPage(1); }, [type, userId, from, to, s]);
+  const badRange = !!from && !!to && from > to;
+  const params = { ...filters, page };
+  const q = useListAdminTransactions(params, { query: { enabled: !badRange, placeholderData: keepPreviousData, queryKey: getListAdminTransactionsQueryKey(params) } });
+  const users = useListAdminUsers();
+  const pages = q.data ? Math.max(1, Math.ceil(q.data.total / q.data.pageSize)) : 1;
+  const filtered = type !== 'all' || !!userId || !!from || !!to || !!s;
+  return (
+    <Shell admin title="Transactions">
+      <div className="space-y-5">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Stat id="ledger-count" accent label={filtered ? 'Matching entries' : 'Ledger entries'} value={q.data?.total ?? '–'} />
+          <Stat id="ledger-inflow" label="Money in" value={q.data ? money(q.data.inflow) : '–'} />
+          <Stat id="ledger-outflow" label="Money out" value={q.data ? money(q.data.outflow) : '–'} />
+        </div>
+        <section className={cx(card, 'p-5')} data-testid="section-ledger">
+          <SectionTitle action={
+            <a data-testid="link-export-csv" href={getExportAdminTransactionsUrl(filters)} download className={cx(lime, 'inline-flex items-center gap-1.5 !py-1.5 text-xs', (badRange || q.data?.total === 0) && 'pointer-events-none opacity-50')} aria-disabled={badRange || q.data?.total === 0}>
+              <Download className="h-3.5 w-3.5" />Export CSV
+            </a>
+          }>Immutable ledger</SectionTitle>
+          <p className="-mt-2 mb-4 text-xs text-slate-500">Every credit and debit, newest first. Entries can't be edited or deleted. Dates are UTC; the export includes all matching entries (up to 10,000).</p>
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <Field label="Search"><input data-testid="input-ledger-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Entry or request ID, reason, user" className={ainput} /></Field>
+            <Field label="Type"><select data-testid="select-ledger-type" value={type} onChange={(e) => setType(e.target.value as ListAdminTransactionsType)} className={ainput}>{LEDGER_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}</select></Field>
+            <Field label="User"><select data-testid="select-ledger-user" value={userId} onChange={(e) => setUserId(e.target.value)} className={ainput}><option value="">All users</option>{users.data?.items.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></Field>
+            <Field label="From"><input data-testid="input-ledger-from" type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className={ainput} /></Field>
+            <Field label="To" error={badRange ? '“To” is before “From”.' : undefined}><input data-testid="input-ledger-to" type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className={ainput} /></Field>
+          </div>
+          {filtered && <button data-testid="button-ledger-clear" onClick={() => { setType('all'); setUserId(''); setFrom(''); setTo(''); setSearch(''); }} className="mb-3 text-xs font-semibold hover:underline">Clear filters</button>}
+          {q.isLoading ? <div className="space-y-2">{[1, 2, 3, 4].map((i) => <Skel key={i} className="h-12" />)}</div>
+            : q.isError || !q.data ? <ErrorState onRetry={() => q.refetch()} />
+            : q.data.items.length === 0 ? <Empty title="No matching entries" hint={filtered ? 'Try different filters.' : 'Approved deposits, withdrawals, grant awards and credits appear here.'} />
+            : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[820px] text-left text-sm" data-testid="table-ledger">
+                    <thead><tr className="border-b text-xs uppercase tracking-wide text-slate-500"><th className="py-2 pr-3">Date</th><th>User</th><th>Type</th><th>Account</th><th>Reason</th><th className="text-right">Amount</th><th className="pl-4">Reference</th></tr></thead>
+                    <tbody>{q.data.items.map((t) => (
+                      <tr key={t.id} className="border-b align-top" data-testid={`row-ledger-${t.id}`}>
+                        <td className="whitespace-nowrap py-2.5 pr-3 text-xs text-slate-600">{dateTime(t.createdAt)}<span className="font-num block text-slate-400" title={t.id}>{t.id.slice(0, 8)}</span></td>
+                        <td className="py-2.5"><Link href={`/admin/users/${t.userId}`} className="font-semibold hover:underline">{t.userName}</Link></td>
+                        <td className="whitespace-nowrap py-2.5">{t.kind}</td>
+                        <td className="py-2.5 capitalize">{t.account}</td>
+                        <td className="max-w-[18rem] py-2.5 text-slate-700"><span className="break-words">{t.reason}</span><span className="block text-xs text-slate-500">{t.actor}</span></td>
+                        <td className={cx('font-num whitespace-nowrap py-2.5 text-right font-semibold', t.amount < 0 ? 'text-slate-900' : 'text-[#166534]')} data-testid={`text-ledger-amount-${t.id}`}>{signed(t.amount)}</td>
+                        <td className="font-num py-2.5 pl-4 text-xs">
+                          {t.applicationId ? <Link href={`/admin/users/${t.userId}/applications/${t.applicationId}`} className="hover:underline">{t.applicationId}</Link>
+                            : t.requestId ? <span title={t.requestId}>Request {t.requestId.slice(0, 8)}</span> : <span className="text-slate-400">–</span>}
+                        </td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+                <div className="mt-4 flex items-center justify-between gap-3 text-sm">
+                  <span className="text-slate-500" data-testid="text-ledger-page">Page {q.data.page} of {pages}</span>
+                  <div className="flex gap-2">
+                    <button data-testid="button-ledger-prev" disabled={page <= 1} onClick={() => setPage(page - 1)} className={cx(ghost, 'inline-flex items-center gap-1 !py-1.5 text-xs')}><ChevronLeft className="h-3.5 w-3.5" />Previous</button>
+                    <button data-testid="button-ledger-next" disabled={page >= pages} onClick={() => setPage(page + 1)} className={cx(ghost, 'inline-flex items-center gap-1 !py-1.5 text-xs')}>Next<ChevronRight className="h-3.5 w-3.5" /></button>
+                  </div>
+                </div>
+              </>
+            )}
+        </section>
+      </div>
+    </Shell>
+  );
+}
+
+/* ================================================================== */
+/* KYC Page: global document queue                                     */
+/* ================================================================== */
+
+export function AdminKycPage() {
+  const q = useGetAdminKycQueue();
+  const [doc, setDoc] = useState<AdminKycItem | null>(null);
+  const users = new Set(q.data?.pending.map((d) => d.userId));
+  return (
+    <Shell admin title="KYC Page">
+      {q.isLoading ? <PageSkeleton /> : q.isError || !q.data ? <ErrorState onRetry={() => q.refetch()} /> : (
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <Stat id="kyc-pending-docs" accent label="Documents to review" value={q.data.pending.length} />
+            <Stat id="kyc-pending-users" label="Users waiting" value={users.size} />
+          </div>
+          <section className={cx(card, 'p-5')} data-testid="section-kyc-queue">
+            <SectionTitle>Identity documents awaiting review</SectionTitle>
+            <p className="-mt-2 mb-4 text-xs text-slate-500">Oldest first. A user becomes Verified once both their Government ID and proof of address are approved. Uploaded files are not machine-checked; OCR scores appear on sample documents only and are demonstration data.</p>
+            {q.data.pending.length === 0 ? <Empty title="Queue is clear" hint="Documents applicants upload in Settings appear here." /> : (
+              <ul className="grid gap-3 md:grid-cols-2" data-testid="list-kyc-queue">{q.data.pending.map((d) => (
+                <li key={d.id} className="flex flex-col gap-3 rounded-xl border border-[#E2E8F0] p-4" data-testid={`row-kyc-${d.id}`}>
+                  <button onClick={() => setDoc(d)} data-testid={`button-view-kyc-${d.id}`} className="press flex items-start gap-3 text-left">
+                    <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg border bg-slate-50">
+                      {d.url && d.mimeType?.startsWith('image/') ? <img src={d.url} alt="" className="h-full w-full object-cover" /> : <FileText className="h-6 w-6 text-slate-400" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold">{d.kind}</span>
+                      <span className="block truncate text-xs text-slate-500">{d.userName} · {d.organization}</span>
+                      <span className="block text-xs text-slate-500">{d.sample ? `Sample · OCR ${d.confidence ?? 0}% (demo)` : `${d.name} · ${dateFmt(d.submittedAt)}`}</span>
+                    </span>
+                    <StatusBadge status={d.verificationLevel} />
+                  </button>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Link href={`/admin/users/${d.userId}`} className="text-xs font-semibold hover:underline">Open user</Link>
+                    <KycDecision doc={d} />
+                  </div>
+                </li>
+              ))}</ul>
+            )}
+          </section>
+          <section className={cx(card, 'p-5')} data-testid="section-kyc-reviewed">
+            <SectionTitle>Recent decisions</SectionTitle>
+            {q.data.reviewed.length === 0 ? <Empty title="No decisions yet" /> : (
+              <ul className="divide-y">{q.data.reviewed.map((d) => (
+                <li key={d.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm" data-testid={`row-kyc-reviewed-${d.id}`}>
+                  <span className="min-w-0 flex-1"><Link href={`/admin/users/${d.userId}`} className="font-semibold hover:underline">{d.userName}</Link> · {d.kind}
+                    <span className="block text-xs text-slate-500">{d.reviewedAt && dateTime(d.reviewedAt)} · {d.reviewedBy}{d.reviewNote ? ` · “${d.reviewNote}”` : ''}</span></span>
+                  <StatusBadge status={d.status} />
+                </li>
+              ))}</ul>
+            )}
+          </section>
+        </div>
+      )}
+      <Modal open={!!doc} onClose={() => setDoc(null)} title={doc ? `${doc.kind} · ${doc.userName}` : 'Document'} testid="dialog-document">
+        {doc && <div className="space-y-4"><KycPreview doc={doc} userName={doc.userName} /><KycDecision doc={doc} onDone={() => setDoc(null)} /></div>}
+      </Modal>
+    </Shell>
+  );
+}
+
+/* ================================================================== */
+/* Application review (reached from Users and the Dashboard queue)     */
+/* ================================================================== */
+
+const decisionCopy: Record<ApplicationDecisionInputStatus, { label: string; title: string; intro: string; needsNote: boolean; confirm: string }> = {
+  Review: { label: 'Start review', title: 'Move to review?', intro: 'The applicant sees the application as under review.', needsNote: false, confirm: 'Move to review' },
+  'Changes requested': { label: 'Request changes', title: 'Request changes?', intro: 'The applicant is asked to update the application and resubmit. Explain what is needed.', needsNote: true, confirm: 'Request changes' },
+  Declined: { label: 'Decline', title: 'Decline this application?', intro: 'This is final. The applicant is notified with your reason. No money moves.', needsNote: true, confirm: 'Decline' },
+  Approved: { label: 'Approve funding', title: 'Approve funding?', intro: '', needsNote: false, confirm: 'Approve and release funds' },
+};
+
+export function AdminApplicationPage() {
+  const { userId = '', applicationId = '' } = useParams<{ userId: string; applicationId: string }>();
+  const q = useGetAdminApplication(applicationId, { query: { enabled: !!applicationId, queryKey: getGetAdminApplicationQueryKey(applicationId), retry: false } });
+  const decide = useDecideAdminApplication();
+  const qc = useQueryClient();
+  const refresh = useAdminRefresh();
+  const { toast } = useToast();
+  const [open, setOpen] = useState<ApplicationDecisionInputStatus | null>(null);
+  const [error, setError] = useState('');
+  const a = q.data && q.data.userId === userId ? q.data : undefined;
+  const run = (status: ApplicationDecisionInputStatus, note?: string) => decide.mutate({ applicationId, data: { status, ...(note ? { note } : {}) } }, {
+    onSuccess: (d) => { qc.setQueryData(getGetAdminApplicationQueryKey(applicationId), d); refresh(); setOpen(null); toast({ title: `Application ${statusLabel(d.status).toLowerCase()}`, description: d.title }); },
+    onError: (e) => setError(apiError(e, 'The decision could not be saved.')),
+  });
+  const approveBlocked = a && (a.platformFrozen ? 'Approvals are paused by the global freeze.' : a.userStatus === 'Frozen' ? 'Unfreeze this account before approving funding.' : '');
+  return (
+    <Shell admin title="Application review">
+      <Link href={`/admin/users/${userId}`} data-testid="link-back-user" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"><ArrowLeft className="h-4 w-4" />Back to user</Link>
+      {q.isLoading ? <PageSkeleton /> : !a ? (q.isError && (q.error as { status?: number } | null)?.status !== 404 ? <ErrorState onRetry={() => q.refetch()} /> : <Empty title="Application not found" hint="It may belong to a different user, or the link is wrong." />) : (
+        <div className="grid gap-5 lg:grid-cols-3">
+          <div className="min-w-0 space-y-5 lg:col-span-2">
+            <section className={cx(card, 'p-5')} data-testid="section-application">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-num text-xs text-slate-500">{a.id}</p>
+                  <h2 className="font-display text-2xl font-bold" data-testid="text-application-title">{a.title}</h2>
+                  <p className="text-sm text-slate-600"><Link href={`/admin/users/${a.userId}`} className="font-semibold hover:underline">{a.userName}</Link> · {a.organization} · {a.category}</p>
+                </div>
+                <StatusBadge status={a.status} testid="badge-application-status" />
+              </div>
+              <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+                <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">Requested</dt><dd className="font-num text-lg font-semibold">{money(a.amount)}</dd></div>
+                <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">Submitted</dt><dd className="font-semibold">{dateFmt(a.submittedAt)}</dd></div>
+                <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">Last change</dt><dd className="font-semibold">{dateFmt(a.updatedAt)}</dd></div>
+              </dl>
+            </section>
+            <section className={cx(card, 'p-5')} data-testid="section-application-documents">
+              <SectionTitle>Proposal documents</SectionTitle>
+              {a.documents.length === 0 ? <Empty title="No documents attached" /> : (
+                <ul className="space-y-2">{a.documents.map((d) => (
+                  <li key={d.id} className="flex items-center gap-3 rounded-xl border p-3" data-testid={`row-app-doc-${d.id}`}>
+                    <FileText className="h-5 w-5 shrink-0" />
+                    <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{d.name}</span><span className="block text-xs text-slate-500">{fileSize(d.sizeBytes)} · {dateFmt(d.uploadedAt)}</span></span>
+                    <a href={d.url} data-testid={`link-app-doc-${d.id}`} className={cx(ghost, 'inline-flex items-center gap-1 !py-1.5 text-xs')}><Download className="h-3.5 w-3.5" />Download</a>
+                  </li>
+                ))}</ul>
+              )}
+            </section>
+            <section className={cx(card, 'p-5')} data-testid="section-application-history">
+              <SectionTitle>Status history</SectionTitle>
+              <ol className="space-y-3">{a.events.map((e) => (
+                <li key={e.id} className="border-l-2 border-[#C6F432] pl-3 text-sm" data-testid={`row-event-${e.id}`}>
+                  <div className="flex flex-wrap items-center gap-2"><StatusBadge status={e.status} dot={false} /><span className="text-xs text-slate-500">{dateTime(e.createdAt)} · {e.actor}</span></div>
+                  {e.note && <p className="mt-1 break-words text-slate-700">{e.note}</p>}
+                </li>
+              ))}</ol>
+            </section>
+          </div>
+          <aside className={cx(card, 'space-y-3 p-5 lg:sticky lg:top-24 lg:self-start')} data-testid="section-decision">
+            <h3 className="font-display font-bold">Decision</h3>
+            {a.allowedDecisions.length === 0 ? (
+              <p className="text-sm text-slate-600" data-testid="text-no-decision">
+                {a.status === 'Changes requested' ? 'Waiting for the applicant to update and resubmit.' : `This application is ${statusLabel(a.status).toLowerCase()}. No further decisions.`}
+              </p>
+            ) : (
+              <>
+                {(['Review', 'Approved', 'Changes requested', 'Declined'] as const).filter((d) => a.allowedDecisions.includes(d)).map((d) => (
+                  <button key={d} data-testid={`button-decision-${d.toLowerCase().replace(' ', '-')}`} disabled={d === 'Approved' && !!approveBlocked} title={d === 'Approved' ? approveBlocked || undefined : undefined}
+                    onClick={() => { setError(''); setOpen(d); }}
+                    className={cx('w-full', d === 'Approved' ? lime : d === 'Declined' ? danger : d === 'Review' ? dark : ghost, 'disabled:cursor-not-allowed')}>{decisionCopy[d].label}</button>
+                ))}
+                {approveBlocked && <p className="text-xs text-red-700" data-testid="text-approve-blocked">{approveBlocked}</p>}
+                <p className="text-xs text-slate-500">Approving adds {money(a.amount)} to the applicant's grant balance through the ledger. Sample data; no real funds move.</p>
+              </>
+            )}
+          </aside>
+          {open && (
+            <ReasonModal open onClose={() => setOpen(null)} testid="dialog-decision" title={decisionCopy[open].title} confirmLabel={decisionCopy[open].confirm}
+              intro={<p>{open === 'Approved' ? `${money(a.amount)} is added to ${a.userName}'s grant balance and recorded in the ledger. The applicant is notified.` : decisionCopy[open].intro}</p>}
+              label={open === 'Changes requested' ? 'What needs to change (shared with the applicant)' : open === 'Declined' ? 'Reason (shared with the applicant)' : 'Note for the history (shared with the applicant)'}
+              optional={!decisionCopy[open].needsNote} maxLength={1000} pending={decide.isPending} error={error} onSubmit={(note) => run(open, note || undefined)} />
+          )}
+        </div>
+      )}
+    </Shell>
+  );
+}

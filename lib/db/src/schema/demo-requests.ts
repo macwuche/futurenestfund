@@ -8,7 +8,10 @@ export const demoRequestsTable = pgTable("demo_requests", {
   kind: text("kind").notNull(),
   amountCents: integer("amount_cents").notNull(),
   note: text("note").notNull().default(""),
-  status: text("status").notNull().default("Pending"),
+  status: text("status").notNull().default("Pending"), // Pending | Completed | Declined
+  reviewNote: text("review_note"),
+  reviewedBy: text("reviewed_by"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }).enableRLS();
 

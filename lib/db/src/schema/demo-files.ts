@@ -30,5 +30,8 @@ export const demoKycDocumentsTable = pgTable("demo_kyc_documents", {
   fileId: uuid("file_id"),
   sampleConfidence: real("sample_confidence"),
   superseded: boolean("superseded").notNull().default(false),
+  reviewNote: text("review_note"),
+  reviewedBy: text("reviewed_by"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }).enableRLS();

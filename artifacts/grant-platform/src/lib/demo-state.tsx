@@ -70,8 +70,6 @@ export interface NewAppPrefill { title?: string; category?: string; amount?: num
 interface Demo {
   search: string;
   setSearch: (s: string) => void;
-  adminSearch: string;
-  setAdminSearch: (s: string) => void;
   doneSetup: string[];
   completeSetup: (id: string) => void;
   newApp: NewAppPrefill | null;
@@ -92,13 +90,12 @@ function usePersisted<T>(key: string, init: T) {
 
 export function DemoProvider({ children }: { children: ReactNode }) {
   const [search, setSearch] = useState('');
-  const [adminSearch, setAdminSearch] = useState('');
   const [doneSetup, setDone] = usePersisted<string[]>('setup', []);
   const [savedGrants, setSaved] = usePersisted<string[]>('saved-grants', []);
   const [newApp, setNewApp] = useState<NewAppPrefill | null>(null);
   const completeSetup = useCallback((id: string) => setDone((p) => (p.includes(id) ? p : [...p, id])), [setDone]);
   const value = useMemo<Demo>(() => ({
-    search, setSearch, adminSearch, setAdminSearch, doneSetup, completeSetup, newApp, savedGrants,
+    search, setSearch, doneSetup, completeSetup, newApp, savedGrants,
     openNewApp: (prefill) => setNewApp(prefill ?? {}),
     closeNewApp: () => setNewApp(null),
     toggleSavedGrant: (id) => {
@@ -107,7 +104,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       if (saving) completeSetup('matchmaking');
       return saving;
     },
-  }), [search, adminSearch, doneSetup, completeSetup, newApp, savedGrants, setSaved]);
+  }), [search, doneSetup, completeSetup, newApp, savedGrants, setSaved]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 export function useDemo() {

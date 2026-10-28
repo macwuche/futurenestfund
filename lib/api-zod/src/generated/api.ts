@@ -138,7 +138,7 @@ export const GetApplicantAccountResponse = zod.object({
 })),
   "transactions": zod.array(zod.object({
   "id": zod.string(),
-  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up']),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Grant award', 'Opening balance']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "direction": zod.enum(['in', 'out']),
   "amount": zod.number(),
@@ -166,7 +166,7 @@ export const CreateApplicantRequestBody = zod.object({
 
 export const CreateApplicantRequestResponse = zod.object({
   "id": zod.string(),
-  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up']),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Grant award', 'Opening balance']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "direction": zod.enum(['in', 'out']),
   "amount": zod.number(),
@@ -411,7 +411,9 @@ export const GetApplicantKycResponse = zod.object({
   "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
   "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
   "mimeType": zod.string().optional(),
-  "submittedAt": zod.coerce.date()
+  "submittedAt": zod.coerce.date(),
+  "reviewNote": zod.string().optional().describe('Reviewer\'s reason, shown when a document is rejected'),
+  "reviewedAt": zod.coerce.date().optional()
 })).describe('Current document per kind (replaced ones are omitted)')
 })
 
@@ -435,7 +437,9 @@ export const UploadApplicantKycDocumentResponse = zod.object({
   "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
   "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
   "mimeType": zod.string().optional(),
-  "submittedAt": zod.coerce.date()
+  "submittedAt": zod.coerce.date(),
+  "reviewNote": zod.string().optional().describe('Reviewer\'s reason, shown when a document is rejected'),
+  "reviewedAt": zod.coerce.date().optional()
 })).describe('Current document per kind (replaced ones are omitted)')
 })
 
@@ -665,7 +669,12 @@ export const GetAdminDashboardResponse = zod.object({
   "auditLog": zod.enum(['Intact', 'Review required']),
   "fourEyes": zod.boolean()
 }),
-  "globalFrozen": zod.boolean()
+  "globalFrozen": zod.boolean(),
+  "moneyTrend": zod.array(zod.object({
+  "label": zod.string(),
+  "inflow": zod.number(),
+  "outflow": zod.number()
+})).describe('Ledger money in and out per month, last six months')
 })
 
 
@@ -747,7 +756,9 @@ export const GetAdminUserResponse = zod.object({
   "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
   "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
   "mimeType": zod.string().optional(),
-  "submittedAt": zod.coerce.date()
+  "submittedAt": zod.coerce.date(),
+  "reviewNote": zod.string().optional().describe('Reviewer\'s reason, shown when a document is rejected'),
+  "reviewedAt": zod.coerce.date().optional()
 })),
   "permissions": zod.object({
   "emailNotifications": zod.boolean(),
@@ -832,7 +843,9 @@ export const UpdateAdminUserResponse = zod.object({
   "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
   "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
   "mimeType": zod.string().optional(),
-  "submittedAt": zod.coerce.date()
+  "submittedAt": zod.coerce.date(),
+  "reviewNote": zod.string().optional().describe('Reviewer\'s reason, shown when a document is rejected'),
+  "reviewedAt": zod.coerce.date().optional()
 })),
   "permissions": zod.object({
   "emailNotifications": zod.boolean(),
@@ -900,5 +913,421 @@ export const UpdateGlobalFreezeBody = zod.object({
 export const UpdateGlobalFreezeResponse = zod.object({
   "frozen": zod.boolean()
 })
+
+
+/**
+ * @summary Search users, applications, ledger entries and audit logs by name or ID
+ */
+export const searchAdminQueryQMax = 100;
+
+
+
+export const SearchAdminQueryParams = zod.object({
+  "q": zod.coerce.string().min(1).max(searchAdminQueryQMax)
+})
+
+export const SearchAdminResponse = zod.object({
+  "users": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "organization": zod.string()
+})),
+  "applications": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "status": zod.enum(['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined', 'Withdrawn']),
+  "amount": zod.number(),
+  "submittedAt": zod.coerce.date()
+}).and(zod.object({
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "organization": zod.string()
+}))),
+  "transactions": zod.array(zod.object({
+  "id": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "kind": zod.enum(['Top-up', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']),
+  "account": zod.enum(['grant', 'deposit', 'card']),
+  "amount": zod.number().describe('Signed: negative amounts left the account'),
+  "reason": zod.string(),
+  "actor": zod.string(),
+  "requestId": zod.string().optional(),
+  "applicationId": zod.string().optional()
+})),
+  "audit": zod.array(zod.object({
+  "id": zod.string(),
+  "action": zod.string(),
+  "actor": zod.string(),
+  "userId": zod.string().optional(),
+  "subject": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary List applications for review
+ */
+export const listAdminApplicationsQueryStatusDefault = `all`;
+
+export const ListAdminApplicationsQueryParams = zod.object({
+  "status": zod.enum(['pending', 'all']).default(listAdminApplicationsQueryStatusDefault),
+  "userId": zod.coerce.string().optional()
+})
+
+export const ListAdminApplicationsResponseItem = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "status": zod.enum(['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined', 'Withdrawn']),
+  "amount": zod.number(),
+  "submittedAt": zod.coerce.date()
+}).and(zod.object({
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "organization": zod.string()
+}))
+export const ListAdminApplicationsResponse = zod.array(ListAdminApplicationsResponseItem)
+
+
+/**
+ * @summary Get an application with its documents and history
+ */
+export const GetAdminApplicationParams = zod.object({
+  "applicationId": zod.coerce.string()
+})
+
+export const GetAdminApplicationResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "status": zod.enum(['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined', 'Withdrawn']),
+  "amount": zod.number(),
+  "submittedAt": zod.coerce.date()
+}).and(zod.object({
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "organization": zod.string()
+})).and(zod.object({
+  "updatedAt": zod.coerce.date(),
+  "userStatus": zod.enum(['Active', 'Frozen']),
+  "platformFrozen": zod.boolean(),
+  "allowedDecisions": zod.array(zod.enum(['Review', 'Approved', 'Declined', 'Changes requested'])),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+})),
+  "events": zod.array(zod.object({
+  "id": zod.string(),
+  "status": zod.string(),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Move an application to review, approve, decline or request changes
+ */
+export const DecideAdminApplicationParams = zod.object({
+  "applicationId": zod.coerce.string()
+})
+
+export const decideAdminApplicationBodyNoteMax = 1000;
+
+
+
+export const DecideAdminApplicationBody = zod.object({
+  "status": zod.enum(['Review', 'Approved', 'Declined', 'Changes requested']),
+  "note": zod.string().max(decideAdminApplicationBodyNoteMax).optional()
+})
+
+export const DecideAdminApplicationResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "status": zod.enum(['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined', 'Withdrawn']),
+  "amount": zod.number(),
+  "submittedAt": zod.coerce.date()
+}).and(zod.object({
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "organization": zod.string()
+})).and(zod.object({
+  "updatedAt": zod.coerce.date(),
+  "userStatus": zod.enum(['Active', 'Frozen']),
+  "platformFrozen": zod.boolean(),
+  "allowedDecisions": zod.array(zod.enum(['Review', 'Approved', 'Declined', 'Changes requested'])),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+})),
+  "events": zod.array(zod.object({
+  "id": zod.string(),
+  "status": zod.string(),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary List deposit or withdrawal requests
+ */
+export const listAdminRequestsQueryStatusDefault = `pending`;
+
+export const ListAdminRequestsQueryParams = zod.object({
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "status": zod.enum(['pending', 'decided']).default(listAdminRequestsQueryStatusDefault)
+})
+
+export const ListAdminRequestsResponseItem = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "amount": zod.number(),
+  "note": zod.string(),
+  "status": zod.enum(['Pending', 'Completed', 'Declined']),
+  "createdAt": zod.coerce.date(),
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "organization": zod.string(),
+  "userStatus": zod.enum(['Active', 'Frozen']),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "kycRequired": zod.boolean().describe('Whether this user\'s settings require verification for this kind of request'),
+  "grantBalance": zod.number(),
+  "depositBalance": zod.number(),
+  "reviewNote": zod.string().optional(),
+  "reviewedBy": zod.string().optional(),
+  "reviewedAt": zod.coerce.date().optional()
+})
+export const ListAdminRequestsResponse = zod.array(ListAdminRequestsResponseItem)
+
+
+/**
+ * @summary Approve a pending request and move the money
+ */
+export const ApproveAdminRequestParams = zod.object({
+  "requestId": zod.coerce.string()
+})
+
+export const ApproveAdminRequestResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "amount": zod.number(),
+  "note": zod.string(),
+  "status": zod.enum(['Pending', 'Completed', 'Declined']),
+  "createdAt": zod.coerce.date(),
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "organization": zod.string(),
+  "userStatus": zod.enum(['Active', 'Frozen']),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "kycRequired": zod.boolean().describe('Whether this user\'s settings require verification for this kind of request'),
+  "grantBalance": zod.number(),
+  "depositBalance": zod.number(),
+  "reviewNote": zod.string().optional(),
+  "reviewedBy": zod.string().optional(),
+  "reviewedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Decline a pending request with a reason
+ */
+export const RejectAdminRequestParams = zod.object({
+  "requestId": zod.coerce.string()
+})
+
+export const rejectAdminRequestBodyReasonMin = 5;
+export const rejectAdminRequestBodyReasonMax = 240;
+
+
+
+export const RejectAdminRequestBody = zod.object({
+  "reason": zod.string().min(rejectAdminRequestBodyReasonMin).max(rejectAdminRequestBodyReasonMax)
+})
+
+export const RejectAdminRequestResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "amount": zod.number(),
+  "note": zod.string(),
+  "status": zod.enum(['Pending', 'Completed', 'Declined']),
+  "createdAt": zod.coerce.date(),
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "organization": zod.string(),
+  "userStatus": zod.enum(['Active', 'Frozen']),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "kycRequired": zod.boolean().describe('Whether this user\'s settings require verification for this kind of request'),
+  "grantBalance": zod.number(),
+  "depositBalance": zod.number(),
+  "reviewNote": zod.string().optional(),
+  "reviewedBy": zod.string().optional(),
+  "reviewedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Search the ledger
+ */
+export const listAdminTransactionsQueryTypeDefault = `all`;
+export const listAdminTransactionsQueryFromRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const listAdminTransactionsQueryToRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const listAdminTransactionsQuerySearchMax = 100;
+
+export const listAdminTransactionsQueryPageDefault = 1;
+
+
+
+export const ListAdminTransactionsQueryParams = zod.object({
+  "type": zod.enum(['all', 'Top-up', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']).default(listAdminTransactionsQueryTypeDefault),
+  "userId": zod.coerce.string().optional(),
+  "from": zod.coerce.string().regex(listAdminTransactionsQueryFromRegExp).optional(),
+  "to": zod.coerce.string().regex(listAdminTransactionsQueryToRegExp).optional(),
+  "search": zod.coerce.string().max(listAdminTransactionsQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).default(listAdminTransactionsQueryPageDefault)
+})
+
+export const ListAdminTransactionsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "kind": zod.enum(['Top-up', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']),
+  "account": zod.enum(['grant', 'deposit', 'card']),
+  "amount": zod.number().describe('Signed: negative amounts left the account'),
+  "reason": zod.string(),
+  "actor": zod.string(),
+  "requestId": zod.string().optional(),
+  "applicationId": zod.string().optional()
+})),
+  "total": zod.number().int(),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "inflow": zod.number().describe('Sum of positive amounts across all matching entries'),
+  "outflow": zod.number().describe('Sum of negative amounts across all matching entries, as a positive number')
+})
+
+
+/**
+ * @summary Download the filtered ledger as CSV
+ */
+export const exportAdminTransactionsQueryTypeDefault = `all`;
+export const exportAdminTransactionsQueryFromRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const exportAdminTransactionsQueryToRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const exportAdminTransactionsQuerySearchMax = 100;
+
+export const exportAdminTransactionsQueryPageDefault = 1;
+
+
+
+export const ExportAdminTransactionsQueryParams = zod.object({
+  "type": zod.enum(['all', 'Top-up', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']).default(exportAdminTransactionsQueryTypeDefault),
+  "userId": zod.coerce.string().optional(),
+  "from": zod.coerce.string().regex(exportAdminTransactionsQueryFromRegExp).optional(),
+  "to": zod.coerce.string().regex(exportAdminTransactionsQueryToRegExp).optional(),
+  "search": zod.coerce.string().max(exportAdminTransactionsQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).default(exportAdminTransactionsQueryPageDefault)
+})
+
+export const ExportAdminTransactionsResponse = zod.unknown()
+
+
+/**
+ * @summary Identity documents awaiting review, and recent decisions
+ */
+export const GetAdminKycQueueResponse = zod.object({
+  "pending": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['Government ID', 'Proof of address']),
+  "status": zod.enum(['Verified', 'Pending', 'Rejected']),
+  "sample": zod.boolean().describe('Seeded sample document with no file'),
+  "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
+  "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
+  "mimeType": zod.string().optional(),
+  "submittedAt": zod.coerce.date(),
+  "reviewNote": zod.string().optional().describe('Reviewer\'s reason, shown when a document is rejected'),
+  "reviewedAt": zod.coerce.date().optional()
+}).and(zod.object({
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "organization": zod.string(),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "reviewedBy": zod.string().optional()
+}))),
+  "reviewed": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['Government ID', 'Proof of address']),
+  "status": zod.enum(['Verified', 'Pending', 'Rejected']),
+  "sample": zod.boolean().describe('Seeded sample document with no file'),
+  "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
+  "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
+  "mimeType": zod.string().optional(),
+  "submittedAt": zod.coerce.date(),
+  "reviewNote": zod.string().optional().describe('Reviewer\'s reason, shown when a document is rejected'),
+  "reviewedAt": zod.coerce.date().optional()
+}).and(zod.object({
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "organization": zod.string(),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "reviewedBy": zod.string().optional()
+}))).describe('The 20 most recent decisions')
+})
+
+
+/**
+ * @summary Approve or reject an identity document
+ */
+export const ReviewAdminKycDocumentParams = zod.object({
+  "documentId": zod.coerce.string()
+})
+
+export const reviewAdminKycDocumentBodyNoteMax = 240;
+
+
+
+export const ReviewAdminKycDocumentBody = zod.object({
+  "decision": zod.enum(['Verified', 'Rejected']),
+  "note": zod.string().max(reviewAdminKycDocumentBodyNoteMax).optional()
+})
+
+export const ReviewAdminKycDocumentResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['Government ID', 'Proof of address']),
+  "status": zod.enum(['Verified', 'Pending', 'Rejected']),
+  "sample": zod.boolean().describe('Seeded sample document with no file'),
+  "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
+  "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
+  "mimeType": zod.string().optional(),
+  "submittedAt": zod.coerce.date(),
+  "reviewNote": zod.string().optional().describe('Reviewer\'s reason, shown when a document is rejected'),
+  "reviewedAt": zod.coerce.date().optional()
+}).and(zod.object({
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "organization": zod.string(),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "reviewedBy": zod.string().optional()
+}))
 
 

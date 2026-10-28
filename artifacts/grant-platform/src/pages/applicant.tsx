@@ -562,8 +562,8 @@ function CardsBody({ a }: { a: Account }) {
 }
 
 /* Transactions */
-const txTypes = ['All', 'Deposit', 'Withdrawal', 'Top-up'] as const;
-const txFilterLabel: Record<(typeof txTypes)[number], string> = { All: 'All', Deposit: 'Deposits', Withdrawal: 'Withdrawals', 'Top-up': 'Top-ups' };
+const txTypes = ['All', 'Deposit', 'Withdrawal', 'Grant award', 'Top-up'] as const;
+const txFilterLabel: Record<(typeof txTypes)[number], string> = { All: 'All', Deposit: 'Deposits', Withdrawal: 'Withdrawals', 'Grant award': 'Grant awards', 'Top-up': 'Top-ups' };
 const accountLabel: Record<string, string> = { grant: 'Grant', deposit: 'Deposit', card: 'Card' };
 
 export function TxRow({ t }: { t: Tx }) {
@@ -596,13 +596,13 @@ function TxBody({ a }: { a: Account }) {
         <h2 id="tx-heading" className="text-lg font-semibold text-slate-900">Activity</h2>
         <div className="noscroll -mx-1 flex gap-2 overflow-x-auto px-1" role="group" aria-label="Filter by type">
           {txTypes.map((k) => (
-            <button key={k} aria-pressed={type === k} data-testid={`filter-tx-${k.toLowerCase()}`} onClick={() => setType(k)}
+            <button key={k} aria-pressed={type === k} data-testid={`filter-tx-${k.toLowerCase().replace(' ', '-')}`} onClick={() => setType(k)}
               className={cx('press whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-semibold', type === k ? 'border-[#1E3A8A] bg-[#1E3A8A] text-white' : 'border-slate-300 bg-white text-slate-600 hover:border-[#1E3A8A]')}>{txFilterLabel[k]}</button>
           ))}
         </div>
       </div>
       {list.length === 0
-        ? <Empty title={type === 'All' ? 'No transactions yet' : `No ${txFilterLabel[type].toLowerCase()} yet`} hint="Deposits, withdrawals and top-ups appear here." />
+        ? <Empty title={type === 'All' ? 'No transactions yet' : `No ${txFilterLabel[type].toLowerCase()} yet`} hint="Deposits, withdrawals, grant awards and top-ups appear here." />
         : <ul className="space-y-3" data-testid="list-transactions">{list.map((t) => <TxRow key={t.id} t={t} />)}</ul>}
     </section>
   );
@@ -870,6 +870,9 @@ function KycRow({ kind, hint, icon: Icon, doc }: { kind: KycDocumentKind; hint: 
           <input ref={input} type="file" accept={FILE_RULES.identity.accept} hidden data-testid={`input-kyc-${slug}`} onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
         </div>
       </div>
+      {doc?.status === 'Rejected' && doc.reviewNote && (
+        <p className="mt-2 rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid={`text-kyc-${slug}-review`}>Not accepted: {doc.reviewNote} Upload a new copy to try again.</p>
+      )}
       {err && <p role="alert" className="mt-2 rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid={`text-kyc-${slug}-error`}>{err}</p>}
     </li>
   );

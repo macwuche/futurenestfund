@@ -1,11 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useDeferredValue, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
-  useGetAdminDashboard, useUpdateGlobalFreeze, getGetAdminDashboardQueryKey,
+  useGetAdminDashboard, useUpdateGlobalFreeze, useSearchAdmin, getSearchAdminQueryKey,
   useCreateApplicantApplication, useUploadApplicantApplicationDocument, getGetApplicantApplicationQueryKey, useMarkApplicantNotificationsRead, getListApplicantNotificationsQueryKey, type NotificationList,
 } from '@workspace/api-client-react';
 import {
@@ -13,7 +13,7 @@ import {
   ChevronDown, Users, ArrowDownToLine, ShieldCheck, Snowflake, Building2, ScanLine, House, ClipboardList, ChartPie, Milestone,
   MessageCircleQuestion, Ellipsis, BadgeCheck, Upload, ArrowLeftRight as SwitchIcon,
 } from 'lucide-react';
-import { Avatar, checkFile, cx, Field, FILE_RULES, fileSize, inputCls, Modal, Skel, useDismiss } from '@/components/bits';
+import { Avatar, checkFile, cx, Field, FILE_RULES, fileSize, inputCls, Modal, money, Skel, useDismiss } from '@/components/bits';
 import { CATEGORIES, apiError, useApplicantDashboard, useDemo, useNotifications, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
@@ -435,18 +435,18 @@ export function NewApplicationModal() {
 }
 
 /* ================================================================== */
-/* Admin workspace (unchanged design; admin pass comes later)          */
+/* Admin workspace (written admin spec: black / lime command center)   */
 /* ================================================================== */
 
-function WorkspaceSwitch({ admin }: { admin: boolean }) {
+/** Demo-only navigation between the two workspaces (not sign-in); lives in the admin sidebar. */
+function WorkspaceSwitch() {
   const [, nav] = useLocation();
   return (
-    <div role="group" aria-label="Demo workspace switch" data-testid="switch-workspace" className={cx('flex rounded-full p-0.5 text-xs font-semibold', admin ? 'bg-white/10' : 'bg-slate-100')}>
-      {[{ k: false, l: 'User workspace', to: '/dashboard' }, { k: true, l: 'Admin workspace', to: '/admin' }].map((o) => (
-        <button key={o.l} aria-pressed={admin === o.k} data-testid={o.k ? 'button-admin-workspace' : 'button-user-workspace'} onClick={() => nav(o.to)}
-          className={cx('press rounded-full px-3 py-1.5 transition-all duration-200 whitespace-nowrap',
-            admin === o.k ? (admin ? 'bg-[#C6F432] text-[#111]' : 'bg-[#1E3A8A] text-white') : admin ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900')}>
-          <span className="hidden sm:inline">{o.l}</span><span className="sm:hidden">{o.k ? 'Admin' : 'User'}</span>
+    <div role="group" aria-label="Demo workspace switch" data-testid="switch-workspace" className="grid grid-cols-2 rounded-full bg-white/10 p-0.5 text-xs font-semibold">
+      {[{ admin: false, l: 'User view', to: '/dashboard' }, { admin: true, l: 'Admin view', to: '/admin' }].map((o) => (
+        <button key={o.l} aria-pressed={o.admin} data-testid={o.admin ? 'button-admin-workspace' : 'button-user-workspace'} onClick={() => nav(o.to)}
+          className={cx('press rounded-full px-2 py-1.5 transition-all duration-200 whitespace-nowrap', o.admin ? 'bg-[#C6F432] text-[#111]' : 'text-slate-300 hover:text-white')}>
+          {o.l}
         </button>
       ))}
     </div>
@@ -492,7 +492,7 @@ function AdminSidebarBody({ onNav }: { onNav?: () => void }) {
         <div className="rounded-xl bg-white/5 p-3 text-xs leading-relaxed text-slate-400">
           <strong className="text-[#C6F432]">DEMO preview.</strong> Switch workspaces to see both sides of the sample data.
         </div>
-        <WorkspaceSwitch admin />
+        <WorkspaceSwitch />
       </div>
     </div>
   );
@@ -518,7 +518,7 @@ function AdminFrame({ title, open, setOpen, loc, children }: { title: string; op
         <AdminTop title={title} onMenu={() => setOpen(true)} />
         <main id="main" className="mx-auto w-full max-w-[1280px] p-4 sm:p-6">
           <div key={loc} className="rise">{children}</div>
-          <p className="mt-8 text-center text-xs text-slate-500" data-testid="text-demo-note">Demo preview. No real authentication, transfers, card networks or OCR are connected.</p>
+          <p className="mt-8 text-center text-xs text-slate-500" data-testid="text-demo-note">Demo preview. No real sign-in, transfers, card networks or OCR are connected; there is one shared demo administrator.</p>
         </main>
       </div>
     </div>
@@ -527,52 +527,97 @@ function AdminFrame({ title, open, setOpen, loc, children }: { title: string; op
 
 function AdminTop({ title, onMenu }: { title: string; onMenu: () => void }) {
   const { data } = useGetAdminDashboard();
-  const { adminSearch, setAdminSearch } = useDemo();
-  const [, nav] = useLocation();
-  const qc = useQueryClient();
-  const { toast } = useToast();
   const [confirm, setConfirm] = useState(false);
-  const [reason, setReason] = useState('');
-  const freeze = useUpdateGlobalFreeze();
   const frozen = data?.globalFrozen ?? false;
-  const go = () =>
-    freeze.mutate({ data: { frozen: !frozen, reason: reason || undefined } }, {
-      onSuccess: (r) => {
-        qc.invalidateQueries({ queryKey: getGetAdminDashboardQueryKey() });
-        toast({ title: r.frozen ? 'Global freeze enabled (demo)' : 'Global freeze lifted (demo)' });
-        setConfirm(false); setReason('');
-      },
-      onError: () => toast({ title: 'Freeze update failed', variant: 'destructive' }),
-    });
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="flex flex-wrap items-center gap-2 px-4 py-3 sm:px-6">
         <button aria-label="Open menu" data-testid="button-open-drawer" onClick={onMenu} className="press grid h-10 w-10 place-items-center rounded-lg bg-[#111] text-[#C6F432] lg:hidden"><Menu className="h-5 w-5" /></button>
         <h1 className="font-display text-lg font-bold sm:text-xl" data-testid="text-page-title">{title}</h1>
         {data && (
-          <span data-testid="badge-four-eyes" title="Two-person authorization is not enabled. Demo configuration only." className={cx('hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold sm:inline-flex', data.systemHealth.fourEyes ? 'bg-[#111] text-[#C6F432]' : 'bg-[#FEF3C7] text-[#92400E]')}><ShieldCheck className="h-3.5 w-3.5" />{data.systemHealth.fourEyes ? '4-Eyes Active' : '4-Eyes: not enabled (demo config)'}</span>
+          <span data-testid="badge-four-eyes" title={data.systemHealth.fourEyes ? 'Two-person approval is enforced.' : 'One administrator approves in this demo. Two-person approval needs real admin accounts.'}
+            className={cx('hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold sm:inline-flex', data.systemHealth.fourEyes ? 'bg-[#111] text-[#C6F432]' : 'bg-slate-100 text-slate-600')}>
+            <ShieldCheck className="h-3.5 w-3.5" />{data.systemHealth.fourEyes ? '4-Eyes Active' : '4-Eyes not active'}
+          </span>
         )}
-        <form onSubmit={(e) => { e.preventDefault(); nav('/admin/users'); }} className="relative order-last w-full md:order-none md:ml-4 md:w-72">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input data-testid="input-admin-search" aria-label="Search users, logs and IDs" value={adminSearch} onChange={(e) => setAdminSearch(e.target.value)} placeholder="Search logs, users, IDs" className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-[#111] focus:ring-2 focus:ring-[#C6F432]" />
-        </form>
-        <div className="ml-auto flex items-center gap-2">
-          <div className="hidden rounded-full bg-[#111] sm:block"><WorkspaceSwitch admin /></div>
-          <button data-testid="button-global-freeze" onClick={() => setConfirm(true)} disabled={!data} className={cx('press flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition disabled:opacity-50', frozen ? 'bg-[#C6F432] text-[#111]' : 'bg-red-700 text-white hover:bg-red-800')}>
-            <Snowflake className="h-4 w-4" />{frozen ? 'Lift Freeze' : 'Global Freeze'}
-          </button>
-        </div>
+        <AdminSearch />
+        <button data-testid="button-global-freeze" onClick={() => setConfirm(true)} disabled={!data} className={cx('press ml-auto flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition disabled:opacity-50 md:ml-0', frozen ? 'bg-[#C6F432] text-[#111]' : 'bg-red-700 text-white hover:bg-red-800')}>
+          <Snowflake className="h-4 w-4" />{frozen ? 'Lift Freeze' : 'Global Freeze'}
+        </button>
       </div>
-      <div className="px-4 pb-2 sm:hidden"><div className="inline-block rounded-full bg-[#111]"><WorkspaceSwitch admin /></div></div>
-      {frozen && <div data-testid="banner-frozen" className="bg-red-700 px-6 py-1.5 text-center text-xs font-semibold text-white">Platform is globally frozen (demo state). Ledger adjustments are paused conceptually.</div>}
-      <Modal open={confirm} onClose={() => setConfirm(false)} title={frozen ? 'Lift global freeze?' : 'Enable global freeze?'} testid="dialog-global-freeze">
-        <p className="mb-3 text-sm text-slate-600">This flips a demo flag only. No real funds are moved or locked.</p>
-        <textarea data-testid="input-freeze-reason" maxLength={240} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional)" className="mb-4 h-24 w-full rounded-xl border border-slate-300 p-3 text-sm outline-none focus:border-[#111] focus:ring-2 focus:ring-[#C6F432]" />
-        <div className="flex justify-end gap-2">
-          <button data-testid="button-freeze-cancel" onClick={() => setConfirm(false)} className="press rounded-lg px-4 py-2 text-sm font-semibold hover:bg-slate-100">Cancel</button>
-          <button data-testid="button-freeze-confirm" disabled={freeze.isPending} onClick={go} className="press rounded-lg bg-[#111] px-4 py-2 text-sm font-semibold text-[#C6F432] disabled:opacity-60">{freeze.isPending ? 'Applying...' : 'Confirm'}</button>
-        </div>
-      </Modal>
+      {frozen && <div data-testid="banner-frozen" className="bg-red-700 px-6 py-1.5 text-center text-xs font-semibold text-white">Platform is globally frozen. Balance credits, approvals and new deposit or withdrawal requests are paused.</div>}
+      <GlobalFreezeDialog open={confirm} onClose={() => setConfirm(false)} frozen={frozen} />
     </header>
+  );
+}
+
+/** Confirmation (with an optional reason for the audit log) before the platform-wide freeze is switched. */
+export function GlobalFreezeDialog({ open, onClose, frozen }: { open: boolean; onClose: () => void; frozen: boolean }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [reason, setReason] = useState('');
+  const freeze = useUpdateGlobalFreeze();
+  useEffect(() => { if (open) setReason(''); }, [open]);
+  const go = () =>
+    freeze.mutate({ data: { frozen: !frozen, reason: reason.trim() || undefined } }, {
+      onSuccess: (r) => {
+        qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith('/api/admin') });
+        toast({ title: r.frozen ? 'Global freeze enabled' : 'Global freeze lifted' });
+        onClose();
+      },
+      onError: () => toast({ title: 'Freeze update failed', variant: 'destructive' }),
+    });
+  return (
+    <Modal open={open} onClose={onClose} title={frozen ? 'Lift global freeze?' : 'Enable global freeze?'} testid="dialog-global-freeze">
+      <p className="mb-3 text-sm text-slate-600">
+        {frozen ? 'Balance credits, approvals and applicant requests will be allowed again.' : 'Balance credits, approvals of deposits, withdrawals and grant awards, and new applicant requests are refused until the freeze is lifted.'} The change is written to the audit log. Sample data only.
+      </p>
+      <textarea data-testid="input-freeze-reason" aria-label="Reason (optional)" maxLength={240} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional, recorded in the audit log)" className="mb-4 h-24 w-full rounded-xl border border-slate-300 p-3 text-sm outline-none focus:border-[#111] focus:ring-2 focus:ring-[#C6F432]" />
+      <div className="flex justify-end gap-2">
+        <button data-testid="button-freeze-cancel" onClick={onClose} className="press rounded-lg px-4 py-2 text-sm font-semibold hover:bg-slate-100">Cancel</button>
+        <button data-testid="button-freeze-confirm" disabled={freeze.isPending} onClick={go} className="press rounded-lg bg-[#111] px-4 py-2 text-sm font-semibold text-[#C6F432] disabled:opacity-60">{freeze.isPending ? 'Applying…' : frozen ? 'Lift freeze' : 'Freeze platform'}</button>
+      </div>
+    </Modal>
+  );
+}
+
+/** Header search over users, applications, ledger entries and audit logs (names, text or IDs). */
+function AdminSearch() {
+  const [text, setText] = useState('');
+  const [open, setOpen] = useState(false);
+  const [, nav] = useLocation();
+  const ref = useRef<HTMLFormElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(ref, open, close);
+  const term = useDeferredValue(text.trim());
+  const params = { q: term };
+  const q = useSearchAdmin(params, { query: { enabled: term.length >= 2, queryKey: getSearchAdminQueryKey(params), placeholderData: keepPreviousData } });
+  const go = (href: string) => { close(); setText(''); nav(href); };
+  const r = term.length >= 2 ? q.data : undefined;
+  const empty = r && !r.users.length && !r.applications.length && !r.transactions.length && !r.audit.length;
+  const row = 'flex w-full flex-col rounded-lg px-2 py-1.5 text-left hover:bg-[#F7FADC]';
+  const group = (label: string, items: ReactNode[]) => items.length > 0 && (
+    <div className="py-1"><p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>{items}</div>
+  );
+  return (
+    <form ref={ref} role="search" onSubmit={(e) => { e.preventDefault(); if (term) go(`/admin/users?q=${encodeURIComponent(term)}`); }} className="relative order-last w-full md:order-none md:ml-4 md:w-80">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <input data-testid="input-admin-search" type="search" aria-label="Search users, applications, transactions and logs" value={text}
+        onChange={(e) => { setText(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder="Search logs, users, IDs"
+        className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-[#111] focus:ring-2 focus:ring-[#C6F432]" />
+      {open && term.length >= 2 && (
+        <div className="pop absolute left-0 right-0 top-full z-50 mt-2 max-h-[70dvh] overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl md:w-[26rem]" data-testid="panel-admin-search">
+          {q.isError ? <p className="px-2 py-3 text-sm text-red-700">Search failed. Try again.</p>
+            : !r ? <p className="px-2 py-3 text-sm text-slate-500">Searching…</p>
+            : empty ? <p className="px-2 py-3 text-sm text-slate-500" data-testid="text-search-empty">No matches for “{term}”.</p>
+            : <>
+              {group('Users', r.users.map((u) => <button type="button" key={u.id} className={row} onClick={() => go(`/admin/users/${u.id}`)} data-testid={`search-user-${u.id}`}><span className="text-sm font-semibold">{u.name}</span><span className="text-xs text-slate-500">{u.email} · {u.organization}</span></button>))}
+              {group('Applications', r.applications.map((a) => <button type="button" key={a.id} className={row} onClick={() => go(`/admin/users/${a.userId}/applications/${a.id}`)} data-testid={`search-app-${a.id}`}><span className="text-sm font-semibold">{a.title}</span><span className="text-xs text-slate-500">{a.id} · {a.userName} · {a.status === 'Review' ? 'Under review' : a.status}</span></button>))}
+              {group('Ledger', r.transactions.map((t) => <button type="button" key={t.id} className={row} onClick={() => go(`/admin/transactions?q=${t.id.slice(0, 8)}`)} data-testid={`search-tx-${t.id}`}><span className="text-sm font-semibold">{t.kind} · {money(t.amount)}</span><span className="truncate text-xs text-slate-500">{t.userName} · {t.reason}</span></button>))}
+              {group('Audit log', r.audit.map((a) => <button type="button" key={a.id} className={row} onClick={() => a.userId ? go(`/admin/users/${a.userId}`) : close()} data-testid={`search-audit-${a.id}`}><span className="text-sm">{a.action}</span><span className="text-xs text-slate-500">{a.subject} · {a.actor} · {new Date(a.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span></button>))}
+            </>}
+        </div>
+      )}
+    </form>
   );
 }

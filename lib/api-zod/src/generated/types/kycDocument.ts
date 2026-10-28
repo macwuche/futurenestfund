@@ -21,4 +21,7 @@ export interface KycDocument {
   url?: string;
   mimeType?: string;
   submittedAt: Date;
+  /** Reviewer's reason, shown when a document is rejected */
+  reviewNote?: string;
+  reviewedAt?: Date;
 }

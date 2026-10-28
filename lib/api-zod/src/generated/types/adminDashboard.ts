@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AdminActivity } from './adminActivity';
+import type { MoneyPoint } from './moneyPoint';
 import type { StatusCount } from './statusCount';
 import type { SystemHealth } from './systemHealth';
 
@@ -22,4 +23,6 @@ export interface AdminDashboard {
   recentActivity: AdminActivity[];
   systemHealth: SystemHealth;
   globalFrozen: boolean;
+  /** Ledger money in and out per month, last six months */
+  moneyTrend: MoneyPoint[];
 }

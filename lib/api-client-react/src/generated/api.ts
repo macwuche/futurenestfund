@@ -20,7 +20,14 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminApplication,
+  AdminApplicationDetail,
   AdminDashboard,
+  AdminKycItem,
+  AdminKycQueue,
+  AdminLedgerPage,
+  AdminRequest,
+  AdminSearchResults,
   AdminUserProfile,
   AdminUserUpdate,
   AdminUsersPage,
@@ -32,22 +39,30 @@ import type {
   ApplicantProfileUpdate,
   ApplicantRequestInput,
   ApplicantTransaction,
+  ApplicationDecisionInput,
   ApplicationDetail,
   ApplicationInput,
   ApplicationResponseInput,
   BalanceAdjustmentInput,
   ErrorMessage,
+  ExportAdminTransactionsParams,
   FileUpload,
   GetApplicantDashboardParams,
   GlobalFreezeStatus,
   GlobalFreezeUpdate,
   HealthStatus,
+  KycReviewInput,
   KycUpload,
+  ListAdminApplicationsParams,
+  ListAdminRequestsParams,
+  ListAdminTransactionsParams,
   ListAdminUsersParams,
   Milestone,
   MilestoneInput,
   MilestoneUpdate,
   NotificationList,
+  ReasonInput,
+  SearchAdminParams,
   UserBalances
 } from './api.schemas';
 
@@ -2490,5 +2505,920 @@ export const useUpdateGlobalFreeze = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateGlobalFreezeMutationOptions(options));
+    }
+
+export const getSearchAdminUrl = (params: SearchAdminParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/search?${stringifiedParams}` : `/api/admin/search`
+}
+
+/**
+ * @summary Search users, applications, ledger entries and audit logs by name or ID
+ */
+export const searchAdmin = async (params: SearchAdminParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminSearchResults> => {
+
+  return customFetch<AdminSearchResults>(getSearchAdminUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchAdminQueryKey = (params?: SearchAdminParams,) => {
+    return [
+    `/api/admin/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchAdminQueryOptions = <TData = Awaited<ReturnType<typeof searchAdmin>>, TError = ErrorType<unknown>>(params: SearchAdminParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchAdmin>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchAdminQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchAdmin>>> = ({ signal }) => searchAdmin(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchAdmin>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchAdminQueryResult = NonNullable<Awaited<ReturnType<typeof searchAdmin>>>
+export type SearchAdminQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Search users, applications, ledger entries and audit logs by name or ID
+ */
+
+export function useSearchAdmin<TData = Awaited<ReturnType<typeof searchAdmin>>, TError = ErrorType<unknown>>(
+ params: SearchAdminParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchAdmin>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchAdminQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminApplicationsUrl = (params?: ListAdminApplicationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/applications?${stringifiedParams}` : `/api/admin/applications`
+}
+
+/**
+ * @summary List applications for review
+ */
+export const listAdminApplications = async (params?: ListAdminApplicationsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminApplication[]> => {
+
+  return customFetch<AdminApplication[]>(getListAdminApplicationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminApplicationsQueryKey = (params?: ListAdminApplicationsParams,) => {
+    return [
+    `/api/admin/applications`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminApplicationsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminApplications>>, TError = ErrorType<unknown>>(params?: ListAdminApplicationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminApplications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminApplicationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminApplications>>> = ({ signal }) => listAdminApplications(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminApplications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminApplicationsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminApplications>>>
+export type ListAdminApplicationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List applications for review
+ */
+
+export function useListAdminApplications<TData = Awaited<ReturnType<typeof listAdminApplications>>, TError = ErrorType<unknown>>(
+ params?: ListAdminApplicationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminApplications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminApplicationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminApplicationUrl = (applicationId: string,) => {
+
+
+
+
+  return `/api/admin/applications/${applicationId}`
+}
+
+/**
+ * @summary Get an application with its documents and history
+ */
+export const getAdminApplication = async (applicationId: string, options?: Parameters<typeof customFetch>[1]): Promise<AdminApplicationDetail> => {
+
+  return customFetch<AdminApplicationDetail>(getGetAdminApplicationUrl(applicationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminApplicationQueryKey = (applicationId: string,) => {
+    return [
+    `/api/admin/applications/${applicationId}`
+    ] as const;
+    }
+
+
+export const getGetAdminApplicationQueryOptions = <TData = Awaited<ReturnType<typeof getAdminApplication>>, TError = ErrorType<ErrorMessage>>(applicationId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminApplication>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminApplicationQueryKey(applicationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminApplication>>> = ({ signal }) => getAdminApplication(applicationId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: applicationId !== null && applicationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminApplication>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminApplicationQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminApplication>>>
+export type GetAdminApplicationQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary Get an application with its documents and history
+ */
+
+export function useGetAdminApplication<TData = Awaited<ReturnType<typeof getAdminApplication>>, TError = ErrorType<ErrorMessage>>(
+ applicationId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminApplication>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminApplicationQueryOptions(applicationId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDecideAdminApplicationUrl = (applicationId: string,) => {
+
+
+
+
+  return `/api/admin/applications/${applicationId}/decision`
+}
+
+/**
+ * @summary Move an application to review, approve, decline or request changes
+ */
+export const decideAdminApplication = async (applicationId: string,
+    applicationDecisionInput: ApplicationDecisionInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminApplicationDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminApplicationDetail>(getDecideAdminApplicationUrl(applicationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(applicationDecisionInput)
+  }
+);}
+
+
+
+
+
+export const getDecideAdminApplicationMutationKey = () => ['decideAdminApplication'] as const;
+
+export const getDecideAdminApplicationMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideAdminApplication>>, TError,DecideAdminApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideAdminApplication>>, TError,DecideAdminApplicationMutationVariables, TContext> => {
+
+const mutationKey = getDecideAdminApplicationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideAdminApplication>>, DecideAdminApplicationMutationVariables> = (props) => {
+          const {applicationId,data} = props ?? {};
+
+          return  decideAdminApplication(applicationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideAdminApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof decideAdminApplication>>>
+    export type DecideAdminApplicationMutationBody = BodyType<ApplicationDecisionInput>
+    export type DecideAdminApplicationMutationError = ErrorType<ErrorMessage>
+    export type DecideAdminApplicationMutationVariables = {applicationId: string;data: BodyType<ApplicationDecisionInput>}
+
+    /**
+ * @summary Move an application to review, approve, decline or request changes
+ */
+export const useDecideAdminApplication = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideAdminApplication>>, TError,DecideAdminApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideAdminApplication>>,
+        TError,
+        DecideAdminApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDecideAdminApplicationMutationOptions(options));
+    }
+
+export const getListAdminRequestsUrl = (params: ListAdminRequestsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/requests?${stringifiedParams}` : `/api/admin/requests`
+}
+
+/**
+ * @summary List deposit or withdrawal requests
+ */
+export const listAdminRequests = async (params: ListAdminRequestsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminRequest[]> => {
+
+  return customFetch<AdminRequest[]>(getListAdminRequestsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminRequestsQueryKey = (params?: ListAdminRequestsParams,) => {
+    return [
+    `/api/admin/requests`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminRequests>>, TError = ErrorType<unknown>>(params: ListAdminRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminRequestsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminRequests>>> = ({ signal }) => listAdminRequests(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminRequests>>>
+export type ListAdminRequestsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List deposit or withdrawal requests
+ */
+
+export function useListAdminRequests<TData = Awaited<ReturnType<typeof listAdminRequests>>, TError = ErrorType<unknown>>(
+ params: ListAdminRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminRequestsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApproveAdminRequestUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/admin/requests/${requestId}/approve`
+}
+
+/**
+ * @summary Approve a pending request and move the money
+ */
+export const approveAdminRequest = async (requestId: string, options?: Parameters<typeof customFetch>[1]): Promise<AdminRequest> => {
+
+  return customFetch<AdminRequest>(getApproveAdminRequestUrl(requestId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApproveAdminRequestMutationKey = () => ['approveAdminRequest'] as const;
+
+export const getApproveAdminRequestMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveAdminRequest>>, TError,ApproveAdminRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveAdminRequest>>, TError,ApproveAdminRequestMutationVariables, TContext> => {
+
+const mutationKey = getApproveAdminRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveAdminRequest>>, ApproveAdminRequestMutationVariables> = (props) => {
+          const {requestId} = props ?? {};
+
+          return  approveAdminRequest(requestId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveAdminRequestMutationResult = NonNullable<Awaited<ReturnType<typeof approveAdminRequest>>>
+
+    export type ApproveAdminRequestMutationError = ErrorType<ErrorMessage>
+    export type ApproveAdminRequestMutationVariables = {requestId: string}
+
+    /**
+ * @summary Approve a pending request and move the money
+ */
+export const useApproveAdminRequest = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveAdminRequest>>, TError,ApproveAdminRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveAdminRequest>>,
+        TError,
+        ApproveAdminRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveAdminRequestMutationOptions(options));
+    }
+
+export const getRejectAdminRequestUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/admin/requests/${requestId}/reject`
+}
+
+/**
+ * @summary Decline a pending request with a reason
+ */
+export const rejectAdminRequest = async (requestId: string,
+    reasonInput: ReasonInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminRequest> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminRequest>(getRejectAdminRequestUrl(requestId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reasonInput)
+  }
+);}
+
+
+
+
+
+export const getRejectAdminRequestMutationKey = () => ['rejectAdminRequest'] as const;
+
+export const getRejectAdminRequestMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectAdminRequest>>, TError,RejectAdminRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectAdminRequest>>, TError,RejectAdminRequestMutationVariables, TContext> => {
+
+const mutationKey = getRejectAdminRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectAdminRequest>>, RejectAdminRequestMutationVariables> = (props) => {
+          const {requestId,data} = props ?? {};
+
+          return  rejectAdminRequest(requestId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectAdminRequestMutationResult = NonNullable<Awaited<ReturnType<typeof rejectAdminRequest>>>
+    export type RejectAdminRequestMutationBody = BodyType<ReasonInput>
+    export type RejectAdminRequestMutationError = ErrorType<unknown>
+    export type RejectAdminRequestMutationVariables = {requestId: string;data: BodyType<ReasonInput>}
+
+    /**
+ * @summary Decline a pending request with a reason
+ */
+export const useRejectAdminRequest = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectAdminRequest>>, TError,RejectAdminRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rejectAdminRequest>>,
+        TError,
+        RejectAdminRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRejectAdminRequestMutationOptions(options));
+    }
+
+export const getListAdminTransactionsUrl = (params?: ListAdminTransactionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/transactions?${stringifiedParams}` : `/api/admin/transactions`
+}
+
+/**
+ * @summary Search the ledger
+ */
+export const listAdminTransactions = async (params?: ListAdminTransactionsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminLedgerPage> => {
+
+  return customFetch<AdminLedgerPage>(getListAdminTransactionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminTransactionsQueryKey = (params?: ListAdminTransactionsParams,) => {
+    return [
+    `/api/admin/transactions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminTransactionsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminTransactions>>, TError = ErrorType<unknown>>(params?: ListAdminTransactionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminTransactions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminTransactionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminTransactions>>> = ({ signal }) => listAdminTransactions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminTransactions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminTransactionsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminTransactions>>>
+export type ListAdminTransactionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Search the ledger
+ */
+
+export function useListAdminTransactions<TData = Awaited<ReturnType<typeof listAdminTransactions>>, TError = ErrorType<unknown>>(
+ params?: ListAdminTransactionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminTransactions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminTransactionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportAdminTransactionsUrl = (params?: ExportAdminTransactionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/transactions/export?${stringifiedParams}` : `/api/admin/transactions/export`
+}
+
+/**
+ * @summary Download the filtered ledger as CSV
+ */
+export const exportAdminTransactions = async (params?: ExportAdminTransactionsParams, options?: Parameters<typeof customFetch>[1]): Promise<string> => {
+
+  return customFetch<string>(getExportAdminTransactionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportAdminTransactionsQueryKey = (params?: ExportAdminTransactionsParams,) => {
+    return [
+    `/api/admin/transactions/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportAdminTransactionsQueryOptions = <TData = Awaited<ReturnType<typeof exportAdminTransactions>>, TError = ErrorType<unknown>>(params?: ExportAdminTransactionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportAdminTransactions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportAdminTransactionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAdminTransactions>>> = ({ signal }) => exportAdminTransactions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportAdminTransactions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportAdminTransactionsQueryResult = NonNullable<Awaited<ReturnType<typeof exportAdminTransactions>>>
+export type ExportAdminTransactionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download the filtered ledger as CSV
+ */
+
+export function useExportAdminTransactions<TData = Awaited<ReturnType<typeof exportAdminTransactions>>, TError = ErrorType<unknown>>(
+ params?: ExportAdminTransactionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportAdminTransactions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportAdminTransactionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminKycQueueUrl = () => {
+
+
+
+
+  return `/api/admin/kyc`
+}
+
+/**
+ * @summary Identity documents awaiting review, and recent decisions
+ */
+export const getAdminKycQueue = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminKycQueue> => {
+
+  return customFetch<AdminKycQueue>(getGetAdminKycQueueUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminKycQueueQueryKey = () => {
+    return [
+    `/api/admin/kyc`
+    ] as const;
+    }
+
+
+export const getGetAdminKycQueueQueryOptions = <TData = Awaited<ReturnType<typeof getAdminKycQueue>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminKycQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminKycQueueQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminKycQueue>>> = ({ signal }) => getAdminKycQueue({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminKycQueue>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminKycQueueQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminKycQueue>>>
+export type GetAdminKycQueueQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Identity documents awaiting review, and recent decisions
+ */
+
+export function useGetAdminKycQueue<TData = Awaited<ReturnType<typeof getAdminKycQueue>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminKycQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminKycQueueQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReviewAdminKycDocumentUrl = (documentId: string,) => {
+
+
+
+
+  return `/api/admin/kyc/documents/${documentId}/review`
+}
+
+/**
+ * @summary Approve or reject an identity document
+ */
+export const reviewAdminKycDocument = async (documentId: string,
+    kycReviewInput: KycReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminKycItem> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminKycItem>(getReviewAdminKycDocumentUrl(documentId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(kycReviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewAdminKycDocumentMutationKey = () => ['reviewAdminKycDocument'] as const;
+
+export const getReviewAdminKycDocumentMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewAdminKycDocument>>, TError,ReviewAdminKycDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewAdminKycDocument>>, TError,ReviewAdminKycDocumentMutationVariables, TContext> => {
+
+const mutationKey = getReviewAdminKycDocumentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewAdminKycDocument>>, ReviewAdminKycDocumentMutationVariables> = (props) => {
+          const {documentId,data} = props ?? {};
+
+          return  reviewAdminKycDocument(documentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewAdminKycDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof reviewAdminKycDocument>>>
+    export type ReviewAdminKycDocumentMutationBody = BodyType<KycReviewInput>
+    export type ReviewAdminKycDocumentMutationError = ErrorType<ErrorMessage>
+    export type ReviewAdminKycDocumentMutationVariables = {documentId: string;data: BodyType<KycReviewInput>}
+
+    /**
+ * @summary Approve or reject an identity document
+ */
+export const useReviewAdminKycDocument = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewAdminKycDocument>>, TError,ReviewAdminKycDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewAdminKycDocument>>,
+        TError,
+        ReviewAdminKycDocumentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviewAdminKycDocumentMutationOptions(options));
     }
 

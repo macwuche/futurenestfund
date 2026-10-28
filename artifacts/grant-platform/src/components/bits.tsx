@@ -114,7 +114,7 @@ export function Modal({ open, onClose, title, children, testid }: { open: boolea
       <div ref={box} role="dialog" aria-modal="true" aria-label={title} data-testid={testid} className="pop relative max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
         <div className="mb-4 flex items-start justify-between gap-4">
           <h2 className="font-display text-xl font-bold">{title}</h2>
-          <button aria-label="Close dialog" data-testid={`button-close-${testid}`} onClick={onClose} className="press grid h-9 w-9 place-items-center rounded-full hover:bg-slate-100"><X className="h-5 w-5" /></button>
+          <button aria-label="Close dialog" data-testid={`button-close-${testid}`} onClick={onClose} className="press -mr-2 -mt-2 grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-slate-100"><X className="h-5 w-5" /></button>
         </div>
         {children}
       </div>

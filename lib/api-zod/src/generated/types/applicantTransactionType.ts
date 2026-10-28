@@ -13,4 +13,6 @@ export const ApplicantTransactionType = {
   Deposit: 'Deposit',
   Withdrawal: 'Withdrawal',
   'Top-up': 'Top-up',
+  Grant_award: 'Grant award',
+  Opening_balance: 'Opening balance',
 } as const;

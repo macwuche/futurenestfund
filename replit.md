@@ -13,6 +13,7 @@ This is an explicitly labeled **interactive demo**, not a production financial s
 - Sample seeding: `artifacts/api-server/src/lib/demoSeed.ts`
 - Workspace behavior/transactions: `artifacts/api-server/src/lib/demoWorkspace.ts`
 - Applicant records (applications, milestones): `artifacts/api-server/src/lib/applicantRecords.ts`; uploads: `uploads.ts`, `kyc.ts`, `avatars.ts`
+- Admin operations (application decisions, deposit/withdrawal approvals, KYC review, ledger, CSV export, search): `artifacts/api-server/src/lib/adminOps.ts`; admin UI in `src/pages/admin.tsx`, `admin-ops.tsx`, `components/admin-bits.tsx`
 
 ## Run and verify
 
@@ -32,7 +33,9 @@ The supplied documents contain generic Next.js instructions, but the user's expl
 - Profile edits, tier/permission updates, account freezes, global freeze and sample balance top-ups persist in Postgres and create append-only application audit records.
 - Money is stored in integer cents. Sample ledger changes and audit writes share a transaction, using row locks. Global freeze and individual account freeze block sample top-ups.
 - Demo tables have RLS enabled without public policies; only the API's database connection accesses them.
-- The public demo API is not production-secure account management. Real auth/roles, two-person approvals, KYC review decisions, actual OCR, Resend delivery and live grant workflows are not enabled yet. Applicant endpoints scope data through `currentUserId()` (still the demo applicant until sign-in exists).
+- Every money movement is a row in `demo_ledger` (signed cents, linked to its request or application). Approving a deposit credits the deposit balance; approving a withdrawal debits the grant balance; approving an application credits the grant balance. Approvals lock settings → profile → record, re-check freezes, balance and the user's KYC requirement, and write ledger + audit + notification in one transaction. Declines need a reason and move no money.
+- `demo_audit`, `demo_ledger` and `demo_application_events` are append-only: triggers installed at boot (`demoSeed.ts`) refuse UPDATE/DELETE (TRUNCATE for test resets still works). The dashboard's "Audit log: Intact" checks those triggers exist.
+- The public demo API is not production-secure account management. Real auth/roles, two-person (4-eyes) approvals, actual OCR, Resend delivery and live grant workflows are not enabled yet. Applicant endpoints scope data through `currentUserId()` and admin actions record `currentAdmin()` (both demo identities until sign-in exists). One administrator approves everything; the UI says so.
 - Uploads (profile photos, identity documents, proposal files) are written to the API server's disk in `UPLOAD_DIR` (default `artifacts/api-server/uploads/`, git-ignored), with metadata in `demo_files`. The server checks real file types from the bytes, re-encodes images with sharp (strips EXIF/GPS, caps pixels), refuses PDFs with scripts/attachments and macro Word files, caps files at 10 MB, and serves them owner-only with a sandbox CSP. That disk is not durable on Replit deployments; a deployment needs persistent storage before real use. The UI asks users to upload sample documents only.
 - No payment processor or card network is connected. Any card, confidence score, grant/application, chart or document shown is sample data.
 - Do not describe a demonstration confidence score as real OCR or the preview role switch as sign-in.
@@ -43,4 +46,4 @@ The preserved brief files are under `.local/conversation-workspace/files/attache
 - `Pasted--User-Dashboard-Profile-UI-Specification-user-dashboard_1792092005165.txt`
 - `Pasted--Admin-Dashboard-User-Profile-UI-Specification-admin-da_1792095537728.txt`
 
-Applicant navigation is Dashboard, Grant categories, Applications, Cards, Transactions, Withdrawals, Add funds, Settings. Admin navigation is Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, Settings.
+Applicant navigation is Dashboard, Grant categories, Applications, Cards, Transactions, Withdrawals, Add funds, Settings. Admin navigation is Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, Settings (the written admin spec is the admin design source; application review lives under Users at `/admin/users/:userId/applications/:id`, reached from the inspector and the dashboard queue).

@@ -9,12 +9,20 @@ export const demoAuditTable = pgTable("demo_audit", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }).enableRLS();
 
+/**
+ * Every money movement. Signed amounts (negative = money out). Rows link to the request or application
+ * that caused them; like the audit log, the table is append-only (enforced by a trigger at boot).
+ */
 export const demoLedgerTable = pgTable("demo_ledger", {
   id: uuid("id").primaryKey().defaultRandom(),
   profileId: text("profile_id").notNull(),
+  kind: text("kind").notNull().default("Top-up"), // Top-up | Deposit | Withdrawal | Grant award | Opening balance
   account: text("account").notNull(),
   amountCents: integer("amount_cents").notNull(),
   reason: text("reason").notNull(),
+  requestId: uuid("request_id"),
+  applicationId: text("application_id"),
+  actor: text("actor").notNull().default("Demo administrator"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }).enableRLS();
 

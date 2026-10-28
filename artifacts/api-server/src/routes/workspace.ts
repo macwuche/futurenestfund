@@ -19,11 +19,22 @@ import {
   UploadApplicantApplicationDocumentParams, UploadApplicantApplicationDocumentResponse, DeleteApplicantApplicationDocumentParams,
   DeleteApplicantApplicationDocumentResponse, GetApplicantFileParams, GetAdminFileParams,
 } from "@workspace/api-zod";
+import {
+  SearchAdminQueryParams, SearchAdminResponse, ListAdminApplicationsQueryParams, ListAdminApplicationsResponse,
+  GetAdminApplicationParams, GetAdminApplicationResponse, DecideAdminApplicationParams, DecideAdminApplicationBody, DecideAdminApplicationResponse,
+  ListAdminRequestsQueryParams, ListAdminRequestsResponse, ApproveAdminRequestParams, ApproveAdminRequestResponse,
+  RejectAdminRequestParams, RejectAdminRequestBody, RejectAdminRequestResponse, ListAdminTransactionsQueryParams, ListAdminTransactionsResponse,
+  ExportAdminTransactionsQueryParams, GetAdminKycQueueResponse, ReviewAdminKycDocumentParams, ReviewAdminKycDocumentBody, ReviewAdminKycDocumentResponse,
+} from "@workspace/api-zod";
 import { db, demoProfilesTable } from "@workspace/db";
+import {
+  adminSearch, listAdminApplications, adminApplicationDetail, decideApplication, listAdminRequests, approveRequest, rejectRequest,
+  listLedger, exportLedgerCsv, adminKycQueue, reviewKycDocument,
+} from "../lib/adminOps";
 import { receiveFile, findFile, sendFile } from "../lib/uploads";
 import { applicantKyc, uploadKycDocument } from "../lib/kyc";
 import { setAvatar, clearAvatar } from "../lib/avatars";
-import { currentUserId } from "../lib/currentUser";
+import { currentAdmin, currentUserId } from "../lib/currentUser";
 import { listNotifications, markAllRead } from "../lib/notifications";
 import {
   listApplications, applicationDetail, createApplication, withdrawApplication, respondToApplication,
@@ -188,7 +199,7 @@ router.patch("/admin/users/:userId", async (req, res): Promise<void> => {
   const params = UpdateAdminUserParams.safeParse(req.params);
   const input = UpdateAdminUserBody.safeParse(req.body);
   if (!params.success || !input.success) { res.status(400).json({ error: "Check the profile fields." }); return; }
-  if (!await changeProfile(params.data.userId, input.data, "Demo administrator")) { res.status(404).json({ error: "User not found." }); return; }
+  if (!await changeProfile(params.data.userId, input.data, currentAdmin(req))) { res.status(404).json({ error: "User not found." }); return; }
   res.json(UpdateAdminUserResponse.parse(await getUser(params.data.userId)));
 });
 
@@ -210,6 +221,80 @@ router.patch("/admin/system/freeze", async (req, res): Promise<void> => {
   const input = UpdateGlobalFreezeBody.safeParse(req.body);
   if (!input.success) { res.status(400).json({ error: "Invalid freeze request." }); return; }
   res.json(UpdateGlobalFreezeResponse.parse(await changeGlobalFreeze(input.data.frozen, input.data.reason)));
+});
+
+/* ---------- admin operations ---------- */
+router.get("/admin/search", async (req, res): Promise<void> => {
+  const query = SearchAdminQueryParams.safeParse(req.query);
+  if (!query.success || !query.data.q.trim()) { res.status(400).json({ error: "Enter 1–100 characters to search." }); return; }
+  res.json(SearchAdminResponse.parse(await adminSearch(query.data.q)));
+});
+
+router.get("/admin/applications", async (req, res): Promise<void> => {
+  const query = ListAdminApplicationsQueryParams.safeParse(req.query);
+  if (!query.success) { res.status(400).json({ error: "Invalid application filters." }); return; }
+  res.json(ListAdminApplicationsResponse.parse(await listAdminApplications(query.data.status, query.data.userId)));
+});
+router.get("/admin/applications/:applicationId", async (req, res): Promise<void> => {
+  const params = GetAdminApplicationParams.safeParse(req.params);
+  const detail = params.success ? await adminApplicationDetail(params.data.applicationId) : undefined;
+  if (!detail) { res.status(404).json({ error: "Application not found." }); return; }
+  res.json(GetAdminApplicationResponse.parse(detail));
+});
+router.post("/admin/applications/:applicationId/decision", async (req, res): Promise<void> => {
+  const params = DecideAdminApplicationParams.safeParse(req.params);
+  const input = DecideAdminApplicationBody.safeParse(req.body);
+  if (!input.success) { res.status(400).json({ error: "Choose Review, Approved, Declined or Changes requested, with a note under 1000 characters." }); return; }
+  const detail = params.success ? await decideApplication(params.data.applicationId, input.data.status, input.data.note, currentAdmin(req)) : undefined;
+  if (!detail) { res.status(404).json({ error: "Application not found." }); return; }
+  res.json(DecideAdminApplicationResponse.parse(detail));
+});
+
+router.get("/admin/requests", async (req, res): Promise<void> => {
+  const query = ListAdminRequestsQueryParams.safeParse(req.query);
+  if (!query.success) { res.status(400).json({ error: "Choose Deposit or Withdrawal requests." }); return; }
+  res.json(ListAdminRequestsResponse.parse(await listAdminRequests(query.data.kind, query.data.status)));
+});
+router.post("/admin/requests/:requestId/approve", async (req, res): Promise<void> => {
+  const params = ApproveAdminRequestParams.safeParse(req.params);
+  const result = params.success ? await approveRequest(params.data.requestId, currentAdmin(req)) : undefined;
+  if (!result) { res.status(404).json({ error: "Request not found." }); return; }
+  res.json(ApproveAdminRequestResponse.parse(result));
+});
+router.post("/admin/requests/:requestId/reject", async (req, res): Promise<void> => {
+  const params = RejectAdminRequestParams.safeParse(req.params);
+  const input = RejectAdminRequestBody.safeParse(req.body);
+  if (!input.success) { res.status(400).json({ error: "Give a reason of 5–240 characters." }); return; }
+  const result = params.success ? await rejectRequest(params.data.requestId, input.data.reason, currentAdmin(req)) : undefined;
+  if (!result) { res.status(404).json({ error: "Request not found." }); return; }
+  res.json(RejectAdminRequestResponse.parse(result));
+});
+
+router.get("/admin/transactions", async (req, res): Promise<void> => {
+  const query = ListAdminTransactionsQueryParams.safeParse(req.query);
+  if (!query.success) { res.status(400).json({ error: "Check the ledger filters (dates as YYYY-MM-DD)." }); return; }
+  const { page, ...filters } = query.data;
+  res.json(ListAdminTransactionsResponse.parse(await listLedger(filters, page)));
+});
+router.get("/admin/transactions/export", async (req, res): Promise<void> => {
+  const query = ExportAdminTransactionsQueryParams.safeParse(req.query);
+  if (!query.success) { res.status(400).json({ error: "Check the ledger filters (dates as YYYY-MM-DD)." }); return; }
+  const { page: _page, ...filters } = query.data;
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="ledger-${new Date().toISOString().slice(0, 10)}.csv"`);
+  res.send(await exportLedgerCsv(filters));
+});
+
+router.get("/admin/kyc", async (_req, res): Promise<void> => {
+  res.json(GetAdminKycQueueResponse.parse(await adminKycQueue()));
+});
+router.post("/admin/kyc/documents/:documentId/review", async (req, res): Promise<void> => {
+  const params = ReviewAdminKycDocumentParams.safeParse(req.params);
+  const input = ReviewAdminKycDocumentBody.safeParse(req.body);
+  if (!input.success) { res.status(400).json({ error: "Choose Verified or Rejected, with a note under 240 characters." }); return; }
+  const result = params.success ? await reviewKycDocument(params.data.documentId, input.data.decision, input.data.note, currentAdmin(req)) : undefined;
+  if (!result) { res.status(404).json({ error: "Document not found." }); return; }
+  res.json(ReviewAdminKycDocumentResponse.parse(result));
 });
 
 export default router;

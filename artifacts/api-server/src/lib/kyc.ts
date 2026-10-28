@@ -21,6 +21,8 @@ export async function currentKycDocuments(profileIds: string[], scope: "applican
     ...(doc.sampleConfidence != null && !doc.fileId ? { confidence: doc.sampleConfidence } : {}),
     ...(doc.fileId ? { url: fileUrl(scope, doc.fileId), mimeType: mimeType ?? undefined } : {}),
     submittedAt: doc.createdAt.toISOString(),
+    ...(doc.reviewNote ? { reviewNote: doc.reviewNote } : {}),
+    ...(doc.reviewedAt ? { reviewedAt: doc.reviewedAt.toISOString() } : {}),
   }));
 }
 

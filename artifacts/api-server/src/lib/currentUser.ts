@@ -7,3 +7,8 @@ import type { Request } from "express";
 export function currentUserId(_req: Request): string {
   return "usr-jane";
 }
+
+/** The administrator acting on a request; same idea as `currentUserId`, swapped for the signed-in admin in P1. */
+export function currentAdmin(_req: Request): string {
+  return "Demo administrator";
+}

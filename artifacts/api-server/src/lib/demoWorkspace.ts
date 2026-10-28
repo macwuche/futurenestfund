@@ -1,9 +1,10 @@
-import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, isNull, ne, or, sql } from "drizzle-orm";
 import { db, demoProfilesTable, demoAuditTable, demoLedgerTable, demoSettingsTable, demoRequestsTable, demoApplicationsTable, type DemoProfile } from "@workspace/db";
 import { notifyUser } from "./notifications";
 import { activeApplicationsFilter, applicationSummary } from "./applicantRecords";
 import { currentKycDocuments } from "./kyc";
 import { fileUrl } from "./uploads";
+import { APPEND_ONLY_TRIGGERS } from "./demoSeed";
 import { GetAdminUserResponse } from "@workspace/api-zod";
 
 export const demoApplicantId = "usr-jane";
@@ -113,6 +114,8 @@ export async function adminDashboard() {
     .where(eq(demoRequestsTable.status, "Pending")).groupBy(demoRequestsTable.kind);
   const pendingOf = (kind: string) => pending.find(p => p.kind === kind)?.n ?? 0;
   return {
+    moneyTrend: await moneyTrend(),
+    systemHealth: await systemHealth(),
     totalUsers: people.length, activeUsers: people.filter(p => p.status === "Active").length,
     pendingApplications: appsWith("Submitted", "Review"),
     pendingKyc: people.filter(p => p.verificationLevel === "Pending" || pendingKyc.has(p.id)).length,
@@ -121,9 +124,40 @@ export async function adminDashboard() {
     totalDepositBalances: people.reduce((sum, p) => sum + p.depositCents, 0) / 100,
     applicationsByStatus: ["Submitted", "Review", "Changes requested", "Approved", "Declined"].map(status => ({ status, count: appsWith(status) })),
     recentActivity: activity.map(a => ({ id: a.id, action: a.action, subject: people.find(p => p.id === a.profileId)?.name ?? "Platform", createdAt: a.createdAt.toISOString() })),
-    systemHealth: { api: "Operational", database: "Operational", auditLog: "Intact", fourEyes: false },
     globalFrozen: settings?.frozen ?? false,
   };
+}
+
+/** Real checks: database round-trip time, and whether the append-only triggers protecting the logs are installed. */
+async function systemHealth() {
+  const started = Date.now();
+  const [{ n }] = (await db.execute<{ n: number }>(sql`select count(*)::int as n from pg_trigger where not tgisinternal and tgname in (${sql.join(APPEND_ONLY_TRIGGERS.map(t => sql`${t}`), sql`, `)})`)).rows;
+  const ms = Date.now() - started;
+  return {
+    api: "Operational" as const,
+    database: ms < 500 ? "Operational" as const : "Degraded" as const,
+    auditLog: n === APPEND_ONLY_TRIGGERS.length ? "Intact" as const : "Review required" as const,
+    // Two-person approval needs real admin identities (plan item A7).
+    fourEyes: false,
+  };
+}
+
+/** Ledger money in and out per calendar month (UTC), last six months. Opening balances are not movements. */
+async function moneyTrend() {
+  const now = new Date();
+  const months = Array.from({ length: 6 }, (_, i) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5 + i, 1)));
+  const rows = await db.select({
+    month: sql<string>`to_char(date_trunc('month', ${demoLedgerTable.createdAt} at time zone 'UTC'), 'YYYY-MM')`,
+    inflow: sql<number>`coalesce(sum(${demoLedgerTable.amountCents}) filter (where ${demoLedgerTable.amountCents} > 0), 0)::bigint`,
+    outflow: sql<number>`coalesce(-sum(${demoLedgerTable.amountCents}) filter (where ${demoLedgerTable.amountCents} < 0), 0)::bigint`,
+  }).from(demoLedgerTable)
+    .where(and(gte(demoLedgerTable.createdAt, months[0]!), ne(demoLedgerTable.kind, "Opening balance")))
+    .groupBy(sql`1`);
+  return months.map(m => {
+    const key = m.toISOString().slice(0, 7);
+    const row = rows.find(r => r.month === key);
+    return { label: m.toLocaleString("en-US", { month: "short", timeZone: "UTC" }), inflow: Number(row?.inflow ?? 0) / 100, outflow: Number(row?.outflow ?? 0) / 100 };
+  });
 }
 
 type ProfileChanges = { name?: string; phone?: string; telegram?: string; tier?: number; status?: string; permissions?: unknown };
@@ -134,10 +168,20 @@ export async function changeProfile(id: string, changes: ProfileChanges, actor: 
     if (!current) return false;
     const normalized = { ...changes, ...(changes.name === undefined ? {} : { name: changes.name.trim() }) };
     if (normalized.name !== undefined && normalized.name.length < 2) throw new DemoInputError("Name must contain at least two characters.");
-    const fields = Object.keys(normalized);
+    // Audit only what actually changed; permissions are compared key by key.
+    const fields: string[] = [];
+    for (const [key, value] of Object.entries(normalized) as [keyof ProfileChanges, unknown][]) {
+      if (value === undefined) continue;
+      if (key === "permissions") {
+        const before = (current.permissions ?? {}) as Record<string, boolean>;
+        for (const [perm, on] of Object.entries(value as Record<string, boolean>)) if (before[perm] !== on) fields.push(`${perm} ${on ? "on" : "off"}`);
+      } else if (current[key] !== value) {
+        fields.push(key === "status" ? `status (${String(value).toLowerCase()})` : key === "tier" ? `tier (Level ${value})` : key);
+      }
+    }
     if (!fields.length) return true;
     await tx.update(demoProfilesTable).set(normalized).where(eq(demoProfilesTable.id, id));
-    await tx.insert(demoAuditTable).values({ profileId: id, actor, action: `Updated ${fields.join(", ")}${changes.status ? ` (${changes.status.toLowerCase()})` : ""}` });
+    await tx.insert(demoAuditTable).values({ profileId: id, actor, action: `Updated ${fields.join(", ")}` });
     if (changes.status && changes.status !== current.status) {
       await notifyUser(id, changes.status === "Frozen" ? "Your account has been frozen. Deposits and withdrawals are paused." : "Your account is active again.", "/settings", tx);
     }
@@ -181,7 +225,8 @@ export async function changeGlobalFreeze(frozen: boolean, reason?: string) {
 type RequestRow = typeof demoRequestsTable.$inferSelect;
 const requestTransaction = (r: RequestRow) => ({
   id: r.id, type: r.kind, account: r.kind === "Deposit" ? "deposit" : "grant", direction: r.kind === "Deposit" ? "in" : "out",
-  amount: r.amountCents / 100, description: r.note || `${r.kind} request`, status: r.status, createdAt: r.createdAt.toISOString(),
+  amount: r.amountCents / 100, status: r.status, createdAt: r.createdAt.toISOString(),
+  description: `${r.note || `${r.kind} request`}${r.status === "Declined" && r.reviewNote ? ` · Declined: ${r.reviewNote}` : ""}`,
 });
 
 /** Grant balance minus withdrawals still awaiting review. */
@@ -196,11 +241,13 @@ export async function applicantAccount() {
   const [profile] = await db.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, demoApplicantId));
   if (!person || !profile) throw new Error("Demo applicant is missing");
   const [settings] = await db.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
-  const ledger = await db.select().from(demoLedgerTable).where(eq(demoLedgerTable.profileId, demoApplicantId)).orderBy(desc(demoLedgerTable.createdAt)).limit(100);
+  // Ledger rows caused by a request are shown through the request itself.
+  const ledger = await db.select().from(demoLedgerTable)
+    .where(and(eq(demoLedgerTable.profileId, demoApplicantId), isNull(demoLedgerTable.requestId))).orderBy(desc(demoLedgerTable.createdAt)).limit(100);
   const requests = await db.select().from(demoRequestsTable).where(eq(demoRequestsTable.profileId, demoApplicantId)).orderBy(desc(demoRequestsTable.createdAt)).limit(100);
   const transactions = [
     ...ledger.map(l => ({
-      id: l.id, type: "Top-up", account: l.account, direction: "in", amount: l.amountCents / 100,
+      id: l.id, type: l.kind, account: l.account, direction: l.amountCents < 0 ? "out" : "in", amount: Math.abs(l.amountCents) / 100,
       description: l.reason, status: "Completed", createdAt: l.createdAt.toISOString(),
     })),
     ...requests.map(requestTransaction),
