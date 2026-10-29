@@ -188,6 +188,20 @@ export async function changeProfile(id: string, changes: ProfileChanges, actor: 
   });
 }
 
+/** The applicant's own preferences (today only email notifications); audited like any profile change. */
+export async function changePreferences(id: string, prefs: { emailNotifications: boolean }, actor: string) {
+  return db.transaction(async tx => {
+    const [current] = await tx.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, id)).for("update");
+    if (!current) throw new Error(`Applicant ${id} is missing`);
+    const permissions = (current.permissions ?? {}) as Record<string, boolean>;
+    if (permissions.emailNotifications !== prefs.emailNotifications) {
+      await tx.update(demoProfilesTable).set({ permissions: { ...permissions, emailNotifications: prefs.emailNotifications } }).where(eq(demoProfilesTable.id, id));
+      await tx.insert(demoAuditTable).values({ profileId: id, actor, action: `Turned email notifications ${prefs.emailNotifications ? "on" : "off"}` });
+    }
+    return { emailNotifications: prefs.emailNotifications };
+  });
+}
+
 export async function adjustBalance(id: string, account: "grant" | "deposit" | "card", amount: number, reason: string, actor: string) {
   const cents = Math.round(amount * 100);
   if (!Number.isSafeInteger(cents) || cents < 1 || cents > 100000000 || Math.abs(amount * 100 - cents) > 0.00001) throw new DemoInputError("Use an amount between $0.01 and $1,000,000 with at most two decimals.");

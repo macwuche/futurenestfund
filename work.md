@@ -978,3 +978,27 @@ Tested (API copy on :8099 with `RESEND_API_URL` pointing at the new local stand-
    - `SEND_EMAIL_HOOK_SECRET`
 3. Supabase dashboard → Authentication → Hooks → **Send Email hook** → HTTPS → `<public API URL>/api/hooks/supabase/send-email` → generate the secret and copy it into `SEND_EMAIL_HOOK_SECRET`. The URL must be reachable from the internet (the VPS, or the Replit dev URL for testing).
 4. Then send one real sign-up and one reset to an inbox you control to confirm delivery. That's the one thing that can't be tested from here.
+
+### 2026-10-29: Step 4.7 done (Settings: sign-in & security)
+
+Built:
+- `src/components/security.tsx` (`AccountSecurity`) on the **applicant Settings** page and the **admin Settings** page, styled to each workspace. Hidden in demo mode.
+  - **Change password:** current + new (≥ 8, ≤ 72) + confirm; refuses reuse of the current password. Supabase's `updateUser` doesn't ask for the current password, so the app checks it first by signing in again with it. A wrong one reads "Your current password is incorrect."
+  - **Sign out of other devices** (`signOut({ scope: 'others' })`) and **Sign out everywhere** (`'global'`, behind a confirmation dialog, then plain `/sign-in`). The copy says plainly that a device that's already open keeps access for up to an hour (its access token runs out); it can't sign back in.
+  - A "two-factor sign-in is coming soon" note, because 4.5 hasn't been built.
+- **Email notifications are the applicant's own choice now** (a switch in Settings → Account). `PATCH /api/applicant/preferences` (OpenAPI + codegen) changes only that flag, keeps the other permissions, and writes an audit row only when it actually changes. The other account settings stay admin-managed, and the page says so. The notification email footer now points to Settings.
+- `AuthProvider` gained `signOut(scope)` and `signOutOthers()`. Help Centre: "change my password / sign out other devices" and "stop notification emails".
+
+Tested (API copy on :8099 in Supabase mode via the proxy; throwaway Supabase users deleted; the real admin's password and sessions never touched):
+- **New `.unlazy/phase4-security.mjs`: desktop 7/7, phone 1/1.** Covered:
+  - preferences API: 401 / 403 / 400s, stored value, other permissions kept, one audit row for two identical saves
+  - the switch persists after reload
+  - password: required / wrong current / mismatch / reuse refused; after a change the old password fails and the new one works, and the user stays signed in
+  - "other devices": a second real session's refresh token is refused, while this browser stays signed in
+  - "everywhere": cancel keeps you there; confirm ends this session and another one
+  - admin Settings shows the section
+  - no console errors
+  - phone: no sideways scroll, 44 px buttons
+- Regression: API auth 12/12, sign-in UI 16/16, email 11/11, and all 175 earlier checks in demo mode.
+
+Phase 4 status: 4.1, 4.2, 4.3, 4.4, 4.6 and 4.7 done. **4.5 (admin TOTP) is still open.** The email go-live steps listed under 4.6 need the user (Resend domain + key, hook secret, Site URL / redirect URLs).

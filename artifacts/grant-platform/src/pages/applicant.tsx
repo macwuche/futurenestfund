@@ -9,7 +9,7 @@ import {
   useUpdateApplicantProfile, useCreateApplicantRequest, useGetApplicantApplication, getGetApplicantApplicationQueryKey,
   useWithdrawApplicantApplication, useRespondToApplicantApplication, getGetApplicantDashboardQueryKey,
   useUploadApplicantApplicationDocument, useDeleteApplicantApplicationDocument, useUploadApplicantAvatar, useDeleteApplicantAvatar,
-  useGetApplicantKyc, useUploadApplicantKycDocument, getGetApplicantKycQueryKey,
+  useGetApplicantKyc, useUploadApplicantKycDocument, getGetApplicantKycQueryKey, useUpdateApplicantPreferences, getGetApplicantAccountQueryKey,
   type ApplicantDashboard, type ApplicantKyc, type KycDocumentKind, type ApplicantAccount, type ApplicantApplication, type ApplicationDetail,
 } from '@workspace/api-client-react';
 import {
@@ -18,6 +18,8 @@ import {
   CreditCard, BadgeCheck, Lock, Camera, Upload, Download, Trash2, IdCard, House as HouseIcon, Loader2, type LucideIcon,
 } from 'lucide-react';
 import { Shell } from '@/components/shell';
+import { AccountSecurity } from '@/components/security';
+import { useAuth } from '@/lib/auth';
 import { Avatar, Empty, ErrorState, Field, FILE_RULES, Modal, PageSkeleton, Skel, StatusBadge, checkFile, cx, dateFmt, fileSize, inputCls, money, statusLabel } from '@/components/bits';
 import { apiError, matchesSearch, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
@@ -704,6 +706,7 @@ function SettingsBody({ d }: { d: ApplicantDashboard }) {
   const f = useForm<z.infer<typeof profSchema>>({ resolver: zodResolver(profSchema), defaultValues: values });
   useEffect(() => { f.reset({ name: d.profile.name, phone: d.profile.phone, telegram: d.profile.telegram }); }, [d.profile.name, d.profile.phone, d.profile.telegram, f]);
   const a = acct.data;
+  const signedIn = useAuth().status === 'signed-in';
   return (
     <div className="space-y-5">
       <ProfileHeader d={d} />
@@ -739,15 +742,39 @@ function SettingsBody({ d }: { d: ApplicantDashboard }) {
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Identity verification</dt><dd><StatusBadge status={a.verificationLevel} dot={false} testid="badge-verification" /></dd></div>
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Account status</dt><dd><StatusBadge status={a.status} dot={false} testid="badge-account-status" /></dd></div>
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Account tier</dt><dd className="font-semibold text-slate-900" data-testid="text-tier">Level {a.tier}</dd></div>
-                <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Email notifications</dt><dd className="font-semibold text-slate-900">{a.permissions.emailNotifications ? 'On' : 'Off'}</dd></div>
+                <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600" id="label-email-notifications">Email notifications</dt><dd><EmailNotificationsSwitch on={a.permissions.emailNotifications} /></dd></div>
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Verification needed to withdraw</dt><dd className="font-semibold text-slate-900">{a.permissions.withdrawalKycRequired ? 'Yes' : 'No'}</dd></div>
-                <p className="pt-3 text-xs text-slate-500">These settings are managed by your administrator.</p>
+                <p className="pt-3 text-xs text-slate-500">{signedIn ? 'Email notifications are yours to change; the other settings are managed by your administrator.' : 'These settings are managed by your administrator.'}</p>
               </dl>
             )}
         </section>
       </div>
+      <AccountSecurity tone="user" />
       <IdentitySection />
     </div>
+  );
+}
+
+/** The applicant's own email-notification preference. In demo mode it stays read-only, as before. */
+function EmailNotificationsSwitch({ on }: { on: boolean }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const signedIn = useAuth().status === 'signed-in';
+  const m = useUpdateApplicantPreferences();
+  if (!signedIn) return <span className="font-semibold text-slate-900" data-testid="text-email-notifications">{on ? 'On' : 'Off'}</span>;
+  const toggle = () => m.mutate({ data: { emailNotifications: !on } }, {
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: getGetApplicantAccountQueryKey() });
+      toast({ title: r.emailNotifications ? 'Email notifications on' : 'Email notifications off', description: r.emailNotifications ? "We'll email you about updates to your applications and requests." : 'You will still see updates under the bell.' });
+    },
+    onError: (e) => toast({ title: "Couldn't save", description: apiError(e, 'Please try again.'), variant: 'destructive' }),
+  });
+  return (
+    <button type="button" role="switch" aria-checked={on} aria-labelledby="label-email-notifications" data-testid="switch-email-notifications" disabled={m.isPending} onClick={toggle}
+      className={cx('relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:opacity-60', on ? 'bg-[#1E3A8A]' : 'bg-slate-300')}>
+      <span className={cx('absolute h-5 w-5 rounded-full bg-white shadow transition-all', on ? 'left-6' : 'left-1')} />
+      {m.isPending && <Loader2 className="absolute -left-6 h-4 w-4 animate-spin text-slate-400" aria-label="Saving" />}
+    </button>
   );
 }
 

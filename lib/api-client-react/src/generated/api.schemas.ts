@@ -5,6 +5,10 @@
  * Grant applicant and administration dashboard API
  * OpenAPI spec version: 0.1.0
  */
+export interface ApplicantPreferences {
+  emailNotifications: boolean;
+}
+
 export type AuthConfigMode = typeof AuthConfigMode[keyof typeof AuthConfigMode];
 
 

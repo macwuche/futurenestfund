@@ -41,6 +41,7 @@ export * from './applicantApplicationStatus';
 export * from './applicantDashboard';
 export * from './applicantKyc';
 export * from './applicantKycVerificationLevel';
+export * from './applicantPreferences';
 export * from './applicantProfile';
 export * from './applicantProfileUpdate';
 export * from './applicantRequestInput';

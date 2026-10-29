@@ -143,6 +143,18 @@ export const UpdateApplicantProfileResponse = zod.object({
 
 
 /**
+ * @summary Change the applicant's own notification preferences
+ */
+export const UpdateApplicantPreferencesBody = zod.object({
+  "emailNotifications": zod.boolean()
+})
+
+export const UpdateApplicantPreferencesResponse = zod.object({
+  "emailNotifications": zod.boolean()
+})
+
+
+/**
  * @summary Get the applicant's balances, cards and money movements
  */
 export const getApplicantAccountResponseTierMax = 3;

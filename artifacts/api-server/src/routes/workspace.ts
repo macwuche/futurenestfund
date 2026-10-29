@@ -6,7 +6,7 @@ import {
   GetAdminDashboardResponse, ListAdminUsersQueryParams, ListAdminUsersResponse,
   GetAdminUserParams, GetAdminUserResponse, UpdateAdminUserBody, UpdateAdminUserParams, UpdateAdminUserResponse,
   CreateUserBalanceAdjustmentBody, CreateUserBalanceAdjustmentParams, CreateUserBalanceAdjustmentResponse,
-  UpdateGlobalFreezeBody, UpdateGlobalFreezeResponse,
+  UpdateGlobalFreezeBody, UpdateGlobalFreezeResponse, UpdateApplicantPreferencesBody, UpdateApplicantPreferencesResponse,
 } from "@workspace/api-zod";
 import {
   ListApplicantApplicationsResponse, CreateApplicantApplicationBody, GetApplicantApplicationParams, GetApplicantApplicationResponse,
@@ -41,7 +41,7 @@ import {
   listMilestones, createMilestone, setMilestoneDone, deleteMilestone, attachApplicationDocument, removeApplicationDocument,
 } from "../lib/applicantRecords";
 import { eq } from "drizzle-orm";
-import { adminDashboard, applicantDashboard, applicantProfile, listUsers, getUser, changeProfile, adjustBalance, changeGlobalFreeze, applicantAccount, createApplicantRequest, DemoInputError } from "../lib/demoWorkspace";
+import { adminDashboard, applicantDashboard, applicantProfile, listUsers, getUser, changeProfile, adjustBalance, changeGlobalFreeze, changePreferences, applicantAccount, createApplicantRequest, DemoInputError } from "../lib/demoWorkspace";
 
 const router: IRouter = Router();
 router.use((req, res, next) => {
@@ -63,6 +63,12 @@ router.patch("/applicant/profile", async (req, res): Promise<void> => {
   await changeProfile(id, input.data, req.identity!.name);
   const [person] = await db.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, id));
   res.json(UpdateApplicantProfileResponse.parse(applicantProfile(person!)));
+});
+
+router.patch("/applicant/preferences", async (req, res): Promise<void> => {
+  const input = UpdateApplicantPreferencesBody.safeParse(req.body);
+  if (!input.success) { res.status(400).json({ error: "Choose whether to get email notifications." }); return; }
+  res.json(UpdateApplicantPreferencesResponse.parse(await changePreferences(currentUserId(req), input.data, req.identity!.name)));
 });
 
 router.get("/applicant/account", async (req, res): Promise<void> => {

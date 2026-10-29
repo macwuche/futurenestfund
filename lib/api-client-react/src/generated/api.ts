@@ -35,6 +35,7 @@ import type {
   ApplicantApplication,
   ApplicantDashboard,
   ApplicantKyc,
+  ApplicantPreferences,
   ApplicantProfile,
   ApplicantProfileUpdate,
   ApplicantRequestInput,
@@ -647,6 +648,94 @@ export const useUpdateApplicantProfile = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateApplicantProfileMutationOptions(options));
+    }
+
+export const getUpdateApplicantPreferencesUrl = () => {
+
+
+
+
+  return `/api/applicant/preferences`
+}
+
+/**
+ * @summary Change the applicant's own notification preferences
+ */
+export const updateApplicantPreferences = async (applicantPreferences: ApplicantPreferences, options?: Parameters<typeof customFetch>[1]): Promise<ApplicantPreferences> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ApplicantPreferences>(getUpdateApplicantPreferencesUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(applicantPreferences)
+  }
+);}
+
+
+
+
+
+export const getUpdateApplicantPreferencesMutationKey = () => ['updateApplicantPreferences'] as const;
+
+export const getUpdateApplicantPreferencesMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateApplicantPreferences>>, TError,UpdateApplicantPreferencesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateApplicantPreferences>>, TError,UpdateApplicantPreferencesMutationVariables, TContext> => {
+
+const mutationKey = getUpdateApplicantPreferencesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateApplicantPreferences>>, UpdateApplicantPreferencesMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateApplicantPreferences(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateApplicantPreferencesMutationResult = NonNullable<Awaited<ReturnType<typeof updateApplicantPreferences>>>
+    export type UpdateApplicantPreferencesMutationBody = BodyType<ApplicantPreferences>
+    export type UpdateApplicantPreferencesMutationError = ErrorType<ErrorMessage>
+    export type UpdateApplicantPreferencesMutationVariables = {data: BodyType<ApplicantPreferences>}
+
+    /**
+ * @summary Change the applicant's own notification preferences
+ */
+export const useUpdateApplicantPreferences = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateApplicantPreferences>>, TError,UpdateApplicantPreferencesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateApplicantPreferences>>,
+        TError,
+        UpdateApplicantPreferencesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateApplicantPreferencesMutationOptions(options));
     }
 
 export const getGetApplicantAccountUrl = () => {

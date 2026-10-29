@@ -10,6 +10,7 @@ import {
 } from '@workspace/api-client-react';
 import { Camera, ChevronRight, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck } from 'lucide-react';
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
+import { AccountSecurity } from '@/components/security';
 import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, initials, money } from '@/components/bits';
 import { card, ainput, lime, dark, Stat, SectionTitle, useAdminRefresh, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
 import { apiError } from '@/lib/demo-state';
@@ -362,6 +363,7 @@ export function AdminSettingsPage() {
           <li className="flex items-start gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0" />Per-user KYC requirements and tiers are set in each user's inspector. Threshold limits are not configurable yet.</li>
         </ul>
       </section>
+      <div className="lg:col-span-2"><AccountSecurity tone="admin" /></div>
     </div>
   )}</DashGate>;
 }

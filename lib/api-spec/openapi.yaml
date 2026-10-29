@@ -130,6 +130,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApplicantProfile"
+  /applicant/preferences:
+    patch:
+      operationId: updateApplicantPreferences
+      tags: [applicant]
+      summary: Change the applicant's own notification preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApplicantPreferences" }
+      responses:
+        "200":
+          description: Saved preferences
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicantPreferences" }
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /applicant/account:
     get:
       operationId: getApplicantAccount
@@ -794,6 +815,12 @@ components:
       in: cookie
       name: gp_session
   schemas:
+    ApplicantPreferences:
+      type: object
+      properties:
+        emailNotifications: { type: boolean }
+      required: [emailNotifications]
+      additionalProperties: false
     AuthConfig:
       type: object
       properties:

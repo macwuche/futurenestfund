@@ -87,6 +87,6 @@ export function authEmail(kind: AuthEmailKind, to: string, opts: { name?: string
 export function notificationEmail(to: string, name: string, message: string, url: string): OutgoingEmail {
   return render(to, `GrantApp: ${message.length > 90 ? `${message.slice(0, 87)}…` : message}`, "You have an update", [
     { kind: "p", text: greeting(name) }, { kind: "p", text: message }, { kind: "button", label: "Open GrantApp", href: url },
-    { kind: "small", text: "You get these emails because email notifications are on for your account. An administrator can turn them off for you." },
+    { kind: "small", text: "You get these emails because email notifications are on for your account. Turn them off any time in Settings → Account." },
   ]);
 }

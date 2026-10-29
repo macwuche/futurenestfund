@@ -15,7 +15,10 @@ interface Auth {
   finishRecovery: () => void;
   /** Signed out on purpose (not an expired session), so sign-in shouldn't offer to return to the last page. */
   signedOutByUser: boolean;
-  signOut: () => Promise<void>;
+  /** 'local' signs this browser out; 'global' signs out every device, this one included. */
+  signOut: (scope?: 'local' | 'global') => Promise<void>;
+  /** Ends this account's sessions on every other device; this one stays signed in. */
+  signOutOthers: () => Promise<void>;
   retry: () => void;
 }
 const Ctx = createContext<Auth | null>(null);
@@ -89,19 +92,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; unsubscribe(); };
   }, [qc, attempt]);
 
-  const signOut = useCallback(async () => {
+  const signOut = useCallback(async (scope: 'local' | 'global' = 'local') => {
     if (!client) return;
     setSignedOutByUser(true);
     await deleteSession().catch(() => {}); // needs the bearer token, so before Supabase forgets it
-    await client.auth.signOut({ scope: 'local' });
+    const { error } = await client.auth.signOut({ scope });
+    if (error && scope === 'global') throw error; // a local sign-out always clears this browser, even offline
+  }, [client]);
+
+  const signOutOthers = useCallback(async () => {
+    if (!client) return;
+    const { error } = await client.auth.signOut({ scope: 'others' });
+    if (error) throw error;
   }, [client]);
 
   const value = useMemo<Auth>(() => ({
     status, me, client, recovering, signedOutByUser,
     finishRecovery: () => setRecovering(false),
-    signOut,
+    signOut, signOutOthers,
     retry: () => { setStatus('loading'); setAttempt((n) => n + 1); },
-  }), [status, me, client, recovering, signedOutByUser, signOut]);
+  }), [status, me, client, recovering, signedOutByUser, signOut, signOutOthers]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
