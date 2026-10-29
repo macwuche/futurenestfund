@@ -14,11 +14,19 @@ tags:
     description: Applicant dashboard and profile
   - name: admin
     description: Administration dashboard and user controls
+  - name: auth
+    description: The signed-in caller and the download cookie
+# Every endpoint except /healthz needs a Supabase access token. /applicant/* is for applicants, /admin/* for admin or root.
+# GET requests may use the gp_session cookie (set by POST /auth/session) instead, so images and downloads work.
+security:
+  - supabaseBearer: []
+  - sessionCookie: []
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
+      security: []
       summary: Health check
       description: Returns server health status
       responses:
@@ -28,6 +36,50 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: The signed-in caller
+      responses:
+        "200":
+          description: Caller identity
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+        "401":
+          description: Not signed in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /auth/session:
+    post:
+      operationId: createSession
+      tags: [auth]
+      summary: Set the HttpOnly cookie that authenticates GET requests (images, downloads)
+      description: Needs the bearer token; the cookie holds the same token and expires with it. Call again after each token refresh.
+      security:
+        - supabaseBearer: []
+      responses:
+        "200":
+          description: Cookie set
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "401":
+          description: Not signed in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    delete:
+      operationId: deleteSession
+      tags: [auth]
+      summary: Clear the download cookie (on sign-out)
+      security:
+        - supabaseBearer: []
+      responses:
+        "204":
+          description: Cleared
   /applicant/dashboard:
     get:
       operationId: getApplicantDashboard
@@ -720,7 +772,30 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorMessage" }
 components:
+  securitySchemes:
+    supabaseBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: gp_session
   schemas:
+    Me:
+      type: object
+      properties:
+        mode: { type: string, enum: [supabase, demo] }
+        email: { type: string }
+        name: { type: string }
+        role: { type: string, enum: [applicant, admin, root] }
+        profileId: { type: [string, "null"] }
+      required: [mode, email, name, role, profileId]
+    Session:
+      type: object
+      properties:
+        expiresAt: { type: [string, "null"], format: date-time }
+      required: [expiresAt]
     ErrorMessage:
       type: object
       properties:

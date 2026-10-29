@@ -18,6 +18,33 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary The signed-in caller
+ */
+export const GetMeResponse = zod.object({
+  "mode": zod.enum(['supabase', 'demo']),
+  "email": zod.string(),
+  "name": zod.string(),
+  "role": zod.enum(['applicant', 'admin', 'root']),
+  "profileId": zod.string().nullable()
+})
+
+
+/**
+ * Needs the bearer token; the cookie holds the same token and expires with it. Call again after each token refresh.
+ * @summary Set the HttpOnly cookie that authenticates GET requests (images, downloads)
+ */
+export const CreateSessionResponse = zod.object({
+  "expiresAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Clear the download cookie (on sign-out)
+ */
+export const DeleteSessionResponse = zod.void()
+
+
+/**
  * @summary Get applicant dashboard
  */
 export const getApplicantDashboardQueryPeriodDefault = `weekly`;

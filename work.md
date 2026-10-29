@@ -843,3 +843,41 @@ The live app is unchanged until `SUPABASE_DB_URL` is added to Replit Secrets **a
 - Replit development: leave `SUPABASE_DB_URL` unset to stay on the fast Replit fallback, or set it to work against Supabase and accept the slower pages.
 - Measure latency again from the VPS once it's deployed. Running queries in parallel (option 2) can still come later if a page is slow there.
 - Deployment target is the EU VPS, not Replit autoscale. Uploads still need persistent disk there (P4).
+
+### 2026-10-29: Step 4.3 done (API auth)
+
+How it works (`artifacts/api-server/src/lib/auth.ts`, wired in `routes/index.ts`):
+- **Every route except `/healthz` needs a sign-in.** The API verifies the Supabase access token locally: ES256 signature against the project's JWKS (keys are cached and refetched when Supabase rotates them), issuer `<SUPABASE_URL>/auth/v1`, audience `authenticated`, expiry, and `role: authenticated`. No token or a bad one → **401**.
+- **Roles come from `app_metadata.role`.** Only the secret key can write `app_metadata`; users can edit `user_metadata`, so that's never trusted. `admin` / `root` → `/admin/*`. Anyone else is an applicant → `/applicant/*` only. The wrong area → **403**, and that includes admins on applicant routes, so no applicant profile is ever made for an admin.
+- **An applicant's profile is created on their first request.** It's `demo_profiles` id `usr-<auth id>`, linked by the new unique `auth_user_id` column, with name and organization taken from sign-up metadata (falls back to the email). Starts at tier 1, Unsubmitted, $0. Concurrent first requests create a single row.
+- `currentUserId()` / `currentAdmin()` now read the verified identity. Admin actions are recorded with the admin's **email**; applicant actions with their name.
+- **Images and downloads:** `<img>` and download links can't send a bearer header. So `POST /api/auth/session` (bearer only) copies the token into the HttpOnly, SameSite=Strict `gp_session` cookie on path `/api`, expiring with the token, and `DELETE` clears it. The cookie authenticates **GET/HEAD only**, so a cross-site form can never trigger a change with it.
+- New `GET /api/me` (mode, email, name, role, profileId) lets the frontend choose the workspace in 4.4. OpenAPI updated with the security schemes, codegen run.
+- **`AUTH_MODE=demo`** keeps the old preview identities so the live preview keeps working until the sign-in UI exists. The dev script defaults to it. The server refuses to start with it when `NODE_ENV=production`, and refuses to start without `SUPABASE_URL` otherwise (both verified).
+- Known limit: Supabase access tokens stay valid until they expire (default 1 hour), so a role removal, ban or sign-out takes up to that long to bite. Lowering the JWT expiry in the Supabase dashboard (Auth → Sessions) shortens it.
+
+**Bug found and fixed:** four older endpoints still hard-coded the demo applicant `usr-jane`:
+- `GET /applicant/dashboard`, `PATCH /applicant/profile`, `GET /applicant/account`, `POST /applicant/requests`
+- every signed-in applicant would have seen Jane's dashboard and balances, edited her profile, and filed deposit or withdrawal requests on her account
+
+They now take the caller's profile. The global-freeze and balance-credit audits also recorded fixed names instead of the acting admin; fixed too. `demoApplicantId` is gone.
+
+Schema: `demo_profiles.auth_user_id uuid unique`, added on both the Replit DB and Supabase. drizzle-kit wanted an interactive "truncate?" prompt, so the column went in with the equivalent SQL; push now reports no changes on both.
+
+Tested (API copy on :8099; DB backed up and restored around each run; throwaway Supabase users deleted afterwards, leaving only the admin):
+- **New `.unlazy/phase4-auth.mjs`: 12/12.** Covered:
+  - 401 without a token (incl. unknown paths)
+  - refused tokens: garbage, tampered payload, forged signature with the real `kid`, `alg: none`, wrong issuer, publishable key, secret key
+  - admin: 200 on admin routes, 403 on applicant routes
+  - profile provisioning (one row under 5 parallel first requests)
+  - a new applicant loads all 6 applicant pages
+  - profile edits, requests and balances act on the caller and leave Jane untouched
+  - isolation between applicants and from the sample data
+  - `user_metadata.role: admin` doesn't grant admin
+  - admin email in the audit trail
+  - cookie flags, GET-only, can't mint itself, cleared on DELETE
+- **Regression in demo mode: all earlier suites pass.** API 24/24, smoke 46/46, Phase 1 26/26 + 10/10, Phase 2 25/25 + 6/6, Phase 3 22/22 + 16/16.
+
+**Needs:** `SUPABASE_URL` in Replit Secrets (and on the VPS) before running without `AUTH_MODE=demo`. Restart the API Server workflow to pick up this build. It stays in demo mode in development.
+
+Next: 4.4, the sign-in UI. supabase-js in the frontend, `setAuthTokenGetter` for API calls, `POST /auth/session` after sign-in and every token refresh, sign-in / sign-up with email confirmation / reset / sign-out, guarded admin routes. Then drop the dev default of `AUTH_MODE=demo` and give the test scripts a sign-in step.

@@ -22,6 +22,8 @@ export const demoProfilesTable = pgTable("demo_profiles", {
   permissions: jsonb("permissions").notNull(),
   joinedAt: date("joined_at", { mode: "string" }).notNull(),
   avatarFileId: uuid("avatar_file_id"),
+  /** Supabase Auth user (auth.users.id) this profile belongs to; null for the seeded sample profiles. */
+  authUserId: uuid("auth_user_id").unique(),
 }).enableRLS();
 
 export const insertDemoProfileSchema = createInsertSchema(demoProfilesTable);

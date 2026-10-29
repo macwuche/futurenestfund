@@ -5,6 +5,37 @@
  * Grant applicant and administration dashboard API
  * OpenAPI spec version: 0.1.0
  */
+export type MeMode = typeof MeMode[keyof typeof MeMode];
+
+
+export const MeMode = {
+  supabase: 'supabase',
+  demo: 'demo',
+} as const;
+
+export type MeRole = typeof MeRole[keyof typeof MeRole];
+
+
+export const MeRole = {
+  applicant: 'applicant',
+  admin: 'admin',
+  root: 'root',
+} as const;
+
+export interface Me {
+  mode: MeMode;
+  email: string;
+  name: string;
+  role: MeRole;
+  /** @nullable */
+  profileId: string | null;
+}
+
+export interface Session {
+  /** @nullable */
+  expiresAt: string | null;
+}
+
 export interface ErrorMessage {
   error: string;
 }

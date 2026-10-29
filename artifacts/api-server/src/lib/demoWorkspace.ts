@@ -7,7 +7,6 @@ import { fileUrl } from "./uploads";
 import { APPEND_ONLY_TRIGGERS } from "./demoSeed";
 import { GetAdminUserResponse } from "@workspace/api-zod";
 
-export const demoApplicantId = "usr-jane";
 export class DemoInputError extends Error {}
 
 
@@ -67,9 +66,9 @@ async function pendingKycByProfile(ids: string[]) {
   return counts;
 }
 
-export async function applicantDashboard(monthly: boolean) {
-  const [person] = await db.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, demoApplicantId));
-  if (!person) throw new Error("Demo applicant is missing");
+export async function applicantDashboard(profileId: string, monthly: boolean) {
+  const [person] = await db.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, profileId));
+  if (!person) throw new Error(`Applicant ${profileId} is missing`);
   // Sample dollar amounts submitted vs. under review per period.
   const labels = monthly ? ["Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"] : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const submitted = monthly ? [26000, 18000, 7500, 15500, 21500, 9000, 17500, 11000] : [4000, 6500, 2500, 5000, 7000, 3000, 1500];
@@ -189,7 +188,7 @@ export async function changeProfile(id: string, changes: ProfileChanges, actor: 
   });
 }
 
-export async function adjustBalance(id: string, account: "grant" | "deposit" | "card", amount: number, reason: string) {
+export async function adjustBalance(id: string, account: "grant" | "deposit" | "card", amount: number, reason: string, actor: string) {
   const cents = Math.round(amount * 100);
   if (!Number.isSafeInteger(cents) || cents < 1 || cents > 100000000 || Math.abs(amount * 100 - cents) > 0.00001) throw new DemoInputError("Use an amount between $0.01 and $1,000,000 with at most two decimals.");
   if (reason.trim().length < 5) throw new DemoInputError("Explain the adjustment in at least five characters.");
@@ -203,8 +202,8 @@ export async function adjustBalance(id: string, account: "grant" | "deposit" | "
     const next = current[key] + cents;
     if (next > 2000000000) throw new DemoInputError("This would exceed the demo account limit.");
     await tx.update(demoProfilesTable).set({ [key]: next }).where(eq(demoProfilesTable.id, id));
-    await tx.insert(demoLedgerTable).values({ profileId: id, account, amountCents: cents, reason: reason.trim() });
-    await tx.insert(demoAuditTable).values({ profileId: id, action: `Demo ${account} top-up +$${amount.toFixed(2)} · ${reason.trim()}` });
+    await tx.insert(demoLedgerTable).values({ profileId: id, account, amountCents: cents, reason: reason.trim(), actor });
+    await tx.insert(demoAuditTable).values({ profileId: id, actor, action: `Demo ${account} top-up +$${amount.toFixed(2)} · ${reason.trim()}` });
     await notifyUser(id, `$${amount.toFixed(2)} was added to your ${account} balance`, "/transactions", tx);
     return {
       grant: (account === "grant" ? next : current.grantCents) / 100,
@@ -214,10 +213,10 @@ export async function adjustBalance(id: string, account: "grant" | "deposit" | "
   });
 }
 
-export async function changeGlobalFreeze(frozen: boolean, reason?: string) {
+export async function changeGlobalFreeze(frozen: boolean, actor: string, reason?: string) {
   await db.transaction(async tx => {
     await tx.update(demoSettingsTable).set({ frozen }).where(eq(demoSettingsTable.id, "platform"));
-    await tx.insert(demoAuditTable).values({ action: `Demo global freeze ${frozen ? "enabled" : "lifted"}${reason?.trim() ? ` · ${reason.trim()}` : ""}` });
+    await tx.insert(demoAuditTable).values({ actor, action: `Demo global freeze ${frozen ? "enabled" : "lifted"}${reason?.trim() ? ` · ${reason.trim()}` : ""}` });
   });
   return { frozen };
 }
@@ -236,15 +235,15 @@ async function availableCents(profile: DemoProfile, tx: Pick<typeof db, "select"
   return Math.max(0, profile.grantCents - (row?.sum ?? 0));
 }
 
-export async function applicantAccount() {
-  const person = await getUser(demoApplicantId);
-  const [profile] = await db.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, demoApplicantId));
-  if (!person || !profile) throw new Error("Demo applicant is missing");
+export async function applicantAccount(profileId: string) {
+  const person = await getUser(profileId);
+  const [profile] = await db.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, profileId));
+  if (!person || !profile) throw new Error(`Applicant ${profileId} is missing`);
   const [settings] = await db.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
   // Ledger rows caused by a request are shown through the request itself.
   const ledger = await db.select().from(demoLedgerTable)
-    .where(and(eq(demoLedgerTable.profileId, demoApplicantId), isNull(demoLedgerTable.requestId))).orderBy(desc(demoLedgerTable.createdAt)).limit(100);
-  const requests = await db.select().from(demoRequestsTable).where(eq(demoRequestsTable.profileId, demoApplicantId)).orderBy(desc(demoRequestsTable.createdAt)).limit(100);
+    .where(and(eq(demoLedgerTable.profileId, profileId), isNull(demoLedgerTable.requestId))).orderBy(desc(demoLedgerTable.createdAt)).limit(100);
+  const requests = await db.select().from(demoRequestsTable).where(eq(demoRequestsTable.profileId, profileId)).orderBy(desc(demoRequestsTable.createdAt)).limit(100);
   const transactions = [
     ...ledger.map(l => ({
       id: l.id, type: l.kind, account: l.account, direction: l.amountCents < 0 ? "out" : "in", amount: Math.abs(l.amountCents) / 100,
@@ -259,21 +258,21 @@ export async function applicantAccount() {
   };
 }
 
-export async function createApplicantRequest(kind: "Deposit" | "Withdrawal", amount: number, note = "") {
+export async function createApplicantRequest(profileId: string, kind: "Deposit" | "Withdrawal", amount: number, note = "") {
   const cents = Math.round(amount * 100);
   if (!Number.isSafeInteger(cents) || cents < 1 || cents > 100000000 || Math.abs(amount * 100 - cents) > 0.00001) throw new DemoInputError("Enter an amount between $0.01 and $1,000,000 with at most two decimals.");
   return db.transaction(async tx => {
     const [settings] = await tx.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform")).for("update");
     if (settings?.frozen) throw new DemoInputError("Deposits and withdrawals are paused while the platform is frozen.");
-    const [profile] = await tx.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, demoApplicantId)).for("update");
-    if (!profile) throw new Error("Demo applicant is missing");
+    const [profile] = await tx.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, profileId)).for("update");
+    if (!profile) throw new Error(`Applicant ${profileId} is missing`);
     if (profile.status === "Frozen") throw new DemoInputError("Your account is frozen. Contact support to make changes.");
     const perms = (profile.permissions ?? {}) as { withdrawalKycRequired?: boolean; depositKycRequired?: boolean };
     const kycNeeded = kind === "Withdrawal" ? perms.withdrawalKycRequired : perms.depositKycRequired;
     if (kycNeeded && profile.verificationLevel !== "Verified") throw new DemoInputError(`Identity verification is required before you can submit a ${kind.toLowerCase()}. Upload your documents in Settings.`);
     if (kind === "Withdrawal" && cents > await availableCents(profile, tx)) throw new DemoInputError("This is more than your available grant balance, after pending withdrawals.");
     const [row] = await tx.insert(demoRequestsTable).values({ profileId: profile.id, kind, amountCents: cents, note: note.trim().slice(0, 240) }).returning();
-    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor: "Demo applicant", action: `${kind} request submitted +$${(cents / 100).toFixed(2)}` });
+    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor: profile.name, action: `${kind} request submitted +$${(cents / 100).toFixed(2)}` });
     await notifyUser(profile.id, `${kind} request for $${(cents / 100).toFixed(2)} submitted for review`, kind === "Deposit" ? "/deposits" : "/withdrawals", tx);
     return requestTransaction(row!);
   });
