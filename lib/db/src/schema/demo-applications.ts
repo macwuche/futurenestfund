@@ -39,4 +39,7 @@ export const demoNotificationsTable = pgTable("demo_notifications", {
   link: text("link"),
   read: boolean("read").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  /** Set once the notification email went out (see api-server notificationMailer). */
+  emailedAt: timestamp("emailed_at", { withTimezone: true }),
+  emailAttempts: integer("email_attempts").notNull().default(0),
 }).enableRLS();

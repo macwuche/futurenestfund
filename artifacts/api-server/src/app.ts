@@ -5,6 +5,7 @@ import { logger } from "./lib/logger";
 import { DemoInputError } from "./lib/demoWorkspace";
 import { RecordInputError } from "./lib/applicantRecords";
 import { UploadError } from "./lib/uploads";
+import { sendEmailHook } from "./lib/sendEmailHook";
 
 const app: Express = express();
 
@@ -33,6 +34,8 @@ app.use((_req, res, next) => {
   res.setHeader("Referrer-Policy", "same-origin");
   next();
 });
+// Signed by Supabase over the exact bytes, so it needs the raw body and must come before express.json().
+app.post("/api/hooks/supabase/send-email", express.raw({ type: () => true, limit: "64kb" }), sendEmailHook);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

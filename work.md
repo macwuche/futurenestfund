@@ -929,3 +929,52 @@ Tested (API copy on :8099 in Supabase mode, Vite through the proxy, demo DB rest
 - API auth `phase4-auth.mjs` 12/12 again. **Demo-mode regression: all 175 earlier checks pass** (API 24, smoke 46, Phase 1 36, Phase 2 31, Phase 3 38).
 
 Restart the API Server workflow to pick this up. Once `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` are in Replit Secrets, the dev preview requires sign-in.
+
+### 2026-10-29: Step 4.6 done (email through Resend)
+
+(4.5, TOTP for admins, was skipped at the user's request and is still open. Until it's done, the admin account is protected by its password only.)
+
+Built (API server):
+- `lib/email.ts`: one Resend client (`POST /emails`, 10 s timeout, `Idempotency-Key`, retryable vs permanent errors). Needs `RESEND_API_KEY` and `EMAIL_FROM`; without them email is off with a startup warning.
+- `lib/emailTemplates.ts`: branded table layout plus a plain-text version for every email. Every value is HTML-escaped (names come from users). Covers:
+  - confirm sign-up, reset password, magic link, invite
+  - email change (both addresses)
+  - re-authentication / sign-in codes
+  - the seven Supabase security notices (password changed, email changed, …)
+  - app notifications
+- `lib/sendEmailHook.ts`: **Supabase Send Email Hook** at `POST /api/hooks/supabase/send-email`. Mounted before `express.json()` (the signature covers the raw bytes). Standard Webhooks check: HMAC-SHA256 over `id.timestamp.body`, `v1,whsec_…` secret, a 5-minute timestamp window, constant-time compare.
+  - Builds the `…/auth/v1/verify?token=<hash>&type=…&redirect_to=…` link.
+  - Handles Supabase's reversed token fields on email change: the current address gets `token_hash_new`, the new address gets `token_hash`.
+  - Sends an email-change notice to the old address.
+  - A replayed webhook id is answered without resending. Resend 5xx/429 → 503 (Supabase can retry; idempotency keys stop duplicates); other failures → 500; unknown email types → 400, so nothing goes out silently.
+- `lib/notificationMailer.ts`: **notification emails as an outbox**. `notifyUser()` still only writes the row inside the business transaction; a worker (every 15 s, `FOR UPDATE … SKIP LOCKED`) emails it afterwards, so a rolled-back action never sends mail.
+  - Only signed-up users (not the sample profiles) with email notifications on get email.
+  - Up to 5 tries within 24 h; a permanent refusal isn't retried.
+  - New columns `demo_notifications.emailed_at` and `email_attempts`, pushed to both DBs.
+  - The link goes to `APP_URL` + the notification's page.
+
+Tested (API copy on :8099 with `RESEND_API_URL` pointing at the new local stand-in `.unlazy/mock-resend.mjs`; no real email sent):
+- **New `.unlazy/phase4-email.mjs`: 11/11.** Covered:
+  - refused signatures: missing, garbage, wrong secret, ±10 min timestamp, tampered body, unknown version; one valid signature among several is accepted
+  - sign-up email: recipient, from, bearer, idempotency key, the exact verify link, plain text
+  - HTML escaping of a hostile name
+  - recovery / magic link / invite wording and link types
+  - the email-change token mapping, with and without Secure Email Change
+  - codes and notices (email-changed goes to the old address)
+  - 400s for unknown types and bad payloads
+  - replay sends once
+  - Resend 500 → 503, then the retry delivers exactly once; 422 → 500
+  - a real signed-up applicant gets the "deposit approved" email with an app link and their name
+  - nothing goes to the sample profiles or to a user who has notifications off
+- Rendered the confirmation email in Chromium to check the layout.
+- Regression: API auth 12/12, sign-in UI 16/16, and all 175 earlier checks in demo mode.
+
+**To switch it on (needs the user):**
+1. Resend: add and verify the sending domain (e.g. `futurenestfund.org`: the DNS records Resend lists), create an API key.
+2. Secrets (Replit and VPS):
+   - `RESEND_API_KEY`
+   - `EMAIL_FROM` (e.g. `GrantApp <no-reply@futurenestfund.org>`)
+   - `APP_URL` (the public web address)
+   - `SEND_EMAIL_HOOK_SECRET`
+3. Supabase dashboard → Authentication → Hooks → **Send Email hook** → HTTPS → `<public API URL>/api/hooks/supabase/send-email` → generate the secret and copy it into `SEND_EMAIL_HOOK_SECRET`. The URL must be reachable from the internet (the VPS, or the Replit dev URL for testing).
+4. Then send one real sign-up and one reset to an inbox you control to confirm delivery. That's the one thing that can't be tested from here.

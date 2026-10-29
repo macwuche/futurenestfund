@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { seedDemoData } from "./lib/demoSeed";
 import { database } from "@workspace/db";
+import { startNotificationMailer } from "./lib/notificationMailer";
 
 const rawPort = process.env["PORT"];
 
@@ -18,6 +19,7 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 await seedDemoData();
+startNotificationMailer();
 
 app.listen(port, (err) => {
   if (err) {
