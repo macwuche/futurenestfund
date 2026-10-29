@@ -18,6 +18,16 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Whether sign-in is on, and the public Supabase settings the browser needs
+ */
+export const GetAuthConfigResponse = zod.object({
+  "mode": zod.enum(['supabase', 'demo']),
+  "supabaseUrl": zod.string().nullable(),
+  "publishableKey": zod.string().nullable()
+})
+
+
+/**
  * @summary The signed-in caller
  */
 export const GetMeResponse = zod.object({

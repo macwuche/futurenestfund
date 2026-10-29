@@ -1,10 +1,12 @@
-import { type ReactNode } from 'react';
+import { type ComponentType, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { DemoProvider } from '@/lib/demo-state';
+import { AuthProvider, useAuth } from '@/lib/auth';
+import { SignInPage, SignUpPage, ForgotPasswordPage, ResetPasswordPage, AuthLoading, AuthUnavailable, safeNext } from '@/pages/auth';
 import {
   DashboardPage, GrantsPage, ApplicationsPage, ApplicationDetailPage, CardsPage, TransactionsPage, WithdrawalsPage, DepositsPage, SettingsPage,
 } from '@/pages/applicant';
@@ -13,9 +15,11 @@ import { Layout } from '@/components/shell';
 import { AdminOverviewPage, AdminUsersPage, AdminUserPage, AdminSettingsPage } from '@/pages/admin';
 import { AdminTransactionsPage, AdminDepositsPage, AdminWithdrawalsPage, AdminKycPage, AdminApplicationPage } from '@/pages/admin-ops';
 import {
+  Redirect,
   Route,
   Switch,
   useLocation,
+  useSearch,
   Router as WouterRouter,
 } from 'wouter';
 
@@ -59,6 +63,50 @@ function Router() {
   );
 }
 
+const AUTH_PAGES: Partial<Record<string, ComponentType>> = {
+  '/sign-in': SignInPage, '/sign-up': SignUpPage, '/forgot-password': ForgotPasswordPage, '/reset-password': ResetPasswordPage,
+};
+const isAdminPath = (loc: string) => loc === '/admin' || loc.startsWith('/admin/');
+
+/**
+ * Decides what a visitor may see. Demo mode: everything, as before. Signed out: only the sign-in pages (anything else
+ * redirects to sign-in and comes back afterwards). Signed in: admins stay in /admin, applicants outside it.
+ */
+function AuthGate() {
+  const auth = useAuth();
+  const [loc] = useLocation();
+  const search = useSearch();
+  if (auth.status === 'loading') return <AuthLoading />;
+  if (auth.status === 'error') return <AuthUnavailable onRetry={auth.retry} />;
+  if (auth.status === 'demo') return <Workspace scope="" />;
+
+  const AuthPage = AUTH_PAGES[loc];
+  if (auth.status === 'signed-out') {
+    if (AuthPage) return <AuthPage />;
+    const here = loc + (search ? `?${search}` : '');
+    return <Redirect to={here === '/' || auth.signedOutByUser ? '/sign-in' : `/sign-in?next=${encodeURIComponent(here)}`} replace />;
+  }
+
+  const admin = auth.me!.role === 'admin' || auth.me!.role === 'root';
+  const home = admin ? '/admin' : '/';
+  if (loc === '/reset-password' || auth.recovering) return <ResetPasswordPage />;
+  if (AuthPage) {
+    const next = safeNext(new URLSearchParams(search).get('next'));
+    return <Redirect to={next && isAdminPath(next) === admin ? next : home} replace />;
+  }
+  if (isAdminPath(loc) !== admin) return <Redirect to={home} replace />;
+  return <Workspace scope={auth.me!.profileId ?? auth.me!.email} />;
+}
+
+/** The app itself. Browser-only preferences (saved grants, setup progress) are kept per signed-in user. */
+function Workspace({ scope }: { scope: string }) {
+  return (
+    <DemoProvider key={scope} scope={scope}>
+      <Router />
+    </DemoProvider>
+  );
+}
+
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   return <ErrorBoundary resetKey={location}>{children}</ErrorBoundary>;
@@ -68,12 +116,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <DemoProvider>
+        <AuthProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-            <Router />
+            <AuthGate />
           </WouterRouter>
           <Toaster />
-        </DemoProvider>
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

@@ -11,11 +11,12 @@ import {
 import {
   LayoutDashboard, Layers, FileText, CreditCard, ArrowLeftRight, ArrowUpFromLine, PlusCircle, Settings, Bell, Search, Plus, Menu, X,
   ChevronDown, Users, ArrowDownToLine, ShieldCheck, Snowflake, Building2, ScanLine, House, ClipboardList, ChartPie, Milestone,
-  MessageCircleQuestion, Ellipsis, BadgeCheck, Upload, ArrowLeftRight as SwitchIcon,
+  MessageCircleQuestion, Ellipsis, BadgeCheck, Upload, ArrowLeftRight as SwitchIcon, LogOut,
 } from 'lucide-react';
 import { Avatar, checkFile, cx, Field, FILE_RULES, fileSize, inputCls, Modal, money, Skel, useDismiss } from '@/components/bits';
 import { CATEGORIES, apiError, useApplicantDashboard, useDemo, useNotifications, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/lib/auth';
 
 type NavItem = { href: string; label: string; icon: typeof House };
 
@@ -190,8 +191,22 @@ function UserSidebar({ onNav }: { onNav?: () => void }) {
   );
 }
 
+/** Signs out and says so if it fails; the auth gate then shows the sign-in page. */
+function useSignOut() {
+  const { signOut } = useAuth();
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+  return { busy, run: async () => {
+    setBusy(true);
+    try { await signOut(); } catch { toast({ title: "Couldn't sign out", description: 'Check your connection and try again.', variant: 'destructive' }); }
+    setBusy(false);
+  } };
+}
+
 function UserCard({ onNav }: { onNav?: () => void }) {
   const { data } = useApplicantDashboard();
+  const { status } = useAuth();
+  const out = useSignOut();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setOpen(false), []);
@@ -209,8 +224,17 @@ function UserCard({ onNav }: { onNav?: () => void }) {
       {open && (
         <div role="menu" className="pop absolute bottom-full left-0 right-0 z-50 mb-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
           <Link role="menuitem" href="/settings" onClick={go} data-testid="menu-account-settings" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-slate-100"><Settings className="h-4 w-4 text-slate-500" />Account settings</Link>
-          <Link role="menuitem" href="/admin" onClick={go} data-testid="button-admin-workspace" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-slate-100"><SwitchIcon className="h-4 w-4 text-slate-500" />Switch to admin view</Link>
-          <p className="mt-1 border-t border-slate-100 px-3 pb-1 pt-2 text-[11px] leading-snug text-slate-500" data-testid="text-demo-note">Demo preview. No real sign-in, transfers, card networks or OCR are connected.</p>
+          {status === 'demo' ? (
+            <>
+              <Link role="menuitem" href="/admin" onClick={go} data-testid="button-admin-workspace" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-slate-100"><SwitchIcon className="h-4 w-4 text-slate-500" />Switch to admin view</Link>
+              <p className="mt-1 border-t border-slate-100 px-3 pb-1 pt-2 text-[11px] leading-snug text-slate-500" data-testid="text-demo-note">Demo preview. No real sign-in, transfers, card networks or OCR are connected.</p>
+            </>
+          ) : (
+            <>
+              <button role="menuitem" onClick={out.run} disabled={out.busy} data-testid="menu-sign-out" className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 disabled:opacity-60"><LogOut className="h-4 w-4 text-slate-500" />{out.busy ? 'Signing out…' : 'Sign out'}</button>
+              <p className="mt-1 border-t border-slate-100 px-3 pb-1 pt-2 text-[11px] leading-snug text-slate-500" data-testid="text-demo-note">Preview with sample grants. No real transfers, card networks or OCR are connected.</p>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -485,15 +509,28 @@ function AdminBrand() {
 }
 
 function AdminSidebarBody({ onNav }: { onNav?: () => void }) {
+  const { status, me } = useAuth();
+  const out = useSignOut();
   return (
     <div className="flex flex-1 flex-col gap-6">
       <AdminNavList onNav={onNav} />
-      <div className="mt-auto space-y-3">
-        <div className="rounded-xl bg-white/5 p-3 text-xs leading-relaxed text-slate-400">
-          <strong className="text-[#C6F432]">DEMO preview.</strong> Switch workspaces to see both sides of the sample data.
+      {status === 'demo' ? (
+        <div className="mt-auto space-y-3">
+          <div className="rounded-xl bg-white/5 p-3 text-xs leading-relaxed text-slate-400">
+            <strong className="text-[#C6F432]">DEMO preview.</strong> Switch workspaces to see both sides of the sample data.
+          </div>
+          <WorkspaceSwitch />
         </div>
-        <WorkspaceSwitch />
-      </div>
+      ) : (
+        <div className="mt-auto rounded-xl bg-white/5 p-3" data-testid="card-admin-account">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Signed in as</p>
+          <p className="mt-0.5 truncate text-sm font-semibold text-white" data-testid="text-admin-email" title={me?.email}>{me?.email}</p>
+          <button onClick={out.run} disabled={out.busy} data-testid="button-sign-out"
+            className="press mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-white/15 px-3 text-sm font-semibold text-slate-200 hover:bg-white/10 disabled:opacity-60">
+            <LogOut className="h-4 w-4" />{out.busy ? 'Signing out…' : 'Sign out'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -518,10 +555,21 @@ function AdminFrame({ title, open, setOpen, loc, children }: { title: string; op
         <AdminTop title={title} onMenu={() => setOpen(true)} />
         <main id="main" className="mx-auto w-full max-w-[1280px] p-4 sm:p-6">
           <div key={loc} className="rise">{children}</div>
-          <p className="mt-8 text-center text-xs text-slate-500" data-testid="text-demo-note">Demo preview. No real sign-in, transfers, card networks or OCR are connected; there is one shared demo administrator.</p>
+          <AdminFootNote />
         </main>
       </div>
     </div>
+  );
+}
+
+function AdminFootNote() {
+  const { status } = useAuth();
+  return (
+    <p className="mt-8 text-center text-xs text-slate-500" data-testid="text-demo-note">
+      {status === 'demo'
+        ? 'Demo preview. No real sign-in, transfers, card networks or OCR are connected; there is one shared demo administrator.'
+        : 'Sample data. No real transfers, card networks or OCR are connected; one administrator approves each request (4-eyes is not active).'}
+    </p>
   );
 }
 

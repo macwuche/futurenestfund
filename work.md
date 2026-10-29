@@ -881,3 +881,51 @@ Tested (API copy on :8099; DB backed up and restored around each run; throwaway 
 **Needs:** `SUPABASE_URL` in Replit Secrets (and on the VPS) before running without `AUTH_MODE=demo`. Restart the API Server workflow to pick up this build. It stays in demo mode in development.
 
 Next: 4.4, the sign-in UI. supabase-js in the frontend, `setAuthTokenGetter` for API calls, `POST /auth/session` after sign-in and every token refresh, sign-in / sign-up with email confirmation / reset / sign-out, guarded admin routes. Then drop the dev default of `AUTH_MODE=demo` and give the test scripts a sign-in step.
+
+### 2026-10-29: Step 4.4 done (sign-in UI)
+
+Frontend:
+- `src/lib/auth.tsx` (`AuthProvider`):
+  - asks `GET /api/auth/config` (new, public) whether sign-in is on
+  - starts supabase-js (pinned **2.117.3**; implicit flow, so an email link opened on another device still works)
+  - hands API calls the access token through `setAuthTokenGetter`
+  - sets the GET-only download cookie (`POST /api/auth/session`) before the workspace renders and after every token refresh
+  - loads `/me`
+  - signing out or switching user clears the whole React Query cache; a 401 from `/me` (e.g. a deleted account) signs the browser out
+- `src/pages/auth.tsx`: **Sign in**, **Create account** (name, optional organization, email, password ≥ 8 + confirm; "check your email" screen), **Forgot password**, **Choose a new password** (after the reset link; "link expired" when there's no recovery session). React Hook Form + Zod. Supabase errors are reworded, e.g. "Email or password is incorrect.", unconfirmed email with a resend button, rate limits.
+  - Sign-up and forgot-password give the same answer whether or not the address is registered, so neither reveals which emails have accounts.
+- `App.tsx` `AuthGate`:
+  - signed out: only the four auth pages; anything else → `/sign-in?next=<page>` (only same-app paths are accepted as `next`)
+  - signed in: admins (`admin` / `root`) are kept in `/admin`, applicants out of it
+  - an explicit sign-out goes to plain `/sign-in`, so the next person doesn't land on the previous user's last page
+  - demo mode is unchanged
+- Shell: in real sign-in mode the User/Admin workspace switch and "no real sign-in" notes are gone. Applicants sign out from the account menu (…); admins from a "Signed in as" card in the sidebar (also in the phone drawer, 44px button). Help Centre answers "I forgot my password".
+- Saved grants and setup progress (localStorage) are now kept per signed-in user.
+
+API: `GET /api/auth/config`. The API now picks Supabase mode by itself when `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` are set; the dev script no longer forces demo. In production it always uses Supabase and refuses to start without both.
+
+Found while building:
+- The project's **Site URL is still `http://localhost:3000`**, and no redirect URLs are allowed, so real confirmation and reset links currently land on localhost. Fix in the Supabase dashboard → Auth → URL Configuration: Site URL = the production URL; Redirect URLs = the production URL, `<production>/reset-password`, and the Replit dev URL (+ `/reset-password`) for testing.
+- Supabase's built-in email does send (a probe sign-up got a confirmation), but it's heavily rate-limited (a few emails an hour). That's 4.6.
+
+Tested (API copy on :8099 in Supabase mode, Vite through the proxy, demo DB restored after; throwaway Supabase users deleted, so only the admin remains):
+- **New `.unlazy/phase4-ui.mjs`: desktop 13/13, phone 3/3.** Covered:
+  - redirects with `next`, including query strings
+  - validation; wrong password; show/hide password
+  - admin lands on the requested admin page; the cookie is HttpOnly and authenticates GETs but not changes
+  - an admin is kept out of the applicant side; reload keeps the session
+  - sign-out clears the cookie and stored session
+  - `?next=//evil.example` is ignored
+  - applicant workspace with their own name and no sample data; `/admin` sends them home
+  - switching accounts shows no previous-user data
+  - sign-up validation and the "check your email" screen
+  - the **confirmation link signs a new applicant in** with the name and organization they entered (tokens are removed from the address bar)
+  - forgot password
+  - the **reset link**: set a new password, the old one stops working, the new one works
+  - no console errors
+  - phone: all four pages fit at 390px; applicant and admin sign out from the drawer
+  - Email links come from the Admin API (`generate_link`, nothing is mailed) and are replayed on the test origin.
+- Two failures on the first runs were test mistakes, now fixed: one test expected the old "remember the last page" behaviour after sign-out, which is what led to the explicit sign-out change; another changed only the URL `#` fragment, which isn't a page load.
+- API auth `phase4-auth.mjs` 12/12 again. **Demo-mode regression: all 175 earlier checks pass** (API 24, smoke 46, Phase 1 36, Phase 2 31, Phase 3 38).
+
+Restart the API Server workflow to pick this up. Once `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` are in Replit Secrets, the dev preview requires sign-in.

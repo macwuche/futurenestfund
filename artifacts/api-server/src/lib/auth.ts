@@ -19,19 +19,30 @@ declare global {
 /** GET-only cookie holding the access token, so <img> and download links work; never accepted for changes. */
 export const SESSION_COOKIE = "gp_session";
 
+const supabaseUrl = process.env.SUPABASE_URL?.trim().replace(/\/+$/, "");
+const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY?.trim();
+const production = process.env.NODE_ENV === "production";
+
 /**
- * AUTH_MODE=demo keeps the pre-sign-in behaviour (everyone is the demo applicant / demo administrator)
- * and is refused in production. Anything else verifies Supabase access tokens.
+ * AUTH_MODE=demo keeps the pre-sign-in behaviour (everyone is the demo applicant / demo administrator) and is refused
+ * in production. AUTH_MODE=supabase verifies Supabase access tokens. Unset: Supabase, except in development when
+ * Supabase isn't configured yet, where it falls back to demo so the preview keeps working.
  */
-export const authMode: "supabase" | "demo" = process.env.AUTH_MODE === "demo" ? "demo" : "supabase";
-if (authMode === "demo" && process.env.NODE_ENV === "production") {
+export const authMode: "supabase" | "demo" =
+  process.env.AUTH_MODE === "demo" ? "demo"
+  : process.env.AUTH_MODE === "supabase" || production || (supabaseUrl && publishableKey) ? "supabase"
+  : "demo";
+if (authMode === "demo" && production) {
   throw new Error("AUTH_MODE=demo is not allowed in production.");
 }
-
-const supabaseUrl = process.env.SUPABASE_URL?.trim().replace(/\/+$/, "");
-if (authMode === "supabase" && !supabaseUrl) {
-  throw new Error("SUPABASE_URL must be set to verify sign-ins (or set AUTH_MODE=demo in development).");
+if (authMode === "supabase" && (!supabaseUrl || !publishableKey)) {
+  throw new Error("SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY must be set to verify sign-ins (or set AUTH_MODE=demo in development).");
 }
+if (authMode === "demo") logger.warn("AUTH_MODE=demo: sign-in is off; every request acts as the sample applicant or administrator");
+
+/** What the browser needs to start Supabase Auth; the publishable key is meant to be public. */
+export const publicAuthConfig = () =>
+  authMode === "supabase" ? { mode: authMode, supabaseUrl: supabaseUrl!, publishableKey: publishableKey! } : { mode: authMode, supabaseUrl: null, publishableKey: null };
 const issuer = `${supabaseUrl}/auth/v1`;
 // Supabase signs access tokens with asymmetric keys published here; jose caches them and refetches on rotation.
 const jwks = authMode === "supabase" ? createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`)) : null;

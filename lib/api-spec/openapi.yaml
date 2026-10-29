@@ -36,6 +36,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/config:
+    get:
+      operationId: getAuthConfig
+      tags: [auth]
+      summary: Whether sign-in is on, and the public Supabase settings the browser needs
+      security: []
+      responses:
+        "200":
+          description: Auth configuration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthConfig" }
   /me:
     get:
       operationId: getMe
@@ -782,6 +794,13 @@ components:
       in: cookie
       name: gp_session
   schemas:
+    AuthConfig:
+      type: object
+      properties:
+        mode: { type: string, enum: [supabase, demo] }
+        supabaseUrl: { type: [string, "null"] }
+        publishableKey: { type: [string, "null"] }
+      required: [mode, supabaseUrl, publishableKey]
     Me:
       type: object
       properties:

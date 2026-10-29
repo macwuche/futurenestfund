@@ -80,18 +80,20 @@ interface Demo {
 }
 const Ctx = createContext<Demo | null>(null);
 
-function usePersisted<T>(key: string, init: T) {
+/** `scope` keeps each signed-in user's browser-only state apart ("" = the demo preview's original keys). */
+function usePersisted<T>(scope: string, name: string, init: T) {
+  const key = `grant-demo:${scope ? `${scope}:` : ''}${name}`;
   const [v, setV] = useState<T>(() => {
-    try { const r = localStorage.getItem('grant-demo:' + key); return r ? (JSON.parse(r) as T) : init; } catch { return init; }
+    try { const r = localStorage.getItem(key); return r ? (JSON.parse(r) as T) : init; } catch { return init; }
   });
-  useEffect(() => { try { localStorage.setItem('grant-demo:' + key, JSON.stringify(v)); } catch { /* ignore */ } }, [key, v]);
+  useEffect(() => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* ignore */ } }, [key, v]);
   return [v, setV] as const;
 }
 
-export function DemoProvider({ children }: { children: ReactNode }) {
+export function DemoProvider({ scope, children }: { scope: string; children: ReactNode }) {
   const [search, setSearch] = useState('');
-  const [doneSetup, setDone] = usePersisted<string[]>('setup', []);
-  const [savedGrants, setSaved] = usePersisted<string[]>('saved-grants', []);
+  const [doneSetup, setDone] = usePersisted<string[]>(scope, 'setup', []);
+  const [savedGrants, setSaved] = usePersisted<string[]>(scope, 'saved-grants', []);
   const [newApp, setNewApp] = useState<NewAppPrefill | null>(null);
   const completeSetup = useCallback((id: string) => setDone((p) => (p.includes(id) ? p : [...p, id])), [setDone]);
   const value = useMemo<Demo>(() => ({

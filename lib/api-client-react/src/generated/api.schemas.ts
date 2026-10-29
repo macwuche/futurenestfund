@@ -5,6 +5,22 @@
  * Grant applicant and administration dashboard API
  * OpenAPI spec version: 0.1.0
  */
+export type AuthConfigMode = typeof AuthConfigMode[keyof typeof AuthConfigMode];
+
+
+export const AuthConfigMode = {
+  supabase: 'supabase',
+  demo: 'demo',
+} as const;
+
+export interface AuthConfig {
+  mode: AuthConfigMode;
+  /** @nullable */
+  supabaseUrl: string | null;
+  /** @nullable */
+  publishableKey: string | null;
+}
+
 export type MeMode = typeof MeMode[keyof typeof MeMode];
 
 

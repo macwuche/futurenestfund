@@ -57,6 +57,8 @@ export * from './applicationEvent';
 export * from './applicationInput';
 export * from './applicationResponseInput';
 export * from './auditEntry';
+export * from './authConfig';
+export * from './authConfigMode';
 export * from './balanceAdjustmentInput';
 export * from './balanceAdjustmentInputAccount';
 export * from './errorMessage';
