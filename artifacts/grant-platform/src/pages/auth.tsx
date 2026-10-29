@@ -1,11 +1,13 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff, Loader2, MailCheck } from 'lucide-react';
 import { cx, Field, inputCls } from '@/components/bits';
-import { appUrl, authErrorMessage, useAuth } from '@/lib/auth';
+import { appUrl, useAuth } from '@/lib/auth';
+import { authErrorMessage } from '@/lib/auth-errors';
+import { safeNext } from '@/lib/safe-next';
 import { useToast } from '@/hooks/use-toast';
 
 const primaryBtn = 'press inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#1E3A8A] px-5 py-3 text-[15px] font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60';
@@ -15,10 +17,6 @@ const email = z.string().trim().min(1, 'Enter your email address.').email('Enter
 // Supabase hashes passwords with bcrypt, which only reads the first 72 bytes.
 const newPassword = z.string().min(8, 'Use at least 8 characters.').max(72, 'Use at most 72 characters.');
 
-/** Only same-app paths are allowed as ?next= targets (no "//evil.com" or absolute URLs). */
-export function safeNext(raw: string | null | undefined) {
-  return raw && raw.startsWith('/') && !raw.startsWith('//') && !raw.startsWith('/\\') ? raw : null;
-}
 
 function Mark() {
   return (
@@ -242,8 +240,10 @@ export function ResetPasswordPage() {
     setError(null);
     const { error: e } = await client!.auth.updateUser({ password: v.password });
     if (e) { setError(authErrorMessage(e)); return; }
+    // A reset usually means the old password can't be trusted: end every other session.
+    await client!.auth.signOut({ scope: 'others' }).catch(() => {});
     finishRecovery();
-    toast({ title: 'Password updated', description: "You're signed in with your new password." });
+    toast({ title: 'Password updated', description: "You're signed in with your new password and signed out everywhere else." });
     nav('/');
   });
   return (
@@ -258,6 +258,49 @@ export function ResetPasswordPage() {
         </Field>
         <Submit busy={f.formState.isSubmitting} testid="button-save-password">Save new password</Submit>
       </form>
+    </AuthFrame>
+  );
+}
+
+/* ---------- email link landing page ---------- */
+const OTP_TYPES = ['signup', 'invite', 'magiclink', 'recovery', 'email_change', 'email'] as const;
+type OtpType = (typeof OTP_TYPES)[number];
+
+/**
+ * Where every email link lands: /auth/confirm?token_hash=…&type=…&next=…. The one-time hash is exchanged here with
+ * verifyOtp (only on a real page load with JavaScript, so mail scanners that pre-fetch links don't use it up), then the
+ * address bar is cleaned and the user moves on: a reset link to "choose a new password", everything else to `next`.
+ */
+export function ConfirmPage() {
+  const { client, status, recovering } = useAuth();
+  const [, nav] = useLocation();
+  const params = new URLSearchParams(useSearch());
+  const tokenHash = params.get('token_hash');
+  const type = params.get('type') as OtpType | null;
+  const next = safeNext(params.get('next'));
+  const [state, setState] = useState<'working' | 'verified' | 'failed'>('working');
+  const started = useRef(false);
+  const target = useRef<string>('/');
+  useEffect(() => {
+    if (started.current) return; // the hash works once, so never send it twice (React dev mode runs effects twice)
+    started.current = true;
+    if (!tokenHash || !type || !OTP_TYPES.includes(type)) { setState('failed'); return; }
+    window.history.replaceState(null, '', `${import.meta.env.BASE_URL}auth/confirm`); // keep the hash out of history
+    target.current = type === 'recovery' ? '/reset-password' : next ?? '/';
+    void client!.auth.verifyOtp({ token_hash: tokenHash, type }).then(({ error }) => setState(error ? 'failed' : 'verified'));
+  }, [client, tokenHash, type, next]);
+  // Move on only once the new session is fully loaded, so the next page doesn't flash a signed-out state.
+  useEffect(() => {
+    if (state === 'verified' && status === 'signed-in' && (target.current !== '/reset-password' || recovering)) nav(target.current, { replace: true });
+  }, [state, status, recovering, nav]);
+  if (state !== 'failed') return <AuthLoading />;
+  return (
+    <AuthFrame title="This link has expired" footer={<Link href="/sign-in" className={linkCls} data-testid="link-sign-in">Back to sign in</Link>}>
+      <p className="text-sm text-slate-600" data-testid="text-confirm-failed">Email links work once and only for a limited time. If you've already used it, just sign in. Otherwise, request a new one.</p>
+      <div className="mt-5 grid gap-3">
+        <Link href="/sign-in" className={primaryBtn} data-testid="link-confirm-sign-in">Sign in</Link>
+        <Link href="/forgot-password" className={cx(linkCls, 'text-center text-sm')} data-testid="link-confirm-forgot">Reset your password instead</Link>
+      </div>
     </AuthFrame>
   );
 }

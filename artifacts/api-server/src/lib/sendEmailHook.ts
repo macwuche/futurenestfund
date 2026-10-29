@@ -13,6 +13,7 @@ import { logger } from "./logger";
 const rawSecret = process.env.SEND_EMAIL_HOOK_SECRET?.trim();
 const secret = rawSecret ? Buffer.from(rawSecret.replace(/^v1,/, "").replace(/^whsec_/, ""), "base64") : null;
 const supabaseUrl = process.env.SUPABASE_URL?.trim().replace(/\/+$/, "");
+const appUrl = process.env.APP_URL?.trim().replace(/\/+$/, "");
 const TOLERANCE_SECONDS = 5 * 60;
 
 /** Standard Webhooks check: HMAC-SHA256 over `id.timestamp.body`, timestamp within five minutes. */
@@ -56,8 +57,20 @@ const NOTIFICATIONS = new Set<string>([
 /** The email(s) one hook call should send. Exported for tests. */
 export function emailsFor({ user, email_data: d }: HookPayload): OutgoingEmail[] {
   const name = typeof user.user_metadata?.name === "string" ? user.user_metadata.name.slice(0, 120) : undefined;
+  /**
+   * The link in the email. With APP_URL set it opens the app's /auth/confirm page with the one-time token hash, which the
+   * page exchanges with verifyOtp: no session tokens in the address bar, works on any device, and link scanners that
+   * pre-fetch URLs don't use it up. Without APP_URL it falls back to Supabase's own verify endpoint.
+   */
   const verify = (hash: string | null | undefined) => {
-    if (!hash || !supabaseUrl) throw new HookInputError(`Missing token hash for ${d.email_action_type}.`);
+    if (!hash) throw new HookInputError(`Missing token hash for ${d.email_action_type}.`);
+    if (appUrl) {
+      const q = new URLSearchParams({ token_hash: hash, type: d.email_action_type });
+      const next = nextPath(d.redirect_to);
+      if (next) q.set("next", next);
+      return `${appUrl}/auth/confirm?${q}`;
+    }
+    if (!supabaseUrl) throw new HookInputError("Neither APP_URL nor SUPABASE_URL is set.");
     const q = new URLSearchParams({ token: hash, type: d.email_action_type });
     if (d.redirect_to) q.set("redirect_to", d.redirect_to);
     return `${supabaseUrl}/auth/v1/verify?${q}`;
@@ -89,6 +102,17 @@ export function emailsFor({ user, email_data: d }: HookPayload): OutgoingEmail[]
       }
       return [authEmail(action as AuthEmailKind, user.email, { name })];
   }
+}
+
+/** The page to open after confirming: only a path on APP_URL itself (Supabase already checked redirect_to against its allow list). */
+function nextPath(redirectTo: string | null | undefined): string | null {
+  if (!redirectTo || !appUrl) return null;
+  try {
+    const target = new URL(redirectTo), app = new URL(appUrl);
+    if (target.origin !== app.origin) return null;
+    const p = target.pathname.slice(app.pathname.replace(/\/$/, "").length) || "/";
+    return p.startsWith("/") && !p.startsWith("//") ? p + target.search : null;
+  } catch { return null; }
 }
 
 /** Webhook ids already delivered, so a Supabase retry of a call that did go out doesn't send twice. */

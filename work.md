@@ -1002,3 +1002,70 @@ Tested (API copy on :8099 in Supabase mode via the proxy; throwaway Supabase use
 - Regression: API auth 12/12, sign-in UI 16/16, email 11/11, and all 175 earlier checks in demo mode.
 
 Phase 4 status: 4.1, 4.2, 4.3, 4.4, 4.6 and 4.7 done. **4.5 (admin TOTP) is still open.** The email go-live steps listed under 4.6 need the user (Resend domain + key, hook secret, Site URL / redirect URLs).
+
+---
+
+## 10. Hardening plan after the 2026-10-29 review
+
+**Decision (user, 2026-10-29): admins sign in with email + password only. Step 4.5 (admin TOTP) is dropped,** and the "two-factor coming soon" note comes out of Settings. Rotating the credentials that were pasted in chat (DB password, secret key, admin password) is still recommended.
+
+**RLS check (live Supabase, 2026-10-29):**
+- All 13 public tables have RLS on: our schema (`.enableRLS()`, migrations) plus the dashboard's `ensure_rls` event trigger. None has a policy.
+- Through the public REST API, anonymous and signed-in callers read `[]`, inserts fail with "violates row-level security policy", and updates match 0 rows.
+- Gaps:
+  - `anon` / `authenticated` still hold table grants (RLS is the only wall)
+  - the API connects as `postgres`, which has BYPASSRLS, so RLS never applies to our own server (item 12)
+
+| # | Fix | Done when |
+|---|---|---|
+| 10 | JWKS timeouts / Supabase unreachable → 503, not 401 (which signed users out) | Test with an unreachable JWKS |
+| 5 | Changing or resetting a password signs out every other session | Test: another session's refresh fails afterwards |
+| 13 | Applicant profile email follows the Supabase account email | Test |
+| 7 | Notification outbox claims rows with a short lease, sends **outside** the transaction, then marks them sent | Tests pass; no long transactions |
+| 3 | Verify the Supabase DB TLS certificate (pinned Supabase root CA) instead of `rejectUnauthorized: false` | Connects with verification on |
+| 8 | Versioned SQL migrations (drizzle-kit generate + our runner), baseline recorded on both DBs; append-only triggers move from boot code into a migration | `migrate` is a no-op on both DBs; a fresh DB builds from migrations |
+| 12 | Dedicated `app_api` DB role on Supabase: no BYPASSRLS, only DML on app tables, RLS policies for `app_api` only; grants revoked from `anon` / `authenticated` | API runs as `app_api`; REST callers still blocked; `app_api` can't touch `auth` or DDL |
+| 11 | Admin routes re-check that the Supabase session is still live (signed-out / banned admins lose access within a minute, not an hour) | Test |
+| 6 | Email links carry a one-time `token_hash` to the app's `/auth/confirm`, exchanged with `verifyOtp` (no tokens in the address bar); supabase-js moves to the PKCE flow | UI tests: confirm + reset via the new links |
+| 9 / 14 | Rate limits on the API (auth'd writes, uploads, hook) + security headers; production Content-Security-Policy for the web app | Tests: 429 past the limit, headers present |
+| 1 | Vitest test suite committed in the repo (`pnpm test`): token verification, webhook signatures, email mapping/escaping, rate limits, redirect safety. `.unlazy/` browser scripts stay git-ignored as the stack asks. | `pnpm test` green |
+| 4 | Supabase dashboard (user): minimum password length 8 | User confirms |
+
+### 2026-10-29: Hardening done (§10)
+
+| # | What changed | Proof |
+|---|---|---|
+| 4.5 | **Dropped** (admins use email + password, user decision). The "two-factor coming soon" note is removed. | security suite checks it's gone |
+| 10 | Supabase key server unreachable or timing out → **503** "couldn't check your sign-in" (the app offers a retry), not 401, which signed people out | Vitest (down + timeout) |
+| 11 | Every token is re-checked with Supabase `/auth/v1/user` (≤ 1×/min per token, cached by hash). Signed-out sessions, bans and removed admin rights apply within a minute, and the **role comes from the live answer**, not the token. | phase4-auth: revoked session 401; token still claiming admin → 403 after demotion; ban → 401 |
+| 5 | Changing **or resetting** a password signs out every other session | phase4-security: another device's refresh token is refused afterwards |
+| 13 | The applicant profile email follows the account's email (notifications go to the current address) | phase4-auth |
+| 7 | The notification outbox claims rows in one short statement (SKIP LOCKED + a 2-minute lease, new column `email_claimed_until`) and sends with **no transaction or lock held**; a failed send retries after a minute | phase4-email 11/11 |
+| 3 | Supabase DB TLS is **verified** against the pinned Supabase Root 2021 CA (`lib/db/src/supabaseCa.ts`; the fingerprint matched both the live chain and Supabase's published file). Used by the app, drizzle-kit and the scripts. | connects with verification; any other CA is refused |
+| 8 | **Versioned migrations:** `lib/db/migrations/0000_baseline` (11 tables, RLS) · `0001` lease column · `0002` append-only triggers (moved out of boot code; boot now only checks they exist). `pnpm --filter @workspace/scripts run db:migrate` (also applies `lib/db/supabase/migrations`). `--baseline` recorded 0000 on the Replit DB and on Supabase. | fresh DB builds from migrations (11 tables, RLS, 3 triggers; push then reports no diff); reruns are no-ops |
+| 12 | **`app_api` role** for the API on Supabase (migration `supabase/0002`): no BYPASSRLS, DML on `demo_*` only, through `app_api_all` RLS policies; grants revoked from `anon` / `authenticated` (default privileges too). Password set by `db:app-role` from `APP_DB_PASSWORD`. Migrations and seeding use `SUPABASE_ADMIN_DB_URL`. | as app_api: reads/writes OK; `auth.users`, `user_roles`, CREATE TABLE, TRUNCATE, editing audit rows, disabling RLS and dropping triggers are all refused. The public Data API now answers "permission denied" (it used to return `[]`). Full API + smoke suites pass against Supabase as app_api. |
+| 6 | Email links → the app's **`/auth/confirm?token_hash=…&type=…&next=…`**, exchanged with `verifyOtp`. supabase-js now uses PKCE. No session tokens in any URL; links work on any device; pre-fetching scanners can't use them up; `next` only for our own origin. The page waits for the session before moving on (no "expired" flash). | phase4-ui: confirm, reset, reused / garbage / incomplete links show "expired" and sign nobody in; address bar cleaned |
+| 9 / 14 | Rate limits (`lib/rateLimit.ts`): per-IP 600/min, writes 60/min per account, uploads 20/10 min, hook 120/min → 429 + Retry-After. `TRUST_PROXY` for nginx. JSON bodies ≤ 100 kB. API headers: CSP `default-src 'none'`, X-Frame-Options, CORP, Permissions-Policy, HSTS (production). **Production web build carries a strict CSP** (scripts only from the site). | Vitest (limits, windows, per-account vs per-IP); header checks; browser suites pass on the production build with no CSP violations |
+| 1 | **`pnpm test` (Vitest 5.0.3): 43 tests**, committed: token verification (expired / other project / audience / anon / forged key / tampered / `alg: none` / HS256 confusion / key server down), Standard Webhooks signatures, email link mapping and escaping, rate limiter, `safeNext`, auth error wording. Mutation check: weakening `safeNext` makes 3 tests fail. `.unlazy/` stays git-ignored as the stack asks. | `pnpm test` green |
+
+Also found and fixed while testing:
+- the boot trigger check used `= any(${array})`, which drizzle expands into invalid SQL (the API wouldn't start); caught on the first run
+- the email-notification switch had a 28 px tap target → now 44 px
+- `safeNext` now also refuses backslashes and control characters (e.g. `/\t/evil.com`)
+
+Verification run (2026-10-29), all passing:
+- API auth 16/16, sign-in UI 14+3, security 7+1, email 11/11 (dev frontend)
+- the same UI suites on the **production build with its CSP**
+- **on Supabase as `app_api`**: API auth 16/16, Phase 3 API 24/24, smoke 46/46
+- demo mode: all 175 earlier checks
+- `pnpm test` 43/43, typecheck clean
+- Test data restored on both DBs; throwaway auth users deleted (only the admin remains)
+
+**Needs the user:**
+1. **New / changed secrets** (Replit + VPS). The values are in the session scratchpad file `supabase.env`, never in git.
+   - `SUPABASE_DB_URL` is now the **`app_api`** pooler URL.
+   - Add `SUPABASE_ADMIN_DB_URL` (the old `postgres` URL), used only for `db:migrate` / `seed:admin`. Keep it off the running app if possible.
+   - On the VPS behind nginx: `TRUST_PROXY=1`.
+2. **Supabase dashboard → Authentication → Policies (passwords):** minimum length **8** (it's 6 today; confirmed).
+3. Still from 4.6: Resend domain + key, `EMAIL_FROM`, `APP_URL`, hook URL + `SEND_EMAIL_HOOK_SECRET`, Site URL / Redirect URLs. Redirect URLs now only need the app origin (email links go to `/auth/confirm`).
+4. Rotate the credentials pasted in chat (DB password, secret key, admin password). After a DB password change, update `SUPABASE_ADMIN_DB_URL`.

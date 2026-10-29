@@ -1,3 +1,5 @@
+import { SUPABASE_ROOT_CA } from "@workspace/db/supabase-ca";
+
 /** Reads a required environment variable, failing with a clear message (never printing secret values). */
 export function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -8,5 +10,5 @@ export function requireEnv(name: string): string {
   return value;
 }
 
-/** Supabase's pooler certificate isn't in Node's default CA bundle; the connection is still TLS-encrypted. */
-export const supabaseSsl = { rejectUnauthorized: false };
+/** Verify Supabase's certificate against its pinned root CA (see lib/db/src/supabaseCa.ts). */
+export const supabaseSsl = { ca: SUPABASE_ROOT_CA, rejectUnauthorized: true };

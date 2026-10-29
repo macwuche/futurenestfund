@@ -3,8 +3,7 @@ import { sql } from "drizzle-orm";
 import { db, demoProfilesTable, demoAuditTable, demoSettingsTable, demoApplicationsTable, demoApplicationEventsTable, demoMilestonesTable, demoKycDocumentsTable, demoLedgerTable } from "@workspace/db";
 
 /** Logs that must never change once written. Truncating (test resets) is still allowed. */
-const APPEND_ONLY = { demo_audit: "demo_audit_append_only", demo_ledger: "demo_ledger_append_only", demo_application_events: "demo_application_events_append_only" } as const;
-export const APPEND_ONLY_TRIGGERS = Object.values(APPEND_ONLY);
+export const APPEND_ONLY_TRIGGERS = ["demo_audit_append_only", "demo_ledger_append_only", "demo_application_events_append_only"];
 
 /** Stable, random-looking UUID for a seeded row, so re-seeding never inserts it twice. */
 const seedUuid = (key: string) => {
@@ -61,11 +60,10 @@ export async function seedDemoData(): Promise<void> {
       }));
     await tx.insert(demoLedgerTable).values(opening).onConflictDoNothing();
 
-    await tx.execute(sql`create or replace function demo_append_only() returns trigger language plpgsql as $$
-      begin raise exception '% is append-only', tg_table_name; end $$`);
-    for (const [table, trigger] of Object.entries(APPEND_ONLY)) {
-      await tx.execute(sql.raw(`create or replace trigger ${trigger} before update or delete on ${table} for each row execute function demo_append_only()`));
-    }
+    // The append-only triggers come from migration 0002; refuse to run without them rather than silently allow edits.
+    const { rows } = await tx.execute<{ tgname: string }>(sql`select tgname from pg_trigger where not tgisinternal and tgname in (${sql.join(APPEND_ONLY_TRIGGERS.map((t) => sql`${t}`), sql`, `)})`);
+    const missing = APPEND_ONLY_TRIGGERS.filter((t) => !rows.some((r) => r.tgname === t));
+    if (missing.length) throw new Error(`Append-only triggers missing (${missing.join(", ")}): run pnpm --filter @workspace/scripts run db:migrate`);
 
     // Sample applications with their status history. Each is inserted once; history only for newly inserted rows.
     const at = (d: string) => new Date(`${d}T15:00:00Z`);

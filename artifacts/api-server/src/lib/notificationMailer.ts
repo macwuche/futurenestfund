@@ -13,36 +13,48 @@ import { logger } from "./logger";
 const appUrl = process.env.APP_URL?.trim().replace(/\/+$/, "");
 const MAX_ATTEMPTS = 5;
 
-type Pending = { id: string; message: string; link: string | null; email: string; name: string };
+type Claimed = { id: string; message: string; link: string | null; email: string; name: string };
 
-/** Sends up to `limit` pending notification emails; returns how many went out. Rows are claimed with SKIP LOCKED. */
+/**
+ * Sends up to `limit` pending notification emails; returns how many went out. Rows are claimed in one short statement
+ * (SKIP LOCKED plus a two-minute lease, so several servers never take the same row and a crashed send is retried), and the
+ * emails go out with no transaction or lock held. The attempt is counted at claim time; Resend idempotency keys stop a
+ * retried row from being delivered twice.
+ */
 export async function sendPendingNotificationEmails(limit = 20): Promise<number> {
   if (!emailConfigured || !appUrl) return 0;
-  return db.transaction(async (tx) => {
-    const { rows } = await tx.execute<Pending>(sql`
-      select n.id, n.message, n.link, p.email, p.name
-      from demo_notifications n join demo_profiles p on p.id = n.profile_id
+  const { rows } = await db.execute<Claimed>(sql`
+    with due as (
+      select n.id from demo_notifications n join demo_profiles p on p.id = n.profile_id
       where n.emailed_at is null and n.email_attempts < ${MAX_ATTEMPTS} and n.created_at > now() - interval '24 hours'
+        and (n.email_claimed_until is null or n.email_claimed_until < now())
         and p.auth_user_id is not null and coalesce((p.permissions ->> 'emailNotifications')::boolean, false)
       order by n.created_at
       limit ${limit}
-      for update of n skip locked`);
-    let sent = 0;
-    for (const row of rows) {
-      const url = `${appUrl}${row.link?.startsWith("/") ? row.link : "/"}`;
-      try {
-        await sendEmail(notificationEmail(row.email, row.name, row.message, url), `notification:${row.id}`);
-        await tx.execute(sql`update demo_notifications set emailed_at = now(), email_attempts = email_attempts + 1 where id = ${row.id}`);
-        sent++;
-      } catch (err) {
-        // A permanent refusal (bad address, unverified domain) isn't retried.
-        const attempts = err instanceof EmailError && !err.retryable ? sql`${MAX_ATTEMPTS}` : sql`email_attempts + 1`;
-        await tx.execute(sql`update demo_notifications set email_attempts = ${attempts} where id = ${row.id}`);
-        logger.warn({ notification: row.id, err: (err as Error).message }, "Notification email failed");
-      }
+      for update of n skip locked
+    ), claimed as (
+      update demo_notifications d set email_claimed_until = now() + interval '2 minutes', email_attempts = d.email_attempts + 1
+      from due where d.id = due.id
+      returning d.id, d.message, d.link, d.profile_id
+    )
+    select c.id, c.message, c.link, p.email, p.name from claimed c join demo_profiles p on p.id = c.profile_id`);
+  let sent = 0;
+  for (const row of rows) {
+    const url = `${appUrl}${row.link?.startsWith("/") ? row.link : "/"}`;
+    try {
+      await sendEmail(notificationEmail(row.email, row.name, row.message, url), `notification:${row.id}`);
+      await db.execute(sql`update demo_notifications set emailed_at = now(), email_claimed_until = null where id = ${row.id}`);
+      sent++;
+    } catch (err) {
+      // A permanent refusal (bad address, unverified domain) isn't retried; otherwise try again after a minute.
+      const giveUp = err instanceof EmailError && !err.retryable;
+      await db.execute(giveUp
+        ? sql`update demo_notifications set email_attempts = ${MAX_ATTEMPTS}, email_claimed_until = null where id = ${row.id}`
+        : sql`update demo_notifications set email_claimed_until = now() + interval '1 minute' where id = ${row.id}`);
+      logger.warn({ notification: row.id, err: (err as Error).message }, "Notification email failed");
     }
-    return sent;
-  });
+  }
+  return sent;
 }
 
 export function startNotificationMailer(intervalMs = 15_000) {

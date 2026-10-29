@@ -1,7 +1,7 @@
 import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
@@ -27,9 +27,32 @@ if (!basePath) {
   );
 }
 
+/**
+ * Content-Security-Policy for the production build only (the dev server injects inline scripts). Scripts come only from
+ * this site, so injected markup can't run code or read the stored Supabase session; network calls go only to this site
+ * (the API) and Supabase Auth; fonts from Google Fonts.
+ */
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "img-src 'self' data: blob:",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ');
+const productionCsp: Plugin = {
+  name: 'production-csp',
+  apply: 'build',
+  transformIndexHtml: () => [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: CSP }, injectTo: 'head-prepend' }],
+};
+
 export default defineConfig({
   base: basePath,
   plugins: [
+    productionCsp,
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),

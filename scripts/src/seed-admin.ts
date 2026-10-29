@@ -54,7 +54,7 @@ if (!user) {
   }
 }
 
-const client = new pg.Client({ connectionString: requireEnv("SUPABASE_DB_URL"), ssl: supabaseSsl });
+const client = new pg.Client({ connectionString: requireEnv("SUPABASE_ADMIN_DB_URL"), ssl: supabaseSsl });
 await client.connect();
 try {
   const { rowCount } = await client.query(

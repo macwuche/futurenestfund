@@ -770,10 +770,13 @@ function EmailNotificationsSwitch({ on }: { on: boolean }) {
     onError: (e) => toast({ title: "Couldn't save", description: apiError(e, 'Please try again.'), variant: 'destructive' }),
   });
   return (
+    // A 44px tap area around the 28px switch, so it's easy to hit on a phone.
     <button type="button" role="switch" aria-checked={on} aria-labelledby="label-email-notifications" data-testid="switch-email-notifications" disabled={m.isPending} onClick={toggle}
-      className={cx('relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:opacity-60', on ? 'bg-[#1E3A8A]' : 'bg-slate-300')}>
-      <span className={cx('absolute h-5 w-5 rounded-full bg-white shadow transition-all', on ? 'left-6' : 'left-1')} />
-      {m.isPending && <Loader2 className="absolute -left-6 h-4 w-4 animate-spin text-slate-400" aria-label="Saving" />}
+      className="group relative -my-2 inline-flex h-11 w-14 shrink-0 items-center justify-end disabled:opacity-60">
+      {m.isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin text-slate-400" aria-label="Saving" />}
+      <span className={cx('relative inline-flex h-7 w-12 items-center rounded-full transition-colors group-focus-visible:ring-2 group-focus-visible:ring-[#1E3A8A]/40', on ? 'bg-[#1E3A8A]' : 'bg-slate-300')}>
+        <span className={cx('absolute h-5 w-5 rounded-full bg-white shadow transition-all', on ? 'left-6' : 'left-1')} />
+      </span>
     </button>
   );
 }

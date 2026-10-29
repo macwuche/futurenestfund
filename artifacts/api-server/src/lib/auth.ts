@@ -1,6 +1,7 @@
-import { randomInt } from "node:crypto";
+import { createHash, randomInt } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
+import { createRemoteJWKSet } from "jose";
+import { AuthError, AuthUnavailable, verifySupabaseToken, type SupabaseClaims } from "./tokens";
 import { eq } from "drizzle-orm";
 import { db, demoProfilesTable } from "@workspace/db";
 import { logger } from "./logger";
@@ -47,21 +48,10 @@ const issuer = `${supabaseUrl}/auth/v1`;
 // Supabase signs access tokens with asymmetric keys published here; jose caches them and refetches on rotation.
 const jwks = authMode === "supabase" ? createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`)) : null;
 
-type SupabaseClaims = JWTPayload & {
-  email?: string;
-  role?: string;
-  app_metadata?: { role?: unknown };
-  user_metadata?: { name?: unknown; organization?: unknown };
-};
-
-class AuthError extends Error {}
-
-/** Verifies a Supabase access token: signature, issuer, audience, expiry, and a signed-in (non-anonymous) user. */
-export async function verifyAccessToken(token: string): Promise<SupabaseClaims & { exp: number }> {
+/** Verifies a Supabase access token against this project's published keys (see verifySupabaseToken). */
+export async function verifyAccessToken(token: string) {
   if (!jwks) throw new AuthError("Sign-in is not configured.");
-  const { payload } = await jwtVerify<SupabaseClaims>(token, jwks, { issuer, audience: "authenticated", algorithms: ["ES256", "RS256"] });
-  if (payload.role !== "authenticated" || !payload.sub || !payload.email || !payload.exp) throw new AuthError("Not a signed-in user.");
-  return payload as SupabaseClaims & { exp: number };
+  return verifySupabaseToken(token, jwks, issuer);
 }
 
 function bearer(req: Request): string | undefined {
@@ -72,16 +62,49 @@ function bearer(req: Request): string | undefined {
   return undefined;
 }
 
-const roleOf = (claims: SupabaseClaims): Role => {
-  const role = claims.app_metadata?.role; // app_metadata is only writable with the secret key
+const roleOf = (appMetadata: { role?: unknown } | undefined): Role => {
+  const role = appMetadata?.role; // app_metadata is only writable with the secret key
   return role === "admin" || role === "root" ? role : "applicant";
 };
+
+/**
+ * A valid signature isn't enough: the session may have been signed out, the user banned or their role changed since the
+ * token was issued (tokens live up to an hour). Supabase's /user endpoint answers 403 for any of those, so each token is
+ * re-checked there at most once a minute, and the role is taken from that live answer.
+ */
+const LIVE_TTL_MS = 60_000;
+const liveCache = new Map<string, { until: number; appMetadata: { role?: unknown } }>();
+async function liveUser(token: string): Promise<{ role?: unknown }> {
+  const key = createHash("sha256").update(token).digest("base64url");
+  const now = Date.now();
+  const hit = liveCache.get(key);
+  if (hit && hit.until > now) return hit.appMetadata;
+  let res: globalThis.Response;
+  try {
+    res = await fetch(`${issuer}/user`, { headers: { apikey: publishableKey!, Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5_000) });
+  } catch (err) {
+    throw new AuthUnavailable((err as Error).message);
+  }
+  if (res.status === 401 || res.status === 403) { liveCache.delete(key); throw new AuthError("Your session has ended. Please sign in again."); }
+  if (!res.ok) throw new AuthUnavailable(`Supabase /user answered ${res.status}`);
+  const user = (await res.json()) as { app_metadata?: { role?: unknown } };
+  if (liveCache.size > 10_000) for (const [k, v] of liveCache) if (v.until <= now) liveCache.delete(k);
+  liveCache.set(key, { until: now + LIVE_TTL_MS, appMetadata: user.app_metadata ?? {} });
+  return user.app_metadata ?? {};
+}
 const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
 /** The applicant's profile, created on their first signed-in request. */
 async function applicantProfileId(authUserId: string, email: string, claims: SupabaseClaims): Promise<string> {
-  const [existing] = await db.select({ id: demoProfilesTable.id }).from(demoProfilesTable).where(eq(demoProfilesTable.authUserId, authUserId));
-  if (existing) return existing.id;
+  const [existing] = await db.select({ id: demoProfilesTable.id, email: demoProfilesTable.email }).from(demoProfilesTable).where(eq(demoProfilesTable.authUserId, authUserId));
+  if (existing) {
+    // Keep notification emails going to the address the account uses now (e.g. after an email change).
+    if (existing.email !== email) {
+      await db.update(demoProfilesTable).set({ email }).where(eq(demoProfilesTable.id, existing.id))
+        .catch((err) => logger.warn({ err: (err as Error).message, profile: existing.id }, "Could not update profile email"));
+    }
+    return existing.id;
+  }
   const id = `usr-${authUserId}`;
   await db.insert(demoProfilesTable).values({
     id,
@@ -119,7 +142,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
   }
   try {
     const claims = await verifyAccessToken(token);
-    const role = roleOf(claims);
+    const role = roleOf(await liveUser(token));
     const email = claims.email!.toLowerCase();
     req.identity = {
       mode: "supabase", authUserId: claims.sub!, email, role,
@@ -128,8 +151,10 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     };
     next();
   } catch (err) {
-    if (err instanceof AuthError || (err as { code?: string }).code?.startsWith("ERR_J")) {
-      res.status(401).json({ error: err instanceof AuthError ? err.message : "Your session has expired or is invalid. Please sign in again." });
+    if (err instanceof AuthError) { res.status(401).json({ error: err.message }); return; }
+    if (err instanceof AuthUnavailable) {
+      logger.error({ err: err.message }, "Sign-in check unavailable");
+      res.status(503).json({ error: "We couldn't check your sign-in right now. Please try again in a moment." });
       return;
     }
     logger.error({ err }, "Authentication failed");

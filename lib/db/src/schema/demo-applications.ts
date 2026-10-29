@@ -42,4 +42,6 @@ export const demoNotificationsTable = pgTable("demo_notifications", {
   /** Set once the notification email went out (see api-server notificationMailer). */
   emailedAt: timestamp("emailed_at", { withTimezone: true }),
   emailAttempts: integer("email_attempts").notNull().default(0),
+  /** While set and in the future, a mailer has claimed this row and is sending it. */
+  emailClaimedUntil: timestamp("email_claimed_until", { withTimezone: true }),
 }).enableRLS();

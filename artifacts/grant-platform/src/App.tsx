@@ -6,7 +6,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { DemoProvider } from '@/lib/demo-state';
 import { AuthProvider, useAuth } from '@/lib/auth';
-import { SignInPage, SignUpPage, ForgotPasswordPage, ResetPasswordPage, AuthLoading, AuthUnavailable, safeNext } from '@/pages/auth';
+import { SignInPage, SignUpPage, ForgotPasswordPage, ResetPasswordPage, ConfirmPage, AuthLoading, AuthUnavailable } from '@/pages/auth';
+import { safeNext } from '@/lib/safe-next';
 import {
   DashboardPage, GrantsPage, ApplicationsPage, ApplicationDetailPage, CardsPage, TransactionsPage, WithdrawalsPage, DepositsPage, SettingsPage,
 } from '@/pages/applicant';
@@ -79,6 +80,8 @@ function AuthGate() {
   if (auth.status === 'loading') return <AuthLoading />;
   if (auth.status === 'error') return <AuthUnavailable onRetry={auth.retry} />;
   if (auth.status === 'demo') return <Workspace scope="" />;
+  // Email links land here signed in or not (an email-change link is opened while signed in).
+  if (loc === '/auth/confirm') return <ConfirmPage />;
 
   const AuthPage = AUTH_PAGES[loc];
   if (auth.status === 'signed-out') {

@@ -6,6 +6,7 @@ import { DemoInputError } from "./lib/demoWorkspace";
 import { RecordInputError } from "./lib/applicantRecords";
 import { UploadError } from "./lib/uploads";
 import { sendEmailHook } from "./lib/sendEmailHook";
+import { hookLimit } from "./lib/rateLimit";
 
 const app: Express = express();
 
@@ -29,14 +30,24 @@ app.use(
   }),
 );
 app.disable("x-powered-by");
+// Behind nginx on the VPS set TRUST_PROXY=1 (the number of proxies in front), so req.ip and req.secure are the visitor's.
+const trustProxy = process.env.TRUST_PROXY?.trim();
+if (trustProxy) app.set("trust proxy", /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy);
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "same-origin");
+  // The API only returns JSON and files: nothing may frame it, run scripts in it or embed it cross-site.
+  // (Downloads set their own sandboxed CSP in lib/uploads.ts.)
+  res.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  if (process.env.NODE_ENV === "production") res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
   next();
 });
 // Signed by Supabase over the exact bytes, so it needs the raw body and must come before express.json().
-app.post("/api/hooks/supabase/send-email", express.raw({ type: () => true, limit: "64kb" }), sendEmailHook);
-app.use(express.json());
+app.post("/api/hooks/supabase/send-email", hookLimit, express.raw({ type: () => true, limit: "64kb" }), sendEmailHook);
+app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);

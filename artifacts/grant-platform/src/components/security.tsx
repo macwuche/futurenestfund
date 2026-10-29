@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { KeyRound, Loader2, LogOut, MonitorSmartphone, ShieldCheck } from 'lucide-react';
+import { KeyRound, Loader2, LogOut, MonitorSmartphone } from 'lucide-react';
 import { cx, Field, inputCls, Modal } from '@/components/bits';
-import { authErrorMessage, useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
+import { authErrorMessage } from '@/lib/auth-errors';
 import { useToast } from '@/hooks/use-toast';
 
 type Tone = 'user' | 'admin';
@@ -50,7 +51,7 @@ export function AccountSecurity({ tone }: { tone: Tone }) {
 }
 
 function ChangePassword({ tone }: { tone: Tone }) {
-  const { client, me } = useAuth();
+  const { client, me, signOutOthers } = useAuth();
   const { toast } = useToast();
   const s = styles[tone];
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +68,9 @@ function ChangePassword({ tone }: { tone: Tone }) {
     const { error: e } = await client!.auth.updateUser({ password: v.password });
     if (e) { setError(authErrorMessage(e)); return; }
     f.reset();
-    toast({ title: 'Password changed', description: 'Use your new password next time you sign in.' });
+    // Whoever might have known the old password loses any session they had (OWASP: end other sessions on a change).
+    const othersOut = await signOutOthers().then(() => true, () => false);
+    toast({ title: 'Password changed', description: othersOut ? "You've been signed out on your other devices." : 'Use your new password next time you sign in.' });
   });
   return (
     <form onSubmit={submit} noValidate className="space-y-4" data-testid="form-change-password">
@@ -128,9 +131,6 @@ function Sessions({ tone }: { tone: Tone }) {
         </button>
       </div>
       <p className="text-xs leading-relaxed text-slate-500">Other devices can't sign back in without your password. One that's open right now is signed out within an hour. If you think someone else knows your password, change it too.</p>
-      <div className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-600" data-testid="text-2fa-soon">
-        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />Two-factor sign-in with an authenticator app is coming soon.
-      </div>
       <Modal open={confirmAll} onClose={() => busy === null && setConfirmAll(false)} title="Sign out everywhere?" testid="dialog-sign-out-everywhere">
         <p className="text-sm text-slate-600">This signs you out on every device, including this one. You'll need your password to sign back in.</p>
         <div className="mt-5 flex flex-wrap justify-end gap-3">
