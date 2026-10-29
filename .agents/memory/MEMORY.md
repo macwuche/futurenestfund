@@ -1,1 +1,1 @@
-- [New-app data isolation](data-isolation.md) — a reused account authorization is not permission to reuse the existing grant app's database.
+- [New-app data isolation](data-isolation.md) — only Supabase project `futurenestfund` (fybslfcepjnswcnoewgi) may be used; never the GrantFlow Hub one.

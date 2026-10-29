@@ -518,7 +518,7 @@ Why this order:
 - Login comes before true 4-eyes because two-person approval is meaningless without knowing who the two people are.
 - Tests come last as a phase, but each phase adds tests for the money rules it touches.
 
-### 8e. Decisions needed (1 and 2 settled on 2026-10-21, see the Phase 3 log)
+### 8e. Decisions needed (1 and 2 settled on 2026-10-21, see the Phase 3 log; 3 settled on 2026-10-28, see §9)
 
 1. **Admin design:** is there a design image for the admin side, or should we follow the written admin spec?
 2. **Applications review (A9):** admins need somewhere to approve applications. Should we add an "Applications" item to the admin menu, or put it inside Users?
@@ -769,3 +769,36 @@ Still open after Phase 3:
 - Debit adjustments, card controls, real admin avatar upload (A4); threshold limits (A10); full audit-log viewer (A11); directory sorting/pagination (A3).
 - Decisions 3 (dedicated Supabase project) and 4 (rule-based vs AI matchmaking) in §8e are still open.
 - Next: Phase 4 (real accounts: P1, P2, U12).
+
+---
+
+## 9. Phase 4 build plan: real accounts on Supabase (2026-10-28)
+
+Decision 3 (§8e) is settled: the app gets its **own** Supabase project, `futurenestfund` (ref `fybslfcepjnswcnoewgi`, EU / eu-central-1). Checked on 2026-10-28: it was empty (no public tables, no auth users). The other project ref that appeared in the pasted connection details (`ukeikuaduqmbkkhmzewg`) is **not** this app's and is never used (see `.agents/memory/data-isolation.md`).
+
+Secrets live in Replit Secrets / env vars, never in git: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `SUPABASE_DB_URL` (session pooler, port 5432), `ADMIN_SEED_EMAIL`, `ADMIN_SEED_PASSWORD`.
+
+| Step | Goal | What gets built | Done when |
+|---|---|---|---|
+| **4.1 Seed the admin** (this step) | The first real administrator exists in Supabase | `lib/db/supabase/migrations/0001_user_roles.sql`: `public.user_roles` (user id → `auth.users`, role `applicant` / `admin` / `root`), RLS on with no public policies, like every other table. `scripts/src/supabase-migrate.ts` applies migrations once each (tracked in `public.app_migrations`). `scripts/src/seed-admin.ts`: creates the admin through the Auth Admin API with the email pre-confirmed, sets `app_metadata.role = "admin"` (users can't edit app_metadata, so it's safe to read from the JWT), and writes the `user_roles` row. Re-running it changes nothing; it never resets an existing password unless `--reset-password` is passed. | Admin can sign in with email + password against Supabase Auth (verified with a real password grant); script is idempotent (verified by running it twice) |
+| 4.2 Move app data to Supabase | One database for auth and data | Point `DATABASE_URL` at the Supabase pooler, `drizzle-kit push` the `demo_*` schema, boot seeds sample data there; Replit Postgres stays as fallback | All earlier test suites pass against Supabase |
+| 4.3 API auth | Every request knows who is calling | Verify the Supabase JWT on the API; `currentUserId()` / `currentAdmin()` read it; `/admin/*` requires role `admin` or `root`; applicant profiles linked to `auth.users` | Unauthenticated calls get 401, applicants get 403 on admin routes |
+| 4.4 Sign-in UI | Real login replaces the workspace switch | Sign-in, sign-up with email confirmation, password reset, sign-out; admin-only routes guarded | Click tests for each flow |
+| 4.5 TOTP 2FA | Admins must use 2FA | Supabase MFA enrolment + challenge; admin routes require AAL2 | Admin without 2FA can't reach `/admin` |
+| 4.6 Email (P2) | Real emails | Resend + Supabase Send Email Hook for confirmations / reset / notifications | Emails delivered from the app's domain |
+| 4.7 Settings security (U12) | Users manage their own security | Change password, 2FA management, sign out other sessions | Click tests |
+
+Not in 4.1: no frontend changes, no API changes, the demo data stays on Replit Postgres. The live app keeps working exactly as before.
+
+### 2026-10-28: Step 4.1 done (admin seeded in Supabase)
+
+- `pnpm --filter @workspace/scripts run supabase:migrate` applied `0001_user_roles.sql` (`public.user_roles`, plus `public.app_migrations` for tracking). Both tables have RLS on with no policies.
+- `pnpm --filter @workspace/scripts run seed:admin` created `admin@futurenestfund.org` (auth id `c1ef1ffe-496d-491d-9a1f-40450e563d77`): email pre-confirmed, `app_metadata.role = "admin"`, `user_roles` row `admin`.
+- Checked:
+  - a second run of both scripts changed nothing ("already applied", "auth record unchanged", "already up to date")
+  - a real password sign-in with the publishable key succeeds; the JWT carries `app_metadata.role: admin` (aal1, since there's no 2FA until 4.5)
+  - a wrong password is refused (`invalid_credentials`)
+  - the public REST API returns `[]` for `user_roles` (RLS blocks it)
+- Both scripts need the §9 env vars. `SUPABASE_SECRET_KEY` is already in Replit Secrets; **the other five still need adding** there (they were supplied inline for this run).
+- The app itself is unchanged: the API still uses the demo identities and the Replit database. The admin can sign in to Supabase, but the app won't ask for that until 4.3 / 4.4.
+- Next: 4.2 (move the app's data to Supabase).

@@ -20,6 +20,7 @@ This is an explicitly labeled **interactive demo**, not a production financial s
 - `pnpm --filter @workspace/api-spec run codegen` after every OpenAPI edit
 - `pnpm run typecheck` for all libraries and apps
 - `pnpm --filter @workspace/db run push` for development schema changes
+- Supabase (`futurenestfund`, ref `fybslfcepjnswcnoewgi`, the only project this app uses): `pnpm --filter @workspace/scripts run supabase:migrate` applies `lib/db/supabase/migrations/*.sql` once each; `pnpm --filter @workspace/scripts run seed:admin` creates or repairs the admin (idempotent; `-- --reset-password` to reset). Both need `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_DB_URL` (session pooler), `ADMIN_SEED_EMAIL`, `ADMIN_SEED_PASSWORD` in Replit Secrets.
 - Restart the existing managed workflows, never start duplicate servers.
 
 ## User-requested production stack

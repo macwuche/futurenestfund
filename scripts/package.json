@@ -5,10 +5,16 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "supabase:migrate": "tsx ./src/supabase-migrate.ts",
+    "seed:admin": "tsx ./src/seed-admin.ts"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/pg": "^8.23.1",
     "tsx": "catalog:"
+  },
+  "dependencies": {
+    "pg": "^8.23.0"
   }
 }
