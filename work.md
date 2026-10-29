@@ -802,3 +802,44 @@ Not in 4.1: no frontend changes, no API changes, the demo data stays on Replit P
 - Both scripts need the §9 env vars. `SUPABASE_SECRET_KEY` is already in Replit Secrets; **the other five still need adding** there (they were supplied inline for this run).
 - The app itself is unchanged: the API still uses the demo identities and the Replit database. The admin can sign in to Supabase, but the app won't ask for that until 4.3 / 4.4.
 - Next: 4.2 (move the app's data to Supabase).
+
+### 2026-10-29: Step 4.2 built and tested (app data on Supabase), region decision open
+
+Code:
+- `lib/db/src/connection.ts` picks the database: **Supabase when `SUPABASE_DB_URL` is set**, otherwise the Replit Postgres fallback (`DATABASE_URL`). The app (`lib/db/src/index.ts`, TLS, pool of 5 for the session pooler) and `drizzle-kit` (`drizzle.config.ts`) both use it. The API's "Server listening" log line names the database in use.
+- `drizzle.config.ts` now has `tablesFilter: ["demo_*"]`, so a push can never drop the Supabase-side `user_roles` / `app_migrations` tables.
+
+Done on Supabase (`futurenestfund`):
+- `drizzle-kit push` created all 11 `demo_*` tables (RLS on for each). `user_roles` and its admin row were untouched.
+- Copied the Replit data across with `pg_dump --data-only`. All 11 tables match row for row (compared by column name, since Replit's tables have a different column order from later `ALTER`s). It was only sample seed data: no uploads, requests or notifications.
+- Booted the API against Supabase. The seed found everything present and inserted nothing new; the append-only triggers are installed.
+- Supabase runs Postgres 17, but the shell's `pg_dump` is 16 and refuses to dump it. Use `/nix/store/269nimkimaaivb4z46bjc1rnjv9jpc0l-postgresql-17.6/bin/pg_dump` for Supabase backups.
+
+Tested (API copy on :8099 against Supabase via the proxy, Supabase data restored before each suite and at the end):
+- API 24/24; smoke 46/46; Phase 1 desktop 26/26, phone 10/10; Phase 2 desktop 25/25, phone 6/6; Phase 3 desktop 22/22, phone 16/16. **175 checks, all passing.**
+- The first run had 9 failures (phase3-desktop 14/22, phase2-phone 5/6). They came from two races in the test scripts, which the slower database exposed, not from app bugs:
+  - a check for the freeze banner ran before its query had loaded; it failed before the test could unfreeze, so the next six checks ran against a frozen platform
+  - a click came before the button had rendered
+- Fixed both tests (they now wait, and the freeze test always unfreezes in a `finally`).
+
+**Latency: the open issue.** The Replit container is in Oregon (US). The Supabase project is in Frankfurt (EU). Each query is a ~144 ms round trip, against ~1 ms locally, and endpoints run queries one after another:
+
+| Endpoint | Supabase (EU) | Replit DB |
+|---|---|---|
+| `applicant/applications` | 0.14 s | <0.01 s |
+| `admin/users`, `admin/transactions` | 0.29 s | <0.01 s |
+| `admin/users/:id` | 0.43 s | <0.01 s |
+| `applicant/account`, `admin/dashboard` | 1.15 s | ~0.01 s |
+
+An approval runs ~10 statements in one transaction, so it would take about 1.5 s. Options (decision needed):
+1. **Make a new Supabase project in a US West region next to Replit** (recommended, unless EU hosting is required for the users' data). Queries drop to a few ms. A project's region can't be changed after it's created, but redoing 4.1 and 4.2 is a few minutes with the scripts.
+2. Keep EU and run independent queries in parallel. That brings the slow pages to ~0.3 s, but transactions (approvals) stay slow.
+3. Keep EU as it is.
+
+The live app is unchanged until `SUPABASE_DB_URL` is added to Replit Secrets **and** the API Server workflow restarts. Holding off on that until the region is settled.
+
+**Decision (2026-10-29): keep the EU project.** The production server is an EU VPS, so in production the API sits next to Supabase (Frankfurt) and queries should be a few ms. The ~144 ms round trips only affect development on Replit's US container. So:
+- Production (EU VPS): set `SUPABASE_DB_URL`.
+- Replit development: leave `SUPABASE_DB_URL` unset to stay on the fast Replit fallback, or set it to work against Supabase and accept the slower pages.
+- Measure latency again from the VPS once it's deployed. Running queries in parallel (option 2) can still come later if a page is slow there.
+- Deployment target is the EU VPS, not Replit autoscale. Uploads still need persistent disk there (P4).

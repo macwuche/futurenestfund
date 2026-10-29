@@ -1,16 +1,14 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "./schema";
+import { resolveDatabase } from "./connection";
 
 const { Pool } = pg;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
-}
+export const database = resolveDatabase();
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// The Supabase session pooler caps clients per project, so keep the pool small there.
+export const pool = new Pool({ connectionString: database.url, ssl: database.ssl, max: database.target === "supabase" ? 5 : 10 });
 export const db = drizzle(pool, { schema });
 
 export * from "./schema";
