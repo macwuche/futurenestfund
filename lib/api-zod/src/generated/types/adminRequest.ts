@@ -12,6 +12,7 @@ import type { AdminRequestVerificationLevel } from './adminRequestVerificationLe
 
 export interface AdminRequest {
   id: string;
+  reference: string;
   kind: AdminRequestKind;
   amount: number;
   note: string;

@@ -19,4 +19,8 @@ export interface ApplicantTransaction {
   description: string;
   status: ApplicantTransactionStatus;
   createdAt: Date;
+  /** Short reference for a deposit or withdrawal request */
+  reference?: string;
+  /** Why a request was declined */
+  reviewNote?: string;
 }

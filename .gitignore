@@ -53,3 +53,6 @@ Thumbs.db
 
 # Uploaded files written by the API server (UPLOAD_DIR)
 artifacts/api-server/uploads/
+
+# Local secrets file (never commit)
+/secrets.local.md

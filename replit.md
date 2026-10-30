@@ -1,5 +1,7 @@
 # Grant Platform
 
+Full documentation: [`docs/PROJECT.md`](docs/PROJECT.md). Secret values: the git-ignored `secrets.local.md` (never commit it). Build log: `work.md`.
+
 A new grant-management web app built from the supplied applicant and admin dashboard/profile specifications.
 
 ## Current delivery

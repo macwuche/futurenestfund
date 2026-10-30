@@ -201,6 +201,27 @@ function useUserPatch(u: AdminUserProfile) {
   return { run, pending: m.isPending, variables: m.variables };
 }
 
+/** Admin override for one notification channel: left to the user, forced on or forced off. The admin's choice wins. */
+function NotificationOverride({ u, perms, k, label, userChoice }: {
+  u: AdminUserProfile; perms: ReturnType<typeof useUserPatch>; k: 'emailOverride' | 'inAppOverride'; label: string; userChoice: string;
+}) {
+  const value = u.permissions[k] ?? null;
+  const options = [[null, userChoice], [true, 'Always on'], [false, 'Always off']] as const;
+  const saving = perms.pending && (perms.variables?.data.permissions?.[k] ?? null) !== value;
+  return (
+    <div className="space-y-2 rounded-lg border px-3 py-2.5 text-sm" data-testid={`group-${k}`}>
+      <span id={`label-${k}`} className="flex items-center gap-2">{label}{saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" aria-label="Saving" />}</span>
+      <div role="radiogroup" aria-labelledby={`label-${k}`} className="grid grid-cols-3 gap-1.5">
+        {options.map(([v, text]) => (
+          <button key={String(v)} type="button" role="radio" aria-checked={value === v} data-testid={`button-${k}-${v === null ? 'user' : v ? 'on' : 'off'}`} disabled={perms.pending}
+            onClick={() => value !== v && perms.run({ permissions: { ...u.permissions, [k]: v } }, `${label}: ${v === null ? "left to the user" : v ? 'always on' : 'always off'}`)}
+            className={cx('press min-h-11 rounded-lg border px-2 py-1.5 text-xs font-semibold leading-tight transition', value === v ? 'border-[#111] bg-[#111] text-[#C6F432]' : 'border-slate-300 hover:border-[#111]')}>{text}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Inspector({ u }: { u: AdminUserProfile }) {
   const { toast } = useToast();
   const profile = useUserPatch(u), tier = useUserPatch(u), perms = useUserPatch(u), freeze = useUserPatch(u);
@@ -213,7 +234,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
   const f = useForm<z.infer<typeof profSchema>>({ resolver: zodResolver(profSchema), defaultValues: { name: u.name, phone: u.phone, telegram: u.telegram } });
   useEffect(() => { f.reset({ name: u.name, phone: u.phone, telegram: u.telegram }); }, [u.name, u.phone, u.telegram, f]);
   const permList = [
-    ['emailNotifications', 'Email notifications'], ['withdrawalKycRequired', 'Withdrawal requires KYC'], ['depositKycRequired', 'Deposit requires KYC'],
+    ['withdrawalKycRequired', 'Withdrawal requires KYC'], ['depositKycRequired', 'Deposit requires KYC'],
   ] as const;
   const savingPerm = perms.pending ? Object.keys(perms.variables?.data.permissions ?? {}).find((k) => perms.variables?.data.permissions?.[k as keyof typeof u.permissions] !== u.permissions[k as keyof typeof u.permissions]) : undefined;
   return (
@@ -264,6 +285,9 @@ function Inspector({ u }: { u: AdminUserProfile }) {
               </button>
             </div>
           ))}
+          <NotificationOverride u={u} perms={perms} k="emailOverride" label="Email notifications"
+            userChoice={`User's choice (${u.permissions.emailNotifications ? 'on' : 'off'})`} />
+          <NotificationOverride u={u} perms={perms} k="inAppOverride" label="In-app notifications" userChoice="User's choice (on)" />
         </div>
       </div>
 

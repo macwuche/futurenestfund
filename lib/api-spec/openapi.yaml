@@ -858,6 +858,8 @@ components:
         description: { type: string }
         status: { type: string, enum: [Pending, Completed, Declined] }
         createdAt: { type: string, format: date-time }
+        reference: { type: string, description: "Short reference for a deposit or withdrawal request" }
+        reviewNote: { type: string, description: "Why a request was declined" }
       required: [id, type, account, direction, amount, description, status, createdAt]
     ApplicantAccount:
       type: object
@@ -1186,6 +1188,8 @@ components:
         emailNotifications: { type: boolean }
         withdrawalKycRequired: { type: boolean }
         depositKycRequired: { type: boolean }
+        emailOverride: { type: [boolean, "null"], description: "Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user" }
+        inAppOverride: { type: [boolean, "null"], description: "Set by an administrator: false hides in-app notifications from the user; null/true shows them" }
       required: [emailNotifications, withdrawalKycRequired, depositKycRequired]
     AuditEntry:
       type: object
@@ -1290,6 +1294,7 @@ components:
       type: object
       properties:
         id: { type: string }
+        reference: { type: string }
         kind: { type: string, enum: [Deposit, Withdrawal] }
         amount: { type: number }
         note: { type: string }
@@ -1306,7 +1311,7 @@ components:
         reviewNote: { type: string }
         reviewedBy: { type: string }
         reviewedAt: { type: string, format: date-time }
-      required: [id, kind, amount, note, status, createdAt, userId, userName, organization, userStatus, verificationLevel, kycRequired, grantBalance, depositBalance]
+      required: [id, reference, kind, amount, note, status, createdAt, userId, userName, organization, userStatus, verificationLevel, kycRequired, grantBalance, depositBalance]
     LedgerEntry:
       type: object
       properties:

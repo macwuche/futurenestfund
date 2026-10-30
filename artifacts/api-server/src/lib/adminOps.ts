@@ -3,7 +3,7 @@ import {
   db, demoProfilesTable, demoAuditTable, demoLedgerTable, demoSettingsTable, demoRequestsTable, demoApplicationsTable,
   demoApplicationEventsTable, demoFilesTable, demoKycDocumentsTable, type DemoProfile,
 } from "@workspace/db";
-import { notifyUser } from "./notifications";
+import { notifyUser, requestEmailData, requestReference } from "./notifications";
 import { applicationSummary } from "./applicantRecords";
 import { KYC_KINDS } from "./kyc";
 import { fileUrl, type DbTx } from "./uploads";
@@ -126,7 +126,7 @@ type RequestRow = typeof demoRequestsTable.$inferSelect;
 const adminRequest = (r: RequestRow, p: DemoProfile) => {
   const perms = (p.permissions ?? {}) as Perms;
   return {
-    id: r.id, kind: r.kind as "Deposit" | "Withdrawal", amount: r.amountCents / 100, note: r.note, status: r.status as "Pending" | "Completed" | "Declined",
+    id: r.id, reference: requestReference(r.id), kind: r.kind as "Deposit" | "Withdrawal", amount: r.amountCents / 100, note: r.note, status: r.status as "Pending" | "Completed" | "Declined",
     createdAt: r.createdAt.toISOString(),
     userId: p.id, userName: p.name, organization: p.organization, userStatus: p.status, verificationLevel: p.verificationLevel,
     kycRequired: !!(r.kind === "Withdrawal" ? perms.withdrawalKycRequired : perms.depositKycRequired),
@@ -190,7 +190,10 @@ export async function approveRequest(id: string, actor: string) {
       reason: r.note || `${r.kind} request approved`, requestId: r.id, actor,
     });
     await tx.insert(demoAuditTable).values({ profileId: profile.id, actor, action: `${r.kind} request ${r.id.slice(0, 8)} approved ${deposit ? "+" : "−"}${usd(r.amountCents)}` });
-    await notifyUser(profile.id, `Your ${r.kind.toLowerCase()} of ${usd(r.amountCents)} was approved`, deposit ? "/deposits" : "/withdrawals", tx);
+    await notifyUser(profile.id, deposit
+      ? `Your deposit of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was approved and added to your deposit balance`
+      : `Your withdrawal of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was approved. Your funds have been released.`,
+    deposit ? "/deposits" : "/withdrawals", tx, { kind: "request_approved", data: requestEmailData(r) });
     return adminRequest({ ...r, status: "Completed", reviewedAt, reviewedBy: actor }, { ...profile, ...change });
   });
 }
@@ -206,7 +209,8 @@ export async function rejectRequest(id: string, reason: string, actor: string) {
     const reviewedAt = new Date();
     await tx.update(demoRequestsTable).set({ status: "Declined", reviewNote: note, reviewedAt, reviewedBy: actor }).where(eq(demoRequestsTable.id, r.id));
     await tx.insert(demoAuditTable).values({ profileId: profile.id, actor, action: `${r.kind} request ${r.id.slice(0, 8)} declined · ${note}` });
-    await notifyUser(profile.id, `Your ${r.kind.toLowerCase()} request of ${usd(r.amountCents)} was declined: ${note}`, r.kind === "Deposit" ? "/deposits" : "/withdrawals", tx);
+    await notifyUser(profile.id, `Your ${r.kind.toLowerCase()} request of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was declined: ${note}`,
+      r.kind === "Deposit" ? "/deposits" : "/withdrawals", tx, { kind: "request_declined", data: requestEmailData(r, note) });
     return adminRequest({ ...r, status: "Declined", reviewNote: note, reviewedAt, reviewedBy: actor }, profile);
   });
 }

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, integer, boolean, date } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, integer, boolean, date, jsonb } from "drizzle-orm/pg-core";
 
 // Applicant-owned records. Sample data only, isolated from any production grant system.
 export const demoApplicationsTable = pgTable("demo_applications", {
@@ -44,4 +44,10 @@ export const demoNotificationsTable = pgTable("demo_notifications", {
   emailAttempts: integer("email_attempts").notNull().default(0),
   /** While set and in the future, a mailer has claimed this row and is sending it. */
   emailClaimedUntil: timestamp("email_claimed_until", { withTimezone: true }),
+  /** Dedicated email template for this notification (e.g. "withdrawal_requested"); null uses the generic one. */
+  emailKind: text("email_kind"),
+  /** Values for that template (amount, reference, reason). */
+  emailData: jsonb("email_data"),
+  /** False when an administrator turned in-app notifications off for the user: kept for the email, hidden from the bell. */
+  inApp: boolean("in_app").notNull().default(true),
 }).enableRLS();

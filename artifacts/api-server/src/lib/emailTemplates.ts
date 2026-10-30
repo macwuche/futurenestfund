@@ -4,7 +4,8 @@ import type { OutgoingEmail } from "./email";
 export const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
-type Block = { kind: "p"; text: string } | { kind: "button"; label: string; href: string } | { kind: "code"; code: string } | { kind: "small"; text: string };
+type Block = { kind: "p"; text: string } | { kind: "button"; label: string; href: string } | { kind: "code"; code: string } | { kind: "small"; text: string }
+  | { kind: "rows"; rows: [string, string][] };
 
 /** One branded layout (table-based with inline styles, which is what email clients render reliably) plus plain text. */
 function render(to: string, subject: string, heading: string, blocks: Block[]): OutgoingEmail {
@@ -13,6 +14,10 @@ function render(to: string, subject: string, heading: string, blocks: Block[]): 
       case "p": return `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155">${escapeHtml(b.text)}</p>`;
       case "small": return `<p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#64748B">${escapeHtml(b.text)}</p>`;
       case "code": return `<p style="margin:8px 0 20px;font-size:30px;font-weight:700;letter-spacing:6px;color:#0F172A;font-family:ui-monospace,Menlo,Consolas,monospace">${escapeHtml(b.code)}</p>`;
+      case "rows": return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;border:1px solid #E5E7EB;border-radius:12px">`
+        + b.rows.map(([k, v], i) => `<tr><td style="padding:10px 14px;font-size:14px;color:#64748B${i ? ";border-top:1px solid #E5E7EB" : ""}">${escapeHtml(k)}</td>`
+          + `<td align="right" style="padding:10px 14px;font-size:14px;font-weight:600;color:#0F172A${i ? ";border-top:1px solid #E5E7EB" : ""}">${escapeHtml(v)}</td></tr>`).join("")
+        + `</table>`;
       case "button": return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:8px 0 20px"><tr><td style="border-radius:999px;background:#1E3A8A">`
         + `<a href="${escapeHtml(b.href)}" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:#FFFFFF;text-decoration:none;border-radius:999px">${escapeHtml(b.label)}</a></td></tr></table>`
         + `<p style="margin:0 0 16px;font-size:12px;line-height:1.5;color:#64748B">Button not working? Paste this link into your browser:<br><a href="${escapeHtml(b.href)}" style="color:#1E3A8A;word-break:break-all">${escapeHtml(b.href)}</a></p>`;
@@ -27,7 +32,7 @@ function render(to: string, subject: string, heading: string, blocks: Block[]): 
     + `<h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#0F172A">${escapeHtml(heading)}</h1>${html}</td></tr>`
     + `<tr><td style="padding:20px 4px 0;font-size:12px;line-height:1.5;color:#64748B">Sent by GrantApp to ${escapeHtml(to)}. If you didn't expect this email, you can ignore it.</td></tr>`
     + `</table></td></tr></table></body></html>`;
-  const text = [heading, "", ...blocks.map((b) => (b.kind === "button" ? `${b.label}: ${b.href}` : b.kind === "code" ? b.code : b.text)), "",
+  const text = [heading, "", ...blocks.map((b) => (b.kind === "button" ? `${b.label}: ${b.href}` : b.kind === "code" ? b.code : b.kind === "rows" ? b.rows.map(([k, v]) => `${k}: ${v}`).join("\n") : b.text)), "",
     `Sent by GrantApp to ${to}. If you didn't expect this email, you can ignore it.`].join("\n");
   return { to, subject, html: page, text };
 }
@@ -89,4 +94,39 @@ export function notificationEmail(to: string, name: string, message: string, url
     { kind: "p", text: greeting(name) }, { kind: "p", text: message }, { kind: "button", label: "Open GrantApp", href: url },
     { kind: "small", text: "You get these emails because email notifications are on for your account. Turn them off any time in Settings → Account." },
   ]);
+}
+
+/** Dedicated emails for deposit and withdrawal requests; the outbox picks one by `demo_notifications.email_kind`. */
+export type MoneyEmailKind = "request_received" | "request_approved" | "request_declined";
+export type MoneyEmailData = { request: "Deposit" | "Withdrawal"; amountCents: number; reference: string; date: string; reason?: string };
+export const isMoneyEmailKind = (k: unknown): k is MoneyEmailKind => k === "request_received" || k === "request_approved" || k === "request_declined";
+
+const usd = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+export function moneyEmail(kind: MoneyEmailKind, to: string, name: string, d: MoneyEmailData, url: string): OutgoingEmail {
+  const what = d.request.toLowerCase();
+  const withdrawal = d.request === "Withdrawal";
+  const rows: [string, string][] = [["Amount", usd(d.amountCents)], ["Reference", d.reference], ["Requested", d.date]];
+  const button = { kind: "button" as const, label: withdrawal ? "View your withdrawals" : "View your deposits", href: url };
+  const footer = { kind: "small" as const, text: "Questions? Reply to your administrator or visit the Help Centre in GrantApp. Never share your password with anyone, including our team." };
+  switch (kind) {
+    case "request_received": return render(to, `We received your ${what} request (${usd(d.amountCents)})`, `${d.request} request received`, [
+      { kind: "p", text: greeting(name) },
+      { kind: "p", text: withdrawal
+        ? "Your withdrawal request has been placed. Our finance team will review it, and your funds will be released once it's approved. The amount is held from your available balance in the meantime."
+        : "Your deposit request has been placed. Our finance team will review it, and the funds will be added to your deposit balance once it's approved." },
+      { kind: "rows", rows: [...rows, ["Status", "Under review"]] },
+      { kind: "p", text: "We'll email you again as soon as it has been reviewed." }, button, footer]);
+    case "request_approved": return render(to, `Your ${what} of ${usd(d.amountCents)} was approved`, `${d.request} approved`, [
+      { kind: "p", text: greeting(name) },
+      { kind: "p", text: withdrawal
+        ? "Good news: our finance team approved your withdrawal. The funds have been released from your grant balance."
+        : "Good news: our finance team approved your deposit. The funds are now in your deposit balance." },
+      { kind: "rows", rows: [...rows, ["Status", "Approved"]] }, button, footer]);
+    case "request_declined": return render(to, `Your ${what} request of ${usd(d.amountCents)} was declined`, `${d.request} declined`, [
+      { kind: "p", text: greeting(name) },
+      { kind: "p", text: `Our finance team declined your ${what} request. No money has moved${withdrawal ? ", and the held amount is available again" : ""}.` },
+      { kind: "rows", rows: [...rows, ["Status", "Declined"], ["Reason", d.reason || "Not given"]] },
+      { kind: "p", text: "You can submit a new request at any time." }, button, footer]);
+  }
 }

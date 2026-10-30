@@ -61,7 +61,7 @@ function RequestQueuePage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
                   <thead><tr className="border-b text-xs uppercase tracking-wide text-slate-500"><th className="py-2 pr-3">User</th><th className="text-right">Amount</th><th className="pl-4">Decision</th><th>Reviewed</th><th>Note</th></tr></thead>
                   <tbody>{decided.data.map((r) => (
                     <tr key={r.id} className="border-b align-top" data-testid={`row-decided-${r.id}`}>
-                      <td className="py-2.5 pr-3"><Link href={`/admin/users/${r.userId}`} className="font-semibold hover:underline">{r.userName}</Link><span className="block text-xs text-slate-500">{dateFmt(r.createdAt)}</span></td>
+                      <td className="py-2.5 pr-3"><Link href={`/admin/users/${r.userId}`} className="font-semibold hover:underline">{r.userName}</Link><span className="block text-xs text-slate-500">{dateFmt(r.createdAt)} · ref <span className="font-num">{r.reference}</span></span></td>
                       <td className="font-num py-2.5 text-right">{money(r.amount)}</td>
                       <td className="py-2.5 pl-4"><StatusBadge status={r.status === 'Completed' ? 'Approved' : r.status} /></td>
                       <td className="py-2.5 text-xs text-slate-500">{r.reviewedAt ? dateTime(r.reviewedAt) : '–'}<span className="block">{r.reviewedBy}</span></td>
@@ -101,7 +101,7 @@ function RequestRow({ r }: { r: AdminRequest }) {
       <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
         <div className="min-w-0 flex-1">
           <Link href={`/admin/users/${r.userId}`} className="font-semibold hover:underline">{r.userName}</Link>
-          <p className="text-xs text-slate-500">{r.organization} · requested {dateTime(r.createdAt)} · <span className="font-num">{r.id.slice(0, 8)}</span></p>
+          <p className="text-xs text-slate-500">{r.organization} · requested {dateTime(r.createdAt)} · ref <span className="font-num" data-testid={`text-request-ref-${r.id}`}>{r.reference}</span></p>
           {r.note && <p className="mt-1 text-sm text-slate-700">“{r.note}”</p>}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
             <StatusBadge status={r.verificationLevel} /><StatusBadge status={r.userStatus} />
@@ -120,7 +120,7 @@ function RequestRow({ r }: { r: AdminRequest }) {
       <Modal open={confirm} onClose={() => setConfirm(false)} title={`Approve ${money(r.amount)} ${deposit ? 'deposit' : 'withdrawal'}?`} testid="dialog-approve-request">
         <p className="text-sm text-slate-600">
           {deposit ? `${r.userName}'s deposit balance goes from ${money(r.depositBalance)} to ${money(r.depositBalance + r.amount)}.`
-            : `${money(r.amount)} is paid out of ${r.userName}'s grant balance, leaving ${money(r.grantBalance - r.amount)}.`} A ledger entry and an audit record are written, and the applicant is notified.
+            : `${money(r.amount)} is paid out of ${r.userName}'s grant balance, leaving ${money(r.grantBalance - r.amount)}.`} A ledger entry and an audit record are written, and the applicant is notified in the app and by email (if their email notifications are on).
         </p>
         {error && <p role="alert" className="mt-3 rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-approve-error">{error}</p>}
         <div className="mt-4 flex justify-end gap-2">
@@ -132,7 +132,7 @@ function RequestRow({ r }: { r: AdminRequest }) {
         </div>
       </Modal>
       <ReasonModal open={declining} onClose={() => setDeclining(false)} testid="dialog-decline-request" title={`Decline ${money(r.amount)} ${deposit ? 'deposit' : 'withdrawal'}?`} confirmLabel="Decline request"
-        intro={<p>No money moves. {r.userName} is notified with your reason.</p>} pending={reject.isPending} error={error}
+        intro={<p>No money moves{deposit ? '' : ' and the held amount is available to them again'}. {r.userName} is notified in the app and by email with your reason.</p>} pending={reject.isPending} error={error}
         onSubmit={(reason) => reject.mutate({ requestId: r.id, data: { reason } }, {
           onSuccess: () => { refresh(); setDeclining(false); toast({ title: `${r.kind} declined` }); },
           onError: (e) => setError(apiError(e, 'The request could not be declined.')),

@@ -10,4 +10,14 @@ export interface UserPermissions {
   emailNotifications: boolean;
   withdrawalKycRequired: boolean;
   depositKycRequired: boolean;
+  /**
+     * Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user
+     * @nullable
+     */
+  emailOverride?: boolean | null;
+  /**
+     * Set by an administrator: false hides in-app notifications from the user; null/true shows them
+     * @nullable
+     */
+  inAppOverride?: boolean | null;
 }

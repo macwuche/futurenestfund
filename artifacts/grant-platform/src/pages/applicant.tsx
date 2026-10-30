@@ -568,6 +568,8 @@ const txTypes = ['All', 'Deposit', 'Withdrawal', 'Grant award', 'Top-up'] as con
 const txFilterLabel: Record<(typeof txTypes)[number], string> = { All: 'All', Deposit: 'Deposits', Withdrawal: 'Withdrawals', 'Grant award': 'Grant awards', 'Top-up': 'Top-ups' };
 const accountLabel: Record<string, string> = { grant: 'Grant', deposit: 'Deposit', card: 'Card' };
 
+/** Deposit and withdrawal requests are reviewed by the finance team, so their statuses read as review outcomes. */
+const requestStatusLabel: Record<string, string> = { Pending: 'Under review', Completed: 'Approved', Declined: 'Declined' };
 export function TxRow({ t }: { t: Tx }) {
   const incoming = t.direction === 'in';
   const Icon = incoming ? ArrowDownLeft : ArrowUpRight;
@@ -576,11 +578,11 @@ export function TxRow({ t }: { t: Tx }) {
       <span className={cx('grid h-10 w-10 shrink-0 place-items-center rounded-lg', incoming ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#EEF4FB] text-[#1E3A8A]')}><Icon className="h-5 w-5" /></span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-semibold text-slate-900">{t.description}</span>
-        <span className="block truncate text-sm text-slate-500">{t.type}<span className="hidden sm:inline"> · {accountLabel[t.account]} account</span> · {dateFmt(t.createdAt)}</span>
+        <span className="block truncate text-sm text-slate-500">{t.type}{t.reference && <> · <span data-testid={`text-transaction-ref-${t.id}`}>Ref {t.reference}</span></>}<span className="hidden sm:inline"> · {accountLabel[t.account]} account</span> · {dateFmt(t.createdAt)}</span>
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1">
         <span className={cx('font-semibold tabular-nums', t.status === 'Declined' ? 'text-slate-400 line-through' : incoming ? 'text-[#166534]' : 'text-slate-900')} data-testid={`text-transaction-amount-${t.id}`}>{incoming ? '+' : '−'}{money(t.amount)}</span>
-        <StatusBadge status={t.status} dot={false} />
+        <StatusBadge status={t.status} dot={false} label={t.reference ? requestStatusLabel[t.status] : undefined} />
       </span>
     </li>
   );
@@ -622,6 +624,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
   const [amt, setAmt] = useState('');
   const [note, setNote] = useState('');
   const [err, setErr] = useState('');
+  const [placed, setPlaced] = useState<Tx | null>(null);
   const isDeposit = kind === 'Deposit';
   const paused = a.status === 'Frozen' || a.platformFrozen;
   const available = isDeposit ? a.balances.deposit : a.availableToWithdraw;
@@ -634,10 +637,11 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
     if (!isDeposit && n > a.availableToWithdraw) return setErr(`You can withdraw up to ${money(a.availableToWithdraw)}.`);
     setErr('');
     m.mutate({ data: { kind, amount: n, note: note.trim() || undefined } }, {
-      onSuccess: () => {
+      onSuccess: (r) => {
         refresh();
         setAmt(''); setNote('');
-        toast({ title: `${kind} request submitted`, description: 'It will show as Pending until it is reviewed.' });
+        setPlaced(r as Tx);
+        toast({ title: `${kind} request placed`, description: `Reference ${r.reference}. We've sent you a notification${a.permissions.emailOverride ?? a.permissions.emailNotifications ? ' and an email' : ''}.` });
       },
       onError: (e2) => setErr(apiError(e2, 'The request could not be submitted. Please try again.')),
     });
@@ -645,6 +649,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
   return (
     <div className="space-y-5">
       <FrozenNotice a={a} />
+      {placed && <RequestPlaced t={placed} emailed={!!(a.permissions.emailOverride ?? a.permissions.emailNotifications)} onClose={() => setPlaced(null)} />}
       <div className="grid gap-5 lg:grid-cols-5">
         <form noValidate onSubmit={submit} className={cx(card, 'space-y-4 p-5 lg:col-span-2 lg:self-start')} data-testid="form-money">
           <div className="rounded-xl bg-[#EEF4FB] p-4">
@@ -673,7 +678,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
           <button data-testid="button-submit-money" type="submit" disabled={paused || m.isPending} className="press w-full rounded-full bg-[#1E3A8A] py-2.5 text-[15px] font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60">
             {m.isPending ? 'Submitting…' : isDeposit ? 'Request deposit' : 'Request withdrawal'}
           </button>
-          <p className="text-xs text-slate-500">Demo: requests are recorded as Pending for review. No real money moves.</p>
+          <p className="text-xs text-slate-500">Every request is reviewed by our finance team{isDeposit ? '' : ' before funds are released'}. Demo: no real money moves.</p>
         </form>
         <section className={cx(card, 'p-4 sm:p-5 lg:col-span-3')} aria-labelledby="requests-heading">
           <h2 id="requests-heading" className="mb-4 text-lg font-semibold text-slate-900">Your {kind.toLowerCase()} requests</h2>
@@ -683,6 +688,39 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
         </section>
       </div>
     </div>
+  );
+}
+/** Shown after a request is placed: its reference and what happens next. */
+function RequestPlaced({ t, emailed, onClose }: { t: Tx; emailed: boolean; onClose: () => void }) {
+  const withdrawal = t.type === 'Withdrawal';
+  const steps = [
+    { title: 'Request placed', text: `${money(t.amount)}, reference ${t.reference}. ${withdrawal ? 'The amount is held from your available balance.' : ''}` },
+    { title: 'Finance team review', text: 'An administrator checks the request. It shows as Under review until then.' },
+    { title: withdrawal ? 'Funds released' : 'Funds added', text: withdrawal ? 'Once approved, your funds are released. If it’s declined, the held amount is available again and you’ll see why.' : 'Once approved, the amount is added to your deposit balance.' },
+  ];
+  return (
+    <section role="status" aria-labelledby="placed-heading" data-testid="panel-request-placed" className={cx(card, 'border-[#BBF7D0] bg-[#F0FDF4] p-5')}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <CircleCheck className="mt-0.5 h-6 w-6 shrink-0 text-[#166534]" />
+          <div>
+            <h2 id="placed-heading" className="text-lg font-semibold text-slate-900">{withdrawal ? 'Withdrawal' : 'Deposit'} request placed</h2>
+            <p className="text-sm text-slate-600">We’ve sent you a notification{emailed ? ' and an email' : ''} with the details. We’ll let you know as soon as it has been reviewed.</p>
+          </div>
+        </div>
+        <button type="button" onClick={onClose} aria-label="Close" data-testid="button-close-placed" className="press -m-2 grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-500 hover:bg-white"><CircleX className="h-5 w-5" /></button>
+      </div>
+      <ol className="mt-4 grid gap-3 sm:grid-cols-3">
+        {steps.map((s, i) => (
+          <li key={s.title} className="rounded-xl bg-white p-3.5">
+            <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <span className={cx('grid h-6 w-6 place-items-center rounded-full text-xs', i === 0 ? 'bg-[#166534] text-white' : 'bg-slate-100 text-slate-600')}>{i === 0 ? <Check className="h-3.5 w-3.5" /> : i + 1}</span>{s.title}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">{s.text}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 export const WithdrawalsPage = () => <MoneyPage kind="Withdrawal" />;
@@ -742,7 +780,7 @@ function SettingsBody({ d }: { d: ApplicantDashboard }) {
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Identity verification</dt><dd><StatusBadge status={a.verificationLevel} dot={false} testid="badge-verification" /></dd></div>
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Account status</dt><dd><StatusBadge status={a.status} dot={false} testid="badge-account-status" /></dd></div>
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Account tier</dt><dd className="font-semibold text-slate-900" data-testid="text-tier">Level {a.tier}</dd></div>
-                <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600" id="label-email-notifications">Email notifications</dt><dd><EmailNotificationsSwitch on={a.permissions.emailNotifications} /></dd></div>
+                <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600" id="label-email-notifications">Email notifications</dt><dd><EmailNotificationsSwitch on={a.permissions.emailOverride ?? a.permissions.emailNotifications} locked={typeof a.permissions.emailOverride === 'boolean'} /></dd></div>
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Verification needed to withdraw</dt><dd className="font-semibold text-slate-900">{a.permissions.withdrawalKycRequired ? 'Yes' : 'No'}</dd></div>
                 <p className="pt-3 text-xs text-slate-500">{signedIn ? 'Email notifications are yours to change; the other settings are managed by your administrator.' : 'These settings are managed by your administrator.'}</p>
               </dl>
@@ -755,12 +793,18 @@ function SettingsBody({ d }: { d: ApplicantDashboard }) {
   );
 }
 
-/** The applicant's own email-notification preference. In demo mode it stays read-only, as before. */
-function EmailNotificationsSwitch({ on }: { on: boolean }) {
+/** The applicant's own email-notification preference. Read-only in demo mode, and while an administrator overrides it. */
+function EmailNotificationsSwitch({ on, locked }: { on: boolean; locked: boolean }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const signedIn = useAuth().status === 'signed-in';
   const m = useUpdateApplicantPreferences();
+  if (locked) return (
+    <span className="flex flex-col items-end text-right" data-testid="text-email-notifications">
+      <span className="inline-flex items-center gap-1.5 font-semibold text-slate-900"><Lock className="h-3.5 w-3.5 text-slate-500" />{on ? 'On' : 'Off'}</span>
+      <span className="text-xs text-slate-500">Set by your administrator</span>
+    </span>
+  );
   if (!signedIn) return <span className="font-semibold text-slate-900" data-testid="text-email-notifications">{on ? 'On' : 'Off'}</span>;
   const toggle = () => m.mutate({ data: { emailNotifications: !on } }, {
     onSuccess: (r) => {

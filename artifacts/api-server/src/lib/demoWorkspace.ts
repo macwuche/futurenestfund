@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, ilike, isNull, ne, or, sql } from "drizzle-orm";
 import { db, demoProfilesTable, demoAuditTable, demoLedgerTable, demoSettingsTable, demoRequestsTable, demoApplicationsTable, type DemoProfile } from "@workspace/db";
-import { notifyUser } from "./notifications";
+import { notifyUser, requestEmailData, requestReference } from "./notifications";
 import { activeApplicationsFilter, applicationSummary } from "./applicantRecords";
 import { currentKycDocuments } from "./kyc";
 import { fileUrl } from "./uploads";
@@ -159,6 +159,7 @@ async function moneyTrend() {
   });
 }
 
+const overrideLabel: Record<string, string> = { emailOverride: "email notifications", inAppOverride: "in-app notifications" };
 type ProfileChanges = { name?: string; phone?: string; telegram?: string; tier?: number; status?: string; permissions?: unknown };
 
 export async function changeProfile(id: string, changes: ProfileChanges, actor: string) {
@@ -172,13 +173,19 @@ export async function changeProfile(id: string, changes: ProfileChanges, actor: 
     for (const [key, value] of Object.entries(normalized) as [keyof ProfileChanges, unknown][]) {
       if (value === undefined) continue;
       if (key === "permissions") {
-        const before = (current.permissions ?? {}) as Record<string, boolean>;
-        for (const [perm, on] of Object.entries(value as Record<string, boolean>)) if (before[perm] !== on) fields.push(`${perm} ${on ? "on" : "off"}`);
+        const before = (current.permissions ?? {}) as Record<string, boolean | null>;
+        for (const [perm, on] of Object.entries(value as Record<string, boolean | null>)) {
+          if ((before[perm] ?? null) === on) continue;
+          const override = overrideLabel[perm];
+          fields.push(override ? `${override}: ${on === null ? "left to the user" : on ? "always on" : "always off"} (admin override)` : `${perm} ${on ? "on" : "off"}`);
+        }
       } else if (current[key] !== value) {
         fields.push(key === "status" ? `status (${String(value).toLowerCase()})` : key === "tier" ? `tier (Level ${value})` : key);
       }
     }
     if (!fields.length) return true;
+    // Permissions merge into the stored ones, so a client that doesn't know a key (e.g. the overrides) never erases it.
+    if (normalized.permissions) normalized.permissions = { ...(current.permissions as object ?? {}), ...(normalized.permissions as object) };
     await tx.update(demoProfilesTable).set(normalized).where(eq(demoProfilesTable.id, id));
     await tx.insert(demoAuditTable).values({ profileId: id, actor, action: `Updated ${fields.join(", ")}` });
     if (changes.status && changes.status !== current.status) {
@@ -188,12 +195,13 @@ export async function changeProfile(id: string, changes: ProfileChanges, actor: 
   });
 }
 
-/** The applicant's own preferences (today only email notifications); audited like any profile change. */
+/** The applicant's own preferences (today only email notifications); audited like any profile change. Refused while an administrator overrides it. */
 export async function changePreferences(id: string, prefs: { emailNotifications: boolean }, actor: string) {
   return db.transaction(async tx => {
     const [current] = await tx.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, id)).for("update");
     if (!current) throw new Error(`Applicant ${id} is missing`);
-    const permissions = (current.permissions ?? {}) as Record<string, boolean>;
+    const permissions = (current.permissions ?? {}) as Record<string, boolean | null>;
+    if (typeof permissions.emailOverride === "boolean") throw new DemoInputError("Your administrator has set your email notifications, so they can't be changed here.");
     if (permissions.emailNotifications !== prefs.emailNotifications) {
       await tx.update(demoProfilesTable).set({ permissions: { ...permissions, emailNotifications: prefs.emailNotifications } }).where(eq(demoProfilesTable.id, id));
       await tx.insert(demoAuditTable).values({ profileId: id, actor, action: `Turned email notifications ${prefs.emailNotifications ? "on" : "off"}` });
@@ -240,6 +248,7 @@ const requestTransaction = (r: RequestRow) => ({
   id: r.id, type: r.kind, account: r.kind === "Deposit" ? "deposit" : "grant", direction: r.kind === "Deposit" ? "in" : "out",
   amount: r.amountCents / 100, status: r.status, createdAt: r.createdAt.toISOString(),
   description: `${r.note || `${r.kind} request`}${r.status === "Declined" && r.reviewNote ? ` · Declined: ${r.reviewNote}` : ""}`,
+  reference: requestReference(r.id), ...(r.status === "Declined" && r.reviewNote ? { reviewNote: r.reviewNote } : {}),
 });
 
 /** Grant balance minus withdrawals still awaiting review. */
@@ -287,7 +296,11 @@ export async function createApplicantRequest(profileId: string, kind: "Deposit" 
     if (kind === "Withdrawal" && cents > await availableCents(profile, tx)) throw new DemoInputError("This is more than your available grant balance, after pending withdrawals.");
     const [row] = await tx.insert(demoRequestsTable).values({ profileId: profile.id, kind, amountCents: cents, note: note.trim().slice(0, 240) }).returning();
     await tx.insert(demoAuditTable).values({ profileId: profile.id, actor: profile.name, action: `${kind} request submitted +$${(cents / 100).toFixed(2)}` });
-    await notifyUser(profile.id, `${kind} request for $${(cents / 100).toFixed(2)} submitted for review`, kind === "Deposit" ? "/deposits" : "/withdrawals", tx);
+    const amount = `$${(cents / 100).toFixed(2)}`;
+    await notifyUser(profile.id, kind === "Withdrawal"
+      ? `Withdrawal request of ${amount} received (ref ${requestReference(row!.id)}). Our finance team will review it; your funds are released once it's approved.`
+      : `Deposit request of ${amount} received (ref ${requestReference(row!.id)}). Our finance team will review it; it's added to your balance once approved.`,
+    kind === "Deposit" ? "/deposits" : "/withdrawals", tx, { kind: "request_received", data: requestEmailData(row!) });
     return requestTransaction(row!);
   });
 }

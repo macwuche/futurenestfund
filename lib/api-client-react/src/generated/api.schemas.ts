@@ -106,6 +106,10 @@ export interface ApplicantTransaction {
   description: string;
   status: ApplicantTransactionStatus;
   createdAt: string;
+  /** Short reference for a deposit or withdrawal request */
+  reference?: string;
+  /** Why a request was declined */
+  reviewNote?: string;
 }
 
 export type ApplicantAccountStatus = typeof ApplicantAccountStatus[keyof typeof ApplicantAccountStatus];
@@ -130,6 +134,16 @@ export interface UserPermissions {
   emailNotifications: boolean;
   withdrawalKycRequired: boolean;
   depositKycRequired: boolean;
+  /**
+     * Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user
+     * @nullable
+     */
+  emailOverride?: boolean | null;
+  /**
+     * Set by an administrator: false hides in-app notifications from the user; null/true shows them
+     * @nullable
+     */
+  inAppOverride?: boolean | null;
 }
 
 export interface UserBalances {
@@ -766,6 +780,7 @@ export const AdminRequestVerificationLevel = {
 
 export interface AdminRequest {
   id: string;
+  reference: string;
   kind: AdminRequestKind;
   amount: number;
   note: string;

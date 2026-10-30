@@ -169,7 +169,9 @@ export const GetApplicantAccountResponse = zod.object({
   "permissions": zod.object({
   "emailNotifications": zod.boolean(),
   "withdrawalKycRequired": zod.boolean(),
-  "depositKycRequired": zod.boolean()
+  "depositKycRequired": zod.boolean(),
+  "emailOverride": zod.boolean().nullish().describe('Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user'),
+  "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }),
   "balances": zod.object({
   "grant": zod.number(),
@@ -193,7 +195,9 @@ export const GetApplicantAccountResponse = zod.object({
   "amount": zod.number(),
   "description": zod.string(),
   "status": zod.enum(['Pending', 'Completed', 'Declined']),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "reference": zod.string().optional().describe('Short reference for a deposit or withdrawal request'),
+  "reviewNote": zod.string().optional().describe('Why a request was declined')
 }))
 })
 
@@ -221,7 +225,9 @@ export const CreateApplicantRequestResponse = zod.object({
   "amount": zod.number(),
   "description": zod.string(),
   "status": zod.enum(['Pending', 'Completed', 'Declined']),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "reference": zod.string().optional().describe('Short reference for a deposit or withdrawal request'),
+  "reviewNote": zod.string().optional().describe('Why a request was declined')
 })
 
 
@@ -812,7 +818,9 @@ export const GetAdminUserResponse = zod.object({
   "permissions": zod.object({
   "emailNotifications": zod.boolean(),
   "withdrawalKycRequired": zod.boolean(),
-  "depositKycRequired": zod.boolean()
+  "depositKycRequired": zod.boolean(),
+  "emailOverride": zod.boolean().nullish().describe('Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user'),
+  "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }),
   "audit": zod.array(zod.object({
   "id": zod.string(),
@@ -850,7 +858,9 @@ export const UpdateAdminUserBody = zod.object({
   "permissions": zod.object({
   "emailNotifications": zod.boolean(),
   "withdrawalKycRequired": zod.boolean(),
-  "depositKycRequired": zod.boolean()
+  "depositKycRequired": zod.boolean(),
+  "emailOverride": zod.boolean().nullish().describe('Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user'),
+  "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }).optional()
 })
 
@@ -899,7 +909,9 @@ export const UpdateAdminUserResponse = zod.object({
   "permissions": zod.object({
   "emailNotifications": zod.boolean(),
   "withdrawalKycRequired": zod.boolean(),
-  "depositKycRequired": zod.boolean()
+  "depositKycRequired": zod.boolean(),
+  "emailOverride": zod.boolean().nullish().describe('Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user'),
+  "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }),
   "audit": zod.array(zod.object({
   "id": zod.string(),
@@ -1146,6 +1158,7 @@ export const ListAdminRequestsQueryParams = zod.object({
 
 export const ListAdminRequestsResponseItem = zod.object({
   "id": zod.string(),
+  "reference": zod.string(),
   "kind": zod.enum(['Deposit', 'Withdrawal']),
   "amount": zod.number(),
   "note": zod.string(),
@@ -1175,6 +1188,7 @@ export const ApproveAdminRequestParams = zod.object({
 
 export const ApproveAdminRequestResponse = zod.object({
   "id": zod.string(),
+  "reference": zod.string(),
   "kind": zod.enum(['Deposit', 'Withdrawal']),
   "amount": zod.number(),
   "note": zod.string(),
@@ -1212,6 +1226,7 @@ export const RejectAdminRequestBody = zod.object({
 
 export const RejectAdminRequestResponse = zod.object({
   "id": zod.string(),
+  "reference": zod.string(),
   "kind": zod.enum(['Deposit', 'Withdrawal']),
   "amount": zod.number(),
   "note": zod.string(),

@@ -28,11 +28,11 @@ const map: Record<string, string> = {
 };
 /** Display wording for API statuses. */
 export const statusLabel = (s: string) => (s === 'Review' ? 'Under Review' : s);
-export function StatusBadge({ status, testid, dot = true }: { status: string; testid?: string; dot?: boolean }) {
+export function StatusBadge({ status, testid, dot = true, label }: { status: string; testid?: string; dot?: boolean; label?: string }) {
   return (
     <span data-testid={testid ?? `badge-status-${status}`} className={cx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap', tone[map[status] ?? 'gray'])}>
       {dot && <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />}
-      {statusLabel(status)}
+      {label ?? statusLabel(status)}
     </span>
   );
 }

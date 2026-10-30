@@ -1069,3 +1069,81 @@ Verification run (2026-10-29), all passing:
 2. **Supabase dashboard → Authentication → Policies (passwords):** minimum length **8** (it's 6 today; confirmed).
 3. Still from 4.6: Resend domain + key, `EMAIL_FROM`, `APP_URL`, hook URL + `SEND_EMAIL_HOOK_SECRET`, Site URL / Redirect URLs. Redirect URLs now only need the app origin (email links go to `/auth/confirm`).
 4. Rotate the credentials pasted in chat (DB password, secret key, admin password). After a DB password change, update `SUPABASE_ADMIN_DB_URL`.
+
+## 11. Phase 5 build plan: admin controls (2026-10-30)
+
+**Decision (2026-10-30): two-person (4-eyes) approval is dropped.** It would make two different admins approve every withdrawal. That changes nothing for the applicant except a longer wait, but with one admin today it would block every withdrawal. Withdrawals stay **one finance admin approves or declines**, as the user described.
+
+**The withdrawal flow the user wants (5.1):**
+1. **Applicant requests a withdrawal** (Withdrawals page). The amount is held: it comes off "available to withdraw" at once, so the same funds can't be requested twice. The grant balance itself doesn't change yet.
+2. **At once, the applicant gets:**
+   - an in-app notification: "Withdrawal request of $X received (ref ABC12345). Our finance team will review it; your funds are released once it's approved."
+   - an **email** saying the same: amount, reference, date, what happens next, and a button to the Withdrawals page.
+3. **Admin side:** the request appears in **Withdrawal Page** (queue) and in the dashboard's "Pending withdrawals" count. The admin approves or declines; a decline needs a reason. This already exists (Phase 3), with freeze, balance and KYC re-checks at approval time.
+4. **On approval:** the grant balance is debited through the ledger, and the applicant gets a notification + email: "approved, your funds are on their way."
+5. **On decline:** no money moves and the held amount is available again. The applicant gets a notification + email with the reason.
+
+What exists today vs. what 5.1 adds:
+
+| Piece | Today | 5.1 |
+|---|---|---|
+| Request + hold on available balance | ✅ (`demoWorkspace.ts` `createRequest`) | unchanged |
+| Notification on request | ✅ generic "Withdrawal request for $X submitted for review" | finance-team wording + reference number |
+| Email on request / approval / decline | only the generic notification email (subject = message, heading "You have an update"), and only when the email switch is on | **dedicated templates**: "Withdrawal request received", "Withdrawal approved", "Withdrawal declined", with amount, reference, date, reason and next steps; same set for deposits |
+| Applicant screen after submitting | toast "will show as Pending" | confirmation panel with reference + "what happens next" (3 steps), request list shows "Under review" / "Approved" / "Declined" + reason |
+| Admin queue | ✅ approve / decline | show the reference; optional new-request email to the finance team (decision below) |
+
+How the dedicated emails are built:
+- New nullable columns on `demo_notifications`: `email_kind` (e.g. `withdrawal_requested`) and `email_data` (jsonb: amount, reference, reason). Migration `0003`. No new table, so no new RLS policy is needed.
+- `notifyUser()` takes an optional `{ kind, data }`; the outbox worker renders the matching template from `emailTemplates.ts`, or the generic one when there's no kind. Every value is still HTML-escaped.
+- Sending stays in the outbox: nothing is emailed if the action rolls back, with retries and idempotency keys as today.
+
+Tests: Vitest for the new templates (content + escaping); `.unlazy/` browser suite: request → notification + email captured by the local Resend stand-in → admin approve and decline → second notification + email, balances and ledger correct.
+
+**The rest of Phase 5:**
+
+| Step | Goal | What gets built | Done when |
+|---|---|---|---|
+| **5.1 Withdrawal notifications** | The flow above | see above | Browser suite + Vitest green |
+| 5.2 Withdrawal limits | Guard rails without a second admin | Admin Settings: max per request and a per-user daily total (0 = off), checked server-side when requesting and re-checked on approval; audited changes | Over-limit requests refused with a clear message |
+| 5.3 Audit-log viewer | Admins can read the full trail | Admin page with filters (user, admin, action text, date range), pagination and CSV export (formula-safe, like the ledger) | Filters + export tested |
+| 5.4 Users directory | Usable with many users | Sorting (name, joined, balance, status) and server-side pagination | Tested with 100+ users |
+| 5.5 Debit adjustments | Admins can correct balances down | "Remove funds" next to "credit balances": reason required, can't go below 0, ledger + audit + notification in one transaction | Tested, ledger matches balances |
+| 5.6 Card controls (admin) | Freeze / unfreeze a sample card | Per-card freeze on the user inspector, audited, applicant notified | Tested |
+| 5.7 Admin avatar | Real admin photo | Admin uploads their own photo (same pipeline as applicant photos) | Tested |
+
+Order: 5.1 first (what the user asked for), then 5.2–5.7. Each step is committed on its own, after typecheck, `pnpm test` and its browser suite pass.
+
+**Answers (2026-10-30):**
+1. Money emails **follow the applicant's email switch**, but the admin can **override it per user** on the admin user profile: email notifications and in-app ("push") notifications can each be set to *user's choice* / *forced on* / *forced off*, and the admin's setting wins whatever the user chose. There's no browser/phone push in the app, so "push" = the in-app bell. When locked, the applicant's switch is disabled with "Set by your administrator".
+2. **No admin email** for new requests: dashboard count + Withdrawal Page only.
+3. **Limits (5.2):** a **global** withdrawal limit (admin Settings) and an optional **per-user** limit (admin user profile) that replaces the global one for that user. Each limit has a max per request and a daily total; 0 / empty = no limit.
+
+**5.1 revised scope:**
+- `demo_notifications`: new columns `email_kind`, `email_data` (jsonb), `in_app` (boolean, default true). Migration `0003`.
+- Profile permissions: `emailOverride` and `inAppOverride` (`null` = user's choice, `true` = forced on, `false` = forced off), set from the admin inspector (audited, API `PATCH /admin/users/:id`). The outbox sends when `emailOverride ?? emailNotifications` is true. In-app rows are always written (so email still works), but `in_app = false` rows are hidden from the bell when in-app is forced off.
+- Applicant Settings: the email switch shows the effective value and is disabled with "Set by your administrator" when overridden; `PATCH /applicant/preferences` refuses changes while it's locked.
+- Dedicated withdrawal/deposit email templates + new notification wording + confirmation panel on the Withdrawals page (as above).
+
+### 2026-10-30: Step 5.1 done (withdrawal notifications + admin notification overrides)
+
+| What | Where |
+|---|---|
+| Migration `0003_notification_templates`: `demo_notifications.email_kind`, `email_data` (jsonb), `in_app` (default true) | `lib/db/src/schema/demo-applications.ts`, `lib/db/migrations/0003_*` |
+| Dedicated emails "We received your withdrawal/deposit request", "… was approved", "… was declined" (amount, reference, date, status, reason; finance-team wording); new `rows` block in the layout | `emailTemplates.ts` `moneyEmail()` |
+| `notifyUser(…, email?)` stores the template + data; the outbox renders it (generic template otherwise). `in_app` is computed from `permissions.inAppOverride` at insert, and the bell lists only `in_app` rows | `notifications.ts`, `notificationMailer.ts` |
+| Request references (`requestReference(id)`, first 8 hex chars uppercased) in notifications, the applicant list (`reference`, `reviewNote`) and the admin queue (`reference`) | `demoWorkspace.ts`, `adminOps.ts`, OpenAPI |
+| Admin overrides `permissions.emailOverride` / `inAppOverride` (null = user's choice, true/false = forced). The outbox sends when `emailOverride ?? emailNotifications`. Admin permission updates now **merge** into the stored permissions, and the audit reads "email notifications: always off (admin override)" | `demoWorkspace.ts` `changeProfile`, admin inspector `NotificationOverride` |
+| `PATCH /applicant/preferences` refused (400) while the email setting is overridden; the applicant sees "Set by your administrator" with a lock | `changePreferences`, `EmailNotificationsSwitch` |
+| Withdrawals / Add funds: "request placed" panel (reference + 3 steps: placed → finance team review → funds released), statuses read "Under review / Approved / Declined", reference on every request row; Help Centre answer updated | `applicant.tsx`, `applicant-more.tsx` |
+
+Tests (2026-10-30), all passing:
+- `pnpm test` 47/47 (4 new money-email tests) · typecheck clean
+- new `.unlazy/phase5-withdrawals.mjs` 11/11 (demo-mode API + mock Resend): hold on request, notification + email on request / approval / decline, escaped reason, deposits, switch respected, admin always-on and always-off win, locked preference refused, in-app off hides from the bell but still emails, permissions merge, audit wording
+- new `.unlazy/phase5-ui.mjs` 4/4 desktop + 4/4 phone: placed panel, statuses + references, locked switch, override buttons (44 px), admin queue reference
+- `phase3-api` 24/24 (one assertion updated for the new "(ref …)" wording)
+- Demo data restored on the Replit DB.
+
+Not done yet:
+- Migration `0003` is applied on the **Replit** database only. Supabase needs `pnpm --filter @workspace/scripts run db:migrate` with `SUPABASE_ADMIN_DB_URL` set (not available in this shell).
+- Withdrawal emails go out only once Resend is configured (go-live checklist §12).
