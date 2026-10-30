@@ -583,7 +583,7 @@ function AdminTop({ title, onMenu }: { title: string; onMenu: () => void }) {
         <button aria-label="Open menu" data-testid="button-open-drawer" onClick={onMenu} className="press grid h-10 w-10 place-items-center rounded-lg bg-[#111] text-[#C6F432] lg:hidden"><Menu className="h-5 w-5" /></button>
         <h1 className="font-display text-lg font-bold sm:text-xl" data-testid="text-page-title">{title}</h1>
         {data && (
-          <span data-testid="badge-four-eyes" title={data.systemHealth.fourEyes ? 'Two-person approval is enforced.' : 'One administrator approves in this demo. Two-person approval needs real admin accounts.'}
+          <span data-testid="badge-four-eyes" title={data.systemHealth.fourEyes ? 'Two-person approval is enforced.' : 'One finance administrator approves or declines each request (two-person approval is not used).'}
             className={cx('hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold sm:inline-flex', data.systemHealth.fourEyes ? 'bg-[#111] text-[#C6F432]' : 'bg-slate-100 text-slate-600')}>
             <ShieldCheck className="h-3.5 w-3.5" />{data.systemHealth.fourEyes ? '4-Eyes Active' : '4-Eyes not active'}
           </span>

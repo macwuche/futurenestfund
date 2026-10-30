@@ -1,4 +1,4 @@
-import { pgTable, text, integer, jsonb, date, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, jsonb, date, uuid, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
 // Isolated sample data: never connect these records to real payment rails.
@@ -24,6 +24,10 @@ export const demoProfilesTable = pgTable("demo_profiles", {
   avatarFileId: uuid("avatar_file_id"),
   /** Supabase Auth user (auth.users.id) this profile belongs to; null for the seeded sample profiles. */
   authUserId: uuid("auth_user_id").unique(),
+  /** When true, this user's withdrawal limits (cents, null = no limit) replace the global ones. */
+  withdrawalLimitCustom: boolean("withdrawal_limit_custom").notNull().default(false),
+  withdrawalMaxCents: integer("withdrawal_max_cents"),
+  withdrawalDailyCents: integer("withdrawal_daily_cents"),
 }).enableRLS();
 
 export const insertDemoProfileSchema = createInsertSchema(demoProfilesTable);

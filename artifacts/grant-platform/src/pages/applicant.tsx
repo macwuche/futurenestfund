@@ -629,12 +629,16 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
   const paused = a.status === 'Frozen' || a.platformFrozen;
   const available = isDeposit ? a.balances.deposit : a.availableToWithdraw;
   const mine = a.transactions.filter((t) => t.type === kind);
+  const lim = a.withdrawalLimits;
+  const leftToday = lim.dailyTotal === null ? null : Math.max(0, Math.round((lim.dailyTotal - lim.usedLast24h) * 100) / 100);
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const n = Number(amt);
     if (!amt || !(n >= 0.01)) return setErr('Enter an amount of at least $0.01.');
     if (Math.round(n * 100) !== Math.round(n * 100 * 1000) / 1000) return setErr('Use at most two decimal places.');
     if (!isDeposit && n > a.availableToWithdraw) return setErr(`You can withdraw up to ${money(a.availableToWithdraw)}.`);
+    if (!isDeposit && lim.maxPerRequest !== null && n > lim.maxPerRequest) return setErr(`You can withdraw up to ${money(lim.maxPerRequest)} per request.`);
+    if (!isDeposit && leftToday !== null && n > leftToday) return setErr(leftToday <= 0 ? `You've reached your ${money(lim.dailyTotal!)} daily withdrawal limit.` : `You have ${money(leftToday)} left of your ${money(lim.dailyTotal!)} daily withdrawal limit.`);
     setErr('');
     m.mutate({ data: { kind, amount: n, note: note.trim() || undefined } }, {
       onSuccess: (r) => {
@@ -659,6 +663,13 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
               <p className="mt-1 text-xs text-slate-500">Grant balance {money(a.balances.grant)}, minus pending withdrawals.</p>
             )}
           </div>
+          {!isDeposit && (lim.maxPerRequest !== null || lim.dailyTotal !== null) && (
+            <p className="rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-600" data-testid="text-withdrawal-limits">
+              <span className="font-semibold text-slate-900">Your limits: </span>
+              {[lim.maxPerRequest !== null && `up to ${money(lim.maxPerRequest)} per request`,
+                lim.dailyTotal !== null && `${money(lim.dailyTotal)} per 24 hours (${money(leftToday!)} left)`].filter(Boolean).join(' · ')}
+            </p>
+          )}
           <Field label="Amount (USD)" error={err}>
             <div className="relative">
               <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-500">$</span>

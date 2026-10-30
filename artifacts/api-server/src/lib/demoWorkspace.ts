@@ -6,8 +6,16 @@ import { currentKycDocuments } from "./kyc";
 import { fileUrl } from "./uploads";
 import { APPEND_ONLY_TRIGGERS } from "./demoSeed";
 import { GetAdminUserResponse } from "@workspace/api-zod";
+import { effectiveLimits, limitProblem, limitsOut, withdrawnLast24h } from "./withdrawalLimits";
 
 export class DemoInputError extends Error {}
+
+/** A user's effective withdrawal limits plus what they withdrew in the last 24 hours, in API shape. */
+export async function userWithdrawalLimits(profile: DemoProfile) {
+  const [settings] = await db.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
+  const used = (await withdrawnLast24h([profile.id])).get(profile.id) ?? 0;
+  return { custom: profile.withdrawalLimitCustom, ...limitsOut(effectiveLimits(profile, settings)), usedLast24h: used / 100 };
+}
 
 
 export function summary(person: DemoProfile, pendingKycDocuments = 0) {
@@ -42,6 +50,7 @@ export async function getUser(id: string) {
     ...(person.avatarFileId ? { avatarUrl: fileUrl("admin", person.avatarFileId) } : {}),
     balances: { grant: person.grantCents / 100, deposit: person.depositCents / 100, card: person.cardCents / 100 },
     cards,
+    withdrawalLimits: await userWithdrawalLimits(person),
     audit: audit.map(entry => ({ ...entry, createdAt: entry.createdAt.toISOString() })),
   });
 }
@@ -277,7 +286,7 @@ export async function applicantAccount(profileId: string) {
   return {
     status: person.status, platformFrozen: settings?.frozen ?? false, tier: person.tier, verificationLevel: person.verificationLevel,
     permissions: person.permissions, balances: person.balances, availableToWithdraw: (await availableCents(profile)) / 100,
-    cards: person.cards, transactions,
+    cards: person.cards, transactions, withdrawalLimits: await userWithdrawalLimits(profile),
   };
 }
 
@@ -294,6 +303,11 @@ export async function createApplicantRequest(profileId: string, kind: "Deposit" 
     const kycNeeded = kind === "Withdrawal" ? perms.withdrawalKycRequired : perms.depositKycRequired;
     if (kycNeeded && profile.verificationLevel !== "Verified") throw new DemoInputError(`Identity verification is required before you can submit a ${kind.toLowerCase()}. Upload your documents in Settings.`);
     if (kind === "Withdrawal" && cents > await availableCents(profile, tx)) throw new DemoInputError("This is more than your available grant balance, after pending withdrawals.");
+    if (kind === "Withdrawal") {
+      // The profile row is locked above, so two quick requests can't both fit under the daily total.
+      const problem = limitProblem(effectiveLimits(profile, settings), (await withdrawnLast24h([profile.id], tx)).get(profile.id) ?? 0, cents);
+      if (problem) throw new DemoInputError(problem);
+    }
     const [row] = await tx.insert(demoRequestsTable).values({ profileId: profile.id, kind, amountCents: cents, note: note.trim().slice(0, 240) }).returning();
     await tx.insert(demoAuditTable).values({ profileId: profile.id, actor: profile.name, action: `${kind} request submitted +$${(cents / 100).toFixed(2)}` });
     const amount = `$${(cents / 100).toFixed(2)}`;

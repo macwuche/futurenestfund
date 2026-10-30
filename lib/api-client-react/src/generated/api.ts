@@ -67,7 +67,9 @@ import type {
   ReasonInput,
   SearchAdminParams,
   Session,
-  UserBalances
+  UserBalances,
+  UserWithdrawalLimitsUpdate,
+  WithdrawalLimits
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -2735,6 +2737,260 @@ export const useCreateUserBalanceAdjustment = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreateUserBalanceAdjustmentMutationOptions(options));
+    }
+
+export const getUpdateUserWithdrawalLimitsUrl = (userId: string,) => {
+
+
+
+
+  return `/api/admin/users/${userId}/withdrawal-limits`
+}
+
+/**
+ * @summary Use the global withdrawal limits for this user, or set custom ones that replace them
+ */
+export const updateUserWithdrawalLimits = async (userId: string,
+    userWithdrawalLimitsUpdate: UserWithdrawalLimitsUpdate, options?: Parameters<typeof customFetch>[1]): Promise<AdminUserProfile> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminUserProfile>(getUpdateUserWithdrawalLimitsUrl(userId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(userWithdrawalLimitsUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateUserWithdrawalLimitsMutationKey = () => ['updateUserWithdrawalLimits'] as const;
+
+export const getUpdateUserWithdrawalLimitsMutationOptions = <TError = ErrorType<ErrorMessage | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserWithdrawalLimits>>, TError,UpdateUserWithdrawalLimitsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateUserWithdrawalLimits>>, TError,UpdateUserWithdrawalLimitsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateUserWithdrawalLimitsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateUserWithdrawalLimits>>, UpdateUserWithdrawalLimitsMutationVariables> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  updateUserWithdrawalLimits(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateUserWithdrawalLimitsMutationResult = NonNullable<Awaited<ReturnType<typeof updateUserWithdrawalLimits>>>
+    export type UpdateUserWithdrawalLimitsMutationBody = BodyType<UserWithdrawalLimitsUpdate>
+    export type UpdateUserWithdrawalLimitsMutationError = ErrorType<ErrorMessage | void>
+    export type UpdateUserWithdrawalLimitsMutationVariables = {userId: string;data: BodyType<UserWithdrawalLimitsUpdate>}
+
+    /**
+ * @summary Use the global withdrawal limits for this user, or set custom ones that replace them
+ */
+export const useUpdateUserWithdrawalLimits = <TError = ErrorType<ErrorMessage | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserWithdrawalLimits>>, TError,UpdateUserWithdrawalLimitsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateUserWithdrawalLimits>>,
+        TError,
+        UpdateUserWithdrawalLimitsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateUserWithdrawalLimitsMutationOptions(options));
+    }
+
+export const getGetWithdrawalLimitsUrl = () => {
+
+
+
+
+  return `/api/admin/system/withdrawal-limits`
+}
+
+/**
+ * @summary The global withdrawal limits
+ */
+export const getWithdrawalLimits = async ( options?: Parameters<typeof customFetch>[1]): Promise<WithdrawalLimits> => {
+
+  return customFetch<WithdrawalLimits>(getGetWithdrawalLimitsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWithdrawalLimitsQueryKey = () => {
+    return [
+    `/api/admin/system/withdrawal-limits`
+    ] as const;
+    }
+
+
+export const getGetWithdrawalLimitsQueryOptions = <TData = Awaited<ReturnType<typeof getWithdrawalLimits>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWithdrawalLimits>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWithdrawalLimitsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWithdrawalLimits>>> = ({ signal }) => getWithdrawalLimits({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWithdrawalLimits>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWithdrawalLimitsQueryResult = NonNullable<Awaited<ReturnType<typeof getWithdrawalLimits>>>
+export type GetWithdrawalLimitsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary The global withdrawal limits
+ */
+
+export function useGetWithdrawalLimits<TData = Awaited<ReturnType<typeof getWithdrawalLimits>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWithdrawalLimits>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWithdrawalLimitsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateWithdrawalLimitsUrl = () => {
+
+
+
+
+  return `/api/admin/system/withdrawal-limits`
+}
+
+/**
+ * @summary Set the global withdrawal limits
+ */
+export const updateWithdrawalLimits = async (withdrawalLimits: WithdrawalLimits, options?: Parameters<typeof customFetch>[1]): Promise<WithdrawalLimits> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WithdrawalLimits>(getUpdateWithdrawalLimitsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(withdrawalLimits)
+  }
+);}
+
+
+
+
+
+export const getUpdateWithdrawalLimitsMutationKey = () => ['updateWithdrawalLimits'] as const;
+
+export const getUpdateWithdrawalLimitsMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWithdrawalLimits>>, TError,UpdateWithdrawalLimitsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateWithdrawalLimits>>, TError,UpdateWithdrawalLimitsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateWithdrawalLimitsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateWithdrawalLimits>>, UpdateWithdrawalLimitsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateWithdrawalLimits(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateWithdrawalLimitsMutationResult = NonNullable<Awaited<ReturnType<typeof updateWithdrawalLimits>>>
+    export type UpdateWithdrawalLimitsMutationBody = BodyType<WithdrawalLimits>
+    export type UpdateWithdrawalLimitsMutationError = ErrorType<ErrorMessage>
+    export type UpdateWithdrawalLimitsMutationVariables = {data: BodyType<WithdrawalLimits>}
+
+    /**
+ * @summary Set the global withdrawal limits
+ */
+export const useUpdateWithdrawalLimits = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWithdrawalLimits>>, TError,UpdateWithdrawalLimitsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateWithdrawalLimits>>,
+        TError,
+        UpdateWithdrawalLimitsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateWithdrawalLimitsMutationOptions(options));
     }
 
 export const getGetAdminFileUrl = (fileId: string,) => {

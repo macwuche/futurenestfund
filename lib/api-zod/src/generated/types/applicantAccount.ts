@@ -8,6 +8,7 @@
 import type { ApplicantAccountStatus } from './applicantAccountStatus';
 import type { ApplicantAccountVerificationLevel } from './applicantAccountVerificationLevel';
 import type { ApplicantTransaction } from './applicantTransaction';
+import type { EffectiveWithdrawalLimits } from './effectiveWithdrawalLimits';
 import type { UserBalances } from './userBalances';
 import type { UserCard } from './userCard';
 import type { UserPermissions } from './userPermissions';
@@ -26,4 +27,5 @@ export interface ApplicantAccount {
   availableToWithdraw: number;
   cards: UserCard[];
   transactions: ApplicantTransaction[];
+  withdrawalLimits: EffectiveWithdrawalLimits;
 }

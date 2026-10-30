@@ -36,7 +36,7 @@ function RequestQueuePage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
         </div>
         {!deposit && (
           <p className="flex items-start gap-2 rounded-xl border border-[#FDE68A] bg-[#FEF3C7] p-3 text-sm text-[#92400E]" data-testid="text-four-eyes-note">
-            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />4-eyes sign-off is not active: in this demo one administrator's approval releases the payout. Two-person approval needs real admin accounts.
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />4-eyes sign-off is not used: one finance administrator's approval releases the payout. The applicant is notified in the app and by email either way.
           </p>
         )}
         <section className={cx(card, 'p-5')} data-testid="section-request-queue">
@@ -107,6 +107,7 @@ function RequestRow({ r }: { r: AdminRequest }) {
             <StatusBadge status={r.verificationLevel} /><StatusBadge status={r.userStatus} />
             <span className="text-slate-500">{deposit ? `Deposit balance ${money(r.depositBalance)}` : `Grant balance ${money(r.grantBalance)}`}</span>
           </div>
+          {r.limitWarning && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900" data-testid={`text-limit-warning-${r.id}`}>{r.limitWarning} Limits are checked when a request is placed; you can still approve it.</p>}
         </div>
         <div className="flex flex-col items-end gap-2">
           <span className="font-num text-xl font-semibold" data-testid={`text-request-amount-${r.id}`}>{money(r.amount)}</span>

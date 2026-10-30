@@ -198,7 +198,13 @@ export const GetApplicantAccountResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "reference": zod.string().optional().describe('Short reference for a deposit or withdrawal request'),
   "reviewNote": zod.string().optional().describe('Why a request was declined')
-}))
+})),
+  "withdrawalLimits": zod.object({
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "maxPerRequest": zod.number().nullable(),
+  "dailyTotal": zod.number().nullable(),
+  "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
+})
 })
 
 
@@ -822,6 +828,12 @@ export const GetAdminUserResponse = zod.object({
   "emailOverride": zod.boolean().nullish().describe('Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user'),
   "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }),
+  "withdrawalLimits": zod.object({
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "maxPerRequest": zod.number().nullable(),
+  "dailyTotal": zod.number().nullable(),
+  "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
+}),
   "audit": zod.array(zod.object({
   "id": zod.string(),
   "action": zod.string(),
@@ -913,6 +925,12 @@ export const UpdateAdminUserResponse = zod.object({
   "emailOverride": zod.boolean().nullish().describe('Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user'),
   "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }),
+  "withdrawalLimits": zod.object({
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "maxPerRequest": zod.number().nullable(),
+  "dailyTotal": zod.number().nullable(),
+  "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
+}),
   "audit": zod.array(zod.object({
   "id": zod.string(),
   "action": zod.string(),
@@ -946,6 +964,106 @@ export const CreateUserBalanceAdjustmentResponse = zod.object({
   "grant": zod.number(),
   "deposit": zod.number(),
   "card": zod.number()
+})
+
+
+/**
+ * @summary Use the global withdrawal limits for this user, or set custom ones that replace them
+ */
+export const UpdateUserWithdrawalLimitsParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const UpdateUserWithdrawalLimitsBody = zod.object({
+  "custom": zod.boolean().describe('false = use the global limits; true = the limits below replace them for this user'),
+  "maxPerRequest": zod.number().nullish(),
+  "dailyTotal": zod.number().nullish()
+})
+
+export const updateUserWithdrawalLimitsResponseTierMax = 3;
+
+
+
+export const UpdateUserWithdrawalLimitsResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "phone": zod.string(),
+  "telegram": zod.string(),
+  "organization": zod.string(),
+  "maskedId": zod.string(),
+  "avatarUrl": zod.string().optional(),
+  "tier": zod.number().int().min(1).max(updateUserWithdrawalLimitsResponseTierMax),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "status": zod.enum(['Active', 'Frozen']),
+  "balances": zod.object({
+  "grant": zod.number(),
+  "deposit": zod.number(),
+  "card": zod.number()
+}),
+  "cards": zod.array(zod.object({
+  "id": zod.string(),
+  "network": zod.enum(['Visa', 'Mastercard']),
+  "kind": zod.enum(['Virtual', 'Physical']),
+  "lastFour": zod.string(),
+  "status": zod.enum(['Active', 'Frozen', 'Pending']),
+  "balance": zod.number()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['Government ID', 'Proof of address']),
+  "status": zod.enum(['Verified', 'Pending', 'Rejected']),
+  "sample": zod.boolean().describe('Seeded sample document with no file'),
+  "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
+  "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
+  "mimeType": zod.string().optional(),
+  "submittedAt": zod.coerce.date(),
+  "reviewNote": zod.string().optional().describe('Reviewer\'s reason, shown when a document is rejected'),
+  "reviewedAt": zod.coerce.date().optional()
+})),
+  "permissions": zod.object({
+  "emailNotifications": zod.boolean(),
+  "withdrawalKycRequired": zod.boolean(),
+  "depositKycRequired": zod.boolean(),
+  "emailOverride": zod.boolean().nullish().describe('Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user'),
+  "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
+}),
+  "withdrawalLimits": zod.object({
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "maxPerRequest": zod.number().nullable(),
+  "dailyTotal": zod.number().nullable(),
+  "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
+}),
+  "audit": zod.array(zod.object({
+  "id": zod.string(),
+  "action": zod.string(),
+  "actor": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary The global withdrawal limits
+ */
+export const GetWithdrawalLimitsResponse = zod.object({
+  "maxPerRequest": zod.number().nullable().describe('Largest single withdrawal in USD; null = no limit'),
+  "dailyTotal": zod.number().nullable().describe('Most that can be withdrawn in any 24 hours (under review + approved); null = no limit')
+})
+
+
+/**
+ * @summary Set the global withdrawal limits
+ */
+export const UpdateWithdrawalLimitsBody = zod.object({
+  "maxPerRequest": zod.number().nullable().describe('Largest single withdrawal in USD; null = no limit'),
+  "dailyTotal": zod.number().nullable().describe('Most that can be withdrawn in any 24 hours (under review + approved); null = no limit')
+})
+
+export const UpdateWithdrawalLimitsResponse = zod.object({
+  "maxPerRequest": zod.number().nullable().describe('Largest single withdrawal in USD; null = no limit'),
+  "dailyTotal": zod.number().nullable().describe('Most that can be withdrawn in any 24 hours (under review + approved); null = no limit')
 })
 
 
@@ -1170,6 +1288,7 @@ export const ListAdminRequestsResponseItem = zod.object({
   "userStatus": zod.enum(['Active', 'Frozen']),
   "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
   "kycRequired": zod.boolean().describe('Whether this user\'s settings require verification for this kind of request'),
+  "limitWarning": zod.string().optional().describe('Set when a pending withdrawal is above the user\'s current limit'),
   "grantBalance": zod.number(),
   "depositBalance": zod.number(),
   "reviewNote": zod.string().optional(),
@@ -1200,6 +1319,7 @@ export const ApproveAdminRequestResponse = zod.object({
   "userStatus": zod.enum(['Active', 'Frozen']),
   "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
   "kycRequired": zod.boolean().describe('Whether this user\'s settings require verification for this kind of request'),
+  "limitWarning": zod.string().optional().describe('Set when a pending withdrawal is above the user\'s current limit'),
   "grantBalance": zod.number(),
   "depositBalance": zod.number(),
   "reviewNote": zod.string().optional(),
@@ -1238,6 +1358,7 @@ export const RejectAdminRequestResponse = zod.object({
   "userStatus": zod.enum(['Active', 'Frozen']),
   "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
   "kycRequired": zod.boolean().describe('Whether this user\'s settings require verification for this kind of request'),
+  "limitWarning": zod.string().optional().describe('Set when a pending withdrawal is above the user\'s current limit'),
   "grantBalance": zod.number(),
   "depositBalance": zod.number(),
   "reviewNote": zod.string().optional(),

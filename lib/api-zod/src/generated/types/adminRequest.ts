@@ -25,6 +25,8 @@ export interface AdminRequest {
   verificationLevel: AdminRequestVerificationLevel;
   /** Whether this user's settings require verification for this kind of request */
   kycRequired: boolean;
+  /** Set when a pending withdrawal is above the user's current limit */
+  limitWarning?: string;
   grantBalance: number;
   depositBalance: number;
   reviewNote?: string;

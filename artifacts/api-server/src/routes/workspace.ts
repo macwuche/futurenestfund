@@ -6,7 +6,8 @@ import {
   GetAdminDashboardResponse, ListAdminUsersQueryParams, ListAdminUsersResponse,
   GetAdminUserParams, GetAdminUserResponse, UpdateAdminUserBody, UpdateAdminUserParams, UpdateAdminUserResponse,
   CreateUserBalanceAdjustmentBody, CreateUserBalanceAdjustmentParams, CreateUserBalanceAdjustmentResponse,
-  UpdateGlobalFreezeBody, UpdateGlobalFreezeResponse, UpdateApplicantPreferencesBody, UpdateApplicantPreferencesResponse,
+  UpdateGlobalFreezeBody, UpdateGlobalFreezeResponse, GetWithdrawalLimitsResponse, UpdateWithdrawalLimitsBody, UpdateWithdrawalLimitsResponse,
+  UpdateUserWithdrawalLimitsParams, UpdateUserWithdrawalLimitsBody, UpdateUserWithdrawalLimitsResponse, UpdateApplicantPreferencesBody, UpdateApplicantPreferencesResponse,
 } from "@workspace/api-zod";
 import {
   ListApplicantApplicationsResponse, CreateApplicantApplicationBody, GetApplicantApplicationParams, GetApplicantApplicationResponse,
@@ -30,6 +31,7 @@ import { db, demoProfilesTable } from "@workspace/db";
 import {
   adminSearch, listAdminApplications, adminApplicationDetail, decideApplication, listAdminRequests, approveRequest, rejectRequest,
   listLedger, exportLedgerCsv, adminKycQueue, reviewKycDocument,
+  globalWithdrawalLimits, changeGlobalWithdrawalLimits, changeUserWithdrawalLimits,
 } from "../lib/adminOps";
 import { receiveFile, findFile, sendFile } from "../lib/uploads";
 import { applicantKyc, uploadKycDocument } from "../lib/kyc";
@@ -228,6 +230,25 @@ router.patch("/admin/system/freeze", async (req, res): Promise<void> => {
   const input = UpdateGlobalFreezeBody.safeParse(req.body);
   if (!input.success) { res.status(400).json({ error: "Invalid freeze request." }); return; }
   res.json(UpdateGlobalFreezeResponse.parse(await changeGlobalFreeze(input.data.frozen, currentAdmin(req), input.data.reason)));
+});
+
+router.get("/admin/system/withdrawal-limits", async (_req, res): Promise<void> => {
+  res.json(GetWithdrawalLimitsResponse.parse(await globalWithdrawalLimits()));
+});
+
+router.put("/admin/system/withdrawal-limits", async (req, res): Promise<void> => {
+  const input = UpdateWithdrawalLimitsBody.safeParse(req.body);
+  if (!input.success) { res.status(400).json({ error: "Enter each limit as an amount, or leave it empty for no limit." }); return; }
+  res.json(UpdateWithdrawalLimitsResponse.parse(await changeGlobalWithdrawalLimits(input.data, currentAdmin(req))));
+});
+
+router.put("/admin/users/:userId/withdrawal-limits", async (req, res): Promise<void> => {
+  const params = UpdateUserWithdrawalLimitsParams.safeParse(req.params);
+  const input = UpdateUserWithdrawalLimitsBody.safeParse(req.body);
+  if (!params.success || !input.success) { res.status(400).json({ error: "Choose the global limits or enter custom ones." }); return; }
+  const user = await changeUserWithdrawalLimits(params.data.userId, input.data, currentAdmin(req));
+  if (!user) { res.status(404).json({ error: "User not found." }); return; }
+  res.json(UpdateUserWithdrawalLimitsResponse.parse(user));
 });
 
 /* ---------- admin operations ---------- */

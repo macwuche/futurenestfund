@@ -582,6 +582,71 @@ paths:
                 $ref: "#/components/schemas/UserBalances"
         "404":
           description: User not found
+  /admin/users/{userId}/withdrawal-limits:
+    put:
+      operationId: updateUserWithdrawalLimits
+      tags: [admin]
+      summary: Use the global withdrawal limits for this user, or set custom ones that replace them
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserWithdrawalLimitsUpdate"
+      responses:
+        "200":
+          description: The updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserProfile"
+        "400":
+          description: Invalid limits
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: User not found
+  /admin/system/withdrawal-limits:
+    get:
+      operationId: getWithdrawalLimits
+      tags: [admin]
+      summary: The global withdrawal limits
+      responses:
+        "200":
+          description: Global limits (null = no limit)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WithdrawalLimits"
+    put:
+      operationId: updateWithdrawalLimits
+      tags: [admin]
+      summary: Set the global withdrawal limits
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WithdrawalLimits"
+      responses:
+        "200":
+          description: Updated global limits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WithdrawalLimits"
+        "400":
+          description: Invalid limits
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /admin/files/{fileId}:
     get:
       operationId: getAdminFile
@@ -877,7 +942,8 @@ components:
         transactions:
           type: array
           items: { $ref: "#/components/schemas/ApplicantTransaction" }
-      required: [status, platformFrozen, tier, verificationLevel, permissions, balances, availableToWithdraw, cards, transactions]
+        withdrawalLimits: { $ref: "#/components/schemas/EffectiveWithdrawalLimits" }
+      required: [status, platformFrozen, tier, verificationLevel, permissions, balances, availableToWithdraw, cards, transactions, withdrawalLimits]
     ApplicantRequestInput:
       type: object
       properties:
@@ -1221,10 +1287,11 @@ components:
           type: array
           items: { $ref: "#/components/schemas/KycDocument" }
         permissions: { $ref: "#/components/schemas/UserPermissions" }
+        withdrawalLimits: { $ref: "#/components/schemas/EffectiveWithdrawalLimits" }
         audit:
           type: array
           items: { $ref: "#/components/schemas/AuditEntry" }
-      required: [id, name, email, phone, telegram, organization, maskedId, tier, verificationLevel, status, balances, cards, documents, permissions, audit]
+      required: [id, name, email, phone, telegram, organization, maskedId, tier, verificationLevel, status, balances, cards, documents, permissions, withdrawalLimits, audit]
     AdminUserUpdate:
       type: object
       properties:
@@ -1241,6 +1308,27 @@ components:
         amount: { type: number, minimum: 0.01 }
         reason: { type: string, minLength: 5, maxLength: 240 }
       required: [account, amount, reason]
+    WithdrawalLimits:
+      type: object
+      properties:
+        maxPerRequest: { type: [number, "null"], description: "Largest single withdrawal in USD; null = no limit" }
+        dailyTotal: { type: [number, "null"], description: "Most that can be withdrawn in any 24 hours (under review + approved); null = no limit" }
+      required: [maxPerRequest, dailyTotal]
+    UserWithdrawalLimitsUpdate:
+      type: object
+      properties:
+        custom: { type: boolean, description: "false = use the global limits; true = the limits below replace them for this user" }
+        maxPerRequest: { type: [number, "null"] }
+        dailyTotal: { type: [number, "null"] }
+      required: [custom]
+    EffectiveWithdrawalLimits:
+      type: object
+      properties:
+        custom: { type: boolean, description: "Whether these are the user's own limits rather than the global ones" }
+        maxPerRequest: { type: [number, "null"] }
+        dailyTotal: { type: [number, "null"] }
+        usedLast24h: { type: number, description: "Withdrawals under review or approved in the last 24 hours" }
+      required: [custom, maxPerRequest, dailyTotal, usedLast24h]
     GlobalFreezeUpdate:
       type: object
       properties:
@@ -1306,6 +1394,7 @@ components:
         userStatus: { type: string, enum: [Active, Frozen] }
         verificationLevel: { type: string, enum: [Verified, Pending, Rejected, Unsubmitted] }
         kycRequired: { type: boolean, description: "Whether this user's settings require verification for this kind of request" }
+        limitWarning: { type: string, description: "Set when a pending withdrawal is above the user's current limit" }
         grantBalance: { type: number }
         depositBalance: { type: number }
         reviewNote: { type: string }

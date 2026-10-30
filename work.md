@@ -1147,3 +1147,53 @@ Tests (2026-10-30), all passing:
 Not done yet:
 - Migration `0003` is applied on the **Replit** database only. Supabase needs `pnpm --filter @workspace/scripts run db:migrate` with `SUPABASE_ADMIN_DB_URL` set (not available in this shell).
 - Withdrawal emails go out only once Resend is configured (go-live checklist §12).
+
+### 2026-10-30: Step 5.2 plan (withdrawal limits)
+
+**Rules**
+- Two limits: **max per request** and **daily total**. The daily total counts withdrawals in the **last 24 hours** that are under review or approved; declined ones don't count. Either limit can be empty, meaning no limit.
+- **Global limit** (admin Settings) applies to everyone by default.
+- **Per-user limit** (admin user profile): "Use the global limit" or "Custom for this user". A custom limit **replaces** the global one for that user and can be higher or lower; an empty custom field means no limit for that user.
+- Amounts are $0.01–$1,000,000 with 2 decimals. A daily total lower than the max per request is refused.
+- **Enforced when the applicant places a request**, server-side, inside the same transaction that locks the profile (two quick requests can't slip past the daily total). The messages say which limit applies, e.g. "You can withdraw up to $500.00 per request" or "You have $200.00 left of your $1,000.00 daily limit".
+- **Approval isn't blocked by limits** (the admin is the reviewer), but the queue flags a request that is above the user's *current* limit, e.g. after the limit was lowered.
+- Every change is audited. When an admin changes a user's own limit, that user is notified (in-app + email, per their notification settings). Changing the global limit sends no notifications.
+
+**Build**
+
+| Part | What |
+|---|---|
+| DB (migration 0004) | `demo_settings.withdrawal_max_cents`, `withdrawal_daily_cents` (nullable); `demo_profiles.withdrawal_limit_custom` (default false), `withdrawal_max_cents`, `withdrawal_daily_cents` (nullable) |
+| API | `GET` / `PUT /admin/system/withdrawal-limits`; `PUT /admin/users/:id/withdrawal-limits` `{ custom, maxPerRequest, dailyTotal }`; `AdminUserProfile.withdrawalLimits` (custom flag, effective limits, used in the last 24 h); `ApplicantAccount.withdrawalLimits` (effective limits, used, left); `AdminRequest.limitWarning` |
+| Applicant UI | Withdrawals form shows "Up to $X per request · $Y per 24 hours ($Z left)" and checks it before sending |
+| Admin UI | Settings: "Withdrawal limits" card (two fields, empty = no limit). User profile: "Withdrawal limits" card (global / custom). Queue: a limit warning on a flagged request |
+| Tests | Vitest for the limit check (pure function); `.unlazy/phase5-limits.mjs` API suite; browser checks desktop + phone |
+
+### 2026-10-30: Step 5.2 done (withdrawal limits)
+
+Built as planned above, with these details:
+- Pure rules in `api-server/src/lib/withdrawalLimits.ts` (`effectiveLimits`, `limitProblem`, `parseLimits`, `withdrawnLast24h`), plus Vitest.
+- Enforced in `createApplicantRequest` after the profile row lock, so simultaneous requests are serialised.
+- Admin setters `changeGlobalWithdrawalLimits` / `changeUserWithdrawalLimits` and the queue's `limitWarning` are in `adminOps.ts`.
+- Routes: `GET`/`PUT /admin/system/withdrawal-limits`, `PUT /admin/users/:id/withdrawal-limits`.
+- `withdrawalLimits` (custom flag, effective limits, `usedLast24h`) is on `AdminUserProfile` and `ApplicantAccount`.
+- UI in `grant-platform/src/components/withdrawal-limits.tsx`:
+  - admin Settings card
+  - user-profile card with "Use global limits" / "Custom for this user"
+  - "Your limits" line with what's left today on the Withdrawals form, with the same checks before sending
+  - amber warning in the queue
+- Copy: the 4-eyes banner, tooltip and Settings line now say two-person approval is not used, and one finance admin decides.
+
+Tests (2026-10-30), all passing:
+- `pnpm test` 50/50 · typecheck clean
+- new `.unlazy/phase5-limits.mjs` 10/10:
+  - defaults and validation
+  - per-request limit, then the 24-hour total
+  - declined and > 24 h requests don't count; approved ones do
+  - custom limits replace global (higher too); empty custom fields = no limit
+  - back to global; the queue warning doesn't block approval
+  - audit and notification
+  - **5 simultaneous requests against a $100 daily limit: exactly 1 accepted**
+- new `.unlazy/phase5-limits-ui.mjs` 6/6 desktop + 6/6 phone
+- regressions: `phase5-withdrawals` 11/11, `phase5-ui` 4+4, `phase3-api` 24/24, `phase3-desktop` 22/22, `phase3-phone` 16/16. `phase3-desktop` now uses the KYC switch where it used the admin email switch replaced in 5.1.
+- Demo data restored. Migration `0004` is applied on the Replit DB only; Supabase still needs `db:migrate` (0003 + 0004).

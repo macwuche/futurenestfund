@@ -186,6 +186,17 @@ export interface UserCard {
   balance: number;
 }
 
+export interface EffectiveWithdrawalLimits {
+  /** Whether these are the user's own limits rather than the global ones */
+  custom: boolean;
+  /** @nullable */
+  maxPerRequest: number | null;
+  /** @nullable */
+  dailyTotal: number | null;
+  /** Withdrawals under review or approved in the last 24 hours */
+  usedLast24h: number;
+}
+
 export interface ApplicantAccount {
   status: ApplicantAccountStatus;
   platformFrozen: boolean;
@@ -200,6 +211,7 @@ export interface ApplicantAccount {
   availableToWithdraw: number;
   cards: UserCard[];
   transactions: ApplicantTransaction[];
+  withdrawalLimits: EffectiveWithdrawalLimits;
 }
 
 export type ApplicantRequestInputKind = typeof ApplicantRequestInputKind[keyof typeof ApplicantRequestInputKind];
@@ -626,6 +638,7 @@ export interface AdminUserProfile {
   cards: UserCard[];
   documents: KycDocument[];
   permissions: UserPermissions;
+  withdrawalLimits: EffectiveWithdrawalLimits;
   audit: AuditEntry[];
 }
 
@@ -674,6 +687,28 @@ export interface BalanceAdjustmentInput {
      * @maxLength 240
      */
   reason: string;
+}
+
+export interface WithdrawalLimits {
+  /**
+     * Largest single withdrawal in USD; null = no limit
+     * @nullable
+     */
+  maxPerRequest: number | null;
+  /**
+     * Most that can be withdrawn in any 24 hours (under review + approved); null = no limit
+     * @nullable
+     */
+  dailyTotal: number | null;
+}
+
+export interface UserWithdrawalLimitsUpdate {
+  /** false = use the global limits; true = the limits below replace them for this user */
+  custom: boolean;
+  /** @nullable */
+  maxPerRequest?: number | null;
+  /** @nullable */
+  dailyTotal?: number | null;
 }
 
 export interface GlobalFreezeUpdate {
@@ -793,6 +828,8 @@ export interface AdminRequest {
   verificationLevel: AdminRequestVerificationLevel;
   /** Whether this user's settings require verification for this kind of request */
   kycRequired: boolean;
+  /** Set when a pending withdrawal is above the user's current limit */
+  limitWarning?: string;
   grantBalance: number;
   depositBalance: number;
   reviewNote?: string;

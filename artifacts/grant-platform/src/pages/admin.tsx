@@ -11,6 +11,7 @@ import {
 import { Camera, ChevronRight, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck } from 'lucide-react';
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
+import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
 import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, initials, money } from '@/components/bits';
 import { card, ainput, lime, dark, Stat, SectionTitle, useAdminRefresh, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
 import { apiError } from '@/lib/demo-state';
@@ -291,6 +292,8 @@ function Inspector({ u }: { u: AdminUserProfile }) {
         </div>
       </div>
 
+      <UserWithdrawalLimits u={u} />
+
       <section className={cx(card, 'p-5')} data-testid="section-balances">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="font-display font-bold">Balances and cards</h3><span className="text-xs text-slate-500">Sample balances. Credits write a ledger entry; no real transfer.</span></div>
         <div className="grid gap-3 sm:grid-cols-3">
@@ -382,11 +385,12 @@ export function AdminSettingsPage() {
         <SectionTitle>Security rules</SectionTitle>
         <ul className="space-y-3 text-sm">
           <li className="flex items-start justify-between gap-3"><span>Audit log, ledger and application history are append-only (edits and deletes are refused by the database)</span><StatusBadge status={d.systemHealth.auditLog} /></li>
-          <li className="flex items-start justify-between gap-3"><span>4-eyes sign-off. One administrator approves in this demo; two-person approval needs real admin accounts.</span><StatusBadge status={d.systemHealth.fourEyes ? 'Active' : 'Not active'} /></li>
+          <li className="flex items-start justify-between gap-3"><span>4-eyes sign-off is not used: one finance administrator approves or declines each request.</span><StatusBadge status={d.systemHealth.fourEyes ? 'Active' : 'Not active'} /></li>
           <li className="flex items-start justify-between gap-3"><span>Approvals re-check freezes, balances and each user's KYC requirement at the moment of approval</span><StatusBadge status="Active" /></li>
-          <li className="flex items-start gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0" />Per-user KYC requirements and tiers are set in each user's inspector. Threshold limits are not configurable yet.</li>
+          <li className="flex items-start gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0" />Per-user KYC requirements, tiers, notification overrides and custom withdrawal limits are set on each user's profile.</li>
         </ul>
       </section>
+      <GlobalWithdrawalLimits />
       <div className="lg:col-span-2"><AccountSecurity tone="admin" /></div>
     </div>
   )}</DashGate>;

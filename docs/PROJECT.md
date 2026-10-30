@@ -68,7 +68,8 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
   - credit balances
   - the user's applications and KYC documents
 - **Application review:** Submitted → Review → Approved / Declined / Changes requested, with notes. Approving credits the grant balance through the ledger.
-- **Deposit / Withdrawal queues:** approve or decline (decline needs a reason). Freezes, balances and KYC are re-checked at approval time.
+- **Deposit / Withdrawal queues:** approve or decline (decline needs a reason). Freezes, balances and KYC are re-checked at approval time. A pending withdrawal above the user's current limit is flagged.
+- **Withdrawal limits:** a global max per request and daily total (last 24 h, under review + approved) in Settings, and optional custom limits per user that replace them. Enforced when the applicant places a request.
 - **Transactions:** the full ledger with filters, search, pagination, totals and **CSV export** (spreadsheet-formula injection neutralised).
 - **KYC:** a document queue with previews; approve or reject (with a reason). The verification level is recomputed.
 - **Settings:**
@@ -212,6 +213,7 @@ Dashboard settings to check (see §12): Site URL (still `http://localhost:3000`)
 | `lib/db/migrations/0001_notification_email_lease.sql` | `demo_notifications.email_claimed_until` |
 | `lib/db/migrations/0002_append_only_triggers.sql` | Triggers refusing UPDATE/DELETE on `demo_audit`, `demo_ledger`, `demo_application_events` |
 | `lib/db/migrations/0003_notification_templates.sql` | `demo_notifications.email_kind`, `email_data`, `in_app` |
+| `lib/db/migrations/0004_withdrawal_limits.sql` | Global (`demo_settings`) and per-user (`demo_profiles`) withdrawal limits |
 | `lib/db/supabase/migrations/0001_user_roles.sql` | `user_roles` (Supabase only) |
 | `lib/db/supabase/migrations/0002_app_api_role.sql` | `app_api` role, grants, `app_api_all` policies, revoked Data API grants |
 
@@ -317,7 +319,7 @@ No secrets. `PORT` and `BASE_PATH` for Vite; everything else comes from `GET /ap
 | Command | What it does |
 |---|---|
 | `pnpm run typecheck` | Type-check every package |
-| `pnpm test` | Vitest unit tests (47) |
+| `pnpm test` | Vitest unit tests (50) |
 | `pnpm --filter @workspace/api-spec run codegen` | Regenerate API hooks / validators after editing `openapi.yaml` |
 | `pnpm --filter @workspace/db run generate` | Write a new migration from schema changes |
 | `pnpm --filter @workspace/scripts run db:migrate` | Apply pending migrations (`-- --baseline` once for a database built with push) |
@@ -419,8 +421,7 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 **Needs you:** everything in the §12 checklist.
 
 **Phase 5 (admin controls)**, full plan in `work.md` §11:
-- 5.1 withdrawal notifications: in-app + email when requested, approved or declined
-- 5.2 withdrawal limits (max per request, per-user daily total)
+- ~~5.1 withdrawal notifications~~ and ~~5.2 withdrawal limits~~: done 2026-10-30
 - 5.3 a full audit-log viewer with filters and export
 - 5.4 users directory sorting and pagination
 - 5.5 debit adjustments, 5.6 card controls, 5.7 a real admin avatar
