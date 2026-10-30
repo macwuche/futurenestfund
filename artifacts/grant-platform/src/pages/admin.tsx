@@ -1,19 +1,20 @@
 import { useDeferredValue, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, useParams, useSearch } from 'wouter';
+import { Link, useLocation, useParams, useSearch } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import {
   useGetAdminDashboard, useListAdminUsers, useGetAdminUser, useUpdateAdminUser, useListAdminApplications,
-  getGetAdminUserQueryKey, type AdminDashboard, type AdminUserProfile, type AdminUserSummary,
+  getGetAdminUserQueryKey, getListAdminUsersQueryKey, type ListAdminUsersSort, type ListAdminUsersDir, type AdminDashboard, type AdminUserProfile, type AdminUserSummary,
 } from '@workspace/api-client-react';
-import { Camera, ChevronRight, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck } from 'lucide-react';
+import { keepPreviousData } from '@tanstack/react-query';
+import { Camera, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck } from 'lucide-react';
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
 import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, initials, money } from '@/components/bits';
-import { card, ainput, lime, dark, Stat, SectionTitle, useAdminRefresh, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
+import { card, ainput, lime, dark, ghost, Stat, SectionTitle, useAdminRefresh, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
 import { apiError } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
@@ -124,52 +125,129 @@ function ReviewQueue() {
 }
 
 /* ---------- Users directory ---------- */
-function UserTable({ items }: { items: AdminUserSummary[] }) {
+type UserSort = ListAdminUsersSort;
+const SORT_LABEL: Record<UserSort, string> = { name: 'Name', joined: 'Joined', tier: 'Tier', status: 'Status', grant: 'Grant balance', deposit: 'Deposit balance' };
+/** Same defaults as the API: names, tiers and statuses A→Z / low→high; dates and balances newest / largest first. */
+const defaultDir = (s: UserSort): ListAdminUsersDir => (s === 'joined' || s === 'grant' || s === 'deposit' ? 'desc' : 'asc');
+const joinedFmt = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+
+function UserTable({ items, sort, dir, onSort }: { items: AdminUserSummary[]; sort: UserSort; dir: ListAdminUsersDir; onSort: (s: UserSort) => void }) {
+  const th = (key: UserSort, label: string, className = '') => (
+    <th className={className} aria-sort={sort === key ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" data-testid={`sort-${key}`} onClick={() => onSort(key)} className={cx('inline-flex items-center gap-1 uppercase tracking-wide hover:text-slate-900', sort === key && 'text-slate-900', className.includes('text-right') && 'flex-row-reverse')}>
+        {label}{sort === key ? (dir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />) : <ChevronsUpDown className="h-3.5 w-3.5 opacity-40" />}
+      </button>
+    </th>
+  );
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] text-left text-sm" data-testid="table-users">
-        <thead><tr className="border-b text-xs uppercase tracking-wide text-slate-500"><th className="py-2 pr-3">User</th><th>Tier</th><th>KYC</th><th>Status</th><th className="text-right">Grant</th><th className="text-right">Deposit</th><th /></tr></thead>
-        <tbody>
-          {items.map((u) => (
-            <tr key={u.id} data-testid={`row-user-${u.id}`} className="group border-b transition hover:bg-[#F7FADC]">
-              <td className="py-3 pr-3"><Link href={`/admin/users/${u.id}`} data-testid={`link-user-${u.id}`} className="flex items-center gap-3">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#111] text-xs font-bold text-[#C6F432]">{initials(u.name)}</span>
-                <span><span className="block font-semibold">{u.name}</span><span className="block text-xs text-slate-500">{u.email} · {u.organization} · <span className="font-num">{u.id}</span></span></span></Link></td>
-              <td className="font-num">L{u.tier}</td>
-              <td><span className="flex flex-wrap items-center gap-1"><StatusBadge status={u.verificationLevel} />{u.pendingKycDocuments > 0 && <span className="text-xs text-slate-500" data-testid={`text-pending-docs-${u.id}`}>{u.pendingKycDocuments} to review</span>}</span></td>
-              <td><StatusBadge status={u.status} /></td>
-              <td className="font-num text-right">{money(u.grantBalance)}</td>
-              <td className="font-num text-right">{money(u.depositBalance)}</td>
-              <td className="pl-2"><ChevronRight className="h-4 w-4 text-slate-400 transition group-hover:translate-x-1" /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <>
+      {/* Phones: one card per user, so nothing scrolls sideways. */}
+      <ul className="space-y-2 md:hidden" data-testid="list-users">{items.map((u) => (
+        <li key={u.id}><Link href={`/admin/users/${u.id}`} data-testid={`card-user-${u.id}`} className="flex items-center gap-3 rounded-xl border p-3 hover:bg-[#F7FADC]">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#111] text-xs font-bold text-[#C6F432]">{initials(u.name)}</span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate font-semibold">{u.name}</span>
+            <span className="block truncate text-xs text-slate-500">{u.organization}</span>
+            <span className="block text-xs text-slate-500" data-testid={`text-card-joined-${u.id}`}>L{u.tier} · joined {joinedFmt(u.joinedAt)}</span>
+            <span className="mt-1 flex flex-wrap items-center gap-1"><StatusBadge status={u.status} /><StatusBadge status={u.verificationLevel} />{u.pendingKycDocuments > 0 && <span className="text-xs text-slate-500">{u.pendingKycDocuments} to review</span>}</span>
+          </span>
+          <span className="shrink-0 text-right"><span className="font-num block text-sm font-semibold">{money(u.grantBalance)}</span><span className="block text-[11px] text-slate-500">grant</span></span>
+        </Link></li>
+      ))}</ul>
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[820px] text-left text-sm" data-testid="table-users">
+          <thead><tr className="border-b text-xs text-slate-500">
+            {th('name', 'User', 'py-2 pr-3')}{th('joined', 'Joined')}{th('tier', 'Tier')}<th className="uppercase tracking-wide">KYC</th>{th('status', 'Status')}
+            {th('grant', 'Grant', 'text-right')}{th('deposit', 'Deposit', 'text-right')}<th />
+          </tr></thead>
+          <tbody>
+            {items.map((u) => (
+              <tr key={u.id} data-testid={`row-user-${u.id}`} className="group border-b transition hover:bg-[#F7FADC]">
+                <td className="py-3 pr-3"><Link href={`/admin/users/${u.id}`} data-testid={`link-user-${u.id}`} className="flex items-center gap-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#111] text-xs font-bold text-[#C6F432]">{initials(u.name)}</span>
+                  <span><span className="block font-semibold">{u.name}</span><span className="block text-xs text-slate-500">{u.email} · {u.organization} · <span className="font-num">{u.id}</span></span></span></Link></td>
+                <td className="whitespace-nowrap text-xs text-slate-600">{joinedFmt(u.joinedAt)}</td>
+                <td className="font-num">L{u.tier}</td>
+                <td><span className="flex flex-wrap items-center gap-1"><StatusBadge status={u.verificationLevel} />{u.pendingKycDocuments > 0 && <span className="text-xs text-slate-500" data-testid={`text-pending-docs-${u.id}`}>{u.pendingKycDocuments} to review</span>}</span></td>
+                <td><StatusBadge status={u.status} /></td>
+                <td className="font-num text-right">{money(u.grantBalance)}</td>
+                <td className="font-num text-right">{money(u.depositBalance)}</td>
+                <td className="pl-2"><ChevronRight className="h-4 w-4 text-slate-400 transition group-hover:translate-x-1" /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
+
+const PAGE_SIZE = 25;
+const SORTS = Object.keys(SORT_LABEL) as UserSort[];
+const STATUSES = ['all', 'active', 'frozen'] as const;
+
 export function AdminUsersPage() {
-  const params = new URLSearchParams(useSearch());
-  const [search, setSearch] = useState(params.get('q') ?? '');
-  const fromUrl = params.get('q');
-  useEffect(() => { if (fromUrl !== null) setSearch(fromUrl); }, [fromUrl]);
-  const [status, setStatus] = useState<'all' | 'active' | 'frozen'>('all');
+  const query = useSearch();
+  const [, navigate] = useLocation();
+  // Search, status, sort and page live in the address bar, so "back" from a user returns to the same page of the list.
+  const u = new URLSearchParams(query);
+  const status = (STATUSES as readonly string[]).includes(u.get('status') ?? '') ? u.get('status') as (typeof STATUSES)[number] : 'all';
+  const sort = (SORTS as string[]).includes(u.get('sort') ?? '') ? u.get('sort') as UserSort : 'name';
+  const dir: ListAdminUsersDir = u.get('dir') === 'asc' || u.get('dir') === 'desc' ? u.get('dir') as ListAdminUsersDir : defaultDir(sort);
+  const page = Math.max(1, Number.parseInt(u.get('page') ?? '1', 10) || 1);
+  const urlSearch = u.get('q') ?? '';
+  const [search, setSearch] = useState(urlSearch);
+  useEffect(() => { setSearch(urlSearch); }, [urlSearch]);
+  const go = (changes: Record<string, string | number | null>) => {
+    const next = new URLSearchParams(query);
+    for (const [k, v] of Object.entries(changes)) { if (v === null || v === '') next.delete(k); else next.set(k, String(v)); }
+    if (!('page' in changes)) next.delete('page'); // a new search, filter or sort starts again at page 1
+    if (next.get('status') === 'all') next.delete('status');
+    if (next.get('sort') === 'name') next.delete('sort');
+    if (next.get('dir') === defaultDir((next.get('sort') as UserSort) ?? 'name')) next.delete('dir');
+    if (next.get('page') === '1') next.delete('page');
+    navigate(`/admin/users${next.size ? `?${next}` : ''}`, { replace: !('page' in changes) && !('sort' in changes) });
+  };
   const s = useDeferredValue(search.trim());
-  const q = useListAdminUsers({ search: s || undefined, status });
+  useEffect(() => { if (s !== urlSearch.trim()) go({ q: s }); }, [s]); // eslint-disable-line react-hooks/exhaustive-deps
+  const params = { ...(urlSearch.trim() ? { search: urlSearch.trim() } : {}), status, sort, dir, page, pageSize: PAGE_SIZE };
+  const q = useListAdminUsers(params, { query: { placeholderData: keepPreviousData, queryKey: getListAdminUsersQueryKey(params) } });
+  const onSort = (k: UserSort) => go({ sort: k, dir: k === sort ? (dir === 'asc' ? 'desc' : 'asc') : defaultDir(k) });
+  const pages = q.data ? Math.max(1, Math.ceil(q.data.total / q.data.pageSize)) : 1;
+  const first = q.data && q.data.total ? (q.data.page - 1) * q.data.pageSize + 1 : 0;
+  const last = q.data ? Math.min(q.data.total, first + q.data.items.length - 1) : 0;
   return (
     <Shell admin title="Users">
       <div className={cx(card, 'p-5')}>
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <input data-testid="input-user-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, organization" aria-label="Search users" className={cx(ainput, 'sm:max-w-xs')} />
           <div role="group" aria-label="Status filter" className="flex rounded-lg bg-slate-100 p-0.5 text-xs font-semibold">
-            {(['all', 'active', 'frozen'] as const).map((k) => <button key={k} aria-pressed={status === k} data-testid={`filter-status-${k}`} onClick={() => setStatus(k)} className={cx('press rounded-md px-3 py-1.5 capitalize transition', status === k ? 'bg-[#111] text-[#C6F432]' : 'text-slate-600')}>{k}</button>)}
+            {STATUSES.map((k) => <button key={k} aria-pressed={status === k} data-testid={`filter-status-${k}`} onClick={() => go({ status: k })} className={cx('press rounded-md px-3 py-1.5 capitalize transition', status === k ? 'bg-[#111] text-[#C6F432]' : 'text-slate-600')}>{k}</button>)}
           </div>
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 md:hidden">Sort by
+            <select data-testid="select-user-sort" value={`${sort}:${dir}`} onChange={(e) => { const [k, d] = e.target.value.split(':'); go({ sort: k!, dir: d! }); }} className={cx(ainput, '!w-auto !py-1.5 text-sm')}>
+              {SORTS.flatMap((k) => (['asc', 'desc'] as const).map((d) => (
+                <option key={`${k}:${d}`} value={`${k}:${d}`}>{SORT_LABEL[k]} · {k === 'name' || k === 'status' ? (d === 'asc' ? 'A→Z' : 'Z→A') : k === 'joined' ? (d === 'asc' ? 'oldest' : 'newest') : (d === 'asc' ? 'lowest' : 'highest')}</option>
+              )))}
+            </select>
+          </label>
           <span className="ml-auto text-sm text-slate-500" data-testid="text-user-total">{q.data ? `${q.data.total} ${q.data.total === 1 ? 'user' : 'users'}` : ''}</span>
         </div>
         {q.isLoading ? <div className="space-y-2">{[1, 2, 3, 4].map((i) => <Skel key={i} className="h-14" />)}</div>
           : q.isError || !q.data ? <ErrorState onRetry={() => q.refetch()} />
-          : q.data.items.length === 0 ? <Empty title="No users match" hint="Try a different search or status filter." />
-          : <UserTable items={q.data.items} />}
+          : q.data.items.length === 0 ? <Empty title="No users match" hint={page > 1 ? 'This page is empty. Go back to page 1.' : 'Try a different search or status filter.'} />
+          : (
+            <>
+              <UserTable items={q.data.items} sort={sort} dir={dir} onSort={onSort} />
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+                <span className="text-slate-500" data-testid="text-user-range">Showing {first}–{last} of {q.data.total}</span>
+                <div className="flex gap-2">
+                  <button data-testid="button-users-prev" disabled={page <= 1} onClick={() => go({ page: page - 1 })} className={cx(ghost, 'inline-flex min-h-11 items-center gap-1 text-xs md:min-h-0 md:!py-1.5')}><ChevronLeft className="h-3.5 w-3.5" />Previous</button>
+                  <button data-testid="button-users-next" disabled={page >= pages} onClick={() => go({ page: page + 1 })} className={cx(ghost, 'inline-flex min-h-11 items-center gap-1 text-xs md:min-h-0 md:!py-1.5')}>Next<ChevronRight className="h-3.5 w-3.5" /></button>
+                </div>
+              </div>
+            </>
+          )}
       </div>
     </Shell>
   );

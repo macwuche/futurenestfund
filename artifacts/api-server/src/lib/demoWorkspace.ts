@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, ilike, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, isNull, ne, or, sql } from "drizzle-orm";
 import { db, demoProfilesTable, demoAuditTable, demoLedgerTable, demoSettingsTable, demoRequestsTable, demoApplicationsTable, type DemoProfile } from "@workspace/db";
 import { notifyUser, requestEmailData, requestReference } from "./notifications";
 import { activeApplicationsFilter, applicationSummary } from "./applicantRecords";
@@ -55,16 +55,31 @@ export async function getUser(id: string) {
   });
 }
 
-export async function listUsers(search = "", status = "all") {
+export type UserSort = "name" | "joined" | "grant" | "deposit" | "tier" | "status";
+const userSortColumn = {
+  name: sql`lower(${demoProfilesTable.name})`, joined: demoProfilesTable.joinedAt, grant: demoProfilesTable.grantCents,
+  deposit: demoProfilesTable.depositCents, tier: demoProfilesTable.tier, status: demoProfilesTable.status,
+} satisfies Record<UserSort, unknown>;
+/** Names, tiers and statuses read best A→Z / low→high; dates and balances newest / largest first. */
+export const defaultUserDir = (sort: UserSort): "asc" | "desc" => (sort === "joined" || sort === "grant" || sort === "deposit" ? "desc" : "asc");
+
+/** One page of the directory, sorted in the database; ties fall back to the ID so pages never overlap. */
+export async function listUsers(opts: { search?: string; status?: string; sort?: UserSort; dir?: "asc" | "desc"; page?: number; pageSize?: number } = {}) {
+  const { search = "", status = "all", sort = "name", page = 1, pageSize = 25 } = opts;
+  const dir = opts.dir ?? defaultUserDir(sort);
   const terms = [];
   if (search.trim()) {
-    const term = `%${search.trim().slice(0, 100)}%`;
+    const term = `%${search.trim().slice(0, 100).replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
     terms.push(or(ilike(demoProfilesTable.name, term), ilike(demoProfilesTable.email, term), ilike(demoProfilesTable.organization, term)));
   }
   if (status !== "all") terms.push(eq(demoProfilesTable.status, status === "active" ? "Active" : "Frozen"));
-  const rows = await db.select().from(demoProfilesTable).where(and(...terms)).orderBy(demoProfilesTable.name);
+  const where = and(...terms);
+  const order = dir === "asc" ? asc : desc;
+  const rows = await db.select().from(demoProfilesTable).where(where)
+    .orderBy(order(userSortColumn[sort]), order(demoProfilesTable.id)).limit(pageSize).offset((page - 1) * pageSize);
+  const [count] = await db.select({ n: sql<number>`count(*)::int` }).from(demoProfilesTable).where(where);
   const pending = await pendingKycByProfile(rows.map(r => r.id));
-  return { items: rows.map(r => summary(r, pending.get(r.id) ?? 0)), total: rows.length };
+  return { items: rows.map(r => summary(r, pending.get(r.id) ?? 0)), total: count?.n ?? 0, page, pageSize };
 }
 
 /** Count of current identity documents awaiting review, per profile. */

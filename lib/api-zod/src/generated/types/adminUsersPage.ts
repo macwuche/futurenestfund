@@ -9,5 +9,8 @@ import type { AdminUserSummary } from './adminUserSummary';
 
 export interface AdminUsersPage {
   items: AdminUserSummary[];
+  /** All matching users, across pages */
   total: number;
+  page: number;
+  pageSize: number;
 }

@@ -5,9 +5,28 @@
  * Grant applicant and administration dashboard API
  * OpenAPI spec version: 0.1.0
  */
+import type { ListAdminUsersDir } from './listAdminUsersDir';
+import type { ListAdminUsersSort } from './listAdminUsersSort';
 import type { ListAdminUsersStatus } from './listAdminUsersStatus';
 
 export type ListAdminUsersParams = {
+/**
+ * @maxLength 100
+ */
 search?: string;
 status?: ListAdminUsersStatus;
+sort?: ListAdminUsersSort;
+/**
+ * Default: asc for name, tier and status; desc for joined and balances
+ */
+dir?: ListAdminUsersDir;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+pageSize?: number;
 };

@@ -194,7 +194,7 @@ router.get("/admin/dashboard", async (_req, res): Promise<void> => {
 router.get("/admin/users", async (req, res): Promise<void> => {
   const query = ListAdminUsersQueryParams.safeParse(req.query);
   if (!query.success) { res.status(400).json({ error: "Invalid directory filters." }); return; }
-  res.json(ListAdminUsersResponse.parse(await listUsers(query.data.search, query.data.status)));
+  res.json(ListAdminUsersResponse.parse(await listUsers(query.data)));
 });
 
 router.get("/admin/users/:userId", async (req, res): Promise<void> => {

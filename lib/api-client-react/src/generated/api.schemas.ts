@@ -522,7 +522,10 @@ export interface AdminUserSummary {
 
 export interface AdminUsersPage {
   items: AdminUserSummary[];
+  /** All matching users, across pages */
   total: number;
+  page: number;
+  pageSize: number;
 }
 
 export type KycDocumentKind = typeof KycDocumentKind[keyof typeof KycDocumentKind];
@@ -980,8 +983,25 @@ export const GetApplicantDashboardPeriod = {
 } as const;
 
 export type ListAdminUsersParams = {
+/**
+ * @maxLength 100
+ */
 search?: string;
 status?: ListAdminUsersStatus;
+sort?: ListAdminUsersSort;
+/**
+ * Default: asc for name, tier and status; desc for joined and balances
+ */
+dir?: ListAdminUsersDir;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+pageSize?: number;
 };
 
 export type ListAdminUsersStatus = typeof ListAdminUsersStatus[keyof typeof ListAdminUsersStatus];
@@ -991,6 +1011,26 @@ export const ListAdminUsersStatus = {
   all: 'all',
   active: 'active',
   frozen: 'frozen',
+} as const;
+
+export type ListAdminUsersSort = typeof ListAdminUsersSort[keyof typeof ListAdminUsersSort];
+
+
+export const ListAdminUsersSort = {
+  name: 'name',
+  joined: 'joined',
+  grant: 'grant',
+  deposit: 'deposit',
+  tier: 'tier',
+  status: 'status',
+} as const;
+
+export type ListAdminUsersDir = typeof ListAdminUsersDir[keyof typeof ListAdminUsersDir];
+
+
+export const ListAdminUsersDir = {
+  asc: 'asc',
+  desc: 'desc',
 } as const;
 
 export type SearchAdminParams = {

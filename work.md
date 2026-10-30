@@ -1252,3 +1252,52 @@ Tests (2026-10-30), all passing:
 - new `.unlazy/phase5-audit-ui.mjs` 6/6 desktop + 6/6 phone, including the real header search
 - regressions: `phase5-limits` 10/10, `phase5-withdrawals` 11/11, `phase3-api` 24/24, `phase5-limits-ui` 6+6, `phase5-ui` 4+4, `phase3-desktop` 22/22, `phase3-phone` 16/16
 - Demo data restored. No schema change in 5.3 (no migration).
+
+### 2026-10-30: Step 5.4 plan (users directory: sorting and pagination)
+
+**Today:** `GET /admin/users` returns every matching user in one list, sorted by name only. The Users page shows them all in one table that needs sideways scrolling on a phone.
+
+**API** (`GET /admin/users`, backward compatible: same filters, same `items` / `total`)
+- New query params:
+  - `sort`: `name` (default) · `joined` · `grant` · `deposit` · `tier` · `status`
+  - `dir`: `asc` / `desc`; the default is `asc` for name and `desc` for joined and the balances
+  - `page` (default 1) and `pageSize` (default 25, max 500)
+- Sorting and paging happen in the database. Ties are broken by user ID so pages never overlap or skip anyone.
+- The response adds `page` and `pageSize`.
+- The other admin pages' user dropdowns (ledger, audit, request queues) ask for `pageSize=500&sort=name`. Past 500 users they'd need a searchable picker, noted for Phase 6.
+
+**Users page**
+- Sortable column headers (click again to reverse; `aria-sort` for screen readers) for User, Joined, Tier, Status, Grant and Deposit. A new **Joined** column is added.
+- On phones: a "Sort by" menu and one card per user (no sideways scroll).
+- Previous / Next with "Showing 26–50 of 120". A change of search, status or sort goes back to page 1.
+- Search, status, sort, direction and page are kept in the address bar, so "back" from a user returns to the same page of the list. The existing `?q=` link from the header search still works.
+
+**Tests:** `.unlazy/phase5-users.mjs` (API, with 120 extra test users: every sort in both directions against SQL, page boundaries without overlap, filters + sort + page together, bad params → 400, pickers still list everyone), and `.unlazy/phase5-users-ui.mjs` (desktop + phone: header sorting, `aria-sort`, pagination, address-bar state through back navigation, phone cards, no overflow). Phase 3 suites re-run.
+
+### 2026-10-30: Step 5.4 done (users directory: sorting and pagination)
+
+Built as planned above.
+- **API:** `listUsers` in `demoWorkspace.ts` takes `search, status, sort, dir, page, pageSize`. It sorts and pages in the database, breaks ties by ID, and returns `page` / `pageSize`. Search escapes `%` and `_` like the other admin searches.
+- **Page:** `AdminUsersPage` / `UserTable` in `admin.tsx`.
+  - sortable headers with `aria-sort`, plus a new Joined column
+  - Previous / Next and "Showing 26–50 of N"
+  - state in the address bar; sort and page changes add a history entry, typing doesn't
+- **Phones:** a "Sort by" menu, and one card per user (name, organization, tier + join date, status / KYC badges, grant balance).
+- **User dropdowns** on the ledger, audit and request-queue pages request `pageSize=500&sort=name`.
+
+Tests (2026-10-30), all passing:
+- `pnpm test` 50/50 · typecheck clean
+- new `.unlazy/phase5-users.mjs` 7/7, with 120 extra users and many ties:
+  - all 6 sorts × 2 directions match the database order
+  - default directions
+  - walking every page visits each user exactly once
+  - search + status + sort + page together; `%` / `_` taken literally
+  - bad params → 400
+  - dropdowns still list everyone
+- new `.unlazy/phase5-users-ui.mjs` 6/6 desktop + 6/6 phone:
+  - header sorting and `aria-sort`
+  - paging, and "back" from a user returns to the same page and sort
+  - filters reset to page 1; the `?q=` link works
+  - no overflow; 44 px buttons; the join date isn't cut off
+- regressions: phase5 audit 9/9, limits 10/10, withdrawals 11/11, phase3-api 24/24, phase5 UI suites 6+6 / 6+6 / 4+4, phase3-desktop 22/22, phase3-phone 16/16
+- Test users removed, demo data restored. No schema change (no migration).

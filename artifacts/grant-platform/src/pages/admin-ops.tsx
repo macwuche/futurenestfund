@@ -13,6 +13,8 @@ import { card, ainput, lime, dark, ghost, danger, Stat, SectionTitle, useAdminRe
 import { apiError } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
+/** User dropdowns list everyone by name (up to 500; a searchable picker would replace them beyond that). */
+const USER_PICKER = { pageSize: 500, sort: 'name' } as const;
 const dateTime = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 const signed = (n: number) => `${n < 0 ? '−' : '+'}${money(Math.abs(n))}`;
 
@@ -23,7 +25,7 @@ const signed = (n: number) => `${n < 0 ? '−' : '+'}${money(Math.abs(n))}`;
 function RequestQueuePage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
   const pending = useListAdminRequests({ kind, status: 'pending' });
   const decided = useListAdminRequests({ kind, status: 'decided' });
-  const users = useListAdminUsers();
+  const users = useListAdminUsers(USER_PICKER);
   const [inject, setInject] = useState(false);
   const deposit = kind === 'Deposit';
   const total = pending.data?.reduce((s, r) => s + r.amount, 0) ?? 0;
@@ -169,7 +171,7 @@ export function AdminTransactionsPage() {
   const badRange = !!from && !!to && from > to;
   const params = { ...filters, page };
   const q = useListAdminTransactions(params, { query: { enabled: !badRange, placeholderData: keepPreviousData, queryKey: getListAdminTransactionsQueryKey(params) } });
-  const users = useListAdminUsers();
+  const users = useListAdminUsers(USER_PICKER);
   const pages = q.data ? Math.max(1, Math.ceil(q.data.total / q.data.pageSize)) : 1;
   const filtered = type !== 'all' || !!userId || !!from || !!to || !!s;
   return (
@@ -261,7 +263,7 @@ export function AdminAuditPage() {
   const badRange = !!f.from && !!f.to && f.from > f.to;
   const params = { ...filters, page };
   const q = useListAdminAudit(params, { query: { enabled: !badRange, placeholderData: keepPreviousData, queryKey: getListAdminAuditQueryKey(params) } });
-  const users = useListAdminUsers();
+  const users = useListAdminUsers(USER_PICKER);
   const pages = q.data ? Math.max(1, Math.ceil(q.data.total / q.data.pageSize)) : 1;
   const filtered = Object.keys(filters).length > 0;
   return (

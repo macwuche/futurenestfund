@@ -742,11 +742,24 @@ export const GetAdminDashboardResponse = zod.object({
 /**
  * @summary Search and list user profiles
  */
+export const listAdminUsersQuerySearchMax = 100;
+
 export const listAdminUsersQueryStatusDefault = `all`;
+export const listAdminUsersQuerySortDefault = `name`;
+export const listAdminUsersQueryPageDefault = 1;
+
+export const listAdminUsersQueryPageSizeDefault = 25;
+export const listAdminUsersQueryPageSizeMax = 500;
+
+
 
 export const ListAdminUsersQueryParams = zod.object({
-  "search": zod.coerce.string().optional(),
-  "status": zod.enum(['all', 'active', 'frozen']).default(listAdminUsersQueryStatusDefault)
+  "search": zod.coerce.string().max(listAdminUsersQuerySearchMax).optional(),
+  "status": zod.enum(['all', 'active', 'frozen']).default(listAdminUsersQueryStatusDefault),
+  "sort": zod.enum(['name', 'joined', 'grant', 'deposit', 'tier', 'status']).default(listAdminUsersQuerySortDefault),
+  "dir": zod.enum(['asc', 'desc']).optional().describe('Default: asc for name, tier and status; desc for joined and balances'),
+  "page": zod.coerce.number().int().min(1).default(listAdminUsersQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listAdminUsersQueryPageSizeMax).default(listAdminUsersQueryPageSizeDefault)
 })
 
 export const listAdminUsersResponseItemsItemTierMax = 3;
@@ -768,7 +781,9 @@ export const ListAdminUsersResponse = zod.object({
   "joinedAt": zod.string().regex(listAdminUsersResponseItemsItemJoinedAtRegExp),
   "pendingKycDocuments": zod.number().int().describe('Current identity documents awaiting review')
 })),
-  "total": zod.number().int()
+  "total": zod.number().int().describe('All matching users, across pages'),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int()
 })
 
 

@@ -63,7 +63,8 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
   - real system health: database round trip, audit-log integrity
   - review queue and recent activity
 - **Users / inspector:**
-  - search; edit profile; tier; account freeze
+  - directory: search, status filter, sort by name / joined / tier / status / balances, 25 per page (state kept in the address bar; cards on phones)
+  - edit profile; tier; account freeze
   - per-user rules: KYC for deposits / withdrawals; email and in-app notification overrides (user's choice / always on / always off)
   - credit balances
   - the user's applications and KYC documents
@@ -424,7 +425,7 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 **Phase 5 (admin controls)**, full plan in `work.md` §11:
 - ~~5.1 withdrawal notifications~~ and ~~5.2 withdrawal limits~~: done 2026-10-30
 - ~~5.3 audit-log viewer~~: done 2026-10-30
-- 5.4 users directory sorting and pagination
+- ~~5.4 users directory sorting and pagination~~: done 2026-10-30
 - 5.5 debit adjustments, 5.6 card controls, 5.7 a real admin avatar
 
 **Phase 6 (finish and harden):**
