@@ -76,6 +76,7 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
   - global freeze, with a confirmation and a reason
   - security rules overview
   - the admin's own **Sign-in & security**
+- **Audit log** (`/admin/audit`, from Settings, the dashboard and each user's audit trail): every recorded change, searchable and filterable by user (or platform-wide), who did it and date, 25 per page, with CSV export.
 - **Header search** across users, applications, ledger entries and the audit log.
 
 ### Platform
@@ -422,7 +423,7 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 
 **Phase 5 (admin controls)**, full plan in `work.md` §11:
 - ~~5.1 withdrawal notifications~~ and ~~5.2 withdrawal limits~~: done 2026-10-30
-- 5.3 a full audit-log viewer with filters and export
+- ~~5.3 audit-log viewer~~: done 2026-10-30
 - 5.4 users directory sorting and pagination
 - 5.5 debit adjustments, 5.6 card controls, 5.7 a real admin avatar
 

@@ -281,13 +281,26 @@ const ledgerEntry = (l: LedgerRow, userName: string) => ({
   ...(l.applicationId ? { applicationId: l.applicationId } : {}),
 });
 
+/** Start of a YYYY-MM-DD day in UTC; refuses dates that don't exist (e.g. 2026-02-31). */
+function dayStart(day: string) {
+  const d = new Date(`${day}T00:00:00Z`);
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== day) throw new DemoInputError(`${day} isn't a valid date.`);
+  return d;
+}
+/** Whole-day UTC range filter on a timestamp column; `to` is inclusive. */
+function dayRange(column: typeof demoLedgerTable.createdAt | typeof demoAuditTable.createdAt, from?: string, to?: string): SQL[] {
+  return [
+    ...(from ? [gte(column, dayStart(from))] : []),
+    ...(to ? [lt(column, new Date(dayStart(to).getTime() + 86400000))] : []),
+  ];
+}
+
 /** Date filters are whole days in UTC; `to` is inclusive. */
 function ledgerWhere(f: LedgerFilters) {
   const terms: SQL[] = [];
   if (f.type !== "all") terms.push(eq(demoLedgerTable.kind, f.type));
   if (f.userId) terms.push(eq(demoLedgerTable.profileId, f.userId));
-  if (f.from) terms.push(gte(demoLedgerTable.createdAt, new Date(`${f.from}T00:00:00Z`)));
-  if (f.to) terms.push(lt(demoLedgerTable.createdAt, new Date(new Date(`${f.to}T00:00:00Z`).getTime() + 86400000)));
+  terms.push(...dayRange(demoLedgerTable.createdAt, f.from, f.to));
   if (f.search?.trim()) {
     const t = like(f.search);
     terms.push(or(
@@ -327,6 +340,58 @@ export async function exportLedgerCsv(f: LedgerFilters) {
   const lines = rows.map(({ l, name }) => [
     cell(l.id), cell(l.createdAt.toISOString()), cell(l.profileId), cell(name), cell(l.kind), cell(l.account),
     (l.amountCents / 100).toFixed(2), cell(l.reason), cell(l.actor), cell(l.requestId ?? ""), cell(l.applicationId ?? ""),
+  ].join(","));
+  return [header.map(cell).join(","), ...lines].join("\r\n") + "\r\n";
+}
+
+/* ---------- audit log ---------- */
+
+export const AUDIT_PAGE_SIZE = 25;
+export type AuditFilters = { search?: string; userId?: string; actor?: string; from?: string; to?: string };
+type AuditRow = typeof demoAuditTable.$inferSelect;
+
+const auditEntry = (a: AuditRow, userName: string | null) => ({
+  id: a.id, createdAt: a.createdAt.toISOString(), action: a.action, actor: a.actor, userId: a.profileId, userName,
+});
+
+/** `userId = "platform"` means entries not tied to a user (global freeze, global limits…). */
+function auditWhere(f: AuditFilters) {
+  const terms: SQL[] = [];
+  if (f.userId === "platform") terms.push(sql`${demoAuditTable.profileId} is null`);
+  else if (f.userId) terms.push(eq(demoAuditTable.profileId, f.userId));
+  if (f.actor) terms.push(eq(demoAuditTable.actor, f.actor));
+  terms.push(...dayRange(demoAuditTable.createdAt, f.from, f.to));
+  if (f.search?.trim()) {
+    const t = like(f.search);
+    terms.push(or(
+      ilike(demoAuditTable.action, t), ilike(demoAuditTable.actor, t), ilike(sql`${demoAuditTable.id}::text`, t),
+      ilike(sql`coalesce(${demoAuditTable.profileId}, '')`, t), ilike(sql`coalesce(${demoProfilesTable.name}, '')`, t),
+    )!);
+  }
+  return and(...terms);
+}
+
+const auditQuery = (where: SQL | undefined) => db.select({ a: demoAuditTable, name: demoProfilesTable.name })
+  .from(demoAuditTable).leftJoin(demoProfilesTable, eq(demoProfilesTable.id, demoAuditTable.profileId))
+  .where(where).orderBy(desc(demoAuditTable.createdAt), desc(demoAuditTable.id));
+
+export async function listAudit(f: AuditFilters, page: number) {
+  const where = auditWhere(f);
+  const rows = await auditQuery(where).limit(AUDIT_PAGE_SIZE).offset((page - 1) * AUDIT_PAGE_SIZE);
+  const [count] = await db.select({ n: sql<number>`count(*)::int` })
+    .from(demoAuditTable).leftJoin(demoProfilesTable, eq(demoProfilesTable.id, demoAuditTable.profileId)).where(where);
+  const actors = await db.selectDistinct({ actor: demoAuditTable.actor }).from(demoAuditTable).orderBy(demoAuditTable.actor).limit(200);
+  return {
+    items: rows.map(r => auditEntry(r.a, r.name)), total: count?.n ?? 0, page, pageSize: AUDIT_PAGE_SIZE,
+    actors: actors.map(a => a.actor),
+  };
+}
+
+export async function exportAuditCsv(f: AuditFilters) {
+  const rows = await auditQuery(auditWhere(f)).limit(10000);
+  const header = ["Entry ID", "Date (UTC)", "User ID", "User", "Action", "Done by"];
+  const lines = rows.map(({ a, name }) => [
+    cell(a.id), cell(a.createdAt.toISOString()), cell(a.profileId ?? ""), cell(name ?? (a.profileId ? "" : "Platform")), cell(a.action), cell(a.actor),
   ].join(","));
   return [header.map(cell).join(","), ...lines].join("\r\n") + "\r\n";
 }

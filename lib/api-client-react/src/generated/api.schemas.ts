@@ -872,6 +872,29 @@ export interface LedgerEntry {
   applicationId?: string;
 }
 
+export interface AdminAuditEntry {
+  id: string;
+  createdAt: string;
+  action: string;
+  actor: string;
+  /** @nullable */
+  userId: string | null;
+  /**
+     * null for platform-wide entries
+     * @nullable
+     */
+  userName: string | null;
+}
+
+export interface AdminAuditPage {
+  items: AdminAuditEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+  /** Everyone who appears as "done by" in the log, for the filter */
+  actors: string[];
+}
+
 export interface AdminLedgerPage {
   items: LedgerEntry[];
   total: number;
@@ -1077,4 +1100,60 @@ export const ExportAdminTransactionsType = {
   Grant_award: 'Grant award',
   Opening_balance: 'Opening balance',
 } as const;
+
+export type ListAdminAuditParams = {
+/**
+ * @maxLength 100
+ */
+search?: string;
+/**
+ * A user ID, or 'platform' for entries not tied to a user
+ * @maxLength 100
+ */
+userId?: string;
+/**
+ * @maxLength 200
+ */
+actor?: string;
+/**
+ * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+ */
+from?: string;
+/**
+ * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+ */
+to?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+};
+
+export type ExportAdminAuditParams = {
+/**
+ * @maxLength 100
+ */
+search?: string;
+/**
+ * A user ID, or 'platform' for entries not tied to a user
+ * @maxLength 100
+ */
+userId?: string;
+/**
+ * @maxLength 200
+ */
+actor?: string;
+/**
+ * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+ */
+from?: string;
+/**
+ * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+ */
+to?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+};
 

@@ -1197,3 +1197,58 @@ Tests (2026-10-30), all passing:
 - new `.unlazy/phase5-limits-ui.mjs` 6/6 desktop + 6/6 phone
 - regressions: `phase5-withdrawals` 11/11, `phase5-ui` 4+4, `phase3-api` 24/24, `phase3-desktop` 22/22, `phase3-phone` 16/16. `phase3-desktop` now uses the KYC switch where it used the admin email switch replaced in 5.1.
 - Demo data restored. Migration `0004` is applied on the Replit DB only; Supabase still needs `db:migrate` (0003 + 0004).
+
+### 2026-10-30: Step 5.3 plan (audit-log viewer)
+
+**Goal:** admins can read and export the whole audit trail (`demo_audit`, append-only), not just the last 30 rows per user in the inspector or 8 on the dashboard.
+
+**Where it lives:** a new page `/admin/audit`, "Audit log". The admin menu stays the 7 items of the written spec (decision 2026-10-21), so the page is reached from:
+- a new "Audit log" card in Settings ("Open audit log")
+- the dashboard's Recent activity ("View full audit log")
+- each user's Audit trail in the inspector ("View all", opening the page filtered to that user)
+- header search results for audit entries
+
+If the user wants it in the menu instead, that's a one-line change.
+
+**Page**
+- Filters: free-text search (action text, user name or ID, who did it, entry ID), user (all users / one user / platform-wide entries with no user), done by (all, or one of the distinct actors), from / to dates (UTC whole days, `to` inclusive).
+- Table, newest first: date + entry ID, user (link to the profile, or "Platform"), action, done by. 25 per page with Previous / Next, plus the matching count. The filters are kept in the URL (`?userId=…`), so links from the inspector work.
+- **Export CSV** of all matching entries (up to 10,000), with the same formula-injection protection as the ledger export: Entry ID, Date (UTC), User ID, User, Action, Done by.
+- Empty, loading and error states; no sideways page scroll on a phone (the table scrolls inside its card).
+
+**API (OpenAPI first, then codegen)**
+- `GET /admin/audit?search&userId&actor&from&to&page` returns `{ items, total, page, pageSize, actors }`. `actors` lists the distinct "done by" values for the filter. `userId=platform` means entries with no user.
+- `GET /admin/audit/export` with the same filters returns `text/csv`, via the GET-only session cookie like the ledger export.
+- Admin-only like every `/admin/*` route. Read-only: there is no way to change or delete an entry, and the database triggers still refuse it.
+
+**Tests:** `.unlazy/phase5-audit.mjs` (API: filters, combined filters, pagination, platform entries, actor list, CSV content + formula neutralising, bad dates → 400, applicant → 403 is covered by phase4-auth's default-deny) and `.unlazy/phase5-audit-ui.mjs` (desktop + phone: entry points, filters, URL filter from the inspector, export link, pagination, no overflow).
+
+### 2026-10-30: Step 5.3 done (audit-log viewer)
+
+Built as planned above.
+- **API:** `listAudit` / `exportAuditCsv` in `adminOps.ts`; routes `GET /admin/audit` and `GET /admin/audit/export`.
+- **Page:** `AdminAuditPage` in `admin-ops.tsx`, route `/admin/audit`.
+- **Entry points:**
+  - Settings "Audit log" card
+  - dashboard "View full audit log"
+  - inspector "View all", which opens the page filtered to that user (`?userId=`)
+  - header-search audit results now open `/admin/audit?search=<entry id>` (before, they went to the user, or nowhere for platform entries)
+
+Also changed while building:
+- **Phone layout:** one card per entry, so the action is readable without scrolling sideways; wider screens keep the table.
+- **Date filters (ledger and audit):** an impossible date such as `2026-02-31` passed the YYYY-MM-DD pattern and reached the database (500). Both now answer 400 with "isn't a valid date".
+- **Ledger CSV export:** it set its download headers before running the query, so an error came back as a download. It now builds the CSV first.
+
+Tests (2026-10-30), all passing:
+- `pnpm test` 50/50 · typecheck clean
+- new `.unlazy/phase5-audit.mjs` 9/9:
+  - order, paging, actor list
+  - search by action / user / actor / entry ID, with `%` and `_` taken literally
+  - user and platform filters; exact done-by filter; combined filters
+  - inclusive UTC days
+  - bad dates → 400 for the audit and ledger lists and exports
+  - CSV header, filter, formula neutralising, quote escaping, Platform label
+  - no write routes; the database refuses deletes
+- new `.unlazy/phase5-audit-ui.mjs` 6/6 desktop + 6/6 phone, including the real header search
+- regressions: `phase5-limits` 10/10, `phase5-withdrawals` 11/11, `phase3-api` 24/24, `phase5-limits-ui` 6+6, `phase5-ui` 4+4, `phase3-desktop` 22/22, `phase3-phone` 16/16
+- Demo data restored. No schema change in 5.3 (no migration).

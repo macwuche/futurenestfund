@@ -14,7 +14,7 @@ import {
 import { GrantSearchPage, FundingTrackerPage, ReportsPage, MilestonesPage, HelpPage } from '@/pages/applicant-more';
 import { Layout } from '@/components/shell';
 import { AdminOverviewPage, AdminUsersPage, AdminUserPage, AdminSettingsPage } from '@/pages/admin';
-import { AdminTransactionsPage, AdminDepositsPage, AdminWithdrawalsPage, AdminKycPage, AdminApplicationPage } from '@/pages/admin-ops';
+import { AdminAuditPage, AdminTransactionsPage, AdminDepositsPage, AdminWithdrawalsPage, AdminKycPage, AdminApplicationPage } from '@/pages/admin-ops';
 import {
   Redirect,
   Route,
@@ -53,6 +53,7 @@ function Router() {
         <Route path="/admin/users/:userId" component={AdminUserPage} />
         <Route path="/admin/users/:userId/applications/:applicationId" component={AdminApplicationPage} />
         <Route path="/admin/transactions" component={AdminTransactionsPage} />
+        <Route path="/admin/audit" component={AdminAuditPage} />
         <Route path="/admin/deposits" component={AdminDepositsPage} />
         <Route path="/admin/withdrawals" component={AdminWithdrawalsPage} />
         <Route path="/admin/kyc" component={AdminKycPage} />

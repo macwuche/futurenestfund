@@ -86,7 +86,7 @@ export function AdminOverviewPage() {
             })}
           </section>
           <section className={cx(card, 'p-5')} data-testid="card-recent-activity">
-            <SectionTitle>Recent activity</SectionTitle>
+            <SectionTitle action={<Link href="/admin/audit" data-testid="link-activity-audit" className="text-xs font-semibold hover:underline">View full audit log</Link>}>Recent activity</SectionTitle>
             {d.recentActivity.length === 0 ? <Empty title="No activity" /> : (
               <ul className="space-y-3">{d.recentActivity.map((a) => (
                 <li key={a.id} data-testid={`row-activity-${a.id}`} className="border-l-2 border-[#C6F432] pl-3 text-sm"><p className="break-words font-semibold">{a.action}</p><p className="text-xs text-slate-500">{a.subject} · {dateFmt(a.createdAt)}</p></li>
@@ -331,7 +331,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
           ))}
         </section>
         <section className={cx(card, 'p-5')} data-testid="section-audit">
-          <h3 className="mb-3 font-display font-bold">Audit trail</h3>
+          <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-display font-bold">Audit trail</h3><Link href={`/admin/audit?userId=${encodeURIComponent(u.id)}`} data-testid="link-user-audit" className="text-xs font-semibold hover:underline">View all</Link></div>
           {u.audit.length === 0 ? <Empty title="No audit entries" /> : <ul className="max-h-[28rem] space-y-3 overflow-y-auto">{u.audit.map((a) => <li key={a.id} data-testid={`row-audit-${a.id}`} className="border-l-2 border-[#C6F432] pl-3 text-sm"><p className="break-words font-semibold">{a.action}</p><p className="text-xs text-slate-500">{a.actor} · {dateFmt(a.createdAt)}</p></li>)}</ul>}
         </section>
       </div>
@@ -391,6 +391,11 @@ export function AdminSettingsPage() {
         </ul>
       </section>
       <GlobalWithdrawalLimits />
+      <section className={cx(card, 'p-5')} data-testid="card-settings-audit">
+        <SectionTitle>Audit log</SectionTitle>
+        <p className="mb-4 text-sm text-slate-600">Every change made by administrators and applicants: approvals, declines, limits, freezes, profile and permission edits. Search, filter by user, admin or date, and export to CSV. Entries can't be edited or deleted.</p>
+        <Link href="/admin/audit" data-testid="link-settings-audit" className={cx(lime, 'inline-flex items-center gap-1.5')}>Open audit log</Link>
+      </section>
       <div className="lg:col-span-2"><AccountSecurity tone="admin" /></div>
     </div>
   )}</DashGate>;

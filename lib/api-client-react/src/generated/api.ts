@@ -22,6 +22,7 @@ import type {
 import type {
   AdminApplication,
   AdminApplicationDetail,
+  AdminAuditPage,
   AdminDashboard,
   AdminKycItem,
   AdminKycQueue,
@@ -47,6 +48,7 @@ import type {
   AuthConfig,
   BalanceAdjustmentInput,
   ErrorMessage,
+  ExportAdminAuditParams,
   ExportAdminTransactionsParams,
   FileUpload,
   GetApplicantDashboardParams,
@@ -56,6 +58,7 @@ import type {
   KycReviewInput,
   KycUpload,
   ListAdminApplicationsParams,
+  ListAdminAuditParams,
   ListAdminRequestsParams,
   ListAdminTransactionsParams,
   ListAdminUsersParams,
@@ -3895,6 +3898,174 @@ export function useExportAdminTransactions<TData = Awaited<ReturnType<typeof exp
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getExportAdminTransactionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminAuditUrl = (params?: ListAdminAuditParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/audit?${stringifiedParams}` : `/api/admin/audit`
+}
+
+/**
+ * @summary Search the audit log
+ */
+export const listAdminAudit = async (params?: ListAdminAuditParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminAuditPage> => {
+
+  return customFetch<AdminAuditPage>(getListAdminAuditUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminAuditQueryKey = (params?: ListAdminAuditParams,) => {
+    return [
+    `/api/admin/audit`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminAuditQueryOptions = <TData = Awaited<ReturnType<typeof listAdminAudit>>, TError = ErrorType<ErrorMessage>>(params?: ListAdminAuditParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminAuditQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminAudit>>> = ({ signal }) => listAdminAudit(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminAudit>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminAuditQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminAudit>>>
+export type ListAdminAuditQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary Search the audit log
+ */
+
+export function useListAdminAudit<TData = Awaited<ReturnType<typeof listAdminAudit>>, TError = ErrorType<ErrorMessage>>(
+ params?: ListAdminAuditParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminAuditQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportAdminAuditUrl = (params?: ExportAdminAuditParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/audit/export?${stringifiedParams}` : `/api/admin/audit/export`
+}
+
+/**
+ * @summary Download the filtered audit log as CSV
+ */
+export const exportAdminAudit = async (params?: ExportAdminAuditParams, options?: Parameters<typeof customFetch>[1]): Promise<string> => {
+
+  return customFetch<string>(getExportAdminAuditUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportAdminAuditQueryKey = (params?: ExportAdminAuditParams,) => {
+    return [
+    `/api/admin/audit/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportAdminAuditQueryOptions = <TData = Awaited<ReturnType<typeof exportAdminAudit>>, TError = ErrorType<unknown>>(params?: ExportAdminAuditParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportAdminAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportAdminAuditQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAdminAudit>>> = ({ signal }) => exportAdminAudit(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportAdminAudit>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportAdminAuditQueryResult = NonNullable<Awaited<ReturnType<typeof exportAdminAudit>>>
+export type ExportAdminAuditQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download the filtered audit log as CSV
+ */
+
+export function useExportAdminAudit<TData = Awaited<ReturnType<typeof exportAdminAudit>>, TError = ErrorType<unknown>>(
+ params?: ExportAdminAuditParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportAdminAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportAdminAuditQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -1435,6 +1435,73 @@ export const ExportAdminTransactionsResponse = zod.unknown()
 
 
 /**
+ * @summary Search the audit log
+ */
+export const listAdminAuditQuerySearchMax = 100;
+
+export const listAdminAuditQueryUserIdMax = 100;
+
+export const listAdminAuditQueryActorMax = 200;
+
+export const listAdminAuditQueryFromRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const listAdminAuditQueryToRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const listAdminAuditQueryPageDefault = 1;
+
+
+
+export const ListAdminAuditQueryParams = zod.object({
+  "search": zod.coerce.string().max(listAdminAuditQuerySearchMax).optional(),
+  "userId": zod.coerce.string().max(listAdminAuditQueryUserIdMax).optional().describe('A user ID, or \'platform\' for entries not tied to a user'),
+  "actor": zod.coerce.string().max(listAdminAuditQueryActorMax).optional(),
+  "from": zod.coerce.string().regex(listAdminAuditQueryFromRegExp).optional(),
+  "to": zod.coerce.string().regex(listAdminAuditQueryToRegExp).optional(),
+  "page": zod.coerce.number().int().min(1).default(listAdminAuditQueryPageDefault)
+})
+
+export const ListAdminAuditResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "action": zod.string(),
+  "actor": zod.string(),
+  "userId": zod.string().nullable(),
+  "userName": zod.string().nullable().describe('null for platform-wide entries')
+})),
+  "total": zod.number().int(),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "actors": zod.array(zod.string()).describe('Everyone who appears as "done by" in the log, for the filter')
+})
+
+
+/**
+ * @summary Download the filtered audit log as CSV
+ */
+export const exportAdminAuditQuerySearchMax = 100;
+
+export const exportAdminAuditQueryUserIdMax = 100;
+
+export const exportAdminAuditQueryActorMax = 200;
+
+export const exportAdminAuditQueryFromRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const exportAdminAuditQueryToRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const exportAdminAuditQueryPageDefault = 1;
+
+
+
+export const ExportAdminAuditQueryParams = zod.object({
+  "search": zod.coerce.string().max(exportAdminAuditQuerySearchMax).optional(),
+  "userId": zod.coerce.string().max(exportAdminAuditQueryUserIdMax).optional().describe('A user ID, or \'platform\' for entries not tied to a user'),
+  "actor": zod.coerce.string().max(exportAdminAuditQueryActorMax).optional(),
+  "from": zod.coerce.string().regex(exportAdminAuditQueryFromRegExp).optional(),
+  "to": zod.coerce.string().regex(exportAdminAuditQueryToRegExp).optional(),
+  "page": zod.coerce.number().int().min(1).default(exportAdminAuditQueryPageDefault)
+})
+
+export const ExportAdminAuditResponse = zod.unknown()
+
+
+/**
  * @summary Identity documents awaiting review, and recent decisions
  */
 export const GetAdminKycQueueResponse = zod.object({

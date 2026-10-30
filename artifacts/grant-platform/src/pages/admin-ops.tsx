@@ -1,8 +1,8 @@
 import { useDeferredValue, useEffect, useState } from 'react';
-import { Link, useParams, useSearch } from 'wouter';
+import { Link, useLocation, useParams, useSearch } from 'wouter';
 import {
   useListAdminRequests, useApproveAdminRequest, useRejectAdminRequest, useListAdminTransactions, getListAdminTransactionsQueryKey, getExportAdminTransactionsUrl,
-  useListAdminUsers, useGetAdminKycQueue, useGetAdminApplication, useDecideAdminApplication, getGetAdminApplicationQueryKey,
+  useListAdminUsers, useListAdminAudit, getListAdminAuditQueryKey, getExportAdminAuditUrl, useGetAdminKycQueue, useGetAdminApplication, useDecideAdminApplication, getGetAdminApplicationQueryKey,
   type AdminRequest, type AdminKycItem, type ListAdminTransactionsType, type ApplicationDecisionInputStatus,
 } from '@workspace/api-client-react';
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Download, FileText, Plus, ShieldAlert, X } from 'lucide-react';
@@ -230,6 +230,106 @@ export function AdminTransactionsPage() {
             )}
         </section>
       </div>
+    </Shell>
+  );
+}
+
+/* ================================================================== */
+/* Audit log: every recorded change, filterable and exportable          */
+/* ================================================================== */
+
+const AUDIT_KEYS = ['search', 'userId', 'actor', 'from', 'to'] as const;
+type AuditFilterState = Record<(typeof AUDIT_KEYS)[number], string>;
+
+export function AdminAuditPage() {
+  const query = useSearch();
+  const [, navigate] = useLocation();
+  // Filters live in the URL, so a link such as /admin/audit?userId=usr-jane opens the page already filtered.
+  const fromUrl = (): AuditFilterState => { const u = new URLSearchParams(query); return Object.fromEntries(AUDIT_KEYS.map((k) => [k, u.get(k) ?? ''])) as AuditFilterState; };
+  const [f, setF] = useState<AuditFilterState>(fromUrl);
+  const [page, setPage] = useState(1);
+  useEffect(() => { setF(fromUrl()); }, [query]); // eslint-disable-line react-hooks/exhaustive-deps
+  const set = (k: keyof AuditFilterState, v: string) => {
+    const next = { ...f, [k]: v };
+    setF(next);
+    const u = new URLSearchParams(Object.entries(next).filter(([, val]) => val));
+    navigate(`/admin/audit${u.size ? `?${u}` : ''}`, { replace: true });
+  };
+  const s = useDeferredValue(f.search.trim());
+  const filters = { ...(s ? { search: s } : {}), ...(f.userId ? { userId: f.userId } : {}), ...(f.actor ? { actor: f.actor } : {}), ...(f.from ? { from: f.from } : {}), ...(f.to ? { to: f.to } : {}) };
+  useEffect(() => { setPage(1); }, [s, f.userId, f.actor, f.from, f.to]);
+  const badRange = !!f.from && !!f.to && f.from > f.to;
+  const params = { ...filters, page };
+  const q = useListAdminAudit(params, { query: { enabled: !badRange, placeholderData: keepPreviousData, queryKey: getListAdminAuditQueryKey(params) } });
+  const users = useListAdminUsers();
+  const pages = q.data ? Math.max(1, Math.ceil(q.data.total / q.data.pageSize)) : 1;
+  const filtered = Object.keys(filters).length > 0;
+  return (
+    <Shell admin title="Audit log">
+      <section className={cx(card, 'p-5')} data-testid="section-audit">
+        <SectionTitle action={
+          <a data-testid="link-export-audit" href={getExportAdminAuditUrl(filters)} download className={cx(lime, 'inline-flex items-center gap-1.5 !py-1.5 text-xs', (badRange || q.data?.total === 0) && 'pointer-events-none opacity-50')} aria-disabled={badRange || q.data?.total === 0}>
+            <Download className="h-3.5 w-3.5" />Export CSV
+          </a>
+        }>Audit log</SectionTitle>
+        <p className="-mt-2 mb-4 text-xs text-slate-500">
+          Every change made by administrators and applicants, newest first. Entries can't be edited or deleted. Dates are UTC; the export includes all matching entries (up to 10,000).
+          {q.data && <> <span className="font-semibold text-slate-700" data-testid="text-audit-count">{q.data.total.toLocaleString('en-US')} {filtered ? 'matching' : ''} {q.data.total === 1 ? 'entry' : 'entries'}</span>.</>}
+        </p>
+        <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <Field label="Search"><input data-testid="input-audit-search" type="search" value={f.search} onChange={(e) => set('search', e.target.value)} placeholder="Action, user, admin or entry ID" className={ainput} /></Field>
+          <Field label="User"><select data-testid="select-audit-user" value={f.userId} onChange={(e) => set('userId', e.target.value)} className={ainput}>
+            <option value="">All users</option><option value="platform">Platform-wide (no user)</option>
+            {users.data?.items.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            {f.userId && f.userId !== 'platform' && users.data && !users.data.items.some((u) => u.id === f.userId) && <option value={f.userId}>{f.userId}</option>}
+          </select></Field>
+          <Field label="Done by"><select data-testid="select-audit-actor" value={f.actor} onChange={(e) => set('actor', e.target.value)} className={ainput}>
+            <option value="">Anyone</option>
+            {q.data?.actors.map((a) => <option key={a} value={a}>{a}</option>)}
+            {f.actor && q.data && !q.data.actors.includes(f.actor) && <option value={f.actor}>{f.actor}</option>}
+          </select></Field>
+          <Field label="From"><input data-testid="input-audit-from" type="date" value={f.from} max={f.to || undefined} onChange={(e) => set('from', e.target.value)} className={ainput} /></Field>
+          <Field label="To" error={badRange ? '“To” is before “From”.' : undefined}><input data-testid="input-audit-to" type="date" value={f.to} min={f.from || undefined} onChange={(e) => set('to', e.target.value)} className={ainput} /></Field>
+        </div>
+        {filtered && <button data-testid="button-audit-clear" onClick={() => { setF({ search: '', userId: '', actor: '', from: '', to: '' }); navigate('/admin/audit', { replace: true }); }} className="mb-3 text-xs font-semibold hover:underline">Clear filters</button>}
+        {q.isLoading ? <div className="space-y-2">{[1, 2, 3, 4].map((i) => <Skel key={i} className="h-12" />)}</div>
+          : q.isError || !q.data ? <ErrorState message={apiError(q.error, 'The audit log could not be loaded.')} onRetry={() => q.refetch()} />
+          : q.data.items.length === 0 ? <Empty title="No matching entries" hint={filtered ? 'Try different filters.' : 'Changes made in the app appear here.'} />
+          : (
+            <>
+              {/* Phones get one card per entry, so the action is readable without scrolling sideways. */}
+              <ul className="space-y-3 sm:hidden" data-testid="list-audit">{q.data.items.map((a) => (
+                <li key={a.id} className="border-l-2 border-[#C6F432] pl-3 text-sm" data-testid={`item-audit-entry-${a.id}`}>
+                  <p className="break-words font-semibold text-slate-900">{a.action}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {a.userId ? <Link href={`/admin/users/${a.userId}`} className="font-semibold text-slate-700 hover:underline">{a.userName ?? a.userId}</Link> : 'Platform'}
+                    {' · '}<span className="break-all">{a.actor}</span>{' · '}{dateTime(a.createdAt)} · <span className="font-num">{a.id.slice(0, 8)}</span>
+                  </p>
+                </li>
+              ))}</ul>
+              <div className="hidden overflow-x-auto sm:block">
+                <table className="w-full min-w-[720px] text-left text-sm" data-testid="table-audit">
+                  <thead><tr className="border-b text-xs uppercase tracking-wide text-slate-500"><th className="py-2 pr-3">Date</th><th className="pr-3">User</th><th className="pr-3">Action</th><th>Done by</th></tr></thead>
+                  <tbody>{q.data.items.map((a) => (
+                    <tr key={a.id} className="border-b align-top" data-testid={`row-audit-entry-${a.id}`}>
+                      <td className="whitespace-nowrap py-2.5 pr-3 text-xs text-slate-600">{dateTime(a.createdAt)}<span className="font-num block text-slate-400" title={a.id}>{a.id.slice(0, 8)}</span></td>
+                      <td className="py-2.5 pr-3">{a.userId ? <Link href={`/admin/users/${a.userId}`} className="font-semibold hover:underline">{a.userName ?? a.userId}</Link> : <span className="text-slate-500">Platform</span>}</td>
+                      <td className="max-w-[26rem] py-2.5 pr-3 text-slate-800"><span className="break-words">{a.action}</span></td>
+                      <td className="py-2.5 text-xs text-slate-600"><span className="break-all">{a.actor}</span></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-3 text-sm">
+                <span className="text-slate-500" data-testid="text-audit-page">Page {q.data.page} of {pages}</span>
+                <div className="flex gap-2">
+                  <button data-testid="button-audit-prev" disabled={page <= 1} onClick={() => setPage(page - 1)} className={cx(ghost, 'inline-flex items-center gap-1 !py-1.5 text-xs')}><ChevronLeft className="h-3.5 w-3.5" />Previous</button>
+                  <button data-testid="button-audit-next" disabled={page >= pages} onClick={() => setPage(page + 1)} className={cx(ghost, 'inline-flex items-center gap-1 !py-1.5 text-xs')}>Next<ChevronRight className="h-3.5 w-3.5" /></button>
+                </div>
+              </div>
+            </>
+          )}
+      </section>
     </Shell>
   );
 }

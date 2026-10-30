@@ -835,6 +835,41 @@ paths:
           content:
             text/csv:
               schema: { type: string }
+  /admin/audit:
+    get:
+      operationId: listAdminAudit
+      tags: [admin]
+      summary: Search the audit log
+      parameters: &auditFilters
+        - { name: search, in: query, required: false, schema: { type: string, maxLength: 100 } }
+        - { name: userId, in: query, required: false, schema: { type: string, maxLength: 100 }, description: "A user ID, or 'platform' for entries not tied to a user" }
+        - { name: actor, in: query, required: false, schema: { type: string, maxLength: 200 } }
+        - { name: from, in: query, required: false, schema: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" } }
+        - { name: to, in: query, required: false, schema: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1, default: 1 } }
+      responses:
+        "200":
+          description: One page of audit entries, newest first
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminAuditPage" }
+        "400":
+          description: Invalid filters
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/audit/export:
+    get:
+      operationId: exportAdminAudit
+      tags: [admin]
+      summary: Download the filtered audit log as CSV
+      parameters: *auditFilters
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema: { type: string }
   /admin/kyc:
     get:
       operationId: getAdminKycQueue
@@ -1416,6 +1451,30 @@ components:
         requestId: { type: string }
         applicationId: { type: string }
       required: [id, createdAt, userId, userName, kind, account, amount, reason, actor]
+    AdminAuditEntry:
+      type: object
+      properties:
+        id: { type: string }
+        createdAt: { type: string, format: date-time }
+        action: { type: string }
+        actor: { type: string }
+        userId: { type: [string, "null"] }
+        userName: { type: [string, "null"], description: "null for platform-wide entries" }
+      required: [id, createdAt, action, actor, userId, userName]
+    AdminAuditPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AdminAuditEntry" }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+        actors:
+          type: array
+          items: { type: string }
+          description: Everyone who appears as "done by" in the log, for the filter
+      required: [items, total, page, pageSize, actors]
     AdminLedgerPage:
       type: object
       properties:

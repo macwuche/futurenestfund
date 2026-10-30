@@ -7,6 +7,7 @@ import {
   GetAdminUserParams, GetAdminUserResponse, UpdateAdminUserBody, UpdateAdminUserParams, UpdateAdminUserResponse,
   CreateUserBalanceAdjustmentBody, CreateUserBalanceAdjustmentParams, CreateUserBalanceAdjustmentResponse,
   UpdateGlobalFreezeBody, UpdateGlobalFreezeResponse, GetWithdrawalLimitsResponse, UpdateWithdrawalLimitsBody, UpdateWithdrawalLimitsResponse,
+  ListAdminAuditQueryParams, ListAdminAuditResponse, ExportAdminAuditQueryParams,
   UpdateUserWithdrawalLimitsParams, UpdateUserWithdrawalLimitsBody, UpdateUserWithdrawalLimitsResponse, UpdateApplicantPreferencesBody, UpdateApplicantPreferencesResponse,
 } from "@workspace/api-zod";
 import {
@@ -31,7 +32,7 @@ import { db, demoProfilesTable } from "@workspace/db";
 import {
   adminSearch, listAdminApplications, adminApplicationDetail, decideApplication, listAdminRequests, approveRequest, rejectRequest,
   listLedger, exportLedgerCsv, adminKycQueue, reviewKycDocument,
-  globalWithdrawalLimits, changeGlobalWithdrawalLimits, changeUserWithdrawalLimits,
+  globalWithdrawalLimits, changeGlobalWithdrawalLimits, changeUserWithdrawalLimits, listAudit, exportAuditCsv,
 } from "../lib/adminOps";
 import { receiveFile, findFile, sendFile } from "../lib/uploads";
 import { applicantKyc, uploadKycDocument } from "../lib/kyc";
@@ -308,9 +309,26 @@ router.get("/admin/transactions/export", async (req, res): Promise<void> => {
   const query = ExportAdminTransactionsQueryParams.safeParse(req.query);
   if (!query.success) { res.status(400).json({ error: "Check the ledger filters (dates as YYYY-MM-DD)." }); return; }
   const { page: _page, ...filters } = query.data;
+  const csv = await exportLedgerCsv(filters);
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="ledger-${new Date().toISOString().slice(0, 10)}.csv"`);
-  res.send(await exportLedgerCsv(filters));
+  res.send(csv);
+});
+
+router.get("/admin/audit", async (req, res): Promise<void> => {
+  const query = ListAdminAuditQueryParams.safeParse(req.query);
+  if (!query.success) { res.status(400).json({ error: "Check the audit filters (dates as YYYY-MM-DD)." }); return; }
+  const { page, ...filters } = query.data;
+  res.json(ListAdminAuditResponse.parse(await listAudit(filters, page)));
+});
+router.get("/admin/audit/export", async (req, res): Promise<void> => {
+  const query = ExportAdminAuditQueryParams.safeParse(req.query);
+  if (!query.success) { res.status(400).json({ error: "Check the audit filters (dates as YYYY-MM-DD)." }); return; }
+  const { page: _page, ...filters } = query.data;
+  const csv = await exportAuditCsv(filters);
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="audit-log-${new Date().toISOString().slice(0, 10)}.csv"`);
+  res.send(csv);
 });
 
 router.get("/admin/kyc", async (_req, res): Promise<void> => {
