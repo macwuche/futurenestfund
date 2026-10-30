@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useDeferredValue, useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation, useParams, useSearch } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,11 +9,12 @@ import {
   getGetAdminUserQueryKey, getListAdminUsersQueryKey, type ListAdminUsersSort, type ListAdminUsersDir, type AdminDashboard, type AdminUserProfile, type AdminUserSummary,
 } from '@workspace/api-client-react';
 import { keepPreviousData } from '@tanstack/react-query';
-import { Camera, Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck } from 'lucide-react';
+import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck } from 'lucide-react';
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
 import { CardControls } from '@/components/card-controls';
+import { AdminPhotoSettings, UserPhotoControl } from '@/components/admin-photo';
 import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, initials, money } from '@/components/bits';
 import { card, ainput, lime, dark, ghost, Stat, SectionTitle, useAdminRefresh, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
 import { apiError } from '@/lib/demo-state';
@@ -308,9 +309,6 @@ function Inspector({ u }: { u: AdminUserProfile }) {
   const [credit, setCredit] = useState<null | 'grant' | 'deposit' | 'card'>(null);
   const [debit, setDebit] = useState<null | 'grant' | 'deposit' | 'card'>(null);
   const [doc, setDoc] = useState<AdminUserProfile['documents'][number] | null>(null);
-  const [avatar, setAvatar] = useState<string | null>(null);
-  const file = useRef<HTMLInputElement>(null);
-  useEffect(() => () => { if (avatar) URL.revokeObjectURL(avatar); }, [avatar]);
   const frozen = u.status === 'Frozen';
   const f = useForm<z.infer<typeof profSchema>>({ resolver: zodResolver(profSchema), defaultValues: { name: u.name, phone: u.phone, telegram: u.telegram } });
   useEffect(() => { f.reset({ name: u.name, phone: u.phone, telegram: u.telegram }); }, [u.name, u.phone, u.telegram, f]);
@@ -321,11 +319,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
   return (
     <div className="space-y-5">
       <section className={cx(card, 'flex flex-wrap items-center gap-4 p-5')} data-testid="section-user-header">
-        <div className="relative">
-          <span className="grid h-16 w-16 place-items-center overflow-hidden rounded-full bg-[#111] font-display text-xl font-bold text-[#C6F432]" data-testid="avatar-inspector">{avatar ?? u.avatarUrl ? <img src={avatar ?? u.avatarUrl} alt={avatar ? `${u.name} avatar preview` : `${u.name} profile photo`} className="h-full w-full object-cover" /> : initials(u.name)}</span>
-          <button aria-label="Choose avatar (preview only, not uploaded)" title="Preview only, not uploaded" data-testid="button-avatar-upload" onClick={() => file.current?.click()} className="press absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full bg-[#C6F432] text-[#111] ring-2 ring-white"><Camera className="h-3.5 w-3.5" /></button>
-          <input ref={file} type="file" accept="image/*" hidden data-testid="input-avatar-file" onChange={(e) => { const fl = e.target.files?.[0]; e.target.value = ''; if (fl) { setAvatar(URL.createObjectURL(fl)); toast({ title: 'Avatar preview only', description: 'Not uploaded. The applicant can set their photo in Settings.' }); } }} />
-        </div>
+        <UserPhotoControl u={u} />
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-2xl font-bold" data-testid="text-user-name">{u.name}</h2>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
@@ -466,6 +460,7 @@ export function AdminSettingsPage() {
           <li className="flex items-start gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0" />Per-user KYC requirements, tiers, notification overrides and custom withdrawal limits are set on each user's profile.</li>
         </ul>
       </section>
+      <AdminPhotoSettings />
       <GlobalWithdrawalLimits />
       <section className={cx(card, 'p-5')} data-testid="card-settings-audit">
         <SectionTitle>Audit log</SectionTitle>

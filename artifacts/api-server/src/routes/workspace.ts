@@ -21,6 +21,8 @@ import {
   UploadApplicantAvatarResponse, DeleteApplicantAvatarResponse, GetApplicantKycResponse, UploadApplicantKycDocumentBody, UploadApplicantKycDocumentResponse,
   UploadApplicantApplicationDocumentParams, UploadApplicantApplicationDocumentResponse, DeleteApplicantApplicationDocumentParams,
   DeleteApplicantApplicationDocumentResponse, GetApplicantFileParams, GetAdminFileParams,
+  GetAdminMeResponse, UploadAdminAvatarResponse, DeleteAdminAvatarResponse,
+  UploadAdminUserAvatarParams, UploadAdminUserAvatarResponse, DeleteAdminUserAvatarParams, DeleteAdminUserAvatarResponse,
 } from "@workspace/api-zod";
 import {
   SearchAdminQueryParams, SearchAdminResponse, ListAdminApplicationsQueryParams, ListAdminApplicationsResponse,
@@ -38,8 +40,8 @@ import {
 } from "../lib/adminOps";
 import { receiveFile, findFile, sendFile } from "../lib/uploads";
 import { applicantKyc, uploadKycDocument } from "../lib/kyc";
-import { setAvatar, clearAvatar } from "../lib/avatars";
-import { currentAdmin, currentUserId } from "../lib/currentUser";
+import { setAvatar, clearAvatar, adminAccount, setAdminAvatar, clearAdminAvatar } from "../lib/avatars";
+import { currentAdmin, currentAdminProfile, currentUserId } from "../lib/currentUser";
 import { listNotifications, markAllRead } from "../lib/notifications";
 import {
   listApplications, applicationDetail, createApplication, withdrawApplication, respondToApplication,
@@ -187,6 +189,31 @@ router.post("/applicant/notifications/read", async (req, res): Promise<void> => 
 router.get("/admin/files/:fileId", async (req, res): Promise<void> => {
   const params = GetAdminFileParams.safeParse(req.params);
   await sendFile(req, res, params.success ? await findFile(params.data.fileId) : undefined);
+});
+
+/* ---------- profile photos: the administrator's own, and a user's from the inspector ---------- */
+router.get("/admin/me", async (req, res): Promise<void> => {
+  res.json(GetAdminMeResponse.parse(await adminAccount(currentAdminProfile(req))));
+});
+router.post("/admin/me/avatar", receiveFile, async (req, res): Promise<void> => {
+  const who = currentAdminProfile(req);
+  await setAdminAvatar(who, req.file);
+  res.json(UploadAdminAvatarResponse.parse(await adminAccount(who)));
+});
+router.delete("/admin/me/avatar", async (req, res): Promise<void> => {
+  const who = currentAdminProfile(req);
+  await clearAdminAvatar(who);
+  res.json(DeleteAdminAvatarResponse.parse(await adminAccount(who)));
+});
+router.post("/admin/users/:userId/avatar", receiveFile, async (req, res): Promise<void> => {
+  const params = UploadAdminUserAvatarParams.safeParse(req.params);
+  if (!params.success || !await setAvatar(params.data.userId, req.file, currentAdmin(req))) { res.status(404).json({ error: "User not found." }); return; }
+  res.json(UploadAdminUserAvatarResponse.parse(await getUser(params.data.userId)));
+});
+router.delete("/admin/users/:userId/avatar", async (req, res): Promise<void> => {
+  const params = DeleteAdminUserAvatarParams.safeParse(req.params);
+  if (!params.success || !await clearAvatar(params.data.userId, currentAdmin(req))) { res.status(404).json({ error: "User not found." }); return; }
+  res.json(DeleteAdminUserAvatarResponse.parse(await getUser(params.data.userId)));
 });
 
 router.get("/admin/dashboard", async (_req, res): Promise<void> => {

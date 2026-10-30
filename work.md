@@ -1422,3 +1422,47 @@ Tests (2026-10-30), all passing:
   - UI: phase5 cards / debits / users / audit / limits / phase5-ui on desktop + phone; phase3-phone 16/16; phase1-desktop 26/26, phase1-phone 10/10
   - phase3-desktop 22/22. One run had a single timeout in "users directory reads ?q= from the header search Enter" (a page 5.6 doesn't touch); it passed on 3 straight reruns. Noted as a timing flake to keep an eye on.
 - Demo data restored.
+
+### 2026-10-30: Step 5.7 plan (profile photos: the admin's own, and users' from the inspector)
+
+**Decision (user, 2026-10-30): build both readings of 5.7.** The Phase 5 plan meant the admin's own photo; backlog A4 meant the camera button on the user inspector, which today only previews a file locally ("preview only, not uploaded").
+
+**Today:**
+- Admins have no profile row (only applicants get `demo_profiles`), so there is nowhere to keep an admin photo. The admin sidebar shows only the email.
+- Applicant photos already go through the shared upload pipeline: the real type is read from the bytes, sharp re-encodes to a 256 px WebP (EXIF/GPS stripped), 10 MB cap, rows in `demo_files`, served with a sandbox CSP.
+
+**A. The admin's own photo**
+- New table `demo_admin_profiles` (`id` = `adm-<auth user id>`, or `adm-demo` in demo mode; `email`, `avatar_file_id`, `updated_at`). Migration `0005` + Supabase migration `0003` (its `app_api_all` policy; no grants for `anon` / `authenticated`).
+- API: `GET /admin/me` → `{ name, email, avatarUrl? }`; `POST /admin/me/avatar` (multipart) and `DELETE /admin/me/avatar`, same pipeline. Audited as a platform entry ("Administrator profile photo updated / removed") with the admin's email as actor.
+- UI: a "Your profile photo" card in admin Settings (change / remove, errors shown inline); the photo (or initials) shows in the sidebar account card and in the header.
+
+**B. A user's photo from the inspector**
+- API: `POST /admin/users/:id/avatar` and `DELETE /admin/users/:id/avatar` → the updated user. Audit: "Profile photo updated by an administrator", actor = admin. The user is notified ("An administrator updated / removed your profile photo"). Allowed while the account or platform is frozen (no money moves).
+- UI: the inspector's camera button really uploads (spinner, inline errors), plus a "Remove photo" action. The "preview only" toast goes away.
+
+Both reuse the existing upload rate limit (20 per 10 min per account). The previous file is deleted after the new one is committed, as for applicants.
+
+**Tests:** `.unlazy/phase5-avatars.mjs` (API: admin photo set / replace / remove, old file deleted, served only to admins, bad files refused, audit; user photo by admin: audit + notification, applicant sees it, applicant can't use the admin routes) and `.unlazy/phase5-avatars-ui.mjs` (desktop + phone: Settings upload and remove, sidebar/header photo, inspector upload and remove, error shown). Earlier suites re-run.
+
+### 2026-10-30: Step 5.7 done (profile photos: the admin's own, and users' from the inspector)
+
+Built as planned above.
+- **DB:** `demo_admin_profiles` (`id` = `adm-<auth user id>` / `adm-demo`, `email`, `avatar_file_id`, `updated_at`), migration `0005_admin_profiles` (applied to the Replit DB) and Supabase migration `0003_admin_profiles` (`app_api_all` policy, no `anon` / `authenticated` grants). **Supabase still needs `db:migrate` run with `SUPABASE_ADMIN_DB_URL`.**
+- **Server (`lib/avatars.ts`):**
+  - `setAvatar` / `clearAvatar` take an optional acting admin: the audit says "… by an administrator" with the admin as actor, and the user is notified (link to Settings). They return false for an unknown user, and the stored file is rolled back (no orphan on disk).
+  - `adminAccount`, `setAdminAvatar`, `clearAdminAvatar`: the admin's row is created on first upload; audited as platform entries ("Administrator profile photo updated / removed"). Admin files are owned by `adm-…`, so the applicant files route never serves them.
+  - `currentAdminProfile(req)` in `currentUser.ts`.
+- **API:** `GET /admin/me`, `POST|DELETE /admin/me/avatar` → `AdminAccount`; `POST|DELETE /admin/users/:id/avatar` → the updated user. Same upload pipeline and rate limit as applicant photos. Allowed during freezes (no money moves).
+- **UI (`components/admin-photo.tsx`):**
+  - `AdminAvatar` (black / lime, initials fallback).
+  - Admin Settings: "Your profile photo" card (change, remove, errors inline).
+  - Header avatar linking to Settings; the sidebar account card shows the photo (Supabase mode; demo mode keeps its demo box).
+  - Inspector: the camera button really uploads (spinner, inline errors); "Remove photo" asks first. The old "preview only" toast is gone.
+  - The camera button has a 44 px touch area (invisible padding around the 32 px circle).
+
+Tests (2026-10-30), all passing:
+- `pnpm test` 50/50 · typecheck clean
+- new `.unlazy/phase5-avatars.mjs` 12/12: admin photo set / replace / remove (old row and bytes deleted, EXIF stripped, sandboxed WebP, audit once, second remove is a no-op); applicant route can't serve the admin's photo; GIF / fake JPG / PDF / pixel bomb / empty refused with nothing changed; user photo by admin (audit, one notification, applicant sees and loads it, replacement deletes the old file, works while frozen, removal notifies); unknown user 404 with no orphan file; applicants' own uploads unchanged.
+- new `.unlazy/phase5-avatars-ui.mjs` 6/6 desktop + 6/6 phone.
+- regressions (data restored before each): phase2-desktop 25/25, phase2-phone 6/6, phase3-api 24/24, phase3-phone 16/16, phase3-desktop 22/22 (the known header-search flake hit once, then 3 clean runs), phase5 cards 9/9, cards UI 5+5, debits UI 5+5, users UI 6+6, audit 9/9.
+- `.unlazy/restore-demo-db.sh` now also truncates `demo_admin_profiles`. Demo data restored.

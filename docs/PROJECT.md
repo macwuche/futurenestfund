@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-10-29 · branch `user-side-redesign` · last commit `330d9c6`._
+_Last updated 2026-10-30 · branch `user-side-redesign` · Phase 5 complete (5.7)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -68,6 +68,7 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
   - per-user rules: KYC for deposits / withdrawals; email and in-app notification overrides (user's choice / always on / always off)
   - credit and **debit** balances (a debit needs a reason shown to the user, never goes below $0 or below what pending withdrawals hold, and asks for confirmation)
   - **cards:** issue a sample card (virtual active at once, physical pending until marked issued), freeze / unfreeze with a reason shown to the user, cancel (permanent)
+  - **profile photo:** upload or remove the user's photo (same checks and re-encoding as the applicant's own upload; removal asks first). Audited, and the user is notified.
   - the user's applications and KYC documents
 - **Application review:** Submitted → Review → Approved / Declined / Changes requested, with notes. Approving credits the grant balance through the ledger.
 - **Deposit / Withdrawal queues:** approve or decline (decline needs a reason). Freezes, balances and KYC are re-checked at approval time. A pending withdrawal above the user's current limit is flagged.
@@ -77,6 +78,7 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
 - **Settings:**
   - global freeze, with a confirmation and a reason
   - security rules overview
+  - the admin's **own profile photo**, shown in the sidebar and as the header avatar (which links to Settings)
   - the admin's own **Sign-in & security**
 - **Audit log** (`/admin/audit`, from Settings, the dashboard and each user's audit trail): every recorded change, searchable and filterable by user (or platform-wide), who did it and date, 25 per page, with CSV export.
 - **Header search** across users, applications, ledger entries and the audit log.
@@ -195,6 +197,7 @@ Dashboard settings to check (see §12): Site URL (still `http://localhost:3000`)
 | `demo_audit` | Audit trail of every change (**append-only**) |
 | `demo_notifications` | In-app notifications + email outbox state (`emailed_at`, `email_attempts`, `email_claimed_until`) |
 | `demo_milestones`, `demo_files`, `demo_kyc_documents`, `demo_settings` | Milestones, uploaded file metadata, identity documents, platform freeze |
+| `demo_admin_profiles` | Administrators' own details (photo); id `adm-<auth user id>`, or `adm-demo` in demo mode |
 | `user_roles` (Supabase only) | Elevated roles linked to `auth.users` |
 | `app_migrations` (Supabase only), `drizzle.__drizzle_migrations` | Migration bookkeeping |
 
@@ -217,8 +220,10 @@ Dashboard settings to check (see §12): Site URL (still `http://localhost:3000`)
 | `lib/db/migrations/0002_append_only_triggers.sql` | Triggers refusing UPDATE/DELETE on `demo_audit`, `demo_ledger`, `demo_application_events` |
 | `lib/db/migrations/0003_notification_templates.sql` | `demo_notifications.email_kind`, `email_data`, `in_app` |
 | `lib/db/migrations/0004_withdrawal_limits.sql` | Global (`demo_settings`) and per-user (`demo_profiles`) withdrawal limits |
+| `lib/db/migrations/0005_admin_profiles.sql` | `demo_admin_profiles` (admins' own photo) |
 | `lib/db/supabase/migrations/0001_user_roles.sql` | `user_roles` (Supabase only) |
 | `lib/db/supabase/migrations/0002_app_api_role.sql` | `app_api` role, grants, `app_api_all` policies, revoked Data API grants |
+| `lib/db/supabase/migrations/0003_admin_profiles.sql` | `app_api_all` policy for `demo_admin_profiles`; no Data API grants |
 
 Changing the schema: edit `lib/db/src/schema` → `pnpm --filter @workspace/db run generate` → review the new SQL → `pnpm --filter @workspace/scripts run db:migrate`. A new table also needs an `app_api_all` policy in a new Supabase migration. Both existing databases were "baselined" once on 2026-10-29 (`db:migrate -- --baseline`), because they had been built with `drizzle-kit push`.
 
@@ -337,7 +342,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 
 ## 11. Testing
 
-**Committed:** `pnpm test`, 43 Vitest tests.
+**Committed:** `pnpm test`, 50 Vitest tests.
 - Token verification: valid, expired, other project, wrong audience, anonymous, forged key, tampered payload, `alg: none`, HS256 algorithm confusion, key server down/timeout → 503.
 - Standard Webhooks signatures.
 - Email link mapping (including the reversed email-change fields) and HTML escaping.
@@ -416,6 +421,13 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 | `043e1a1` | Email through Resend, incl. Supabase Auth emails (4.6) |
 | `90ceb67` | Settings: sign-in & security, email-notification switch (4.7) |
 | `330d9c6` | Hardening after review: verified TLS, `app_api` role + RLS policies, migrations, live session checks, `/auth/confirm` links, rate limits, CSP, Vitest |
+| `bf2039f` | Withdrawal / deposit emails and notifications; admin notification overrides (5.1) |
+| `9a16757` | Global and per-user withdrawal limits (5.2) |
+| `579b4cf` | Audit-log viewer with filters and CSV export (5.3) |
+| `45e7b5c` | Users directory sorting and pagination (5.4) |
+| `057fce1` | Debit adjustments (5.5) |
+| `0f64fd4` | Admin card controls (5.6) |
+| (next) | Profile photos: the admin's own, and users' from the inspector (5.7) |
 
 ---
 
@@ -429,7 +441,7 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 - ~~5.4 users directory sorting and pagination~~: done 2026-10-30
 - ~~5.5 debit adjustments~~: done 2026-10-30
 - ~~5.6 admin card controls~~: done 2026-10-30
-- 5.7 a real admin avatar
+- ~~5.7 profile photos (the admin's own, and users' from the inspector)~~: done 2026-10-30
 
 **Phase 6 (finish and harden):**
 - grant matchmaking (rule-based first)

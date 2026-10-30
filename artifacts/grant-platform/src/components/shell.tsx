@@ -17,6 +17,7 @@ import { Avatar, checkFile, cx, Field, FILE_RULES, fileSize, inputCls, Modal, mo
 import { CATEGORIES, apiError, useApplicantDashboard, useDemo, useNotifications, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
+import { AdminAvatar, useAdminAccount } from '@/components/admin-photo';
 
 type NavItem = { href: string; label: string; icon: typeof House };
 
@@ -510,6 +511,7 @@ function AdminBrand() {
 
 function AdminSidebarBody({ onNav }: { onNav?: () => void }) {
   const { status, me } = useAuth();
+  const account = useAdminAccount();
   const out = useSignOut();
   return (
     <div className="flex flex-1 flex-col gap-6">
@@ -523,8 +525,13 @@ function AdminSidebarBody({ onNav }: { onNav?: () => void }) {
         </div>
       ) : (
         <div className="mt-auto rounded-xl bg-white/5 p-3" data-testid="card-admin-account">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Signed in as</p>
-          <p className="mt-0.5 truncate text-sm font-semibold text-white" data-testid="text-admin-email" title={me?.email}>{me?.email}</p>
+          <div className="flex items-center gap-3">
+            <AdminAvatar name={account?.name ?? me?.name ?? ''} url={account?.avatarUrl} className="h-10 w-10 text-sm" testid="avatar-admin-sidebar" />
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Signed in as</p>
+              <p className="mt-0.5 truncate text-sm font-semibold text-white" data-testid="text-admin-email" title={me?.email}>{me?.email}</p>
+            </div>
+          </div>
           <button onClick={out.run} disabled={out.busy} data-testid="button-sign-out"
             className="press mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-white/15 px-3 text-sm font-semibold text-slate-200 hover:bg-white/10 disabled:opacity-60">
             <LogOut className="h-4 w-4" />{out.busy ? 'Signing out…' : 'Sign out'}
@@ -575,6 +582,7 @@ function AdminFootNote() {
 
 function AdminTop({ title, onMenu }: { title: string; onMenu: () => void }) {
   const { data } = useGetAdminDashboard();
+  const account = useAdminAccount();
   const [confirm, setConfirm] = useState(false);
   const frozen = data?.globalFrozen ?? false;
   return (
@@ -592,6 +600,11 @@ function AdminTop({ title, onMenu }: { title: string; onMenu: () => void }) {
         <button data-testid="button-global-freeze" onClick={() => setConfirm(true)} disabled={!data} className={cx('press ml-auto flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition disabled:opacity-50 md:ml-0', frozen ? 'bg-[#C6F432] text-[#111]' : 'bg-red-700 text-white hover:bg-red-800')}>
           <Snowflake className="h-4 w-4" />{frozen ? 'Lift Freeze' : 'Global Freeze'}
         </button>
+        {account && (
+          <Link href="/admin/settings" aria-label={`Your profile and settings (${account.email || account.name})`} title={account.email || account.name} data-testid="link-admin-avatar" className="press rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111]/40">
+            <AdminAvatar name={account.name} url={account.avatarUrl} className="h-10 w-10 text-sm" testid="avatar-admin-header" />
+          </Link>
+        )}
       </div>
       {frozen && <div data-testid="banner-frozen" className="bg-red-700 px-6 py-1.5 text-center text-xs font-semibold text-white">Platform is globally frozen. Balance credits, approvals and new deposit or withdrawal requests are paused.</div>}
       <GlobalFreezeDialog open={confirm} onClose={() => setConfirm(false)} frozen={frozen} />

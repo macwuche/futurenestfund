@@ -584,6 +584,13 @@ export interface ApplicantKyc {
   documents: KycDocument[];
 }
 
+export interface AdminAccount {
+  name: string;
+  email: string;
+  /** Same-origin URL of the administrator's photo; absent when none is set */
+  avatarUrl?: string;
+}
+
 export interface FileUpload {
   file: Blob;
 }

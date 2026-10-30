@@ -990,6 +990,190 @@ export const CreateUserBalanceAdjustmentResponse = zod.object({
 
 
 /**
+ * @summary The signed-in administrator's own profile (name, email, photo)
+ */
+export const GetAdminMeResponse = zod.object({
+  "name": zod.string(),
+  "email": zod.string(),
+  "avatarUrl": zod.string().optional().describe('Same-origin URL of the administrator\'s photo; absent when none is set')
+})
+
+
+/**
+ * @summary Upload the administrator's own photo (JPEG, PNG or WebP, re-encoded on the server)
+ */
+export const UploadAdminAvatarBody = zod.object({
+  "file": zod.instanceof(Blob)
+})
+
+export const UploadAdminAvatarResponse = zod.object({
+  "name": zod.string(),
+  "email": zod.string(),
+  "avatarUrl": zod.string().optional().describe('Same-origin URL of the administrator\'s photo; absent when none is set')
+})
+
+
+/**
+ * @summary Remove the administrator's own photo
+ */
+export const DeleteAdminAvatarResponse = zod.object({
+  "name": zod.string(),
+  "email": zod.string(),
+  "avatarUrl": zod.string().optional().describe('Same-origin URL of the administrator\'s photo; absent when none is set')
+})
+
+
+/**
+ * @summary Set a user's profile photo (audited; the user is notified)
+ */
+export const UploadAdminUserAvatarParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const UploadAdminUserAvatarBody = zod.object({
+  "file": zod.instanceof(Blob)
+})
+
+export const uploadAdminUserAvatarResponseTierMax = 3;
+
+
+
+export const UploadAdminUserAvatarResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "phone": zod.string(),
+  "telegram": zod.string(),
+  "organization": zod.string(),
+  "maskedId": zod.string(),
+  "avatarUrl": zod.string().optional(),
+  "tier": zod.number().int().min(1).max(uploadAdminUserAvatarResponseTierMax),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "status": zod.enum(['Active', 'Frozen']),
+  "balances": zod.object({
+  "grant": zod.number(),
+  "deposit": zod.number(),
+  "card": zod.number()
+}),
+  "cards": zod.array(zod.object({
+  "id": zod.string(),
+  "network": zod.enum(['Visa', 'Mastercard']),
+  "kind": zod.enum(['Virtual', 'Physical']),
+  "lastFour": zod.string(),
+  "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
+  "balance": zod.number(),
+  "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
+  "issuedAt": zod.coerce.date().optional()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['Government ID', 'Proof of address']),
+  "status": zod.enum(['Verified', 'Pending', 'Rejected']),
+  "sample": zod.boolean().describe('Seeded sample document with no file'),
+  "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
+  "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
+  "mimeType": zod.string().optional(),
+  "submittedAt": zod.coerce.date(),
+  "reviewNote": zod.string().optional().describe('Reviewer\'s reason, shown when a document is rejected'),
+  "reviewedAt": zod.coerce.date().optional()
+})),
+  "permissions": zod.object({
+  "emailNotifications": zod.boolean(),
+  "withdrawalKycRequired": zod.boolean(),
+  "depositKycRequired": zod.boolean(),
+  "emailOverride": zod.boolean().nullish().describe('Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user'),
+  "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
+}),
+  "withdrawalLimits": zod.object({
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "maxPerRequest": zod.number().nullable(),
+  "dailyTotal": zod.number().nullable(),
+  "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
+}),
+  "audit": zod.array(zod.object({
+  "id": zod.string(),
+  "action": zod.string(),
+  "actor": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Remove a user's profile photo (audited; the user is notified)
+ */
+export const DeleteAdminUserAvatarParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const deleteAdminUserAvatarResponseTierMax = 3;
+
+
+
+export const DeleteAdminUserAvatarResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "phone": zod.string(),
+  "telegram": zod.string(),
+  "organization": zod.string(),
+  "maskedId": zod.string(),
+  "avatarUrl": zod.string().optional(),
+  "tier": zod.number().int().min(1).max(deleteAdminUserAvatarResponseTierMax),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "status": zod.enum(['Active', 'Frozen']),
+  "balances": zod.object({
+  "grant": zod.number(),
+  "deposit": zod.number(),
+  "card": zod.number()
+}),
+  "cards": zod.array(zod.object({
+  "id": zod.string(),
+  "network": zod.enum(['Visa', 'Mastercard']),
+  "kind": zod.enum(['Virtual', 'Physical']),
+  "lastFour": zod.string(),
+  "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
+  "balance": zod.number(),
+  "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
+  "issuedAt": zod.coerce.date().optional()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['Government ID', 'Proof of address']),
+  "status": zod.enum(['Verified', 'Pending', 'Rejected']),
+  "sample": zod.boolean().describe('Seeded sample document with no file'),
+  "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
+  "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
+  "mimeType": zod.string().optional(),
+  "submittedAt": zod.coerce.date(),
+  "reviewNote": zod.string().optional().describe('Reviewer\'s reason, shown when a document is rejected'),
+  "reviewedAt": zod.coerce.date().optional()
+})),
+  "permissions": zod.object({
+  "emailNotifications": zod.boolean(),
+  "withdrawalKycRequired": zod.boolean(),
+  "depositKycRequired": zod.boolean(),
+  "emailOverride": zod.boolean().nullish().describe('Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user'),
+  "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
+}),
+  "withdrawalLimits": zod.object({
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "maxPerRequest": zod.number().nullable(),
+  "dailyTotal": zod.number().nullable(),
+  "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
+}),
+  "audit": zod.array(zod.object({
+  "id": zod.string(),
+  "action": zod.string(),
+  "actor": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
  * @summary Issue a sample card (virtual cards are active at once; physical ones stay pending until marked issued)
  */
 export const IssueUserCardParams = zod.object({

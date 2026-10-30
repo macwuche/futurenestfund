@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminAccount,
   AdminApplication,
   AdminApplicationDetail,
   AdminAuditPage,
@@ -2742,6 +2743,384 @@ export const useCreateUserBalanceAdjustment = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreateUserBalanceAdjustmentMutationOptions(options));
+    }
+
+export const getGetAdminMeUrl = () => {
+
+
+
+
+  return `/api/admin/me`
+}
+
+/**
+ * @summary The signed-in administrator's own profile (name, email, photo)
+ */
+export const getAdminMe = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminAccount> => {
+
+  return customFetch<AdminAccount>(getGetAdminMeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminMeQueryKey = () => {
+    return [
+    `/api/admin/me`
+    ] as const;
+    }
+
+
+export const getGetAdminMeQueryOptions = <TData = Awaited<ReturnType<typeof getAdminMe>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminMeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminMe>>> = ({ signal }) => getAdminMe({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminMe>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminMeQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminMe>>>
+export type GetAdminMeQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary The signed-in administrator's own profile (name, email, photo)
+ */
+
+export function useGetAdminMe<TData = Awaited<ReturnType<typeof getAdminMe>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminMeQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUploadAdminAvatarUrl = () => {
+
+
+
+
+  return `/api/admin/me/avatar`
+}
+
+/**
+ * @summary Upload the administrator's own photo (JPEG, PNG or WebP, re-encoded on the server)
+ */
+export const uploadAdminAvatar = async (fileUpload: FileUpload, options?: Parameters<typeof customFetch>[1]): Promise<AdminAccount> => {
+    const formData = new FormData();
+formData.append(`file`, fileUpload.file);
+
+  return customFetch<AdminAccount>(getUploadAdminAvatarUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadAdminAvatarMutationKey = () => ['uploadAdminAvatar'] as const;
+
+export const getUploadAdminAvatarMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAdminAvatar>>, TError,UploadAdminAvatarMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadAdminAvatar>>, TError,UploadAdminAvatarMutationVariables, TContext> => {
+
+const mutationKey = getUploadAdminAvatarMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadAdminAvatar>>, UploadAdminAvatarMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadAdminAvatar(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadAdminAvatarMutationResult = NonNullable<Awaited<ReturnType<typeof uploadAdminAvatar>>>
+    export type UploadAdminAvatarMutationBody = BodyType<FileUpload>
+    export type UploadAdminAvatarMutationError = ErrorType<ErrorMessage>
+    export type UploadAdminAvatarMutationVariables = {data: BodyType<FileUpload>}
+
+    /**
+ * @summary Upload the administrator's own photo (JPEG, PNG or WebP, re-encoded on the server)
+ */
+export const useUploadAdminAvatar = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAdminAvatar>>, TError,UploadAdminAvatarMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadAdminAvatar>>,
+        TError,
+        UploadAdminAvatarMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadAdminAvatarMutationOptions(options));
+    }
+
+export const getDeleteAdminAvatarUrl = () => {
+
+
+
+
+  return `/api/admin/me/avatar`
+}
+
+/**
+ * @summary Remove the administrator's own photo
+ */
+export const deleteAdminAvatar = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminAccount> => {
+
+  return customFetch<AdminAccount>(getDeleteAdminAvatarUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAdminAvatarMutationKey = () => ['deleteAdminAvatar'] as const;
+
+export const getDeleteAdminAvatarMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminAvatar>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminAvatar>>, TError,void, TContext> => {
+
+const mutationKey = getDeleteAdminAvatarMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminAvatar>>, void> = () => {
+
+
+          return  deleteAdminAvatar(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminAvatarMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminAvatar>>>
+
+    export type DeleteAdminAvatarMutationError = ErrorType<unknown>
+
+
+    /**
+ * @summary Remove the administrator's own photo
+ */
+export const useDeleteAdminAvatar = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminAvatar>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminAvatar>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDeleteAdminAvatarMutationOptions(options));
+    }
+
+export const getUploadAdminUserAvatarUrl = (userId: string,) => {
+
+
+
+
+  return `/api/admin/users/${userId}/avatar`
+}
+
+/**
+ * @summary Set a user's profile photo (audited; the user is notified)
+ */
+export const uploadAdminUserAvatar = async (userId: string,
+    fileUpload: FileUpload, options?: Parameters<typeof customFetch>[1]): Promise<AdminUserProfile> => {
+    const formData = new FormData();
+formData.append(`file`, fileUpload.file);
+
+  return customFetch<AdminUserProfile>(getUploadAdminUserAvatarUrl(userId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadAdminUserAvatarMutationKey = () => ['uploadAdminUserAvatar'] as const;
+
+export const getUploadAdminUserAvatarMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAdminUserAvatar>>, TError,UploadAdminUserAvatarMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadAdminUserAvatar>>, TError,UploadAdminUserAvatarMutationVariables, TContext> => {
+
+const mutationKey = getUploadAdminUserAvatarMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadAdminUserAvatar>>, UploadAdminUserAvatarMutationVariables> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  uploadAdminUserAvatar(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadAdminUserAvatarMutationResult = NonNullable<Awaited<ReturnType<typeof uploadAdminUserAvatar>>>
+    export type UploadAdminUserAvatarMutationBody = BodyType<FileUpload>
+    export type UploadAdminUserAvatarMutationError = ErrorType<ErrorMessage>
+    export type UploadAdminUserAvatarMutationVariables = {userId: string;data: BodyType<FileUpload>}
+
+    /**
+ * @summary Set a user's profile photo (audited; the user is notified)
+ */
+export const useUploadAdminUserAvatar = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAdminUserAvatar>>, TError,UploadAdminUserAvatarMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadAdminUserAvatar>>,
+        TError,
+        UploadAdminUserAvatarMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadAdminUserAvatarMutationOptions(options));
+    }
+
+export const getDeleteAdminUserAvatarUrl = (userId: string,) => {
+
+
+
+
+  return `/api/admin/users/${userId}/avatar`
+}
+
+/**
+ * @summary Remove a user's profile photo (audited; the user is notified)
+ */
+export const deleteAdminUserAvatar = async (userId: string, options?: Parameters<typeof customFetch>[1]): Promise<AdminUserProfile> => {
+
+  return customFetch<AdminUserProfile>(getDeleteAdminUserAvatarUrl(userId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAdminUserAvatarMutationKey = () => ['deleteAdminUserAvatar'] as const;
+
+export const getDeleteAdminUserAvatarMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminUserAvatar>>, TError,DeleteAdminUserAvatarMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminUserAvatar>>, TError,DeleteAdminUserAvatarMutationVariables, TContext> => {
+
+const mutationKey = getDeleteAdminUserAvatarMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminUserAvatar>>, DeleteAdminUserAvatarMutationVariables> = (props) => {
+          const {userId} = props ?? {};
+
+          return  deleteAdminUserAvatar(userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminUserAvatarMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminUserAvatar>>>
+
+    export type DeleteAdminUserAvatarMutationError = ErrorType<ErrorMessage>
+    export type DeleteAdminUserAvatarMutationVariables = {userId: string}
+
+    /**
+ * @summary Remove a user's profile photo (audited; the user is notified)
+ */
+export const useDeleteAdminUserAvatar = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminUserAvatar>>, TError,DeleteAdminUserAvatarMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminUserAvatar>>,
+        TError,
+        DeleteAdminUserAvatarMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteAdminUserAvatarMutationOptions(options));
     }
 
 export const getIssueUserCardUrl = (userId: string,) => {

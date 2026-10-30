@@ -16,3 +16,10 @@ export function currentAdmin(req: Request): string {
   if (!who || (who.role !== "admin" && who.role !== "root")) throw new Error("currentAdmin called outside an admin route");
   return who.email || who.name;
 }
+
+/** The administrator's own profile row (demo_admin_profiles): one per Supabase account, one shared row in demo mode. */
+export function currentAdminProfile(req: Request): { id: string; email: string; name: string } {
+  const who = req.identity;
+  if (!who || (who.role !== "admin" && who.role !== "root")) throw new Error("currentAdminProfile called outside an admin route");
+  return { id: `adm-${who.authUserId ?? "demo"}`, email: who.email, name: who.name };
+}

@@ -587,6 +587,93 @@ paths:
                 $ref: "#/components/schemas/UserBalances"
         "404":
           description: User not found
+  /admin/me:
+    get:
+      operationId: getAdminMe
+      tags: [admin]
+      summary: The signed-in administrator's own profile (name, email, photo)
+      responses:
+        "200":
+          description: Administrator profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminAccount" }
+  /admin/me/avatar:
+    post:
+      operationId: uploadAdminAvatar
+      tags: [admin]
+      summary: Upload the administrator's own photo (JPEG, PNG or WebP, re-encoded on the server)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/FileUpload" }
+      responses:
+        "200":
+          description: Updated administrator profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminAccount" }
+        "400":
+          description: File or request refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    delete:
+      operationId: deleteAdminAvatar
+      tags: [admin]
+      summary: Remove the administrator's own photo
+      responses:
+        "200":
+          description: Updated administrator profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminAccount" }
+  /admin/users/{userId}/avatar:
+    post:
+      operationId: uploadAdminUserAvatar
+      tags: [admin]
+      summary: Set a user's profile photo (audited; the user is notified)
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/FileUpload" }
+      responses:
+        "200":
+          description: The updated user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUserProfile" }
+        "400":
+          description: File or request refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    delete:
+      operationId: deleteAdminUserAvatar
+      tags: [admin]
+      summary: Remove a user's profile photo (audited; the user is notified)
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The updated user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUserProfile" }
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /admin/users/{userId}/cards:
     post:
       operationId: issueUserCard
@@ -1332,6 +1419,13 @@ components:
         url: { type: string }
         uploadedAt: { type: string, format: date-time }
       required: [id, name, mimeType, sizeBytes, url, uploadedAt]
+    AdminAccount:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string }
+        avatarUrl: { type: string, description: "Same-origin URL of the administrator's photo; absent when none is set" }
+      required: [name, email]
     FileUpload:
       type: object
       properties:
