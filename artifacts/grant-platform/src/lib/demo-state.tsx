@@ -2,7 +2,7 @@ import { createContext, useCallback, useEffect, useContext, useMemo, useState, t
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useGetApplicantDashboard, getGetApplicantDashboardQueryKey, useGetApplicantAccount, getGetApplicantAccountQueryKey,
-  useListApplicantApplications, getListApplicantApplicationsQueryKey, useListApplicantMilestones, getListApplicantMilestonesQueryKey,
+  useListApplicantApplications, getListApplicantApplicationsQueryKey, useListApplicantMilestones, getListApplicantMilestonesQueryKey, getGetApplicantMatchmakingQueryKey,
   useListApplicantNotifications, getListApplicantNotificationsQueryKey,
   type ApplicantApplication, type ApplicantDashboard, type ApplicantAccount, type Milestone, type NotificationList,
 } from '@workspace/api-client-react';
@@ -51,7 +51,7 @@ export function useNotifications() {
 export function useRefreshApplicant() {
   const qc = useQueryClient();
   return useCallback(() => {
-    for (const key of [getListApplicantApplicationsQueryKey(), getGetApplicantDashboardQueryKey(), getGetApplicantAccountQueryKey(), getListApplicantNotificationsQueryKey(), getListApplicantMilestonesQueryKey()]) {
+    for (const key of [getListApplicantApplicationsQueryKey(), getGetApplicantDashboardQueryKey(), getGetApplicantAccountQueryKey(), getListApplicantNotificationsQueryKey(), getListApplicantMilestonesQueryKey(), getGetApplicantMatchmakingQueryKey()]) {
       qc.invalidateQueries({ queryKey: key });
     }
   }, [qc]);
@@ -103,7 +103,6 @@ export function DemoProvider({ scope, children }: { scope: string; children: Rea
     toggleSavedGrant: (id) => {
       const saving = !savedGrants.includes(id);
       setSaved((p) => (saving ? [...p, id] : p.filter((x) => x !== id)));
-      if (saving) completeSetup('matchmaking');
       return saving;
     },
   }), [search, doneSetup, completeSetup, newApp, savedGrants, setSaved]);

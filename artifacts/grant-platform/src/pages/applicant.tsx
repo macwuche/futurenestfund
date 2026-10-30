@@ -20,6 +20,7 @@ import {
 import { Shell } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { useAuth } from '@/lib/auth';
+import { MatchPill, TopMatches, WhyMatch, useMatchmakingDialog } from '@/components/matchmaking';
 import { Avatar, Empty, ErrorState, Field, FILE_RULES, Modal, PageSkeleton, Skel, StatusBadge, checkFile, cx, dateFmt, fileSize, inputCls, money, statusLabel } from '@/components/bits';
 import { apiError, matchesSearch, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
@@ -115,16 +116,16 @@ const setupIcon: Record<string, LucideIcon> = { matchmaking: Sparkles, proposal:
 
 function SetupCards({ d }: { d: ApplicantDashboard }) {
   const { doneSetup, openNewApp } = useDemo();
-  const [, nav] = useLocation();
-  // Matchmaking completes once a grant is saved; the proposal step completes once an application is submitted.
-  const act = (id: string) => (id === 'proposal' ? openNewApp() : nav('/grants'));
+  const mm = useMatchmakingDialog();
+  // Matchmaking is complete once its answers are saved (server-side); the proposal step once an application is submitted.
+  const act = (id: string) => (id === 'proposal' ? openNewApp() : mm.open());
   if (d.setupCards.length === 0) return null;
   return (
     <section aria-labelledby="setup-heading">
       <h2 id="setup-heading" className="sr-only">Setup and recommendations</h2>
       <div className="noscroll -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0" data-testid="list-setup-cards">
         {d.setupCards.map((c) => {
-          const done = c.complete || doneSetup.includes(c.id);
+          const done = c.complete || (c.id !== 'matchmaking' && doneSetup.includes(c.id));
           const Icon = setupIcon[c.id] ?? Sparkles;
           return (
             <div key={c.id} data-testid={`card-setup-${c.id}`} className="flex min-w-[85%] snap-start flex-col rounded-2xl border border-[#DBEAFE] bg-[#EEF4FB] p-5 sm:min-w-[60%] md:min-w-0">
@@ -143,6 +144,7 @@ function SetupCards({ d }: { d: ApplicantDashboard }) {
           );
         })}
       </div>
+      {mm.dialog}
     </section>
   );
 }
@@ -227,10 +229,11 @@ export function GrantCard({ g }: { g: ApplicantDashboard['recommendations'][numb
   const saved = savedGrants.includes(g.id);
   return (
     <div data-testid={`card-grant-${g.id}`} className={cx(card, 'lift flex flex-col p-5')}>
-      <div className="mb-3 flex items-start justify-between gap-2"><span className="rounded-full bg-[#EEF4FB] px-2.5 py-0.5 text-xs font-semibold text-[#1E3A8A]">{g.category}</span>{g.recommended && <StatusBadge status="Recommended" dot={false} />}</div>
+      <div className="mb-3 flex items-start justify-between gap-2"><span className="rounded-full bg-[#EEF4FB] px-2.5 py-0.5 text-xs font-semibold text-[#1E3A8A]">{g.category}</span><span className="flex flex-wrap justify-end gap-1.5">{g.recommended && <StatusBadge status="Recommended" dot={false} />}<MatchPill g={g} /></span></div>
       <h3 className="text-lg font-semibold text-slate-900">{g.title}</h3>
       <p className="mt-1 text-xl font-bold tabular-nums text-[#1E3A8A]">{money(g.amount)}</p>
       <p className="mt-1 text-xs text-slate-500">Deadline {dateFmt(g.deadline)}</p>
+      <WhyMatch g={g} />
       <div className="mt-auto flex gap-2 pt-4">
         <button data-testid={`button-apply-${g.id}`} onClick={() => openNewApp({ title: g.title, category: g.category, amount: g.amount })} className="press rounded-full bg-[#1E3A8A] px-4 py-1.5 text-sm font-semibold text-white hover:bg-[#0F172A]">Apply</button>
         <button data-testid={`button-save-${g.id}`} aria-pressed={saved} onClick={() => {
@@ -248,6 +251,7 @@ function GrantsBody({ d }: { d: ApplicantDashboard }) {
   const list = d.recommendations.filter((r) => cat === 'All' || r.category === cat);
   return (
     <div className="space-y-4">
+      <TopMatches d={d} />
       <div className="noscroll flex gap-2 overflow-x-auto">
         {['All', ...cats].map((c) => <button key={c} data-testid={`filter-category-${c.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} onClick={() => setCat(c)} className={cx('press whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-semibold', cat === c ? 'border-[#1E3A8A] bg-[#1E3A8A] text-white' : 'border-slate-300 bg-white text-slate-600')}>{c}</button>)}
       </div>

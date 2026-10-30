@@ -65,6 +65,8 @@ import type {
   ListAdminRequestsParams,
   ListAdminTransactionsParams,
   ListAdminUsersParams,
+  Matchmaking,
+  MatchmakingAnswers,
   Me,
   Milestone,
   MilestoneInput,
@@ -744,6 +746,171 @@ export const useUpdateApplicantPreferences = <TError = ErrorType<ErrorMessage>,
         TContext
       > => {
       return useMutation(getUpdateApplicantPreferencesMutationOptions(options));
+    }
+
+export const getGetApplicantMatchmakingUrl = () => {
+
+
+
+
+  return `/api/applicant/matchmaking`
+}
+
+/**
+ * @summary The applicant's matchmaking answers and every sample grant scored against them (rule-based, no AI)
+ */
+export const getApplicantMatchmaking = async ( options?: Parameters<typeof customFetch>[1]): Promise<Matchmaking> => {
+
+  return customFetch<Matchmaking>(getGetApplicantMatchmakingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetApplicantMatchmakingQueryKey = () => {
+    return [
+    `/api/applicant/matchmaking`
+    ] as const;
+    }
+
+
+export const getGetApplicantMatchmakingQueryOptions = <TData = Awaited<ReturnType<typeof getApplicantMatchmaking>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantMatchmaking>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApplicantMatchmakingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApplicantMatchmaking>>> = ({ signal }) => getApplicantMatchmaking({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApplicantMatchmaking>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetApplicantMatchmakingQueryResult = NonNullable<Awaited<ReturnType<typeof getApplicantMatchmaking>>>
+export type GetApplicantMatchmakingQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary The applicant's matchmaking answers and every sample grant scored against them (rule-based, no AI)
+ */
+
+export function useGetApplicantMatchmaking<TData = Awaited<ReturnType<typeof getApplicantMatchmaking>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantMatchmaking>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetApplicantMatchmakingQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveApplicantMatchmakingUrl = () => {
+
+
+
+
+  return `/api/applicant/matchmaking`
+}
+
+/**
+ * @summary Save (or replace) the applicant's matchmaking answers
+ */
+export const saveApplicantMatchmaking = async (matchmakingAnswers: MatchmakingAnswers, options?: Parameters<typeof customFetch>[1]): Promise<Matchmaking> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Matchmaking>(getSaveApplicantMatchmakingUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(matchmakingAnswers)
+  }
+);}
+
+
+
+
+
+export const getSaveApplicantMatchmakingMutationKey = () => ['saveApplicantMatchmaking'] as const;
+
+export const getSaveApplicantMatchmakingMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveApplicantMatchmaking>>, TError,SaveApplicantMatchmakingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveApplicantMatchmaking>>, TError,SaveApplicantMatchmakingMutationVariables, TContext> => {
+
+const mutationKey = getSaveApplicantMatchmakingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveApplicantMatchmaking>>, SaveApplicantMatchmakingMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveApplicantMatchmaking(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveApplicantMatchmakingMutationResult = NonNullable<Awaited<ReturnType<typeof saveApplicantMatchmaking>>>
+    export type SaveApplicantMatchmakingMutationBody = BodyType<MatchmakingAnswers>
+    export type SaveApplicantMatchmakingMutationError = ErrorType<ErrorMessage>
+    export type SaveApplicantMatchmakingMutationVariables = {data: BodyType<MatchmakingAnswers>}
+
+    /**
+ * @summary Save (or replace) the applicant's matchmaking answers
+ */
+export const useSaveApplicantMatchmaking = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveApplicantMatchmaking>>, TError,SaveApplicantMatchmakingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveApplicantMatchmaking>>,
+        TError,
+        SaveApplicantMatchmakingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveApplicantMatchmakingMutationOptions(options));
     }
 
 export const getGetApplicantAccountUrl = () => {

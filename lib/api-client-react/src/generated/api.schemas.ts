@@ -404,7 +404,103 @@ export interface GrantHighlight {
   amount: number;
   /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
   deadline: string;
+  /** From matchmaking: eligible, open and scoring at least 70. Always false before the questionnaire is answered. */
   recommended: boolean;
+  /**
+     * Matchmaking score; absent before the questionnaire is answered
+     * @minimum 0
+     * @maximum 100
+     */
+  matchScore?: number;
+  /** One reason per rule that awarded points (or why the grant doesn't fit) */
+  matchReasons?: string[];
+}
+
+export type MatchmakingAnswersOrgType = typeof MatchmakingAnswersOrgType[keyof typeof MatchmakingAnswersOrgType];
+
+
+export const MatchmakingAnswersOrgType = {
+  Nonprofit: 'Nonprofit',
+  Small_business: 'Small business',
+  Individual_or_artist: 'Individual or artist',
+  School_or_university: 'School or university',
+  Community_group: 'Community group',
+} as const;
+
+export type MatchmakingAnswersFocusAreasItem = typeof MatchmakingAnswersFocusAreasItem[keyof typeof MatchmakingAnswersFocusAreasItem];
+
+
+export const MatchmakingAnswersFocusAreasItem = {
+  'Technology_&_innovation': 'Technology & innovation',
+  'Arts_&_culture': 'Arts & culture',
+  Community: 'Community',
+  Environment: 'Environment',
+  Education: 'Education',
+  Health: 'Health',
+} as const;
+
+export type MatchmakingAnswersGoalsItem = typeof MatchmakingAnswersGoalsItem[keyof typeof MatchmakingAnswersGoalsItem];
+
+
+export const MatchmakingAnswersGoalsItem = {
+  Start_a_new_project: 'Start a new project',
+  Grow_an_existing_program: 'Grow an existing program',
+  Research_and_development: 'Research and development',
+  Equipment: 'Equipment',
+  Operating_costs: 'Operating costs',
+} as const;
+
+export type MatchmakingAnswersFundingSize = typeof MatchmakingAnswersFundingSize[keyof typeof MatchmakingAnswersFundingSize];
+
+
+export const MatchmakingAnswersFundingSize = {
+  under10k: 'under10k',
+  '10to30k': '10to30k',
+  over30k: 'over30k',
+  any: 'any',
+} as const;
+
+export type MatchmakingAnswersTimeline = typeof MatchmakingAnswersTimeline[keyof typeof MatchmakingAnswersTimeline];
+
+
+export const MatchmakingAnswersTimeline = {
+  '30days': '30days',
+  '90days': '90days',
+  flexible: 'flexible',
+} as const;
+
+export interface MatchmakingAnswers {
+  orgType: MatchmakingAnswersOrgType;
+  /**
+     * @minItems 1
+     * @maxItems 6
+     */
+  focusAreas: MatchmakingAnswersFocusAreasItem[];
+  /**
+     * @minItems 1
+     * @maxItems 5
+     */
+  goals: MatchmakingAnswersGoalsItem[];
+  fundingSize: MatchmakingAnswersFundingSize;
+  timeline: MatchmakingAnswersTimeline;
+}
+
+export interface GrantMatch {
+  grantId: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  score: number;
+  eligible: boolean;
+  open: boolean;
+  recommended: boolean;
+  reasons: string[];
+}
+
+export interface Matchmaking {
+  answers: MatchmakingAnswers | null;
+  matches: GrantMatch[];
 }
 
 export interface ApplicantDashboard {

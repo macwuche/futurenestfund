@@ -64,6 +64,9 @@ export const GetApplicantDashboardQueryParams = zod.object({
 })
 
 export const getApplicantDashboardResponseRecommendationsItemDeadlineRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const getApplicantDashboardResponseRecommendationsItemMatchScoreMin = 0;
+export const getApplicantDashboardResponseRecommendationsItemMatchScoreMax = 100;
+
 
 
 export const GetApplicantDashboardResponse = zod.object({
@@ -106,7 +109,9 @@ export const GetApplicantDashboardResponse = zod.object({
   "category": zod.string(),
   "amount": zod.number(),
   "deadline": zod.string().regex(getApplicantDashboardResponseRecommendationsItemDeadlineRegExp),
-  "recommended": zod.boolean()
+  "recommended": zod.boolean().describe('From matchmaking: eligible, open and scoring at least 70. Always false before the questionnaire is answered.'),
+  "matchScore": zod.number().int().min(getApplicantDashboardResponseRecommendationsItemMatchScoreMin).max(getApplicantDashboardResponseRecommendationsItemMatchScoreMax).optional().describe('Matchmaking score; absent before the questionnaire is answered'),
+  "matchReasons": zod.array(zod.string()).optional().describe('One reason per rule that awarded points (or why the grant doesn\'t fit)')
 })),
   "applicationCount": zod.number().int()
 })
@@ -151,6 +156,82 @@ export const UpdateApplicantPreferencesBody = zod.object({
 
 export const UpdateApplicantPreferencesResponse = zod.object({
   "emailNotifications": zod.boolean()
+})
+
+
+/**
+ * @summary The applicant's matchmaking answers and every sample grant scored against them (rule-based, no AI)
+ */
+export const getApplicantMatchmakingResponseAnswersOneFocusAreasMax = 6;
+
+export const getApplicantMatchmakingResponseAnswersOneGoalsMax = 5;
+
+export const getApplicantMatchmakingResponseMatchesItemScoreMin = 0;
+export const getApplicantMatchmakingResponseMatchesItemScoreMax = 100;
+
+
+
+export const GetApplicantMatchmakingResponse = zod.object({
+  "answers": zod.union([zod.object({
+  "orgType": zod.enum(['Nonprofit', 'Small business', 'Individual or artist', 'School or university', 'Community group']),
+  "focusAreas": zod.array(zod.enum(['Technology & innovation', 'Arts & culture', 'Community', 'Environment', 'Education', 'Health'])).min(1).max(getApplicantMatchmakingResponseAnswersOneFocusAreasMax),
+  "goals": zod.array(zod.enum(['Start a new project', 'Grow an existing program', 'Research and development', 'Equipment', 'Operating costs'])).min(1).max(getApplicantMatchmakingResponseAnswersOneGoalsMax),
+  "fundingSize": zod.enum(['under10k', '10to30k', 'over30k', 'any']),
+  "timeline": zod.enum(['30days', '90days', 'flexible'])
+}),zod.null()]),
+  "matches": zod.array(zod.object({
+  "grantId": zod.string(),
+  "score": zod.number().int().min(getApplicantMatchmakingResponseMatchesItemScoreMin).max(getApplicantMatchmakingResponseMatchesItemScoreMax),
+  "eligible": zod.boolean(),
+  "open": zod.boolean(),
+  "recommended": zod.boolean(),
+  "reasons": zod.array(zod.string())
+}))
+})
+
+
+/**
+ * @summary Save (or replace) the applicant's matchmaking answers
+ */
+export const saveApplicantMatchmakingBodyFocusAreasMax = 6;
+
+export const saveApplicantMatchmakingBodyGoalsMax = 5;
+
+
+
+export const SaveApplicantMatchmakingBody = zod.object({
+  "orgType": zod.enum(['Nonprofit', 'Small business', 'Individual or artist', 'School or university', 'Community group']),
+  "focusAreas": zod.array(zod.enum(['Technology & innovation', 'Arts & culture', 'Community', 'Environment', 'Education', 'Health'])).min(1).max(saveApplicantMatchmakingBodyFocusAreasMax),
+  "goals": zod.array(zod.enum(['Start a new project', 'Grow an existing program', 'Research and development', 'Equipment', 'Operating costs'])).min(1).max(saveApplicantMatchmakingBodyGoalsMax),
+  "fundingSize": zod.enum(['under10k', '10to30k', 'over30k', 'any']),
+  "timeline": zod.enum(['30days', '90days', 'flexible'])
+})
+
+export const saveApplicantMatchmakingResponseAnswersOneFocusAreasMax = 6;
+
+export const saveApplicantMatchmakingResponseAnswersOneGoalsMax = 5;
+
+export const saveApplicantMatchmakingResponseMatchesItemScoreMin = 0;
+export const saveApplicantMatchmakingResponseMatchesItemScoreMax = 100;
+
+
+
+export const SaveApplicantMatchmakingResponse = zod.object({
+  "answers": zod.union([zod.object({
+  "orgType": zod.enum(['Nonprofit', 'Small business', 'Individual or artist', 'School or university', 'Community group']),
+  "focusAreas": zod.array(zod.enum(['Technology & innovation', 'Arts & culture', 'Community', 'Environment', 'Education', 'Health'])).min(1).max(saveApplicantMatchmakingResponseAnswersOneFocusAreasMax),
+  "goals": zod.array(zod.enum(['Start a new project', 'Grow an existing program', 'Research and development', 'Equipment', 'Operating costs'])).min(1).max(saveApplicantMatchmakingResponseAnswersOneGoalsMax),
+  "fundingSize": zod.enum(['under10k', '10to30k', 'over30k', 'any']),
+  "timeline": zod.enum(['30days', '90days', 'flexible'])
+}),zod.null()]),
+  "matches": zod.array(zod.object({
+  "grantId": zod.string(),
+  "score": zod.number().int().min(saveApplicantMatchmakingResponseMatchesItemScoreMin).max(saveApplicantMatchmakingResponseMatchesItemScoreMax),
+  "eligible": zod.boolean(),
+  "open": zod.boolean(),
+  "recommended": zod.boolean(),
+  "reasons": zod.array(zod.string())
+}))
 })
 
 

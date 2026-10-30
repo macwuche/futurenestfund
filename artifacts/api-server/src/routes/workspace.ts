@@ -10,6 +10,7 @@ import {
   ListAdminAuditQueryParams, ListAdminAuditResponse, ExportAdminAuditQueryParams,
   IssueUserCardParams, IssueUserCardBody, IssueUserCardResponse, ChangeUserCardParams, ChangeUserCardBody, ChangeUserCardResponse,
   UpdateUserWithdrawalLimitsParams, UpdateUserWithdrawalLimitsBody, UpdateUserWithdrawalLimitsResponse, UpdateApplicantPreferencesBody, UpdateApplicantPreferencesResponse,
+  GetApplicantMatchmakingResponse, SaveApplicantMatchmakingBody, SaveApplicantMatchmakingResponse,
 } from "@workspace/api-zod";
 import {
   ListApplicantApplicationsResponse, CreateApplicantApplicationBody, GetApplicantApplicationParams, GetApplicantApplicationResponse,
@@ -43,6 +44,7 @@ import { applicantKyc, uploadKycDocument } from "../lib/kyc";
 import { setAvatar, clearAvatar, adminAccount, setAdminAvatar, clearAdminAvatar } from "../lib/avatars";
 import { currentAdmin, currentAdminProfile, currentUserId } from "../lib/currentUser";
 import { listNotifications, markAllRead } from "../lib/notifications";
+import { getMatchmaking, saveMatchmaking } from "../lib/matchmaking";
 import {
   listApplications, applicationDetail, createApplication, withdrawApplication, respondToApplication,
   listMilestones, createMilestone, setMilestoneDone, deleteMilestone, attachApplicationDocument, removeApplicationDocument,
@@ -76,6 +78,15 @@ router.patch("/applicant/preferences", async (req, res): Promise<void> => {
   const input = UpdateApplicantPreferencesBody.safeParse(req.body);
   if (!input.success) { res.status(400).json({ error: "Choose whether to get email notifications." }); return; }
   res.json(UpdateApplicantPreferencesResponse.parse(await changePreferences(currentUserId(req), input.data, req.identity!.name)));
+});
+
+router.get("/applicant/matchmaking", async (req, res): Promise<void> => {
+  res.json(GetApplicantMatchmakingResponse.parse(await getMatchmaking(currentUserId(req))));
+});
+router.put("/applicant/matchmaking", async (req, res): Promise<void> => {
+  const input = SaveApplicantMatchmakingBody.safeParse(req.body);
+  if (!input.success) { res.status(400).json({ error: "Answer every question: organization type, at least one focus area and goal, funding size and timing." }); return; }
+  res.json(SaveApplicantMatchmakingResponse.parse(await saveMatchmaking(currentUserId(req), input.data, req.identity!.name)));
 });
 
 router.get("/applicant/account", async (req, res): Promise<void> => {

@@ -28,6 +28,8 @@ export const demoProfilesTable = pgTable("demo_profiles", {
   withdrawalLimitCustom: boolean("withdrawal_limit_custom").notNull().default(false),
   withdrawalMaxCents: integer("withdrawal_max_cents"),
   withdrawalDailyCents: integer("withdrawal_daily_cents"),
+  /** Grant matchmaking answers (org type, focus areas, goals, funding size, timeline); null until the applicant answers. */
+  matchmaking: jsonb("matchmaking"),
 }).enableRLS();
 
 export const insertDemoProfileSchema = createInsertSchema(demoProfilesTable);

@@ -1466,3 +1466,72 @@ Tests (2026-10-30), all passing:
 - new `.unlazy/phase5-avatars-ui.mjs` 6/6 desktop + 6/6 phone.
 - regressions (data restored before each): phase2-desktop 25/25, phase2-phone 6/6, phase3-api 24/24, phase3-phone 16/16, phase3-desktop 22/22 (the known header-search flake hit once, then 3 clean runs), phase5 cards 9/9, cards UI 5+5, debits UI 5+5, users UI 6+6, audit 9/9.
 - `.unlazy/restore-demo-db.sh` now also truncates `demo_admin_profiles`. Demo data restored.
+
+## 12. Phase 6 build plan: finish and harden (2026-10-30)
+
+Phase 5 is complete (5.1–5.7). Phase 6 is what's left before the app is ready to deploy (from §8: U10, U11, U13, P3, P4, plus the open items in `docs/PROJECT.md` §15).
+
+| Step | Goal | What gets built | Done when |
+|---|---|---|---|
+| **6.1 Grant matchmaking (rule-based)** | Real recommendations instead of hard-coded "Recommended" badges | A five-question questionnaire stored per applicant; every grant scored with the reasons shown; "best match" ordering (details below) | API + browser suites green |
+| 6.2 Card controls for applicants | Applicants manage their own sample cards | Freeze / unfreeze their own card (a card an administrator froze stays locked to them), show card details behind a confirmation, request activation of a physical card | Tested |
+| 6.3 Mobile polish | Final pass at phone width | Every applicant and admin page at 390 px: spacing, 44 px targets, no horizontal scroll, bell and search reachable | Phone suites + screenshots reviewed |
+| 6.4 Error monitoring | Know when production breaks | Server errors and browser crashes reported (provider to be decided with the user; none is added without approval); request ids in logs | A forced error shows up |
+| 6.5 Deployment runbook | Repeatable go-live on the EU VPS | `docs/DEPLOY.md`: nginx + HTTPS, systemd, env, `db:migrate` on deploy, backups, rollback | Followed once end to end |
+| 6.6 Uploads in production | Files survive deploys and are scanned | Persistent `UPLOAD_DIR` on the VPS with backups; virus scanning (e.g. ClamAV) before a file is accepted | Tested with the EICAR test file |
+| 6.7 Shared rate limits | Only if there's more than one API server | Redis-backed limiter | Skipped while there's one server |
+
+Order: 6.1 first (the user asked for it), then 6.2–6.6. Each step is committed on its own after typecheck, `pnpm test` and its browser suite pass.
+
+### 2026-10-30: Step 6.1 plan (rule-based grant matchmaking)
+
+**Decision (user, 2026-10-30): matchmaking is rule-based**, with no AI. Answers in, a transparent score and reasons out.
+
+**Today:**
+- The 12 sample grants are hard-coded in `applicantDashboard()` with a fixed `recommended: true/false` that has nothing to do with the user.
+- The "AI Grant Matchmaking" setup card says it uses AI and reads "facturas" (neither is true). It just opens Grant categories, and it counts as complete as soon as any grant is saved (browser storage only).
+
+**What gets built**
+- **Grant catalogue** moves to `lib/grantCatalog.ts`. Each sample grant gets who can apply (`orgTypes`) and what it funds (`goals`), alongside its category, amount and deadline. Still sample data.
+- **Questionnaire** (5 questions, React Hook Form + Zod from the shared contract):
+  1. Organization type: Nonprofit / Small business / Individual or artist / School or university / Community group
+  2. Focus areas (1–6 of the existing categories)
+  3. Goals (1–5): Start a new project / Grow an existing program / Research and development / Equipment / Operating costs
+  4. Funding size: Under $10,000 / $10,000–$30,000 / Over $30,000 / Any amount
+  5. When the money is needed: Within 30 days / Within 90 days / Flexible
+- **Score (0–100), with a reason for every point awarded:**
+  - Not open to your organization type → not eligible, score 0 ("Not open to small businesses").
+  - Closed (deadline passed) → left out of matches.
+  - Focus area matches: +40. Goal matches: +20. Amount in your size band: +20 (neighbouring band +8; "Any amount" +20). Deadline fits your timing: +20 (within 30 days: closes in ≤ 30 days +20, otherwise +5; within 90 days: ≤ 90 days +20, otherwise +10; flexible +20).
+  - **Recommended = eligible, open and score ≥ 70**, so a recommendation always needs a focus-area match.
+  - No answers yet → nothing is marked Recommended (no fake badges).
+- **Storage:** `demo_profiles.matchmaking` (jsonb, null = not answered). Migration `0006`. No new table, so no new RLS policy.
+- **API:**
+  - `GET /applicant/matchmaking` → `{ answers | null, matches: [{ grantId, score, eligible, recommended, reasons[] }] }`
+  - `PUT /applicant/matchmaking` (validated answers) → the same. Audited ("Updated grant matchmaking answers").
+  - Dashboard `recommendations` get `matchScore` and `matchReasons` when answered, and `recommended` comes from the score.
+  - The setup card is renamed **"Grant Matchmaking"** ("Answer five quick questions and we'll rank grants for your organization."); it's complete when answers are saved (server-side). Saving a grant no longer completes it.
+- **Applicant UI:**
+  - The setup card opens the questionnaire (dialog). After saving: toast + Grant categories.
+  - **Grant categories:** a "Your top matches" panel at the top (top 3 with score and reasons, plus "Edit answers"), or a "Find grants that fit you" prompt before answering. Grant cards show "92% match" and a "Why this match" list.
+  - **Grant Search:** a "Best match" sort (the default once answered) and a "Recommended only" filter.
+
+**Tests:** Vitest for the scoring rules (pure function: eligibility, each rule, threshold, closed grants, ordering ties). `.unlazy/phase6-matchmaking.mjs` (API: validation, save / replace, audit, dashboard flags, another user's answers don't leak) and `.unlazy/phase6-matchmaking-ui.mjs` (desktop + phone: questionnaire, validation, top matches, reasons, edit, Best match sort).
+
+### 2026-10-30: Step 6.1 done (rule-based grant matchmaking)
+
+Built as planned above.
+- **Rules (`api-server/src/lib/grantCatalog.ts`):** the 12 sample grants, now with `orgTypes` and `goals`. `scoreGrant` and `rankGrants` are pure functions (unit-tested): ineligible → 0 "Not open to …"; closed → 0; focus 40, goal 20, amount 20 / neighbouring band 8, timing 20 (5 or 10 when later than needed). Recommended at ≥ 70, so it always needs a focus match. Ranked by score, then earliest deadline, then title.
+- **Server (`lib/matchmaking.ts`):** answers in `demo_profiles.matchmaking` (migration `0006`; **Supabase still needs `db:migrate`**). Saving drops duplicate picks; an unchanged save writes nothing; audited "Answered / Updated grant matchmaking answers". A stored value in an unknown shape counts as unanswered. The dashboard's `recommendations` come from the ranking (with `matchScore` / `matchReasons`); before answering, nothing is Recommended.
+- **API:** `GET|PUT /applicant/matchmaking`; `GrantHighlight` gains optional `matchScore` and `matchReasons`.
+- **Setup card:** now "Grant Matchmaking" / "Answer five quick questions and we'll rank grants for your organization." / "Find my matches". It opens the questionnaire and is complete once answers are saved. Saving a grant no longer completes it. The old wording promised AI that reads "facturas"; that's gone.
+- **UI (`components/matchmaking.tsx`):** questionnaire dialog (React Hook Form + Zod, chips with 44 px targets on phones, says plainly that no AI is used); "Find grants that fit you" prompt or "Your top matches" (top 3 with reasons, Edit answers) on Grant categories; "% match" pill and "Why this match" on every grant card; Grant Search gets a "Best match" sort (the default once answered) and a "Recommended only" filter.
+
+Tests (2026-10-30), all passing:
+- `pnpm test` 60/60 (10 new for the rules) · typecheck clean
+- new `.unlazy/phase6-matchmaking.mjs` 8/8: nothing recommended before answering; 8 kinds of invalid answers refused; scoring, order, reasons, ineligible grant; dashboard flags = score ≥ 70 and need a focus match; unchanged save writes no audit; re-ranking on edit; other profiles untouched; a corrupt stored value is treated as unanswered
+- new `.unlazy/phase6-matchmaking-ui.mjs` 7/7 desktop + 7/7 phone
+- regressions (data restored before each): smoke 23+23, phase1-desktop 26/26, phase1-phone 10/10, phase2-desktop 25/25, phase5-ui 4+4
+- Demo data restored.
+
+Not changed, but worth a look: the second setup card ("Submit First Proposal") still says "we'll use your facturas to pre-fill your business information", which the app doesn't do.

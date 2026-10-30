@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-10-30 · branch `user-side-redesign` · Phase 5 complete (5.7)._
+_Last updated 2026-10-30 · branch `user-side-redesign` · Phase 5 complete; Phase 6 under way (6.1 done)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -52,6 +52,10 @@ Pages: Dashboard, My Applications (+ detail page), Grant Search, Grant categorie
   - **identity verification**: upload a government ID and proof of address, see status and rejection reasons
   - account panel with an **email-notifications switch**
   - **Sign-in & security**: change password, sign out of other devices, sign out everywhere
+- **Grant matchmaking (rule-based, no AI):** five questions (organization type, focus areas, goals, funding size, timing), stored per applicant and editable. Every sample grant gets a 0–100 score from fixed rules, with a reason for each point: focus area 40, goal 20, amount 20 (neighbouring band 8), timing 20 (5–10 if later than needed). Grants not open to the applicant's organization type score 0, and closed grants are never recommended. **Recommended = score ≥ 70.** Before answering, nothing is marked Recommended.
+  - Grant categories: "Your top matches" (top 3 with reasons) and "Edit answers"; each grant card shows its % match and "Why this match"
+  - Grant Search: "Best match" sort (default once answered) and a "Recommended only" filter
+  - Catalogue and rules: `api-server/src/lib/grantCatalog.ts`; API `GET|PUT /applicant/matchmaking`
 - **Grant Search, Funding Tracker, Reports** (with CSV downloads) and a **Help Centre** FAQ.
 
 ### Admin workspace (black / lime "command center")
@@ -221,6 +225,7 @@ Dashboard settings to check (see §12): Site URL (still `http://localhost:3000`)
 | `lib/db/migrations/0003_notification_templates.sql` | `demo_notifications.email_kind`, `email_data`, `in_app` |
 | `lib/db/migrations/0004_withdrawal_limits.sql` | Global (`demo_settings`) and per-user (`demo_profiles`) withdrawal limits |
 | `lib/db/migrations/0005_admin_profiles.sql` | `demo_admin_profiles` (admins' own photo) |
+| `lib/db/migrations/0006_matchmaking.sql` | `demo_profiles.matchmaking` (the applicant's matchmaking answers) |
 | `lib/db/supabase/migrations/0001_user_roles.sql` | `user_roles` (Supabase only) |
 | `lib/db/supabase/migrations/0002_app_api_role.sql` | `app_api` role, grants, `app_api_all` policies, revoked Data API grants |
 | `lib/db/supabase/migrations/0003_admin_profiles.sql` | `app_api_all` policy for `demo_admin_profiles`; no Data API grants |
@@ -327,7 +332,7 @@ No secrets. `PORT` and `BASE_PATH` for Vite; everything else comes from `GET /ap
 | Command | What it does |
 |---|---|
 | `pnpm run typecheck` | Type-check every package |
-| `pnpm test` | Vitest unit tests (50) |
+| `pnpm test` | Vitest unit tests (60) |
 | `pnpm --filter @workspace/api-spec run codegen` | Regenerate API hooks / validators after editing `openapi.yaml` |
 | `pnpm --filter @workspace/db run generate` | Write a new migration from schema changes |
 | `pnpm --filter @workspace/scripts run db:migrate` | Apply pending migrations (`-- --baseline` once for a database built with push) |
@@ -342,7 +347,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 
 ## 11. Testing
 
-**Committed:** `pnpm test`, 50 Vitest tests.
+**Committed:** `pnpm test`, 60 Vitest tests (including the matchmaking rules).
 - Token verification: valid, expired, other project, wrong audience, anonymous, forged key, tampered payload, `alg: none`, HS256 algorithm confusion, key server down/timeout → 503.
 - Standard Webhooks signatures.
 - Email link mapping (including the reversed email-change fields) and HTML escaping.
@@ -427,7 +432,7 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 | `45e7b5c` | Users directory sorting and pagination (5.4) |
 | `057fce1` | Debit adjustments (5.5) |
 | `0f64fd4` | Admin card controls (5.6) |
-| (next) | Profile photos: the admin's own, and users' from the inspector (5.7) |
+| `349ec5f` | Profile photos: the admin's own, and users' from the inspector (5.7) |
 
 ---
 
@@ -443,8 +448,8 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 - ~~5.6 admin card controls~~: done 2026-10-30
 - ~~5.7 profile photos (the admin's own, and users' from the inspector)~~: done 2026-10-30
 
-**Phase 6 (finish and harden):**
-- grant matchmaking (rule-based first)
+**Phase 6 (finish and harden)**, full plan in `work.md` §12:
+- ~~6.1 grant matchmaking (rule-based)~~: done 2026-10-30
 - card controls for applicants
 - final mobile polish
 - error monitoring, a deployment runbook, persistent upload storage, virus scanning for uploads, a Redis-backed rate limiter if more than one server

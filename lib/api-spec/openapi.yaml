@@ -151,6 +151,37 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /applicant/matchmaking:
+    get:
+      operationId: getApplicantMatchmaking
+      tags: [applicant]
+      summary: The applicant's matchmaking answers and every sample grant scored against them (rule-based, no AI)
+      responses:
+        "200":
+          description: Answers (null until answered) and matches, best first
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Matchmaking" }
+    put:
+      operationId: saveApplicantMatchmaking
+      tags: [applicant]
+      summary: Save (or replace) the applicant's matchmaking answers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MatchmakingAnswers" }
+      responses:
+        "200":
+          description: Saved answers and fresh matches
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Matchmaking" }
+        "400":
+          description: Invalid answers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /applicant/account:
     get:
       operationId: getApplicantAccount
@@ -1265,8 +1296,50 @@ components:
         category: { type: string }
         amount: { type: number }
         deadline: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
-        recommended: { type: boolean }
+        recommended: { type: boolean, description: "From matchmaking: eligible, open and scoring at least 70. Always false before the questionnaire is answered." }
+        matchScore: { type: integer, minimum: 0, maximum: 100, description: "Matchmaking score; absent before the questionnaire is answered" }
+        matchReasons: { type: array, items: { type: string }, description: "One reason per rule that awarded points (or why the grant doesn't fit)" }
       required: [id, title, category, amount, deadline, recommended]
+    MatchmakingAnswers:
+      type: object
+      properties:
+        orgType: { type: string, enum: [Nonprofit, Small business, Individual or artist, School or university, Community group] }
+        focusAreas:
+          type: array
+          minItems: 1
+          maxItems: 6
+          uniqueItems: true
+          items: { type: string, enum: [Technology & innovation, Arts & culture, Community, Environment, Education, Health] }
+        goals:
+          type: array
+          minItems: 1
+          maxItems: 5
+          uniqueItems: true
+          items: { type: string, enum: [Start a new project, Grow an existing program, Research and development, Equipment, Operating costs] }
+        fundingSize: { type: string, enum: [under10k, 10to30k, over30k, any] }
+        timeline: { type: string, enum: [30days, 90days, flexible] }
+      required: [orgType, focusAreas, goals, fundingSize, timeline]
+    GrantMatch:
+      type: object
+      properties:
+        grantId: { type: string }
+        score: { type: integer, minimum: 0, maximum: 100 }
+        eligible: { type: boolean }
+        open: { type: boolean }
+        recommended: { type: boolean }
+        reasons: { type: array, items: { type: string } }
+      required: [grantId, score, eligible, open, recommended, reasons]
+    Matchmaking:
+      type: object
+      properties:
+        answers:
+          oneOf:
+            - { $ref: "#/components/schemas/MatchmakingAnswers" }
+            - { type: "null" }
+        matches:
+          type: array
+          items: { $ref: "#/components/schemas/GrantMatch" }
+      required: [answers, matches]
     ApplicantDashboard:
       type: object
       properties:

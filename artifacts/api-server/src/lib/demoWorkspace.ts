@@ -4,6 +4,7 @@ import { notifyUser, requestEmailData, requestReference } from "./notifications"
 import { activeApplicationsFilter, applicationSummary } from "./applicantRecords";
 import { currentKycDocuments } from "./kyc";
 import { fileUrl } from "./uploads";
+import { grantRecommendations, storedAnswers } from "./matchmaking";
 import { APPEND_ONLY_TRIGGERS } from "./demoSeed";
 import { GetAdminUserResponse } from "@workspace/api-zod";
 import { effectiveLimits, limitProblem, limitsOut, withdrawnLast24h } from "./withdrawalLimits";
@@ -105,24 +106,11 @@ export async function applicantDashboard(profileId: string, monthly: boolean) {
     totalBudget: 50000, allocatedFunds: person.grantCents / 100, remainingFunds: 50000 - person.grantCents / 100,
     fundingTrend: labels.map((label, index) => ({ label, submitted: submitted[index], review: review[index] })),
     setupCards: [
-      { id: "matchmaking", title: "AI Grant Matchmaking", description: "Save time by enabling AI to integrate with your facturas and retrieve your business information.", actionLabel: "Complete Setup", complete: false },
+      { id: "matchmaking", title: "Grant Matchmaking", description: "Answer five quick questions and we'll rank grants for your organization.", actionLabel: "Find my matches", complete: storedAnswers(person) !== null },
       { id: "proposal", title: "Submit First Proposal", description: "Upload your first proposal and we'll use your facturas to pre-fill your business information.", actionLabel: "Complete Setup", complete: false },
     ],
     highlights: apps.slice(0, 5).map(applicationSummary),
-    recommendations: [
-      { id: "grant-tech", title: "Digital Impact Fellowship", category: "Technology & innovation", amount: 30000, deadline: "2026-11-30", recommended: true },
-      { id: "grant-community", title: "Community Builders Fund", category: "Community", amount: 15000, deadline: "2026-12-15", recommended: true },
-      { id: "grant-green", title: "Climate Action Accelerator", category: "Environment", amount: 50000, deadline: "2026-12-01", recommended: false },
-      { id: "grant-arts", title: "Emerging Artists Commission", category: "Arts & culture", amount: 8000, deadline: "2026-11-20", recommended: true },
-      { id: "grant-edu", title: "Classroom Innovation Award", category: "Education", amount: 12000, deadline: "2027-01-15", recommended: false },
-      { id: "grant-health", title: "Community Health Pilot Fund", category: "Health", amount: 40000, deadline: "2027-02-01", recommended: false },
-      { id: "grant-open", title: "Open Source Infrastructure Grant", category: "Technology & innovation", amount: 20000, deadline: "2026-12-31", recommended: false },
-      { id: "grant-youth", title: "Youth Leadership Micro-grant", category: "Community", amount: 2500, deadline: "2026-11-05", recommended: false },
-      { id: "grant-water", title: "Clean Water Access Initiative", category: "Environment", amount: 75000, deadline: "2027-03-01", recommended: false },
-      { id: "grant-heritage", title: "Heritage Digitization Fund", category: "Arts & culture", amount: 18000, deadline: "2027-01-31", recommended: false },
-      { id: "grant-stem", title: "STEM Scholars Program", category: "Education", amount: 5000, deadline: "2026-11-25", recommended: true },
-      { id: "grant-mental", title: "Mental Health Outreach Grant", category: "Health", amount: 22000, deadline: "2026-12-20", recommended: false },
-    ],
+    recommendations: grantRecommendations(storedAnswers(person)),
     applicationCount: apps.length,
   };
 }

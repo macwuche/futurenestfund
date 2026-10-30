@@ -82,7 +82,9 @@ function GrantSearchBody({ d }: { d: ApplicantDashboard }) {
   const [cat, setCat] = useState('All');
   const [band, setBand] = useState<string>('any');
   const [within, setWithin] = useState('any');
-  const [sort, setSort] = useState('deadline');
+  const scored = d.recommendations.some((g) => g.matchScore !== undefined);
+  const [sort, setSort] = useState(scored ? 'match' : 'deadline');
+  const [recommendedOnly, setRecommendedOnly] = useState(false);
   const [savedOnly, setSavedOnly] = useState(false);
   const cats = useMemo(() => Array.from(new Set(d.recommendations.map((r) => r.category))).sort(), [d]);
   const test = amountBands.find((b) => b.k === band)!.test;
@@ -93,9 +95,11 @@ function GrantSearchBody({ d }: { d: ApplicantDashboard }) {
     .filter((g) => test(g.amount))
     .filter((g) => { const n = daysUntil(g.deadline); return n >= 0 && (within === 'any' || n <= Number(within)); })
     .filter((g) => !savedOnly || savedGrants.includes(g.id))
-    .sort((a, b) => sort === 'amount-desc' ? b.amount - a.amount : sort === 'amount-asc' ? a.amount - b.amount : a.deadline.localeCompare(b.deadline));
-  const active = !!term || cat !== 'All' || band !== 'any' || within !== 'any' || savedOnly;
-  const reset = () => { setQ(''); setCat('All'); setBand('any'); setWithin('any'); setSavedOnly(false); };
+    .filter((g) => !recommendedOnly || g.recommended)
+    // The server sends grants best match first, so a stable sort keeps that order for "Best match".
+    .sort((a, b) => sort === 'match' ? (b.matchScore ?? 0) - (a.matchScore ?? 0) : sort === 'amount-desc' ? b.amount - a.amount : sort === 'amount-asc' ? a.amount - b.amount : a.deadline.localeCompare(b.deadline));
+  const active = !!term || cat !== 'All' || band !== 'any' || within !== 'any' || savedOnly || recommendedOnly;
+  const reset = () => { setQ(''); setCat('All'); setBand('any'); setWithin('any'); setSavedOnly(false); setRecommendedOnly(false); };
   return (
     <div className="space-y-5">
       <section className={cx(card, 'space-y-4 p-4 sm:p-5')} aria-label="Search filters">
@@ -110,13 +114,18 @@ function GrantSearchBody({ d }: { d: ApplicantDashboard }) {
             <option value="any">Any open deadline</option><option value="30">Within 30 days</option><option value="60">Within 60 days</option><option value="90">Within 90 days</option>
           </Select>
           <Select label="Sort by" value={sort} onChange={setSort} testid="select-search-sort">
-            <option value="deadline">Closing soonest</option><option value="amount-desc">Highest amount</option><option value="amount-asc">Lowest amount</option>
+            {scored && <option value="match">Best match</option>}<option value="deadline">Closing soonest</option><option value="amount-desc">Highest amount</option><option value="amount-asc">Lowest amount</option>
           </Select>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
             <input type="checkbox" data-testid="checkbox-saved-only" checked={savedOnly} onChange={(e) => setSavedOnly(e.target.checked)} className="h-4 w-4 accent-[#1E3A8A]" />Saved grants only
           </label>
+          {scored && (
+            <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
+              <input type="checkbox" data-testid="checkbox-recommended-only" checked={recommendedOnly} onChange={(e) => setRecommendedOnly(e.target.checked)} className="h-4 w-4 accent-[#1E3A8A]" />Recommended only
+            </label>
+          )}
           {active && <button data-testid="button-clear-filters" onClick={reset} className="text-sm font-semibold text-[#1E3A8A] hover:underline">Clear filters</button>}
           <p className="ml-auto text-sm text-slate-500" data-testid="text-search-count"><SlidersHorizontal className="mr-1 inline h-4 w-4" />{list.length} {list.length === 1 ? 'grant' : 'grants'} found</p>
         </div>

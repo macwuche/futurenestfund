@@ -1,0 +1,1 @@
+ALTER TABLE "demo_profiles" ADD COLUMN "matchmaking" jsonb;

@@ -13,5 +13,14 @@ export interface GrantHighlight {
   amount: number;
   /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
   deadline: string;
+  /** From matchmaking: eligible, open and scoring at least 70. Always false before the questionnaire is answered. */
   recommended: boolean;
+  /**
+     * Matchmaking score; absent before the questionnaire is answered
+     * @minimum 0
+     * @maximum 100
+     */
+  matchScore?: number;
+  /** One reason per rule that awarded points (or why the grant doesn't fit) */
+  matchReasons?: string[];
 }
