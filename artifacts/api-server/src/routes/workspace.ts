@@ -216,9 +216,9 @@ router.patch("/admin/users/:userId", async (req, res): Promise<void> => {
 router.post("/admin/users/:userId/balance-adjustments", async (req, res): Promise<void> => {
   const params = CreateUserBalanceAdjustmentParams.safeParse(req.params);
   const input = CreateUserBalanceAdjustmentBody.safeParse(req.body);
-  if (!params.success || !input.success) { res.status(400).json({ error: "Enter a positive amount and an adjustment reason." }); return; }
+  if (!params.success || !input.success) { res.status(400).json({ error: "Enter a positive amount, the account and a reason of at least 5 characters." }); return; }
   try {
-    const result = await adjustBalance(params.data.userId, input.data.account, input.data.amount, input.data.reason, currentAdmin(req));
+    const result = await adjustBalance(params.data.userId, input.data.account, input.data.amount, input.data.reason, currentAdmin(req), input.data.direction);
     if (!result) { res.status(404).json({ error: "User not found." }); return; }
     res.json(CreateUserBalanceAdjustmentResponse.parse(result));
   } catch (error) {

@@ -247,6 +247,7 @@ function ReportsBody({ d }: { d: ApplicantDashboard }) {
                 <div className="flex justify-between gap-3 py-3"><dt className="text-slate-600">Withdrawals requested</dt><dd className="font-semibold tabular-nums text-slate-900">{money(sum('Withdrawal'))}</dd></div>
                 <div className="flex justify-between gap-3 py-3"><dt className="text-slate-600">Grant awards received</dt><dd className="font-semibold tabular-nums text-[#166534]" data-testid="text-report-awards">{money(sum('Grant award'))}</dd></div>
                 <div className="flex justify-between gap-3 py-3"><dt className="text-slate-600">Top-ups received</dt><dd className="font-semibold tabular-nums text-[#166534]">{money(sum('Top-up'))}</dd></div>
+                <div className="flex justify-between gap-3 py-3"><dt className="text-slate-600">Removed by an administrator</dt><dd className="font-semibold tabular-nums text-slate-900" data-testid="text-report-debits">{money(sum('Debit'))}</dd></div>
                 <div className="flex justify-between gap-3 py-3"><dt className="text-slate-600">Awaiting review</dt><dd className="font-semibold tabular-nums text-slate-900">{tx.filter((t) => t.status === 'Pending').length}</dd></div>
               </dl>
             )}

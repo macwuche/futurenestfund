@@ -12,6 +12,7 @@ export type ExportAdminTransactionsType = typeof ExportAdminTransactionsType[key
 export const ExportAdminTransactionsType = {
   all: 'all',
   'Top-up': 'Top-up',
+  Debit: 'Debit',
   Deposit: 'Deposit',
   Withdrawal: 'Withdrawal',
   Grant_award: 'Grant award',

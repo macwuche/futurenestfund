@@ -9,7 +9,7 @@ import {
   getGetAdminUserQueryKey, getListAdminUsersQueryKey, type ListAdminUsersSort, type ListAdminUsersDir, type AdminDashboard, type AdminUserProfile, type AdminUserSummary,
 } from '@workspace/api-client-react';
 import { keepPreviousData } from '@tanstack/react-query';
-import { Camera, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck } from 'lucide-react';
+import { Camera, Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck } from 'lucide-react';
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
@@ -305,6 +305,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
   const { toast } = useToast();
   const profile = useUserPatch(u), tier = useUserPatch(u), perms = useUserPatch(u), freeze = useUserPatch(u);
   const [credit, setCredit] = useState<null | 'grant' | 'deposit' | 'card'>(null);
+  const [debit, setDebit] = useState<null | 'grant' | 'deposit' | 'card'>(null);
   const [doc, setDoc] = useState<AdminUserProfile['documents'][number] | null>(null);
   const [avatar, setAvatar] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
@@ -373,13 +374,16 @@ function Inspector({ u }: { u: AdminUserProfile }) {
       <UserWithdrawalLimits u={u} />
 
       <section className={cx(card, 'p-5')} data-testid="section-balances">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="font-display font-bold">Balances and cards</h3><span className="text-xs text-slate-500">Sample balances. Credits write a ledger entry; no real transfer.</span></div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="font-display font-bold">Balances and cards</h3><span className="text-xs text-slate-500">Sample balances. Credits and debits write a ledger entry; no real transfer.</span></div>
         <div className="grid gap-3 sm:grid-cols-3">
           {(['grant', 'deposit', 'card'] as const).map((a) => (
             <div key={a} className="rounded-xl bg-[#F4F5F8] p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{a} account</p>
               <p className="font-num my-1 text-xl font-semibold" data-testid={`text-balance-${a}`}>{money(u.balances[a])}</p>
-              <button data-testid={`button-adjust-${a}`} onClick={() => setCredit(a)} className={cx(dark, 'inline-flex items-center gap-1 !py-1.5 text-xs')}><Plus className="h-3.5 w-3.5" />Credit</button>
+              <div className="flex flex-wrap gap-2">
+                <button data-testid={`button-adjust-${a}`} onClick={() => setCredit(a)} className={cx(dark, 'inline-flex min-h-11 items-center gap-1 text-xs md:min-h-0 md:!py-1.5')}><Plus className="h-3.5 w-3.5" />Credit</button>
+                <button data-testid={`button-debit-${a}`} disabled={u.balances[a] <= 0} title={u.balances[a] <= 0 ? 'Nothing to remove' : undefined} onClick={() => setDebit(a)} className={cx(ghost, 'inline-flex min-h-11 items-center gap-1 text-xs md:min-h-0 md:!py-1.5')}><Minus className="h-3.5 w-3.5" />Debit</button>
+              </div>
             </div>
           ))}
         </div>
@@ -415,6 +419,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
       </div>
 
       <CreditModal open={!!credit} onClose={() => setCredit(null)} user={u} account={credit ?? 'grant'} />
+      <CreditModal open={!!debit} onClose={() => setDebit(null)} user={u} account={debit ?? 'grant'} direction="debit" balances={u.balances} />
       <Modal open={!!doc} onClose={() => setDoc(null)} title={doc?.name ?? 'Document'} testid="dialog-document">
         {doc && <div className="space-y-4"><KycPreview doc={doc} userName={u.name} /><KycDecision doc={doc} onDone={() => setDoc(null)} /></div>}
       </Modal>

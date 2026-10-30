@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { BalanceAdjustmentInputAccount } from './balanceAdjustmentInputAccount';
+import type { BalanceAdjustmentInputDirection } from './balanceAdjustmentInputDirection';
 
 export interface BalanceAdjustmentInput {
   account: BalanceAdjustmentInputAccount;
@@ -16,4 +17,6 @@ export interface BalanceAdjustmentInput {
      * @maxLength 240
      */
   reason: string;
+  /** credit adds to the balance; debit removes from it (never below $0, nor below what pending withdrawals hold) */
+  direction?: BalanceAdjustmentInputDirection;
 }

@@ -11,6 +11,7 @@ export type LedgerEntryKind = typeof LedgerEntryKind[keyof typeof LedgerEntryKin
 
 export const LedgerEntryKind = {
   'Top-up': 'Top-up',
+  Debit: 'Debit',
   Deposit: 'Deposit',
   Withdrawal: 'Withdrawal',
   Grant_award: 'Grant award',

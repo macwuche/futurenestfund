@@ -275,7 +275,7 @@ type LedgerRow = typeof demoLedgerTable.$inferSelect;
 
 const ledgerEntry = (l: LedgerRow, userName: string) => ({
   id: l.id, createdAt: l.createdAt.toISOString(), userId: l.profileId, userName,
-  kind: l.kind as "Top-up" | "Deposit" | "Withdrawal" | "Grant award" | "Opening balance",
+  kind: l.kind as "Top-up" | "Debit" | "Deposit" | "Withdrawal" | "Grant award" | "Opening balance",
   account: l.account as "grant" | "deposit" | "card", amount: l.amountCents / 100, reason: l.reason, actor: l.actor,
   ...(l.requestId ? { requestId: l.requestId } : {}),
   ...(l.applicationId ? { applicationId: l.applicationId } : {}),

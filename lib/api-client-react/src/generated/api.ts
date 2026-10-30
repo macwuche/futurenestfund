@@ -2662,7 +2662,7 @@ export const getCreateUserBalanceAdjustmentUrl = (userId: string,) => {
 }
 
 /**
- * @summary Record an audited demo balance adjustment
+ * @summary Credit or debit a balance, with a ledger entry, an audit record and a notification
  */
 export const createUserBalanceAdjustment = async (userId: string,
     balanceAdjustmentInput: BalanceAdjustmentInput, options?: Parameters<typeof customFetch>[1]): Promise<UserBalances> => {
@@ -2729,7 +2729,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateUserBalanceAdjustmentMutationVariables = {userId: string;data: BodyType<BalanceAdjustmentInput>}
 
     /**
- * @summary Record an audited demo balance adjustment
+ * @summary Credit or debit a balance, with a ledger entry, an audit record and a notification
  */
 export const useCreateUserBalanceAdjustment = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createUserBalanceAdjustment>>, TError,CreateUserBalanceAdjustmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

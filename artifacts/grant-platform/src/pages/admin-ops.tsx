@@ -153,7 +153,7 @@ export const AdminWithdrawalsPage = () => <RequestQueuePage kind="Withdrawal" />
 
 const LEDGER_TYPES: { value: ListAdminTransactionsType; label: string }[] = [
   { value: 'all', label: 'All types' }, { value: 'Deposit', label: 'Deposits' }, { value: 'Withdrawal', label: 'Withdrawals' },
-  { value: 'Grant award', label: 'Grant awards' }, { value: 'Top-up', label: 'Top-ups' }, { value: 'Opening balance', label: 'Opening balances' },
+  { value: 'Grant award', label: 'Grant awards' }, { value: 'Top-up', label: 'Top-ups' }, { value: 'Debit', label: 'Debits' }, { value: 'Opening balance', label: 'Opening balances' },
 ];
 
 export function AdminTransactionsPage() {

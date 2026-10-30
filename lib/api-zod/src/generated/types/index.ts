@@ -64,6 +64,7 @@ export * from './authConfig';
 export * from './authConfigMode';
 export * from './balanceAdjustmentInput';
 export * from './balanceAdjustmentInputAccount';
+export * from './balanceAdjustmentInputDirection';
 export * from './effectiveWithdrawalLimits';
 export * from './errorMessage';
 export * from './exportAdminAuditParams';

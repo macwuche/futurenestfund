@@ -67,6 +67,7 @@ export const ApplicantTransactionType = {
   Deposit: 'Deposit',
   Withdrawal: 'Withdrawal',
   'Top-up': 'Top-up',
+  Debit: 'Debit',
   Grant_award: 'Grant award',
   Opening_balance: 'Opening balance',
 } as const;
@@ -681,6 +682,17 @@ export const BalanceAdjustmentInputAccount = {
   card: 'card',
 } as const;
 
+/**
+ * credit adds to the balance; debit removes from it (never below $0, nor below what pending withdrawals hold)
+ */
+export type BalanceAdjustmentInputDirection = typeof BalanceAdjustmentInputDirection[keyof typeof BalanceAdjustmentInputDirection];
+
+
+export const BalanceAdjustmentInputDirection = {
+  credit: 'credit',
+  debit: 'debit',
+} as const;
+
 export interface BalanceAdjustmentInput {
   account: BalanceAdjustmentInputAccount;
   /** @minimum 0.01 */
@@ -690,6 +702,8 @@ export interface BalanceAdjustmentInput {
      * @maxLength 240
      */
   reason: string;
+  /** credit adds to the balance; debit removes from it (never below $0, nor below what pending withdrawals hold) */
+  direction?: BalanceAdjustmentInputDirection;
 }
 
 export interface WithdrawalLimits {
@@ -845,6 +859,7 @@ export type LedgerEntryKind = typeof LedgerEntryKind[keyof typeof LedgerEntryKin
 
 export const LedgerEntryKind = {
   'Top-up': 'Top-up',
+  Debit: 'Debit',
   Deposit: 'Deposit',
   Withdrawal: 'Withdrawal',
   Grant_award: 'Grant award',
@@ -1102,6 +1117,7 @@ export type ListAdminTransactionsType = typeof ListAdminTransactionsType[keyof t
 export const ListAdminTransactionsType = {
   all: 'all',
   'Top-up': 'Top-up',
+  Debit: 'Debit',
   Deposit: 'Deposit',
   Withdrawal: 'Withdrawal',
   Grant_award: 'Grant award',
@@ -1135,6 +1151,7 @@ export type ExportAdminTransactionsType = typeof ExportAdminTransactionsType[key
 export const ExportAdminTransactionsType = {
   all: 'all',
   'Top-up': 'Top-up',
+  Debit: 'Debit',
   Deposit: 'Deposit',
   Withdrawal: 'Withdrawal',
   Grant_award: 'Grant award',

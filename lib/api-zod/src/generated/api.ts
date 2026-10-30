@@ -189,7 +189,7 @@ export const GetApplicantAccountResponse = zod.object({
 })),
   "transactions": zod.array(zod.object({
   "id": zod.string(),
-  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Grant award', 'Opening balance']),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "direction": zod.enum(['in', 'out']),
   "amount": zod.number(),
@@ -225,7 +225,7 @@ export const CreateApplicantRequestBody = zod.object({
 
 export const CreateApplicantRequestResponse = zod.object({
   "id": zod.string(),
-  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Grant award', 'Opening balance']),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "direction": zod.enum(['in', 'out']),
   "amount": zod.number(),
@@ -956,7 +956,7 @@ export const UpdateAdminUserResponse = zod.object({
 
 
 /**
- * @summary Record an audited demo balance adjustment
+ * @summary Credit or debit a balance, with a ledger entry, an audit record and a notification
  */
 export const CreateUserBalanceAdjustmentParams = zod.object({
   "userId": zod.coerce.string()
@@ -967,12 +967,13 @@ export const createUserBalanceAdjustmentBodyAmountMin = 0.01;
 export const createUserBalanceAdjustmentBodyReasonMin = 5;
 export const createUserBalanceAdjustmentBodyReasonMax = 240;
 
-
+export const createUserBalanceAdjustmentBodyDirectionDefault = `credit`;
 
 export const CreateUserBalanceAdjustmentBody = zod.object({
   "account": zod.enum(['grant', 'deposit', 'card']),
   "amount": zod.number().min(createUserBalanceAdjustmentBodyAmountMin),
-  "reason": zod.string().min(createUserBalanceAdjustmentBodyReasonMin).max(createUserBalanceAdjustmentBodyReasonMax)
+  "reason": zod.string().min(createUserBalanceAdjustmentBodyReasonMin).max(createUserBalanceAdjustmentBodyReasonMax),
+  "direction": zod.enum(['credit', 'debit']).default(createUserBalanceAdjustmentBodyDirectionDefault).describe('credit adds to the balance; debit removes from it (never below $0, nor below what pending withdrawals hold)')
 })
 
 export const CreateUserBalanceAdjustmentResponse = zod.object({
@@ -1144,7 +1145,7 @@ export const SearchAdminResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "userId": zod.string(),
   "userName": zod.string(),
-  "kind": zod.enum(['Top-up', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']),
+  "kind": zod.enum(['Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "amount": zod.number().describe('Signed: negative amounts left the account'),
   "reason": zod.string(),
@@ -1395,7 +1396,7 @@ export const listAdminTransactionsQueryPageDefault = 1;
 
 
 export const ListAdminTransactionsQueryParams = zod.object({
-  "type": zod.enum(['all', 'Top-up', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']).default(listAdminTransactionsQueryTypeDefault),
+  "type": zod.enum(['all', 'Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']).default(listAdminTransactionsQueryTypeDefault),
   "userId": zod.coerce.string().optional(),
   "from": zod.coerce.string().regex(listAdminTransactionsQueryFromRegExp).optional(),
   "to": zod.coerce.string().regex(listAdminTransactionsQueryToRegExp).optional(),
@@ -1409,7 +1410,7 @@ export const ListAdminTransactionsResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "userId": zod.string(),
   "userName": zod.string(),
-  "kind": zod.enum(['Top-up', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']),
+  "kind": zod.enum(['Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "amount": zod.number().describe('Signed: negative amounts left the account'),
   "reason": zod.string(),
@@ -1438,7 +1439,7 @@ export const exportAdminTransactionsQueryPageDefault = 1;
 
 
 export const ExportAdminTransactionsQueryParams = zod.object({
-  "type": zod.enum(['all', 'Top-up', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']).default(exportAdminTransactionsQueryTypeDefault),
+  "type": zod.enum(['all', 'Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']).default(exportAdminTransactionsQueryTypeDefault),
   "userId": zod.coerce.string().optional(),
   "from": zod.coerce.string().regex(exportAdminTransactionsQueryFromRegExp).optional(),
   "to": zod.coerce.string().regex(exportAdminTransactionsQueryToRegExp).optional(),

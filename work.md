@@ -1301,3 +1301,56 @@ Tests (2026-10-30), all passing:
   - no overflow; 44 px buttons; the join date isn't cut off
 - regressions: phase5 audit 9/9, limits 10/10, withdrawals 11/11, phase3-api 24/24, phase5 UI suites 6+6 / 6+6 / 4+4, phase3-desktop 22/22, phase3-phone 16/16
 - Test users removed, demo data restored. No schema change (no migration).
+
+### 2026-10-30: Step 5.5 plan (debit adjustments)
+
+**Goal:** an admin can take money **off** a user's grant, deposit or card balance (to correct a mistake, reverse a credit, or recover funds), not only add it. The money is sample data as before.
+
+**Rules**
+- A debit needs a **reason** (5–240 characters). It's written to the ledger, shown to the user in their notification, and kept in the audit log.
+- **No balance below $0.** A debit larger than the balance is refused, with the current balance in the message.
+- **Pending withdrawals are protected:** a grant debit can't eat into money held by withdrawals under review. "This would leave $X, less than the $Y held for pending withdrawals." Otherwise those withdrawals could never be approved.
+- Same as credits: refused during a global freeze or while the account is frozen; amount $0.01–$1,000,000 with 2 decimals.
+- One transaction with row locks (settings → profile, like credits): balance update + ledger row (new type **"Debit"**, negative amount) + audit entry + notification. The notification is emailed per the user's notification settings: "$X was removed from your grant balance: <reason>".
+
+**API**
+- `POST /admin/users/:id/balance-adjustments` gets an optional `direction`, `credit` (default, so the current behaviour is unchanged) or `debit`.
+- "Debit" is added to the ledger and transaction types.
+
+**UI**
+- User profile → Balances: a **Debit** button next to Credit on each account.
+- The adjustment dialog becomes "Credit a balance" / "Remove funds". For a debit it shows the current balance and the balance after, and a confirmation step: "Remove $X from Jane Cooper's grant balance?"
+- **Admin Transactions:** a "Debits" type filter; debits appear as money out.
+- **Applicant Transactions:** a "Debits" filter and the reason in the row.
+- **Reports:** a "Removed by an administrator" line.
+
+**Tests:** `.unlazy/phase5-debits.mjs` (API: each account; can't go below 0; pending-withdrawal protection; freezes; validation; ledger, audit, notification and email all written once and atomically; concurrent debits can't overdraw) and `.unlazy/phase5-debits-ui.mjs` (desktop + phone: dialog, before/after, confirm, errors shown, applicant sees it). Earlier suites re-run.
+
+### 2026-10-30: Step 5.5 done (debit adjustments)
+
+Built as planned above.
+- **Server:** `adjustBalance(…, direction)` in `demoWorkspace.ts`.
+  - One transaction with settings → profile locks.
+  - Refuses a balance below $0, or a grant balance below what pending withdrawals hold.
+  - Writes the ledger row (kind **Debit**, negative), the audit entry ("Debit grant −$X · reason") and a notification with the reason.
+- **API:** `POST /admin/users/:id/balance-adjustments` takes `direction` (`credit` default | `debit`). "Debit" was added to the ledger and transaction type enums.
+- **UI:**
+  - The `CreditModal` gains a debit mode: "Remove funds", balance before → after, a confirmation step, and server refusals shown in the dialog.
+  - Debit buttons on each balance in the user profile (disabled at $0).
+  - "Debits" filters on the admin Transactions and applicant Transactions pages.
+  - "Removed by an administrator" line on the applicant's Reports.
+- Credit amounts in audit and notification text now use thousands separators ("$1,000.00"); the wording is otherwise unchanged.
+
+Tests (2026-10-30), all passing:
+- `pnpm test` 50/50 · typecheck clean
+- new `.unlazy/phase5-debits.mjs` 8/8:
+  - ledger + audit + notification written once each
+  - the applicant sees the notification, the transaction and the email
+  - all 3 accounts
+  - never below $0; the pending-withdrawal hold is protected and the withdrawal stays approvable
+  - freezes, validation, 404
+  - credits unchanged (direction defaults to credit)
+  - **6 simultaneous $30 debits on $100: exactly 3 accepted, $10 left**
+- new `.unlazy/phase5-debits-ui.mjs` 5/5 desktop + 5/5 phone
+- regressions: users 7/7, audit 9/9, limits 10/10, withdrawals 11/11, phase3-api 24/24; UI suites users 6+6, audit 6+6, limits 6+6, phase5-ui 4+4; phase3-desktop 22/22, phase3-phone 16/16
+- Demo data restored. No schema change (no migration).

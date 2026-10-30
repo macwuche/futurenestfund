@@ -564,8 +564,8 @@ function CardsBody({ a }: { a: Account }) {
 }
 
 /* Transactions */
-const txTypes = ['All', 'Deposit', 'Withdrawal', 'Grant award', 'Top-up'] as const;
-const txFilterLabel: Record<(typeof txTypes)[number], string> = { All: 'All', Deposit: 'Deposits', Withdrawal: 'Withdrawals', 'Grant award': 'Grant awards', 'Top-up': 'Top-ups' };
+const txTypes = ['All', 'Deposit', 'Withdrawal', 'Grant award', 'Top-up', 'Debit'] as const;
+const txFilterLabel: Record<(typeof txTypes)[number], string> = { All: 'All', Deposit: 'Deposits', Withdrawal: 'Withdrawals', 'Grant award': 'Grant awards', 'Top-up': 'Top-ups', Debit: 'Debits' };
 const accountLabel: Record<string, string> = { grant: 'Grant', deposit: 'Deposit', card: 'Card' };
 
 /** Deposit and withdrawal requests are reviewed by the finance team, so their statuses read as review outcomes. */

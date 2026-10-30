@@ -142,40 +142,74 @@ const adjSchema = z.object({
 });
 type Account = 'grant' | 'deposit' | 'card';
 
+type Balances = Record<Account, number>;
+
 /**
- * Credit a sample balance (manual injection). With `user` it is fixed to that person; otherwise a picker is shown.
- * Credits only: there is no debit adjustment yet.
+ * Credit or debit a sample balance. With `user` it is fixed to that person; otherwise a picker is shown (credits only).
+ * A debit shows the balance before and after, and asks for confirmation before anything is recorded.
  */
-export function CreditModal({ open, onClose, user, account = 'deposit', users }: {
+export function CreditModal({ open, onClose, user, account = 'deposit', users, direction = 'credit', balances }: {
   open: boolean; onClose: () => void; user?: { id: string; name: string }; account?: Account; users?: { id: string; name: string; status: string }[];
+  direction?: 'credit' | 'debit'; balances?: Balances;
 }) {
   const m = useCreateUserBalanceAdjustment();
   const refresh = useAdminRefresh();
   const { toast } = useToast();
   const [error, setError] = useState('');
-  const f = useForm<z.input<typeof adjSchema>, unknown, z.output<typeof adjSchema>>({ resolver: zodResolver(adjSchema), defaultValues: { userId: user?.id ?? '', account, amount: 100, reason: '' } });
-  useEffect(() => { if (open) { f.reset({ userId: user?.id ?? '', account, amount: 100, reason: '' }); setError(''); } }, [open, user?.id, account, f]);
+  const [confirming, setConfirming] = useState<z.output<typeof adjSchema> | null>(null);
+  const debit = direction === 'debit';
+  const f = useForm<z.input<typeof adjSchema>, unknown, z.output<typeof adjSchema>>({ resolver: zodResolver(adjSchema), defaultValues: { userId: user?.id ?? '', account, amount: debit ? undefined : 100, reason: '' } });
+  useEffect(() => { if (open) { f.reset({ userId: user?.id ?? '', account, amount: debit ? undefined : 100, reason: '' }); setError(''); setConfirming(null); } }, [open, user?.id, account, debit, f]);
+  const chosen = f.watch('account') as Account;
+  const typed = Number(f.watch('amount'));
+  const before = balances?.[chosen];
+  const after = before === undefined || !(typed > 0) ? undefined : Math.round((debit ? before - typed : before + typed) * 100) / 100;
+  const record = ({ userId, ...v }: z.output<typeof adjSchema>) => m.mutate({ userId, data: { ...v, direction } }, {
+    onSuccess: () => { refresh(); toast({ title: debit ? `Removed ${money(v.amount)} from the ${v.account} balance` : `Credited ${money(v.amount)} to the ${v.account} balance` }); onClose(); },
+    onError: (e) => { setConfirming(null); setError(apiError(e, debit ? 'The debit was refused.' : 'The credit was refused.')); },
+  });
   return (
-    <Modal open={open} onClose={onClose} title="Credit a balance" testid="dialog-adjustment">
-      <form className="space-y-3" noValidate onSubmit={f.handleSubmit(({ userId, ...v }) => m.mutate({ userId, data: v }, {
-        onSuccess: () => { refresh(); toast({ title: `Credited ${money(v.amount)} to the ${v.account} balance` }); onClose(); },
-        onError: (e) => setError(apiError(e, 'The credit was refused.')),
-      }))}>
-        <p className="rounded-lg bg-[#F7FADC] p-3 text-xs text-slate-700">Adds to a sample balance and writes a ledger entry and an audit record. Refused while the platform or the account is frozen. No real transfer occurs.</p>
-        {user ? <p className="text-sm">User: <b>{user.name}</b></p> : (
-          <Field label="User" error={f.formState.errors.userId?.message}>
-            <select data-testid="select-adjust-user" className={ainput} {...f.register('userId')}>
-              <option value="">Choose a user…</option>
-              {users?.map((u) => <option key={u.id} value={u.id}>{u.name}{u.status === 'Frozen' ? ' (frozen)' : ''}</option>)}
-            </select>
-          </Field>
-        )}
-        <Field label="Account"><select data-testid="select-adjust-account" className={ainput} {...f.register('account')}><option value="grant">Grant</option><option value="deposit">Deposit</option><option value="card">Card</option></select></Field>
-        <Field label="Amount (USD)" error={f.formState.errors.amount?.message}><input data-testid="input-adjust-amount" type="number" inputMode="decimal" step="0.01" className={ainput} {...f.register('amount')} /></Field>
-        <Field label="Reason (recorded in the ledger)" error={f.formState.errors.reason?.message}><textarea data-testid="input-adjust-reason" className={cx(ainput, 'h-20')} {...f.register('reason')} /></Field>
-        {error && <p role="alert" className="rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-adjust-error">{error}</p>}
-        <button data-testid="button-submit-adjustment" disabled={m.isPending} className={cx(lime, 'w-full')}>{m.isPending ? 'Recording…' : 'Record credit'}</button>
-      </form>
+    <Modal open={open} onClose={onClose} title={debit ? 'Remove funds' : 'Credit a balance'} testid="dialog-adjustment">
+      {confirming ? (
+        <div className="space-y-4" data-testid="confirm-debit">
+          <p className="text-sm">Remove <b>{money(confirming.amount)}</b> from {user?.name ?? 'this user'}’s <b>{confirming.account}</b> balance?</p>
+          {before !== undefined && <p className="font-num text-sm" data-testid="text-debit-change">{money(before)} → {money(Math.round((before - confirming.amount) * 100) / 100)}</p>}
+          <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">Reason, shown to the user: “{confirming.reason}”. A ledger entry and an audit record are written, and the user is notified. This can’t be undone, though a later credit can restore the amount.</p>
+          <div className="flex justify-end gap-2">
+            <button type="button" data-testid="button-debit-back" onClick={() => setConfirming(null)} className={ghost}>Back</button>
+            <button type="button" data-testid="button-debit-confirm" disabled={m.isPending} onClick={() => record(confirming)} className={danger}>{m.isPending ? 'Removing…' : `Remove ${money(confirming.amount)}`}</button>
+          </div>
+        </div>
+      ) : (
+        <form className="space-y-3" noValidate onSubmit={f.handleSubmit((v) => {
+          setError('');
+          if (debit && before !== undefined && v.amount > before) return setError(`The ${v.account} balance is only ${money(before)}.`);
+          if (debit) setConfirming(v); else record(v);
+        })}>
+          <p className={cx('rounded-lg p-3 text-xs text-slate-700', debit ? 'bg-[#FEF2F2]' : 'bg-[#F7FADC]')}>
+            {debit ? 'Takes money off a sample balance (never below $0, and never below what pending withdrawals hold), with a ledger entry and an audit record. The user is notified with your reason.'
+              : 'Adds to a sample balance and writes a ledger entry and an audit record.'} Refused while the platform or the account is frozen. No real transfer occurs.
+          </p>
+          {user ? <p className="text-sm">User: <b>{user.name}</b></p> : (
+            <Field label="User" error={f.formState.errors.userId?.message}>
+              <select data-testid="select-adjust-user" className={ainput} {...f.register('userId')}>
+                <option value="">Choose a user…</option>
+                {users?.map((u) => <option key={u.id} value={u.id}>{u.name}{u.status === 'Frozen' ? ' (frozen)' : ''}</option>)}
+              </select>
+            </Field>
+          )}
+          <Field label="Account"><select data-testid="select-adjust-account" className={ainput} {...f.register('account')}><option value="grant">Grant</option><option value="deposit">Deposit</option><option value="card">Card</option></select></Field>
+          <Field label="Amount (USD)" error={f.formState.errors.amount?.message}><input data-testid="input-adjust-amount" type="number" inputMode="decimal" step="0.01" className={ainput} {...f.register('amount')} /></Field>
+          {before !== undefined && (
+            <p className="font-num text-xs text-slate-600" data-testid="text-adjust-preview">
+              {chosen} balance {money(before)}{after !== undefined && <> → <span className={cx('font-semibold', after < 0 ? 'text-[#991B1B]' : 'text-slate-900')}>{money(after)}</span></>}
+            </p>
+          )}
+          <Field label={debit ? 'Reason (shown to the user and recorded in the ledger)' : 'Reason (recorded in the ledger)'} error={f.formState.errors.reason?.message}><textarea data-testid="input-adjust-reason" maxLength={240} className={cx(ainput, 'h-20')} {...f.register('reason')} /></Field>
+          {error && <p role="alert" className="rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-adjust-error">{error}</p>}
+          <button data-testid="button-submit-adjustment" disabled={m.isPending} className={cx(debit ? danger : lime, 'w-full')}>{m.isPending ? 'Recording…' : debit ? 'Review debit' : 'Record credit'}</button>
+        </form>
+      )}
     </Modal>
   );
 }

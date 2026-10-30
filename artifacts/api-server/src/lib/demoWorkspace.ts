@@ -234,10 +234,19 @@ export async function changePreferences(id: string, prefs: { emailNotifications:
   });
 }
 
-export async function adjustBalance(id: string, account: "grant" | "deposit" | "card", amount: number, reason: string, actor: string) {
+const accountName = { grant: "grant", deposit: "deposit", card: "card" } as const;
+const dollars = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/**
+ * Credit or debit a balance: balance, ledger, audit and notification in one transaction (settings → profile locks, like approvals).
+ * A debit never takes a balance below $0, and never takes the grant balance below what pending withdrawals hold.
+ */
+export async function adjustBalance(id: string, account: "grant" | "deposit" | "card", amount: number, reason: string, actor: string, direction: "credit" | "debit" = "credit") {
   const cents = Math.round(amount * 100);
   if (!Number.isSafeInteger(cents) || cents < 1 || cents > 100000000 || Math.abs(amount * 100 - cents) > 0.00001) throw new DemoInputError("Use an amount between $0.01 and $1,000,000 with at most two decimals.");
-  if (reason.trim().length < 5) throw new DemoInputError("Explain the adjustment in at least five characters.");
+  const why = reason.trim();
+  if (why.length < 5) throw new DemoInputError("Explain the adjustment in at least five characters.");
+  const debit = direction === "debit";
   return db.transaction(async tx => {
     const [settings] = await tx.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform")).for("update");
     if (settings?.frozen) throw new DemoInputError("Demo financial adjustments are paused by the global freeze.");
@@ -245,12 +254,17 @@ export async function adjustBalance(id: string, account: "grant" | "deposit" | "
     if (!current) return undefined;
     if (current.status === "Frozen") throw new DemoInputError("Unfreeze the demo account before adjusting its balance.");
     const key = account === "grant" ? "grantCents" : account === "deposit" ? "depositCents" : "cardCents";
-    const next = current[key] + cents;
+    const next = debit ? current[key] - cents : current[key] + cents;
     if (next > 2000000000) throw new DemoInputError("This would exceed the demo account limit.");
+    if (next < 0) throw new DemoInputError(`The ${account} balance is only ${dollars(current[key])}, so ${dollars(cents)} can't be removed.`);
+    if (debit && account === "grant") {
+      const held = current.grantCents - await availableCents(current, tx);
+      if (next < held) throw new DemoInputError(`This would leave ${dollars(next)}, less than the ${dollars(held)} held for pending withdrawals. Decline those first or remove less.`);
+    }
     await tx.update(demoProfilesTable).set({ [key]: next }).where(eq(demoProfilesTable.id, id));
-    await tx.insert(demoLedgerTable).values({ profileId: id, account, amountCents: cents, reason: reason.trim(), actor });
-    await tx.insert(demoAuditTable).values({ profileId: id, actor, action: `Demo ${account} top-up +$${amount.toFixed(2)} · ${reason.trim()}` });
-    await notifyUser(id, `$${amount.toFixed(2)} was added to your ${account} balance`, "/transactions", tx);
+    await tx.insert(demoLedgerTable).values({ profileId: id, kind: debit ? "Debit" : "Top-up", account, amountCents: debit ? -cents : cents, reason: why, actor });
+    await tx.insert(demoAuditTable).values({ profileId: id, actor, action: debit ? `Debit ${account} −${dollars(cents)} · ${why}` : `Demo ${account} top-up +${dollars(cents)} · ${why}` });
+    await notifyUser(id, debit ? `${dollars(cents)} was removed from your ${accountName[account]} balance: ${why}` : `${dollars(cents)} was added to your ${accountName[account]} balance`, "/transactions", tx);
     return {
       grant: (account === "grant" ? next : current.grantCents) / 100,
       deposit: (account === "deposit" ? next : current.depositCents) / 100,
