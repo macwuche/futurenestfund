@@ -67,6 +67,7 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
   - edit profile; tier; account freeze
   - per-user rules: KYC for deposits / withdrawals; email and in-app notification overrides (user's choice / always on / always off)
   - credit and **debit** balances (a debit needs a reason shown to the user, never goes below $0 or below what pending withdrawals hold, and asks for confirmation)
+  - **cards:** issue a sample card (virtual active at once, physical pending until marked issued), freeze / unfreeze with a reason shown to the user, cancel (permanent)
   - the user's applications and KYC documents
 - **Application review:** Submitted → Review → Approved / Declined / Changes requested, with notes. Approving credits the grant balance through the ledger.
 - **Deposit / Withdrawal queues:** approve or decline (decline needs a reason). Freezes, balances and KYC are re-checked at approval time. A pending withdrawal above the user's current limit is flagged.
@@ -427,7 +428,8 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 - ~~5.3 audit-log viewer~~: done 2026-10-30
 - ~~5.4 users directory sorting and pagination~~: done 2026-10-30
 - ~~5.5 debit adjustments~~: done 2026-10-30
-- 5.6 card controls, 5.7 a real admin avatar
+- ~~5.6 admin card controls~~: done 2026-10-30
+- 5.7 a real admin avatar
 
 **Phase 6 (finish and harden):**
 - grant matchmaking (rule-based first)

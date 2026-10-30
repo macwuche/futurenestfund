@@ -176,6 +176,7 @@ export const UserCardStatus = {
   Active: 'Active',
   Frozen: 'Frozen',
   Pending: 'Pending',
+  Cancelled: 'Cancelled',
 } as const;
 
 export interface UserCard {
@@ -185,6 +186,9 @@ export interface UserCard {
   lastFour: string;
   status: UserCardStatus;
   balance: number;
+  /** Why an administrator froze or cancelled the card */
+  statusReason?: string;
+  issuedAt?: string;
 }
 
 export interface EffectiveWithdrawalLimits {
@@ -726,6 +730,46 @@ export interface UserWithdrawalLimitsUpdate {
   maxPerRequest?: number | null;
   /** @nullable */
   dailyTotal?: number | null;
+}
+
+export type CardIssueInputKind = typeof CardIssueInputKind[keyof typeof CardIssueInputKind];
+
+
+export const CardIssueInputKind = {
+  Virtual: 'Virtual',
+  Physical: 'Physical',
+} as const;
+
+export type CardIssueInputNetwork = typeof CardIssueInputNetwork[keyof typeof CardIssueInputNetwork];
+
+
+export const CardIssueInputNetwork = {
+  Visa: 'Visa',
+  Mastercard: 'Mastercard',
+} as const;
+
+export interface CardIssueInput {
+  kind: CardIssueInputKind;
+  network: CardIssueInputNetwork;
+}
+
+export type CardActionInputAction = typeof CardActionInputAction[keyof typeof CardActionInputAction];
+
+
+export const CardActionInputAction = {
+  activate: 'activate',
+  freeze: 'freeze',
+  unfreeze: 'unfreeze',
+  cancel: 'cancel',
+} as const;
+
+export interface CardActionInput {
+  action: CardActionInputAction;
+  /**
+     * Required (5+ characters) to freeze or cancel; shown to the user
+     * @maxLength 240
+     */
+  reason?: string;
 }
 
 export interface GlobalFreezeUpdate {

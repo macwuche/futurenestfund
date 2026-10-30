@@ -1354,3 +1354,71 @@ Tests (2026-10-30), all passing:
 - new `.unlazy/phase5-debits-ui.mjs` 5/5 desktop + 5/5 phone
 - regressions: users 7/7, audit 9/9, limits 10/10, withdrawals 11/11, phase3-api 24/24; UI suites users 6+6, audit 6+6, limits 6+6, phase5-ui 4+4; phase3-desktop 22/22, phase3-phone 16/16
 - Demo data restored. No schema change (no migration).
+
+### 2026-10-30: Step 5.6 plan (admin card controls)
+
+**Today:**
+- Cards are sample data in `demo_profiles.cards` (jsonb); there's no card network.
+- The seeded sample profiles have a Virtual Visa (Active) and a Physical Mastercard (Pending, "Awaiting issuance"). **Signed-up users get no card at all.**
+- Admins can only top up the card account; nothing changes a card's status.
+
+**What admins get** (User profile → Balances and cards):
+
+| Action | From → to | Needs |
+|---|---|---|
+| **Issue a card** (Virtual or Physical, Visa or Mastercard) | new: Virtual → Active; Physical → Pending | At most one non-cancelled card of each kind per user |
+| **Mark as issued** (physical card delivered) | Pending → Active | |
+| **Freeze** | Active → Frozen | A reason (5–240 characters), shown to the user |
+| **Unfreeze** | Frozen → Active | |
+| **Cancel** (permanent) | Active / Frozen / Pending → Cancelled | A reason, plus a confirmation |
+
+- Any other transition is refused with a clear message (e.g. "This card is already frozen").
+- Card actions are refused while the **user's account is frozen** (the account freeze already pauses money movement). They're allowed during the global freeze, since they move no money.
+- Each action takes a row lock on the profile, writes an **audit entry** ("Card •• 4829 frozen · reason"), and **notifies the user** (in-app + email per their settings).
+- What a frozen or cancelled card blocks today: **card top-ups** ("Top up" works only on an Active card), since nothing else spends from cards. The screens say so plainly, and the API refuses a credit to the card account when the user has no active card.
+
+**Applicant Cards page:** shows each card's status. A frozen card says "Frozen by an administrator: <reason>"; cancelled cards are listed under "Cancelled cards", greyed out. Applicants freezing their own card is Phase 6 ("card controls for applicants").
+
+**API** (no schema change: cards stay in the jsonb column, and status gains `Cancelled`):
+- `POST /admin/users/:id/cards` `{ kind, network }` issues a card and returns the user.
+- `POST /admin/users/:id/cards/:cardId/actions` `{ action: activate | freeze | unfreeze | cancel, reason? }` returns the user.
+- `UserCard` gains optional `statusReason` and `issuedAt`.
+- New card numbers are a random last four; never real numbers.
+
+**Tests:** `.unlazy/phase5-cards.mjs` (API: every allowed and refused transition, reasons, one-per-kind rule, account freeze vs global freeze, audit + notification, top-up rule, concurrent actions on one card, works for a user with no cards) and `.unlazy/phase5-cards-ui.mjs` (desktop + phone: issue, mark issued, freeze with reason, unfreeze, cancel with confirmation, applicant view). Earlier suites re-run.
+
+### 2026-10-30: Step 5.6 done (admin card controls)
+
+Built as planned above.
+- **Server:** `api-server/src/lib/cards.ts`.
+  - `issueCard`: Virtual → Active, Physical → Pending; one non-cancelled card per kind.
+  - `changeCard`: activate / freeze / unfreeze / cancel, with a transition table and clear refusals. A reason is needed to freeze or cancel, and is shown to the user.
+  - Each change takes the profile row lock, writes an audit entry and notifies the user. Refused while the account is frozen; allowed during the global freeze.
+  - `adjustBalance` refuses a card top-up when the user has no active card (debits still work).
+  - A virtual card shows the card account balance unless it's cancelled.
+- **API:** `POST /admin/users/:id/cards`, `POST /admin/users/:id/cards/:cardId/actions`. `UserCard.status` adds `Cancelled`, with optional `statusReason` and `issuedAt`. No migration: cards stay in the jsonb column.
+- **Admin UI:** `components/card-controls.tsx` on the user profile.
+  - Issue card dialog.
+  - Per card: Mark as issued / Top up / Freeze / Unfreeze / Cancel card, by status.
+  - Freeze and cancel ask for a reason; cancel says it's permanent.
+  - A "Cancelled cards" list.
+- **Applicant Cards page:** a frozen card is dimmed with a "Frozen" label and "Frozen by an administrator: <reason>. It can't be topped up until it's unfrozen."; a separate "Cancelled cards" list; an empty state that says an administrator can issue a card.
+
+Tests (2026-10-30), all passing:
+- `pnpm test` 50/50 · typecheck clean
+- new `.unlazy/phase5-cards.mjs` 9/9:
+  - every allowed and refused transition
+  - reasons
+  - top-up needs an active card; debit doesn't
+  - cancel keeps the account balance
+  - issue rules
+  - a user with no cards
+  - account freeze vs global freeze
+  - bad input 400/404
+  - **5 simultaneous freezes of one card: exactly 1 succeeds, 1 audit entry**
+- new `.unlazy/phase5-cards-ui.mjs` 5/5 desktop + 5/5 phone
+- regressions:
+  - API: debits 8/8, users 7/7, audit 9/9, limits 10/10, withdrawals 11/11, phase3-api 24/24
+  - UI: phase5 cards / debits / users / audit / limits / phase5-ui on desktop + phone; phase3-phone 16/16; phase1-desktop 26/26, phase1-phone 10/10
+  - phase3-desktop 22/22. One run had a single timeout in "users directory reads ?q= from the header search Enter" (a page 5.6 doesn't touch); it passed on 3 straight reruns. Noted as a timing flake to keep an eye on.
+- Demo data restored.

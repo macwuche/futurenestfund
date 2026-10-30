@@ -522,18 +522,22 @@ function NetworkMark({ network }: { network: string }) {
 }
 function CardsBody({ a }: { a: Account }) {
   const { data: d } = useApplicantDashboard();
+  const live = a.cards.filter((c) => c.status !== 'Cancelled');
+  const cancelled = a.cards.filter((c) => c.status === 'Cancelled');
   return (
     <div className="space-y-5">
       <FrozenNotice a={a} />
       <Balances a={a} />
       <section aria-labelledby="cards-heading" className="space-y-3">
         <h2 id="cards-heading" className="text-lg font-semibold text-slate-900">Your cards</h2>
-        {a.cards.length === 0 ? <Empty title="No cards on this account" /> : (
+        {live.length === 0 ? <Empty title="No cards on this account" hint="An administrator can issue you a card." /> : (
           <div className="grid gap-4 md:grid-cols-2" data-testid="list-cards">
-            {a.cards.map((c) => (
+            {live.map((c) => (
               <div key={c.id} className={cx(card, 'p-4')} data-testid={`card-payment-${c.id}`}>
                 <div className={cx('relative flex aspect-[1.586/1] flex-col overflow-hidden rounded-xl p-5 text-white',
-                  c.kind === 'Physical' ? 'bg-gradient-to-br from-[#0F172A] to-[#334155]' : 'bg-gradient-to-br from-[#1E3A8A] to-[#3B63C4]')}>
+                  c.kind === 'Physical' ? 'bg-gradient-to-br from-[#0F172A] to-[#334155]' : 'bg-gradient-to-br from-[#1E3A8A] to-[#3B63C4]',
+                  c.status === 'Frozen' && 'opacity-60 grayscale')}>
+                  {c.status === 'Frozen' && <span className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/90 px-3 py-1 text-xs font-bold uppercase tracking-widest text-slate-900" data-testid={`label-card-frozen-${c.id}`}>Frozen</span>}
                   <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-white/10" />
                   <div className="flex items-center justify-between">
                     <span className="text-base font-bold tracking-tight">GrantApp</span>
@@ -551,10 +555,25 @@ function CardsBody({ a }: { a: Account }) {
                     <p className="text-sm text-slate-500">{c.kind} {c.network}</p>
                     <p className="text-lg font-bold tabular-nums text-slate-900" data-testid={`text-card-balance-${c.id}`}>{c.status === 'Pending' ? 'Being issued' : money(c.balance)}</p>
                   </div>
-                  <StatusBadge status={c.status} dot={false} />
+                  <StatusBadge status={c.status} dot={false} testid={`badge-card-${c.id}`} />
                 </div>
+                {c.status === 'Frozen' && (
+                  <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid={`text-card-frozen-${c.id}`}>
+                    Frozen by an administrator{c.statusReason ? `: ${c.statusReason}${/[.!?]$/.test(c.statusReason) ? '' : '.'}` : '.'} It can’t be topped up until it’s unfrozen.
+                  </p>
+                )}
               </div>
             ))}
+          </div>
+        )}
+        {cancelled.length > 0 && (
+          <div className={cx(card, 'p-4')} data-testid="list-cancelled-cards">
+            <h3 className="text-sm font-semibold text-slate-900">Cancelled cards</h3>
+            <ul className="mt-2 space-y-2">{cancelled.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500" data-testid={`row-cancelled-card-${c.id}`}>
+                <span>{c.kind} {c.network} •••• {c.lastFour}{c.statusReason ? ` · ${c.statusReason}` : ''}</span><StatusBadge status="Cancelled" dot={false} />
+              </li>
+            ))}</ul>
           </div>
         )}
         <p className="text-xs text-slate-500">Sample card designs. No real card network is connected.</p>

@@ -13,6 +13,7 @@ import { Camera, Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Chevr
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
+import { CardControls } from '@/components/card-controls';
 import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, initials, money } from '@/components/bits';
 import { card, ainput, lime, dark, ghost, Stat, SectionTitle, useAdminRefresh, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
 import { apiError } from '@/lib/demo-state';
@@ -387,15 +388,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
             </div>
           ))}
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {u.cards.length === 0 && <Empty title="No cards issued" />}
-          {u.cards.map((c) => (
-            <div key={c.id} data-testid={`card-user-${c.id}`} className={cx('lift flex items-center justify-between gap-3 rounded-xl p-4 text-white', c.kind === 'Physical' ? 'bg-[#111]' : 'bg-gradient-to-br from-slate-800 to-slate-600')}>
-              <div><p className="text-sm font-semibold">{c.kind} {c.network} <span className="font-num opacity-70">•• {c.lastFour}</span></p><p className="font-num text-lg" data-testid={`text-user-card-balance-${c.id}`}>{money(c.balance)}</p><StatusBadge status={c.status} /></div>
-              <button data-testid={`button-topup-${c.id}`} disabled={c.status !== 'Active'} title={c.status === 'Active' ? 'Credit the card account' : 'Card must be active before funding'} onClick={() => setCredit('card')} className="press rounded-lg bg-[#C6F432] px-3 py-1.5 text-xs font-semibold text-[#111] disabled:cursor-not-allowed disabled:opacity-50">{c.status === 'Pending' ? 'Awaiting issuance' : 'Top up'}</button>
-            </div>
-          ))}
-        </div>
+        <CardControls u={u} onTopUp={() => setCredit('card')} />
       </section>
 
       <UserApplications userId={u.id} />

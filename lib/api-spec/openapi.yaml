@@ -587,6 +587,57 @@ paths:
                 $ref: "#/components/schemas/UserBalances"
         "404":
           description: User not found
+  /admin/users/{userId}/cards:
+    post:
+      operationId: issueUserCard
+      tags: [admin]
+      summary: Issue a sample card (virtual cards are active at once; physical ones stay pending until marked issued)
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CardIssueInput" }
+      responses:
+        "200":
+          description: The updated user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUserProfile" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: User not found
+  /admin/users/{userId}/cards/{cardId}/actions:
+    post:
+      operationId: changeUserCard
+      tags: [admin]
+      summary: Activate, freeze, unfreeze or cancel a card
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+        - { name: cardId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CardActionInput" }
+      responses:
+        "200":
+          description: The updated user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUserProfile" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: User or card not found
   /admin/users/{userId}/withdrawal-limits:
     put:
       operationId: updateUserWithdrawalLimits
@@ -1242,8 +1293,10 @@ components:
         network: { type: string, enum: [Visa, Mastercard] }
         kind: { type: string, enum: [Virtual, Physical] }
         lastFour: { type: string }
-        status: { type: string, enum: [Active, Frozen, Pending] }
+        status: { type: string, enum: [Active, Frozen, Pending, Cancelled] }
         balance: { type: number }
+        statusReason: { type: string, description: "Why an administrator froze or cancelled the card" }
+        issuedAt: { type: string, format: date-time }
       required: [id, network, kind, lastFour, status, balance]
     KycDocument:
       type: object
@@ -1372,6 +1425,20 @@ components:
         dailyTotal: { type: [number, "null"] }
         usedLast24h: { type: number, description: "Withdrawals under review or approved in the last 24 hours" }
       required: [custom, maxPerRequest, dailyTotal, usedLast24h]
+    CardIssueInput:
+      type: object
+      properties:
+        kind: { type: string, enum: [Virtual, Physical] }
+        network: { type: string, enum: [Visa, Mastercard] }
+      required: [kind, network]
+      additionalProperties: false
+    CardActionInput:
+      type: object
+      properties:
+        action: { type: string, enum: [activate, freeze, unfreeze, cancel] }
+        reason: { type: string, maxLength: 240, description: "Required (5+ characters) to freeze or cancel; shown to the user" }
+      required: [action]
+      additionalProperties: false
     GlobalFreezeUpdate:
       type: object
       properties:

@@ -47,6 +47,8 @@ import type {
   ApplicationResponseInput,
   AuthConfig,
   BalanceAdjustmentInput,
+  CardActionInput,
+  CardIssueInput,
   ErrorMessage,
   ExportAdminAuditParams,
   ExportAdminTransactionsParams,
@@ -2740,6 +2742,186 @@ export const useCreateUserBalanceAdjustment = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreateUserBalanceAdjustmentMutationOptions(options));
+    }
+
+export const getIssueUserCardUrl = (userId: string,) => {
+
+
+
+
+  return `/api/admin/users/${userId}/cards`
+}
+
+/**
+ * @summary Issue a sample card (virtual cards are active at once; physical ones stay pending until marked issued)
+ */
+export const issueUserCard = async (userId: string,
+    cardIssueInput: CardIssueInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminUserProfile> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminUserProfile>(getIssueUserCardUrl(userId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(cardIssueInput)
+  }
+);}
+
+
+
+
+
+export const getIssueUserCardMutationKey = () => ['issueUserCard'] as const;
+
+export const getIssueUserCardMutationOptions = <TError = ErrorType<ErrorMessage | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueUserCard>>, TError,IssueUserCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof issueUserCard>>, TError,IssueUserCardMutationVariables, TContext> => {
+
+const mutationKey = getIssueUserCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof issueUserCard>>, IssueUserCardMutationVariables> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  issueUserCard(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type IssueUserCardMutationResult = NonNullable<Awaited<ReturnType<typeof issueUserCard>>>
+    export type IssueUserCardMutationBody = BodyType<CardIssueInput>
+    export type IssueUserCardMutationError = ErrorType<ErrorMessage | void>
+    export type IssueUserCardMutationVariables = {userId: string;data: BodyType<CardIssueInput>}
+
+    /**
+ * @summary Issue a sample card (virtual cards are active at once; physical ones stay pending until marked issued)
+ */
+export const useIssueUserCard = <TError = ErrorType<ErrorMessage | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueUserCard>>, TError,IssueUserCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof issueUserCard>>,
+        TError,
+        IssueUserCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getIssueUserCardMutationOptions(options));
+    }
+
+export const getChangeUserCardUrl = (userId: string,
+    cardId: string,) => {
+
+
+
+
+  return `/api/admin/users/${userId}/cards/${cardId}/actions`
+}
+
+/**
+ * @summary Activate, freeze, unfreeze or cancel a card
+ */
+export const changeUserCard = async (userId: string,
+    cardId: string,
+    cardActionInput: CardActionInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminUserProfile> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminUserProfile>(getChangeUserCardUrl(userId,cardId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(cardActionInput)
+  }
+);}
+
+
+
+
+
+export const getChangeUserCardMutationKey = () => ['changeUserCard'] as const;
+
+export const getChangeUserCardMutationOptions = <TError = ErrorType<ErrorMessage | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeUserCard>>, TError,ChangeUserCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeUserCard>>, TError,ChangeUserCardMutationVariables, TContext> => {
+
+const mutationKey = getChangeUserCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeUserCard>>, ChangeUserCardMutationVariables> = (props) => {
+          const {userId,cardId,data} = props ?? {};
+
+          return  changeUserCard(userId,cardId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeUserCardMutationResult = NonNullable<Awaited<ReturnType<typeof changeUserCard>>>
+    export type ChangeUserCardMutationBody = BodyType<CardActionInput>
+    export type ChangeUserCardMutationError = ErrorType<ErrorMessage | void>
+    export type ChangeUserCardMutationVariables = {userId: string;cardId: string;data: BodyType<CardActionInput>}
+
+    /**
+ * @summary Activate, freeze, unfreeze or cancel a card
+ */
+export const useChangeUserCard = <TError = ErrorType<ErrorMessage | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeUserCard>>, TError,ChangeUserCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof changeUserCard>>,
+        TError,
+        ChangeUserCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeUserCardMutationOptions(options));
     }
 
 export const getUpdateUserWithdrawalLimitsUrl = (userId: string,) => {

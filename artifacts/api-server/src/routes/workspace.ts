@@ -8,6 +8,7 @@ import {
   CreateUserBalanceAdjustmentBody, CreateUserBalanceAdjustmentParams, CreateUserBalanceAdjustmentResponse,
   UpdateGlobalFreezeBody, UpdateGlobalFreezeResponse, GetWithdrawalLimitsResponse, UpdateWithdrawalLimitsBody, UpdateWithdrawalLimitsResponse,
   ListAdminAuditQueryParams, ListAdminAuditResponse, ExportAdminAuditQueryParams,
+  IssueUserCardParams, IssueUserCardBody, IssueUserCardResponse, ChangeUserCardParams, ChangeUserCardBody, ChangeUserCardResponse,
   UpdateUserWithdrawalLimitsParams, UpdateUserWithdrawalLimitsBody, UpdateUserWithdrawalLimitsResponse, UpdateApplicantPreferencesBody, UpdateApplicantPreferencesResponse,
 } from "@workspace/api-zod";
 import {
@@ -29,6 +30,7 @@ import {
   ExportAdminTransactionsQueryParams, GetAdminKycQueueResponse, ReviewAdminKycDocumentParams, ReviewAdminKycDocumentBody, ReviewAdminKycDocumentResponse,
 } from "@workspace/api-zod";
 import { db, demoProfilesTable } from "@workspace/db";
+import { changeCard, issueCard } from "../lib/cards";
 import {
   adminSearch, listAdminApplications, adminApplicationDetail, decideApplication, listAdminRequests, approveRequest, rejectRequest,
   listLedger, exportLedgerCsv, adminKycQueue, reviewKycDocument,
@@ -241,6 +243,24 @@ router.put("/admin/system/withdrawal-limits", async (req, res): Promise<void> =>
   const input = UpdateWithdrawalLimitsBody.safeParse(req.body);
   if (!input.success) { res.status(400).json({ error: "Enter each limit as an amount, or leave it empty for no limit." }); return; }
   res.json(UpdateWithdrawalLimitsResponse.parse(await changeGlobalWithdrawalLimits(input.data, currentAdmin(req))));
+});
+
+router.post("/admin/users/:userId/cards", async (req, res): Promise<void> => {
+  const params = IssueUserCardParams.safeParse(req.params);
+  const input = IssueUserCardBody.safeParse(req.body);
+  if (!params.success || !input.success) { res.status(400).json({ error: "Choose a virtual or physical card and its network." }); return; }
+  const user = await issueCard(params.data.userId, input.data.kind, input.data.network, currentAdmin(req));
+  if (!user) { res.status(404).json({ error: "User not found." }); return; }
+  res.json(IssueUserCardResponse.parse(user));
+});
+
+router.post("/admin/users/:userId/cards/:cardId/actions", async (req, res): Promise<void> => {
+  const params = ChangeUserCardParams.safeParse(req.params);
+  const input = ChangeUserCardBody.safeParse(req.body);
+  if (!params.success || !input.success) { res.status(400).json({ error: "Choose activate, freeze, unfreeze or cancel (reason up to 240 characters)." }); return; }
+  const user = await changeCard(params.data.userId, params.data.cardId, input.data.action, currentAdmin(req), input.data.reason);
+  if (!user) { res.status(404).json({ error: "User or card not found." }); return; }
+  res.json(ChangeUserCardResponse.parse(user));
 });
 
 router.put("/admin/users/:userId/withdrawal-limits", async (req, res): Promise<void> => {

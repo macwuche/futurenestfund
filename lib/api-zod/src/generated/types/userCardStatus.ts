@@ -13,4 +13,5 @@ export const UserCardStatus = {
   Active: 'Active',
   Frozen: 'Frozen',
   Pending: 'Pending',
+  Cancelled: 'Cancelled',
 } as const;

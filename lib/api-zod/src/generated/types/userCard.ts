@@ -16,4 +16,7 @@ export interface UserCard {
   lastFour: string;
   status: UserCardStatus;
   balance: number;
+  /** Why an administrator froze or cancelled the card */
+  statusReason?: string;
+  issuedAt?: Date;
 }

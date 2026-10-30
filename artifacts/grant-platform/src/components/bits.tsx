@@ -24,7 +24,7 @@ const map: Record<string, string> = {
   Verified: 'green', Operational: 'green', Completed: 'green', Approved: 'green', Active: 'green', Intact: 'green', Recommended: 'green',
   Pending: 'amber', Review: 'amber', Degraded: 'amber', 'Changes requested': 'amber', 'Review required': 'amber',
   Rejected: 'red', Declined: 'red', Frozen: 'red', Offline: 'red',
-  Submitted: 'green', Unsubmitted: 'gray', Withdrawn: 'gray',
+  Submitted: 'green', Unsubmitted: 'gray', Withdrawn: 'gray', Cancelled: 'gray',
 };
 /** Display wording for API statuses. */
 export const statusLabel = (s: string) => (s === 'Review' ? 'Under Review' : s);

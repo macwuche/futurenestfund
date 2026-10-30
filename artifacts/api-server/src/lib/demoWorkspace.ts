@@ -41,7 +41,8 @@ export async function getUser(id: string) {
   if (!person) return undefined;
   const audit = await db.select().from(demoAuditTable).where(eq(demoAuditTable.profileId, id)).orderBy(desc(demoAuditTable.createdAt)).limit(30);
   const cards = Array.isArray(person.cards) ? person.cards.map((card: Record<string, unknown>) => ({
-    ...card, balance: card.kind === "Virtual" ? person.cardCents / 100 : Number(card.balance ?? 0),
+    // The card account's balance shows on the user's live virtual card; a cancelled card shows what it held then (0).
+    ...card, balance: card.kind === "Virtual" && card.status !== "Cancelled" ? person.cardCents / 100 : Number(card.balance ?? 0),
   })) : [];
   const documents = (await currentKycDocuments([id], "admin")).map(({ profileId: _p, ...d }) => d);
   return GetAdminUserResponse.parse({
@@ -253,6 +254,10 @@ export async function adjustBalance(id: string, account: "grant" | "deposit" | "
     const [current] = await tx.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, id)).for("update");
     if (!current) return undefined;
     if (current.status === "Frozen") throw new DemoInputError("Unfreeze the demo account before adjusting its balance.");
+    // Top-ups go onto a card, so one must be active; debits can still empty the card account whatever the cards' state.
+    if (account === "card" && !debit && !(Array.isArray(current.cards) && current.cards.some((c: { status?: string }) => c.status === "Active"))) {
+      throw new DemoInputError("This user has no active card to top up. Issue a card or unfreeze one first.");
+    }
     const key = account === "grant" ? "grantCents" : account === "deposit" ? "depositCents" : "cardCents";
     const next = debit ? current[key] - cents : current[key] + cents;
     if (next > 2000000000) throw new DemoInputError("This would exceed the demo account limit.");
