@@ -13,6 +13,7 @@ import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDow
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
+import { MonitoringSettings } from '@/components/monitoring-settings';
 import { CardControls } from '@/components/card-controls';
 import { AdminPhotoSettings, UserPhotoControl } from '@/components/admin-photo';
 import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, initials, money } from '@/components/bits';
@@ -462,6 +463,7 @@ export function AdminSettingsPage() {
       </section>
       <AdminPhotoSettings />
       <GlobalWithdrawalLimits />
+      <MonitoringSettings />
       <section className={cx(card, 'p-5')} data-testid="card-settings-audit">
         <SectionTitle>Audit log</SectionTitle>
         <p className="mb-4 text-sm text-slate-600">Every change made by administrators and applicants: approvals, declines, limits, freezes, profile and permission edits. Search, filter by user, admin or date, and export to CSV. Entries can't be edited or deleted.</p>

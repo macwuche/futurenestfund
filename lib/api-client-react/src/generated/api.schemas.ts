@@ -58,6 +58,54 @@ export interface Session {
 
 export interface ErrorMessage {
   error: string;
+  /** Only on 500 errors: the request id in the server log (the message quotes its first 8 characters) */
+  requestId?: string;
+}
+
+export type ClientErrorReportKind = typeof ClientErrorReportKind[keyof typeof ClientErrorReportKind];
+
+
+export const ClientErrorReportKind = {
+  error: 'error',
+  unhandledrejection: 'unhandledrejection',
+  boundary: 'boundary',
+  test: 'test',
+} as const;
+
+/**
+ * A crash in the browser. Logged on the server and, when SENTRY_DSN is set, forwarded to Sentry with personal data scrubbed.
+ */
+export interface ClientErrorReport {
+  kind: ClientErrorReportKind;
+  /**
+     * Error class, e.g. TypeError
+     * @maxLength 100
+     */
+  type?: string;
+  /** @maxLength 1000 */
+  message: string;
+  /** @maxLength 8000 */
+  stack?: string;
+  /**
+     * The page's path, without the query string
+     * @maxLength 300
+     */
+  path: string;
+}
+
+export interface ClientErrorReceipt {
+  /** Short reference to quote to support; it is in the server log */
+  reference: string;
+}
+
+export interface MonitoringStatus {
+  /** Whether errors are also sent to Sentry (SENTRY_DSN is set and valid) */
+  sentry: boolean;
+  /** @nullable */
+  sentryHost: string | null;
+  environment: string;
+  /** @nullable */
+  release: string | null;
 }
 
 export type ApplicantTransactionType = typeof ApplicantTransactionType[keyof typeof ApplicantTransactionType];

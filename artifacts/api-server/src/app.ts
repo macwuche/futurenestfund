@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import express, { type Express } from "express";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -7,12 +8,19 @@ import { RecordInputError } from "./lib/applicantRecords";
 import { UploadError } from "./lib/uploads";
 import { sendEmailHook } from "./lib/sendEmailHook";
 import { hookLimit } from "./lib/rateLimit";
+import { forwardError, shortReference } from "./lib/monitoring";
 
 const app: Express = express();
 
 app.use(
   pinoHttp({
     logger,
+    // A random id per request, on every log line and in the X-Request-Id response header, so a user's reference can be found.
+    genReqId: (_req, res) => {
+      const id = randomUUID();
+      res.setHeader("X-Request-Id", id);
+      return id;
+    },
     serializers: {
       req(req) {
         return {
@@ -57,7 +65,10 @@ app.use((err: unknown, req: express.Request, res: express.Response, _next: expre
     return;
   }
   req.log.error({ err }, "Request failed");
-  res.status(500).json({ error: "The workspace could not complete this request. Please try again." });
+  const requestId = String(req.id);
+  const e = err instanceof Error ? err : new Error(String(err));
+  forwardError({ source: "server", type: e.name, message: e.message, stack: e.stack, requestId, method: req.method, path: req.originalUrl });
+  res.status(500).json({ error: `The workspace could not complete this request. Please try again. If it keeps happening, contact support with reference ${shortReference(requestId)}.`, requestId });
 });
 
 export default app;

@@ -16,12 +16,56 @@ tags:
     description: Administration dashboard and user controls
   - name: auth
     description: The signed-in caller and the download cookie
-# Every endpoint except /healthz needs a Supabase access token. /applicant/* is for applicants, /admin/* for admin or root.
+# Every endpoint except /healthz and /client-errors needs a Supabase access token. /applicant/* is for applicants, /admin/* for admin or root.
 # GET requests may use the gp_session cookie (set by POST /auth/session) instead, so images and downloads work.
 security:
   - supabaseBearer: []
   - sessionCookie: []
 paths:
+  /client-errors:
+    post:
+      operationId: reportClientError
+      tags: [health]
+      security: []
+      summary: Report a browser crash (works signed out; rate limited per IP)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClientErrorReport" }
+      responses:
+        "202":
+          description: Logged (and forwarded when Sentry is configured)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClientErrorReceipt" }
+        "400":
+          description: Not a valid report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/monitoring:
+    get:
+      operationId: getMonitoringStatus
+      tags: [admin]
+      summary: Where errors are reported (log only, or log and Sentry)
+      responses:
+        "200":
+          description: Monitoring status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MonitoringStatus" }
+  /admin/monitoring/test-error:
+    post:
+      operationId: triggerMonitoringTestError
+      tags: [admin]
+      summary: Raise a deliberate server error to check that errors are logged and reported
+      responses:
+        "500":
+          description: Always; the body carries the request id to look for
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /healthz:
     get:
       operationId: healthCheck
@@ -1148,7 +1192,32 @@ components:
       type: object
       properties:
         error: { type: string }
+        requestId: { type: string, description: "Only on 500 errors: the request id in the server log (the message quotes its first 8 characters)" }
       required: [error]
+    ClientErrorReport:
+      type: object
+      description: "A crash in the browser. Logged on the server and, when SENTRY_DSN is set, forwarded to Sentry with personal data scrubbed."
+      properties:
+        kind: { type: string, enum: [error, unhandledrejection, boundary, test] }
+        type: { type: string, maxLength: 100, description: "Error class, e.g. TypeError" }
+        message: { type: string, maxLength: 1000 }
+        stack: { type: string, maxLength: 8000 }
+        path: { type: string, maxLength: 300, description: "The page's path, without the query string" }
+      required: [kind, message, path]
+      additionalProperties: false
+    ClientErrorReceipt:
+      type: object
+      properties:
+        reference: { type: string, description: "Short reference to quote to support; it is in the server log" }
+      required: [reference]
+    MonitoringStatus:
+      type: object
+      properties:
+        sentry: { type: boolean, description: "Whether errors are also sent to Sentry (SENTRY_DSN is set and valid)" }
+        sentryHost: { type: [string, "null"] }
+        environment: { type: string }
+        release: { type: [string, "null"] }
+      required: [sentry, sentryHost, environment, release]
     ApplicantTransaction:
       type: object
       properties:

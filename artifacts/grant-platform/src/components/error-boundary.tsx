@@ -4,10 +4,13 @@ import {
   type ErrorInfo,
   type ReactNode,
 } from 'react';
+import { reportClientError } from '@/lib/monitoring';
 
 export interface ErrorFallbackProps {
   error: Error;
   resetError: () => void;
+  /** The crash report's reference, once the server has logged it. */
+  reference?: string | null;
 }
 
 interface ErrorBoundaryProps {
@@ -19,6 +22,7 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   error: Error | null;
+  reference: string | null;
 }
 
 function toError(value: unknown): Error {
@@ -35,7 +39,7 @@ function toError(value: unknown): Error {
   }
 }
 
-function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
+function DefaultFallback({ error, resetError, reference }: ErrorFallbackProps) {
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 p-6">
       <div className="max-w-lg w-full text-center">
@@ -46,6 +50,12 @@ function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
           This part of the app hit an error. The rest of the app is still
           running.
         </p>
+        {reference ? (
+          <p className="mt-2 text-sm text-gray-600" data-testid="text-error-reference">
+            We've logged it. If it keeps happening, contact support with
+            reference <span className="font-mono">{reference}</span>.
+          </p>
+        ) : null}
         {/* Dev only: messages can carry API responses and other internals. */}
         {import.meta.env.DEV ? (
           <pre className="mt-4 overflow-x-auto rounded bg-gray-100 p-3 text-left text-xs text-gray-800">
@@ -68,10 +78,10 @@ export class ErrorBoundary extends Component<
   ErrorBoundaryProps,
   ErrorBoundaryState
 > {
-  state: ErrorBoundaryState = { error: null };
+  state: ErrorBoundaryState = { error: null, reference: null };
 
-  static getDerivedStateFromError(error: unknown): ErrorBoundaryState {
-    return { error: toError(error) };
+  static getDerivedStateFromError(error: unknown): Partial<ErrorBoundaryState> {
+    return { error: toError(error), reference: null };
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo): void {
@@ -80,6 +90,9 @@ export class ErrorBoundary extends Component<
       toError(error),
       info.componentStack,
     );
+    void reportClientError('boundary', error, info.componentStack ? `\nComponent stack:${info.componentStack}` : '').then((reference) => {
+      if (reference && this.state.error !== null) this.setState({ reference });
+    });
   }
 
   componentDidUpdate(prevProps: ErrorBoundaryProps): void {
@@ -92,15 +105,15 @@ export class ErrorBoundary extends Component<
   }
 
   resetError = (): void => {
-    this.setState({ error: null });
+    this.setState({ error: null, reference: null });
   };
 
   render(): ReactNode {
-    const { error } = this.state;
+    const { error, reference } = this.state;
     if (error === null) {
       return this.props.children;
     }
     const Fallback = this.props.FallbackComponent ?? DefaultFallback;
-    return <Fallback error={error} resetError={this.resetError} />;
+    return <Fallback error={error} resetError={this.resetError} reference={reference} />;
   }
 }

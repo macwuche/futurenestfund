@@ -8,4 +8,6 @@
 
 export interface ErrorMessage {
   error: string;
+  /** Only on 500 errors: the request id in the server log (the message quotes its first 8 characters) */
+  requestId?: string;
 }

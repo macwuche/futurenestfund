@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-10-30 · branch `user-side-redesign` · Phase 5 complete; Phase 6 under way (6.1–6.3 done)._
+_Last updated 2026-10-30 · branch `user-side-redesign` · Phase 5 complete; Phase 6 under way (6.1–6.4 done)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -279,12 +279,14 @@ All email goes through **Resend** (`lib/email.ts`). Without `RESEND_API_KEY` and
 | Email: signed webhook, HTML escaping, enumeration-safe sign-up and reset screens | §7 |
 | Password changes and resets end other sessions | `security.tsx`, `auth.tsx` |
 | CSV export neutralises spreadsheet formulas | `adminOps.ts` |
+| Error monitoring: a random request id on every response and log line; 500s show only a short reference; browser crashes reported to `/api/client-errors` (no sign-in, 20/min per IP, 1 kB message / 8 kB stack caps); optional Sentry forwarding via the envelope API with no user, cookies, headers, IP or query strings, and emails / long numbers / tokens scrubbed | `api-server/src/lib/monitoring.ts`, `grant-platform/src/lib/monitoring.ts` |
 
 Known limits:
 - Rate limits are per process.
 - Uploads live on the server's local disk (needs persistent storage on the VPS).
 - PDF/DOCX checks are structural (no virus scan).
 - The minimum password length is 6 until changed in the dashboard.
+- Crash reports are unauthenticated (they must work on the sign-in page), so anyone can write rate-limited entries to the log. Page paths in reports can include internal record ids (e.g. `usr-…`), never names or emails.
 
 ---
 
@@ -309,7 +311,10 @@ Put these in **Replit Secrets** (development) and the **VPS environment** (produ
 | `SEND_EMAIL_HOOK_SECRET` | for email | `v1,whsec_…` from Supabase | **Secret** |
 | `TRUST_PROXY` | VPS | `1` | Number of proxies in front (nginx), for real client IPs and `req.secure` |
 | `UPLOAD_DIR` | no | default `artifacts/api-server/uploads/` | Must be persistent disk on the VPS |
-| `RATE_LIMIT_IP_PER_MIN`, `RATE_LIMIT_WRITES_PER_MIN`, `RATE_LIMIT_UPLOADS_PER_10MIN`, `RATE_LIMIT_HOOK_PER_MIN` | no | defaults 600 / 60 / 20 / 120 | |
+| `RATE_LIMIT_IP_PER_MIN`, `RATE_LIMIT_WRITES_PER_MIN`, `RATE_LIMIT_UPLOADS_PER_10MIN`, `RATE_LIMIT_HOOK_PER_MIN`, `RATE_LIMIT_CLIENT_ERRORS_PER_MIN` | no | defaults 600 / 60 / 20 / 120 / 20 | |
+| `SENTRY_DSN` | no | e.g. `https://<key>@o<org>.ingest.de.sentry.io/<project>` (EU region), or a GlitchTip DSN | **Secret-ish** (lets anyone send events). Unset → errors go to the log only |
+| `SENTRY_ENVIRONMENT` | no | default `NODE_ENV` | e.g. `production`, `staging` |
+| `APP_RELEASE` | no | e.g. the git commit | Tags each error report with the release |
 | `LOG_LEVEL` | no | default `info` | |
 | `RESEND_API_URL` | tests only | | Points email at the local stand-in |
 
@@ -366,6 +371,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 | `phase1-*`, `phase2-*`, `phase3-*`, `smoke` | Everything built in Phases 0–3 (175 checks, demo mode) |
 | `phase5-*` | Admin operations from Phase 5: withdrawals, limits, audit log, users directory, debits, cards, photos |
 | `phase6-matchmaking`, `phase6-cards` (+ `-ui`) | Rule-based matchmaking; applicant card controls (8 + 7 + 7; 7 + 6 + 6) |
+| `phase6-monitoring` (+ `-ui`) | Request ids, 500 references, server and browser errors in the log and in a mock Sentry (envelope shape, nothing personal, scrubbing), signed-out reports, rate limit; test button, uncaught error, rejection, render crash screen (8; 4 + 4) |
 | `phase6-mobile` | Phone audit at 390 px of every page, menu, panel, main dialogs and the sign-in pages: zoom-out, overflow, boxes sticking out, 44 px targets, bell / menu / search reachable; full-page screenshots with `SHOTS=` (35). Sign-in pages need `AUTH_WEB`: a proxy to a signed-out Supabase-mode API |
 
 Last full run (2026-10-29): all green on the dev frontend, on the **production build with its CSP**, and **on Supabase as `app_api`**.
@@ -438,6 +444,7 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 | `349ec5f` | Profile photos: the admin's own, and users' from the inspector (5.7) |
 | `92bc2a7` | Rule-based grant matchmaking (6.1) |
 | `33ef864` | Applicant card controls; proposal setup card reworded (6.2) |
+| `0c1f657` | Phone polish: 44 px tap targets, overflow fixes, search in the phone menu (6.3) |
 
 ---
 
@@ -457,7 +464,8 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 - ~~6.1 grant matchmaking (rule-based)~~: done 2026-10-30
 - ~~6.2 card controls for applicants~~: done 2026-10-31
 - ~~6.3 mobile polish~~: done 2026-10-31 (every screen audited at 390 px: 44 px tap targets, no overflow, search in the phone menu)
-- error monitoring, a deployment runbook, persistent upload storage, virus scanning for uploads, a Redis-backed rate limiter if more than one server
+- ~~6.4 error monitoring~~: done 2026-10-31 (own logs with request ids; optional Sentry via `SENTRY_DSN`)
+- a deployment runbook, persistent upload storage, virus scanning for uploads, a Redis-backed rate limiter if more than one server
 
 **Limits worth knowing:**
 - The API can't sign anyone in by itself if Supabase is down; requests answer 503 until it's back.

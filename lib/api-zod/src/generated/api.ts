@@ -9,6 +9,49 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Report a browser crash (works signed out; rate limited per IP)
+ */
+export const reportClientErrorBodyTypeMax = 100;
+
+export const reportClientErrorBodyMessageMax = 1000;
+
+export const reportClientErrorBodyStackMax = 8000;
+
+export const reportClientErrorBodyPathMax = 300;
+
+
+
+export const ReportClientErrorBody = zod.object({
+  "kind": zod.enum(['error', 'unhandledrejection', 'boundary', 'test']),
+  "type": zod.string().max(reportClientErrorBodyTypeMax).optional().describe('Error class, e.g. TypeError'),
+  "message": zod.string().max(reportClientErrorBodyMessageMax),
+  "stack": zod.string().max(reportClientErrorBodyStackMax).optional(),
+  "path": zod.string().max(reportClientErrorBodyPathMax).describe('The page\'s path, without the query string')
+}).describe('A crash in the browser. Logged on the server and, when SENTRY_DSN is set, forwarded to Sentry with personal data scrubbed.')
+
+export const ReportClientErrorResponse = zod.object({
+  "reference": zod.string().describe('Short reference to quote to support; it is in the server log')
+})
+
+
+/**
+ * @summary Where errors are reported (log only, or log and Sentry)
+ */
+export const GetMonitoringStatusResponse = zod.object({
+  "sentry": zod.boolean().describe('Whether errors are also sent to Sentry (SENTRY_DSN is set and valid)'),
+  "sentryHost": zod.string().nullable(),
+  "environment": zod.string(),
+  "release": zod.string().nullable()
+})
+
+
+/**
+ * @summary Raise a deliberate server error to check that errors are logged and reported
+ */
+export const TriggerMonitoringTestErrorResponse = zod.void()
+
+
+/**
  * Returns server health status
  * @summary Health check
  */

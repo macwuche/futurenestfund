@@ -51,6 +51,8 @@ import type {
   BalanceAdjustmentInput,
   CardActionInput,
   CardIssueInput,
+  ClientErrorReceipt,
+  ClientErrorReport,
   ErrorMessage,
   ExportAdminAuditParams,
   ExportAdminTransactionsParams,
@@ -72,6 +74,7 @@ import type {
   Milestone,
   MilestoneInput,
   MilestoneUpdate,
+  MonitoringStatus,
   NotificationList,
   ReasonInput,
   SearchAdminParams,
@@ -107,6 +110,245 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getReportClientErrorUrl = () => {
+
+
+
+
+  return `/api/client-errors`
+}
+
+/**
+ * @summary Report a browser crash (works signed out; rate limited per IP)
+ */
+export const reportClientError = async (clientErrorReport: ClientErrorReport, options?: Parameters<typeof customFetch>[1]): Promise<ClientErrorReceipt> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ClientErrorReceipt>(getReportClientErrorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(clientErrorReport)
+  }
+);}
+
+
+
+
+
+export const getReportClientErrorMutationKey = () => ['reportClientError'] as const;
+
+export const getReportClientErrorMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportClientError>>, TError,ReportClientErrorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reportClientError>>, TError,ReportClientErrorMutationVariables, TContext> => {
+
+const mutationKey = getReportClientErrorMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reportClientError>>, ReportClientErrorMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  reportClientError(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReportClientErrorMutationResult = NonNullable<Awaited<ReturnType<typeof reportClientError>>>
+    export type ReportClientErrorMutationBody = BodyType<ClientErrorReport>
+    export type ReportClientErrorMutationError = ErrorType<ErrorMessage>
+    export type ReportClientErrorMutationVariables = {data: BodyType<ClientErrorReport>}
+
+    /**
+ * @summary Report a browser crash (works signed out; rate limited per IP)
+ */
+export const useReportClientError = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportClientError>>, TError,ReportClientErrorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reportClientError>>,
+        TError,
+        ReportClientErrorMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReportClientErrorMutationOptions(options));
+    }
+
+export const getGetMonitoringStatusUrl = () => {
+
+
+
+
+  return `/api/admin/monitoring`
+}
+
+/**
+ * @summary Where errors are reported (log only, or log and Sentry)
+ */
+export const getMonitoringStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<MonitoringStatus> => {
+
+  return customFetch<MonitoringStatus>(getGetMonitoringStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMonitoringStatusQueryKey = () => {
+    return [
+    `/api/admin/monitoring`
+    ] as const;
+    }
+
+
+export const getGetMonitoringStatusQueryOptions = <TData = Awaited<ReturnType<typeof getMonitoringStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMonitoringStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMonitoringStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMonitoringStatus>>> = ({ signal }) => getMonitoringStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMonitoringStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMonitoringStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getMonitoringStatus>>>
+export type GetMonitoringStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Where errors are reported (log only, or log and Sentry)
+ */
+
+export function useGetMonitoringStatus<TData = Awaited<ReturnType<typeof getMonitoringStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMonitoringStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMonitoringStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getTriggerMonitoringTestErrorUrl = () => {
+
+
+
+
+  return `/api/admin/monitoring/test-error`
+}
+
+/**
+ * @summary Raise a deliberate server error to check that errors are logged and reported
+ */
+export const triggerMonitoringTestError = async ( options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getTriggerMonitoringTestErrorUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTriggerMonitoringTestErrorMutationKey = () => ['triggerMonitoringTestError'] as const;
+
+export const getTriggerMonitoringTestErrorMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof triggerMonitoringTestError>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof triggerMonitoringTestError>>, TError,void, TContext> => {
+
+const mutationKey = getTriggerMonitoringTestErrorMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof triggerMonitoringTestError>>, void> = () => {
+
+
+          return  triggerMonitoringTestError(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TriggerMonitoringTestErrorMutationResult = NonNullable<Awaited<ReturnType<typeof triggerMonitoringTestError>>>
+
+    export type TriggerMonitoringTestErrorMutationError = ErrorType<ErrorMessage>
+
+
+    /**
+ * @summary Raise a deliberate server error to check that errors are logged and reported
+ */
+export const useTriggerMonitoringTestError = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof triggerMonitoringTestError>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof triggerMonitoringTestError>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getTriggerMonitoringTestErrorMutationOptions(options));
+    }
 
 export const getHealthCheckUrl = () => {
 

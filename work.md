@@ -1597,3 +1597,60 @@ It saves full-page screenshots. I reviewed them as contact sheets and caught wha
 Tests (2026-10-31): typecheck clean · `pnpm test` 60/60 · `phase6-mobile` 35/35, 0 problems · browser regressions, with data restored before each: smoke 23+23, phase1 26 + 10, phase2 25 + 6, phase3 22 + 16, phase5-ui 4+4, cards-ui 5+5, debits-ui 5+5, users-ui 6+6, avatars-ui 6+6, audit-ui 6+6, limits-ui 6+6, phase6-matchmaking-ui 7+7, phase6-cards-ui 6+6. The desktop admin header was checked by screenshot (unchanged). Not re-run: `phase4-ui` / `phase4-security`, which need the Supabase secret key and create throwaway users. Demo data restored.
 
 Audit result after the fixes: 35/35 screens, 0 problems. I confirmed it catches regressions by briefly undoing the Reports and KYC fixes: both were reported, then the fixes were restored.
+
+### 2026-10-31: Step 6.4 plan and done (error monitoring)
+
+**Decision (user, 2026-10-31): our own logs, plus optional Sentry.** With nothing set, errors go only to the server log on the VPS. Setting `SENTRY_DSN` also sends them to Sentry (EU region) or a self-hosted GlitchTip.
+
+**Deviation from the option as offered:** it said "adds the Sentry SDK". Instead the server posts events to Sentry's documented envelope API with `fetch` (`lib/monitoring.ts`, ~100 lines):
+- **no dependency:** the Node SDK pulls in OpenTelemetry auto-instrumentation
+- **the browser loads nothing third-party:** the strict CSP stays as it is
+- **every field that leaves the server is listed in one function:** `buildEnvelope`, which a unit test pins
+
+It works with Sentry and GlitchTip alike.
+
+**Built:**
+- **Request ids:** each request gets a random UUID in `X-Request-Id`, on every log line (pino-http `genReqId`). It used to be a counter that restarted at 1.
+- **Server errors (500):**
+  - Logged with the request id and forwarded.
+  - The user sees "… contact support with reference `1a2b3c4d`" (the first 8 characters of the request id), and the body carries `requestId`.
+  - Input errors (400) aren't reported.
+  - Unhandled promise rejections and uncaught exceptions are logged and reported too. An uncaught exception still exits, after up to 3 s to finish sending; systemd restarts the service.
+- **Browser crashes:** `POST /api/client-errors`.
+  - **Before the sign-in check:** a crash on the sign-in page still gets reported.
+  - **Limits:** 20 a minute per IP (`RATE_LIMIT_CLIENT_ERRORS_PER_MIN`); message up to 1,000 characters, stack up to 8,000.
+  - **What reports it:** window errors, unhandled rejections and the crash screen (React error boundary, with the component stack).
+  - **Caps in the browser:** at most 10 reports per page load, and each distinct error once.
+  - **The crash screen** shows "We've logged it … reference `xxxxxxxx`".
+- **Privacy:**
+  - Never sent: the user, cookies, headers, IP address or query strings.
+  - Scrubbed from messages and stacks, in the log as well as in Sentry: email addresses, JWTs, Supabase / Resend / webhook secrets, and digit runs of 7 or more (dates kept).
+  - React's component stack goes under `contexts.react`, as Sentry's React SDK does.
+  - Page paths can include internal record ids (`usr-…`).
+- **Admin settings → Error monitoring:** shows where errors go (log only, or log + Sentry host and environment). "Send test errors" raises one deliberate server error (`POST /api/admin/monitoring/test-error`, admins only) and one browser report, then shows both references to look up. This is the plan's "a forced error shows up".
+- **Configuration:** `SENTRY_DSN`, `SENTRY_ENVIRONMENT` (default `NODE_ENV`), `APP_RELEASE` (e.g. the git commit). An invalid DSN is logged once at start-up, and errors still go to the log.
+
+**To turn on Sentry (needs you):** create a Sentry project in the **EU (Frankfurt) region**, or run GlitchTip on the VPS. Put its DSN in `SENTRY_DSN` on the server, then press "Send test errors" in Admin settings.
+
+Tests (2026-10-31):
+- typecheck clean · `pnpm test` 67/67 (7 new: scrubbing, DSN parsing, stack parsing, envelope fields, component stack)
+- new `.unlazy/mock-sentry.mjs`: a local stand-in for the envelope endpoint
+- new `.unlazy/phase6-monitoring.mjs` 8/8:
+  - unique request ids in the log
+  - status
+  - a 500 with its reference, logged, in Sentry with the right auth and nothing personal
+  - 400s not reported
+  - a browser report scrubbed in the log and in Sentry, without the query string
+  - bad reports refused
+  - signed out: reports accepted and everything else still 401
+  - rate limit
+- new `.unlazy/phase6-monitoring-ui.mjs` 4/4 desktop + 4/4 phone:
+  - the test button gives two references, found in the log and in Sentry
+  - an uncaught error and a rejection are reported (email scrubbed)
+  - a real render crash shows the crash screen with a reference matching the Sentry event, with its component stack
+  - a repeated crash is reported once
+- regressions, with data restored before each:
+  - API: phase3-api 24/24, phase5 cards 9/9, debits 8/8, limits 10/10, users 7/7, audit 9/9, withdrawals 11/11, avatars 12/12, phase6 cards 7/7, matchmaking 8/8
+  - browser: smoke 23+23, phase1 26 + 10, phase2 25 + 6, phase3 22 + 16, phase5-ui 4+4, cards-ui 5+5, users-ui 6+6, avatars-ui 6+6, debits-ui 5+5, limits-ui 6+6, audit-ui 6+6, phase6 cards-ui 6+6, matchmaking-ui 7+7
+  - The email and avatar suites first failed only because the test API had been started without the email settings and the suite without `UPLOAD_DIR`. With both set, they pass.
+- Demo data restored.
