@@ -81,7 +81,7 @@ Status: ☐ not started · ◐ in progress · ☑ done. "Who": **you** = in a da
 
 | # | Step | Who | Status | Done when |
 |---|---|---|---|---|
-| 1a | Cloudflare: `A` record `access` → `77.68.98.14`, **DNS only** | you | ☐ | `getent hosts access.futurenestfund.org` on the server prints `77.68.98.14` |
+| 1a | Cloudflare: `A` record `access` → `77.68.98.14`, **DNS only** | you | ◐ record added, still **Proxied**: switch to DNS only | `getent hosts access.futurenestfund.org` on the server prints `77.68.98.14` |
 | 1b | GitHub: private repo `macwuche/futurenestfund`, connected to Replit | you | ☑ 2026-10-31 | `origin` = `https://github.com/macwuche/futurenestfund` |
 | 1c | Code on GitHub, branch `user-side-redesign` (Replit Git pane → Sync) | you | ☑ 2026-10-31 | GitHub had `e44c98d`; re-sync after each new commit |
 | 2 | User `futurenestfund`, folders, Node 24.22.1 (checksum verified), pnpm 10.26.1, PM2 7.0.4 in `/opt/futurenestfund-node` | you | ☐ | `node -v` = v24.22.1, `pnpm -v` = 10.26.1 |
@@ -95,7 +95,7 @@ Status: ☐ not started · ◐ in progress · ☑ done. "Who": **you** = in a da
 | 8c | Applicant signs up (real inbox), confirms, signs in | you | ☐ | Applicant dashboard loads |
 | 8d | Admin → Settings → "Send test errors" | you | ☐ | Both references found in `fnf-pm2 logs` |
 | 9 | `postgresql-client` (pg_dump ≥ 17), log rotation, nightly backup cron, one manual backup | you | ☐ | Files in `/var/backups/futurenestfund` |
-| 10 | Email: verify `futurenestfund.org` in Resend (its DNS records in Cloudflare; the website isn't affected), API key, `EMAIL_FROM`, Send Email Hook → `https://access.futurenestfund.org/api/hooks/supabase/send-email` | you + Claude | ☐ | A password-reset email arrives from Resend |
+| 10 | Email: Resend records already exist for **`mail.futurenestfund.org`** (MX, SPF, DKIM), so check that domain in Resend first and use a sender like `no-reply@mail.futurenestfund.org`; otherwise verify `futurenestfund.org` in Resend (its DNS records in Cloudflare; the website isn't affected), API key, `EMAIL_FROM`, Send Email Hook → `https://access.futurenestfund.org/api/hooks/supabase/send-email` | you + Claude | ☐ | A password-reset email arrives from Resend |
 
 Step 6.5 counts as **done** when steps 1–9 have been followed once end to end. Step 10 can follow later.
 
@@ -138,4 +138,5 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 |---|---|
 | 2026-10-31 | The Replit preview showed "Can't reach GrantApp" (502). Cause: the dev API workflow had been stopped by a test clean-up, and Replit Secrets lack the Supabase settings. Decided to deploy to the VPS instead. |
 | 2026-10-31 | Decisions in §2 made; runbook and `deploy/` files written and tested (commit `dcc7ba9`). Waiting on step 1 (Cloudflare record, GitHub repo URL). |
+| 2026-10-31 | Cloudflare `access` A record → `77.68.98.14` added but **Proxied**. Through the proxy it reached the VPS and showed akkayalar's "Navarro Shipping" page (no GrantApp nginx site yet). Asked to switch to DNS only. Zone also has `app.futurenestfund.org` → `15.204.46.232` (same host as WordPress) and Resend records on `mail.futurenestfund.org`. |
 | 2026-10-31 | GitHub repo `macwuche/futurenestfund` connected and synced from Replit's Git pane (branch `user-side-redesign`, `e44c98d`). Server deploys that branch; no `main` needed. A personal access token was pasted in chat; it isn't used and should be deleted on GitHub. |
