@@ -94,7 +94,7 @@ Status: ☐ not started · ◐ in progress · ☑ done. "Who": **you** = in a da
 | 8b | Admin signs in at `/admin` | you | ☑ 2026-10-31 | Admin dashboard loads |
 | 8c | Applicant signs up (real inbox), confirms, signs in | you | ☑ 2026-10-31 (`/api/applicant/dashboard`, `/account`, `/kyc` → 200 in the API log; those routes only answer signed-in applicants; confirmation email from Supabase's built-in sender arrived) | Applicant dashboard loads |
 | 8d | Admin → Settings → "Send test errors" | you | ☑ 2026-10-31 (server `240ee29f…` and browser `a746d44f…` both in `fnf-pm2 logs`) | Both references found in `fnf-pm2 logs` |
-| 9 | `postgresql-client` (pg_dump ≥ 17), log rotation, nightly backup cron, one manual backup | you | ☐ | Files in `/var/backups/futurenestfund` |
+| 9 | `postgresql-client` (pg_dump ≥ 17), log rotation, nightly backup cron, one manual backup | you | ☑ 2026-10-31 (pg_dump 18.6; `db-20261031-1503.dump` 32K + `uploads-20261031-1503.tar.gz`) | Files in `/var/backups/futurenestfund` |
 | 10 | Email: Resend records already exist for **`mail.futurenestfund.org`** (MX, SPF, DKIM), so check that domain in Resend first and use a sender like `no-reply@mail.futurenestfund.org`; otherwise verify `futurenestfund.org` in Resend (its DNS records in Cloudflare; the website isn't affected), API key, `EMAIL_FROM`, Send Email Hook → `https://access.futurenestfund.org/api/hooks/supabase/send-email` | you + Claude | ☐ | A password-reset email arrives from Resend |
 
 Step 6.5 counts as **done** when steps 1–9 have been followed once end to end. Step 10 can follow later.
@@ -114,7 +114,7 @@ Step 6.5 counts as **done** when steps 1–9 have been followed once end to end.
 These were found during the checks and **aren't part of GrantApp's deployment**:
 - **Firewall off.** noveriqgroups listens on `0.0.0.0:4001`, so it's reachable without nginx. Enabling `ufw` (allow 22, 80, 443) would close that. Allow SSH first, or you lock yourself out.
 - fail2ban isn't installed; SSH sees constant login attempts (key-only, so they fail).
-- 7 package updates were waiting (`apt upgrade`), last seen on 2026-10-18.
+- Package updates waiting (`apt upgrade`): 7 on 2026-10-18, **29** on 2026-10-31.
 
 ## 8. Later (Phase 6, after go-live)
 
@@ -151,3 +151,4 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 | 2026-10-31 | **Step 8b complete:** admin signed in at `https://access.futurenestfund.org/admin`; dashboard loads. |
 | 2026-10-31 | **Steps 8c and 8d complete, step 8 done.** API log at 14:42–14:45 UTC: applicant routes (`/api/applicant/dashboard`, `/account`, `/kyc`, `/notifications`) → 200, so an applicant session works. "Send test errors": server error logged at level 50 with request id `240ee29f-33a8-4202-a679-c6b0b4d3a1bb` (500 returned, stack points to `routes/monitoring.ts`); browser error received via `/api/client-errors` (202) with id `a746d44f-bdf6-4ee8-b7d6-c88eaf6bc7bd`. Error log file empty (pino writes everything to the out log). Next: step 9 (backups). |
 | 2026-10-31 | 8c detail: the applicant's confirmation email arrived from Supabase's built-in sender (no Resend yet), so the Site URL / Redirect URL setup works for email links. |
+| 2026-10-31 | **Step 9 complete; steps 1–9 done, so Phase 6.5 is done.** `postgresql-client` 18 installed (`pg_dump` 18.6, ≥ 17 as Supabase needs). Logrotate file and nightly cron (02:30 UTC) installed. Manual `backup.sh`: `20261031-1503 ok, 40K`; `db-20261031-1503.dump` (32K) and `uploads-20261031-1503.tar.gz` (126 bytes: uploads folder still empty, nobody has uploaded a file yet), both 600 root. apt reported 29 packages not upgraded (housekeeping, §7). Remaining: step 10 (email) and the §6 items, starting with the secret rotation. |
