@@ -1,10 +1,24 @@
 # GrantApp: project documentation
 
-_Last updated 2026-10-30 · branch `user-side-redesign` · Phase 5 complete; Phase 6 under way (6.1–6.4 done)._
+_Last updated 2026-10-31 · branch `user-side-redesign` · Phases 0–5 complete; Phase 6 under way (6.1–6.4 done, 6.5–6.7 to do)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
 Secret values (passwords, keys, connection strings) are **not** in this file. They're in the git-ignored [`secrets.local.md`](../secrets.local.md) in the project root, and belong in Replit Secrets / the VPS environment. Day-by-day build notes and test logs are in [`work.md`](../work.md); the short engineering guide is [`replit.md`](../replit.md).
+
+### Progress at a glance
+
+| Phase | What it delivered | Status |
+|---|---|---|
+| 0 | Applicant workspace rebuilt to the reference design | Done |
+| 1 | Applications, milestones and notifications stored on the server | Done |
+| 2 | File uploads: identity documents, proposal files, profile photos | Done |
+| 3 | Admin operations: ledger, deposit / withdrawal / KYC queues, application decisions | Done |
+| 4 | Real accounts on Supabase: sign-in, API auth, email through Resend, Settings security; then a hardening pass (RLS, `app_api` role, migrations, CSP, rate limits, unit tests) | Done (4.5 two-factor dropped by decision) |
+| 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
+| 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.4 done 2026-10-30/31; **next: 6.5 deployment runbook**, then 6.6 upload storage + virus scanning, 6.7 shared rate limits (only with several servers) |
+
+What still needs you is listed in §12 (go-live checklist) and §15 (open items).
 
 ---
 
@@ -82,6 +96,7 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
 - **Settings:**
   - global freeze, with a confirmation and a reason
   - security rules overview
+  - **error monitoring:** where errors go (server log, plus Sentry when configured) and a "Send test errors" button that raises one server and one browser error and shows their references
   - the admin's **own profile photo**, shown in the sidebar and as the header avatar (which links to Settings)
   - the admin's own **Sign-in & security**
 - **Audit log** (`/admin/audit`, from Settings, the dashboard and each user's audit trail): every recorded change, searchable and filterable by user (or platform-wide), who did it and date, 25 per page, with CSV export.
@@ -99,6 +114,11 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
   - PDFs with scripts or attachments and macro-enabled Word files are refused; 10 MB cap.
   - Files are served owner-only with a sandbox CSP.
 - **Email** for everything (sign-in emails and notifications) through Resend. This is built and tested, but waiting for go-live settings (§12).
+- **Error monitoring:** every response carries a random `X-Request-Id`, also on every log line.
+  - A server error shows the user only "contact support with reference `1a2b3c4d`" (the first 8 characters of the request id); the details go to the log.
+  - Browser crashes (uncaught errors, failed promises, the "Something went wrong" screen) are reported to the API, even when signed out, and the crash screen shows a reference too.
+  - With `SENTRY_DSN` set, errors also go to Sentry (EU region) or GlitchTip, without the user, cookies, headers, IP or query strings, and with emails, tokens, secrets and long numbers removed from messages.
+- **Phones:** every page was audited at 390 px: 44 px tap targets, no sideways scrolling, bell, menu and search reachable.
 
 ---
 
@@ -121,8 +141,8 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
 
 | Path | What |
 |---|---|
-| `artifacts/grant-platform/` | Web app. `src/App.tsx` (routes + `AuthGate`), `src/lib/auth.tsx` (Supabase session ↔ API), `src/pages/auth.tsx` (sign-in / sign-up / forgot / reset / `/auth/confirm`), `src/pages/applicant*.tsx`, `src/pages/admin*.tsx`, `src/components/shell.tsx` (layouts), `src/components/security.tsx` (Sign-in & security) |
-| `artifacts/api-server/` | API. `src/lib/auth.ts` (authentication middleware), `tokens.ts` (token verification), `rateLimit.ts`, `email.ts` / `emailTemplates.ts` / `sendEmailHook.ts` / `notificationMailer.ts`, `adminOps.ts`, `applicantRecords.ts`, `demoWorkspace.ts`, `uploads.ts` / `kyc.ts` / `avatars.ts`, `demoSeed.ts` |
+| `artifacts/grant-platform/` | Web app. `src/App.tsx` (routes + `AuthGate`), `src/lib/auth.tsx` (Supabase session ↔ API), `src/pages/auth.tsx` (sign-in / sign-up / forgot / reset / `/auth/confirm`), `src/pages/applicant*.tsx`, `src/pages/admin*.tsx`, `src/components/shell.tsx` (layouts), `src/components/security.tsx` (Sign-in & security), `src/components/card-self-service.tsx` (applicant card controls), `src/lib/monitoring.ts` (browser crash reports) |
+| `artifacts/api-server/` | API. `src/lib/auth.ts` (authentication middleware), `tokens.ts` (token verification), `rateLimit.ts`, `email.ts` / `emailTemplates.ts` / `sendEmailHook.ts` / `notificationMailer.ts`, `adminOps.ts`, `applicantRecords.ts`, `demoWorkspace.ts`, `cards.ts`, `grantCatalog.ts` (matchmaking rules), `monitoring.ts` (scrubbing + Sentry), `uploads.ts` / `kyc.ts` / `avatars.ts`, `demoSeed.ts` |
 | `lib/db/` | Drizzle schema (`src/schema`), connection choice + pinned CA (`src/connection.ts`, `src/supabaseCa.ts`), **migrations** (`migrations/`, `supabase/migrations/`) |
 | `lib/api-spec/`, `lib/api-zod/`, `lib/api-client-react/` | OpenAPI contract and generated code (`pnpm --filter @workspace/api-spec run codegen`) |
 | `scripts/` | `db:migrate`, `db:app-role`, `seed:admin` |
@@ -337,7 +357,7 @@ No secrets. `PORT` and `BASE_PATH` for Vite; everything else comes from `GET /ap
 | Command | What it does |
 |---|---|
 | `pnpm run typecheck` | Type-check every package |
-| `pnpm test` | Vitest unit tests (60) |
+| `pnpm test` | Vitest unit tests (67) |
 | `pnpm --filter @workspace/api-spec run codegen` | Regenerate API hooks / validators after editing `openapi.yaml` |
 | `pnpm --filter @workspace/db run generate` | Write a new migration from schema changes |
 | `pnpm --filter @workspace/scripts run db:migrate` | Apply pending migrations (`-- --baseline` once for a database built with push) |
@@ -352,13 +372,15 @@ On Replit, restart the existing workflows instead of starting extra servers.
 
 ## 11. Testing
 
-**Committed:** `pnpm test`, 60 Vitest tests (including the matchmaking rules).
+**Committed:** `pnpm test`, 67 Vitest tests.
 - Token verification: valid, expired, other project, wrong audience, anonymous, forged key, tampered payload, `alg: none`, HS256 algorithm confusion, key server down/timeout → 503.
 - Standard Webhooks signatures.
 - Email link mapping (including the reversed email-change fields) and HTML escaping.
 - Rate limiter.
 - `safeNext`.
 - Error wording.
+- Matchmaking rules (scores, reasons, closed and not-eligible grants).
+- Error monitoring: scrubbing (emails, tokens, secrets, long numbers), DSN and stack parsing, the exact fields sent to Sentry, the React component stack.
 
 **Local browser / end-to-end suites** (git-ignored `.unlazy/`, see `.unlazy/README.md`). They drive headless Chromium against a test copy of the API.
 
@@ -374,7 +396,9 @@ On Replit, restart the existing workflows instead of starting extra servers.
 | `phase6-monitoring` (+ `-ui`) | Request ids, 500 references, server and browser errors in the log and in a mock Sentry (envelope shape, nothing personal, scrubbing), signed-out reports, rate limit; test button, uncaught error, rejection, render crash screen (8; 4 + 4) |
 | `phase6-mobile` | Phone audit at 390 px of every page, menu, panel, main dialogs and the sign-in pages: zoom-out, overflow, boxes sticking out, 44 px targets, bell / menu / search reachable; full-page screenshots with `SHOTS=` (35). Sign-in pages need `AUTH_WEB`: a proxy to a signed-out Supabase-mode API |
 
-Last full run (2026-10-29): all green on the dev frontend, on the **production build with its CSP**, and **on Supabase as `app_api`**.
+Full run on 2026-10-29: all green on the dev frontend, on the **production build with its CSP**, and **on Supabase as `app_api`**.
+
+Latest run (2026-10-31, after 6.4, demo mode): typecheck clean, `pnpm test` 67/67, every API suite from Phases 3, 5 and 6 and every browser suite from Phases 1–6 green (counts in `work.md` §12). `phase4-ui` and `phase4-security` weren't re-run: they need the Supabase secret key and create throwaway users.
 
 ---
 
@@ -401,6 +425,13 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 - [ ] HTTPS in front (nginx), proxying `/api` to the API on 8080 and serving the web build.
 - [ ] Persistent disk for `UPLOAD_DIR`; backups of the database and uploads.
 - [ ] Run `db:migrate` on each deploy before starting the API.
+
+**Now (Supabase)**
+- [ ] Run `db:migrate` against Supabase with `SUPABASE_ADMIN_DB_URL` to apply migrations **0005** (admin profile photos) and **0006** (matchmaking answers). Until then those two features fail on the Supabase database.
+
+**Error monitoring (optional)**
+- [ ] Create a Sentry project in the **EU (Frankfurt) region**, or run GlitchTip on the VPS; set `SENTRY_DSN` (and `APP_RELEASE` to the deployed commit) on the server.
+- [ ] Admin Settings → Error monitoring → **Send test errors**; check both references arrive.
 - [ ] After go-live: one real sign-up and one password reset to an inbox you control; check the response times from the VPS.
 
 ---
@@ -445,12 +476,13 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 | `92bc2a7` | Rule-based grant matchmaking (6.1) |
 | `33ef864` | Applicant card controls; proposal setup card reworded (6.2) |
 | `0c1f657` | Phone polish: 44 px tap targets, overflow fixes, search in the phone menu (6.3) |
+| `6bca36f` | Error monitoring: request ids, crash reporting, optional Sentry (6.4) |
 
 ---
 
 ## 15. Open items and next steps
 
-**Needs you:** everything in the §12 checklist.
+**Needs you:** everything in the §12 checklist, most urgently the Supabase migrations 0005 and 0006.
 
 **Phase 5 (admin controls)**, full plan in `work.md` §11:
 - ~~5.1 withdrawal notifications~~ and ~~5.2 withdrawal limits~~: done 2026-10-30
@@ -465,8 +497,12 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 - ~~6.2 card controls for applicants~~: done 2026-10-31
 - ~~6.3 mobile polish~~: done 2026-10-31 (every screen audited at 390 px: 44 px tap targets, no overflow, search in the phone menu)
 - ~~6.4 error monitoring~~: done 2026-10-31 (own logs with request ids; optional Sentry via `SENTRY_DSN`)
-- a deployment runbook, persistent upload storage, virus scanning for uploads, a Redis-backed rate limiter if more than one server
+- **6.5 deployment runbook** (`docs/DEPLOY.md`: nginx + HTTPS, systemd, env, `db:migrate` on deploy, backups, rollback): next, needs you to follow it once on the EU VPS
+- 6.6 persistent upload storage and virus scanning (ClamAV, tested with the EICAR file)
+- 6.7 a Redis-backed rate limiter, only if there's more than one API server
 
 **Limits worth knowing:**
 - The API can't sign anyone in by itself if Supabase is down; requests answer 503 until it's back.
 - Grants, balances and cards are sample data; nothing moves real money.
+- Card activation requests have no admin queue yet: they show in the user inspector and recent activity only.
+- Uploads live on one server's disk and aren't virus-scanned yet (6.6); rate limits are in memory, fine for one server (6.7).
