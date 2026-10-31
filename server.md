@@ -86,7 +86,7 @@ Status: ☐ not started · ◐ in progress · ☑ done. "Who": **you** = in a da
 | 1c | Code on GitHub, branch `user-side-redesign` (Replit Git pane → Sync) | you | ☑ 2026-10-31 | GitHub had `e44c98d`; re-sync after each new commit |
 | 2 | User `futurenestfund`, folders, Node 24.22.1 (checksum verified), pnpm 10.26.1, PM2 7.0.4 in `/opt/futurenestfund-node` | you | ☑ 2026-10-31 (checksum OK; user uid 994; uploads folder 700) | `node -v` = v24.22.1, `pnpm -v` = 10.26.1 |
 | 3 | Deploy key (read-only) on GitHub; SSH alias `github.com-futurenestfund`; clone to `/var/www/futurenestfund` | you | ☑ 2026-10-31 (key `SHA256:GW9gKgeh…`, no write access; cloned at `68c648a`) | Clone succeeds |
-| 4 | Fill in `/etc/futurenestfund/api.env` and `migrate.env` from `secrets.local.md`; set permissions | you | ☐ | Files exist with 640 / 600 |
+| 4 | Fill in `/etc/futurenestfund/api.env` and `migrate.env` from `secrets.local.md`; set permissions | you | ☑ 2026-10-31 (no `REPLACE` left except the 3 commented lines; 640 root:futurenestfund / 600 root) | Files exist with 640 / 600 |
 | 5 | Install `fnf-pm2`; first `deploy.sh`: build, **database migrations 0003–0006 on Supabase**, start API | you | ☐ | Prints `OK: <commit> is live` |
 | 6 | Boot service `pm2-futurenestfund` enabled and running | you | ☐ | `systemctl status` active; `fnf-pm2 list` shows `futurenestfund-api` online |
 | 7 | nginx site + `certbot --nginx -d access.futurenestfund.org` (redirect to HTTPS) | you | ☐ | `https://access.futurenestfund.org/api/healthz` → `{"status":"ok"}` |
@@ -104,7 +104,7 @@ Step 6.5 counts as **done** when steps 1–9 have been followed once end to end.
 | Item | Why it matters | When |
 |---|---|---|
 | **Supabase database is 4 migrations behind** (has 0000–0002; needs 0003–0006 and Supabase 0003) | The API can't start on Supabase until they're applied | Step 5 applies them from the server |
-| **Rotate the secrets pasted in chat** (database password, secret key, admin password; pasted 2026-10-28 and again 2026-10-31) | Anyone who sees the chat could use them | After step 8 works; then update `secrets.local.md` and `/etc/futurenestfund/*.env` |
+| **Rotate the secrets pasted in chat** (`postgres` database password, `app_api` database password, secret key, admin password; pasted 2026-10-28 and again 2026-10-31) | Anyone who sees the chat could use them | After step 8 works; then update `secrets.local.md` and `/etc/futurenestfund/*.env` |
 | Supabase Auth: password minimum length 8 (today 6) | Weak passwords | Any time (dashboard) |
 | Off-server copies of backups | Backups on the same server are lost with it | After step 9 |
 | Optional: Sentry (EU) or GlitchTip, `SENTRY_DSN` in `api.env` | Errors reported outside the server log | Any time after step 8 |
@@ -143,3 +143,4 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 | 2026-10-31 | GitHub repo `macwuche/futurenestfund` connected and synced from Replit's Git pane (branch `user-side-redesign`, `e44c98d`). Server deploys that branch; no `main` needed. A personal access token was pasted in chat; it isn't used and should be deleted on GitHub. |
 | 2026-10-31 | **Step 2 complete:** user `futurenestfund` (uid 994), folders, Node v24.22.1 (sha256 OK), pnpm 10.26.1, PM2 7.0.4 in `/opt/futurenestfund-node`. npm's offer to upgrade itself to 12.x was not taken. |
 | 2026-10-31 | **Step 3 complete:** deploy key `/root/.ssh/futurenestfund_deploy` (fingerprint `SHA256:GW9gKgehh9O47QfmgTtR1u/42MTTNpfgxgkJrtrnaZM`) added to the repo read-only; SSH alias `github.com-futurenestfund`; cloned to `/var/www/futurenestfund` at `68c648a` (later commits only change `server.md`). |
+| 2026-10-31 | **Step 4 complete:** `/etc/futurenestfund/api.env` (640, root:futurenestfund) and `migrate.env` (600, root) filled in. The `postgres` and `app_api` database passwords were both pasted in chat while doing this; added to the rotation list in §6. |
