@@ -84,7 +84,7 @@ Status: ☐ not started · ◐ in progress · ☑ done. "Who": **you** = in a da
 | 1a | Cloudflare: `A` record `access` → `77.68.98.14`, **DNS only** | you | ☑ 2026-10-31 (DNS only; Google and Cloudflare resolvers return `77.68.98.14`, no AAAA) | `getent hosts access.futurenestfund.org` on the server prints `77.68.98.14` |
 | 1b | GitHub: private repo `macwuche/futurenestfund`, connected to Replit | you | ☑ 2026-10-31 | `origin` = `https://github.com/macwuche/futurenestfund` |
 | 1c | Code on GitHub, branch `user-side-redesign` (Replit Git pane → Sync) | you | ☑ 2026-10-31 | GitHub had `e44c98d`; re-sync after each new commit |
-| 2 | User `futurenestfund`, folders, Node 24.22.1 (checksum verified), pnpm 10.26.1, PM2 7.0.4 in `/opt/futurenestfund-node` | you | ☐ | `node -v` = v24.22.1, `pnpm -v` = 10.26.1 |
+| 2 | User `futurenestfund`, folders, Node 24.22.1 (checksum verified), pnpm 10.26.1, PM2 7.0.4 in `/opt/futurenestfund-node` | you | ☑ 2026-10-31 (checksum OK; user uid 994; uploads folder 700) | `node -v` = v24.22.1, `pnpm -v` = 10.26.1 |
 | 3 | Deploy key (read-only) on GitHub; SSH alias `github.com-futurenestfund`; clone to `/var/www/futurenestfund` | you | ☐ | Clone succeeds |
 | 4 | Fill in `/etc/futurenestfund/api.env` and `migrate.env` from `secrets.local.md`; set permissions | you | ☐ | Files exist with 640 / 600 |
 | 5 | Install `fnf-pm2`; first `deploy.sh`: build, **database migrations 0003–0006 on Supabase**, start API | you | ☐ | Prints `OK: <commit> is live` |
@@ -141,3 +141,4 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 | 2026-10-31 | Cloudflare `access` A record → `77.68.98.14` added but **Proxied**. Through the proxy it reached the VPS and showed akkayalar's "Navarro Shipping" page (no GrantApp nginx site yet). Asked to switch to DNS only. Zone also has `app.futurenestfund.org` → `15.204.46.232` (same host as WordPress) and Resend records on `mail.futurenestfund.org`. |
 | 2026-10-31 | `access` record switched to DNS only: resolves to `77.68.98.14`; HTTP reaches the VPS's nginx (404 until step 7). **Step 1 complete.** |
 | 2026-10-31 | GitHub repo `macwuche/futurenestfund` connected and synced from Replit's Git pane (branch `user-side-redesign`, `e44c98d`). Server deploys that branch; no `main` needed. A personal access token was pasted in chat; it isn't used and should be deleted on GitHub. |
+| 2026-10-31 | **Step 2 complete:** user `futurenestfund` (uid 994), folders, Node v24.22.1 (sha256 OK), pnpm 10.26.1, PM2 7.0.4 in `/opt/futurenestfund-node`. npm's offer to upgrade itself to 12.x was not taken. |
