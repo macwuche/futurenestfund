@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { EmailError, emailConfigured, sendEmail } from "./email";
 import { isMoneyEmailKind, moneyEmail, notificationEmail, type MoneyEmailData } from "./emailTemplates";
 import { logger } from "./logger";
+import { scrub } from "./monitoring";
 
 /**
  * Emails in-app notifications (an outbox): notifyUser() only writes the row inside the business transaction, and this
@@ -23,7 +24,7 @@ type Claimed = { id: string; message: string; link: string | null; email_kind: s
  * retried row from being delivered twice.
  */
 export async function sendPendingNotificationEmails(limit = 20): Promise<number> {
-  if (!emailConfigured || !appUrl) return 0;
+  if (!emailConfigured() || !appUrl) return 0;
   const { rows } = await db.execute<Claimed>(sql`
     with due as (
       select n.id from demo_notifications n join demo_profiles p on p.id = n.profile_id
@@ -47,25 +48,25 @@ export async function sendPendingNotificationEmails(limit = 20): Promise<number>
         ? moneyEmail(row.email_kind, row.email, row.name, row.email_data, url)
         : notificationEmail(row.email, row.name, row.message, url);
       await sendEmail(message, `notification:${row.id}`);
-      await db.execute(sql`update demo_notifications set emailed_at = now(), email_claimed_until = null where id = ${row.id}`);
+      await db.execute(sql`update demo_notifications set emailed_at = now(), email_claimed_until = null, email_last_error = null where id = ${row.id}`);
       sent++;
     } catch (err) {
       // A permanent refusal (bad address, unverified domain) isn't retried; otherwise try again after a minute.
+      // The reason is kept (scrubbed: it can quote the address) for Admin Settings → Email health.
       const giveUp = err instanceof EmailError && !err.retryable;
+      const reason = scrub((err as Error).message, 300);
       await db.execute(giveUp
-        ? sql`update demo_notifications set email_attempts = ${MAX_ATTEMPTS}, email_claimed_until = null where id = ${row.id}`
-        : sql`update demo_notifications set email_claimed_until = now() + interval '1 minute' where id = ${row.id}`);
+        ? sql`update demo_notifications set email_attempts = ${MAX_ATTEMPTS}, email_claimed_until = null, email_last_error = ${reason} where id = ${row.id}`
+        : sql`update demo_notifications set email_claimed_until = now() + interval '1 minute', email_last_error = ${reason} where id = ${row.id}`);
       logger.warn({ notification: row.id, err: (err as Error).message }, "Notification email failed");
     }
   }
   return sent;
 }
 
+/** Always runs: email can be switched on later from Admin Settings; until then each tick does nothing. */
 export function startNotificationMailer(intervalMs = 15_000) {
-  if (!emailConfigured || !appUrl) {
-    logger.warn("Notification emails are off: set RESEND_API_KEY, EMAIL_FROM and APP_URL");
-    return;
-  }
+  if (!appUrl) logger.warn("Notification emails are off: set APP_URL (the public web address used in email links)");
   const tick = async () => {
     try { await sendPendingNotificationEmails(); } catch (err) { logger.error({ err }, "Notification mailer failed"); }
     setTimeout(tick, intervalMs).unref();

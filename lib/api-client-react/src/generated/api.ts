@@ -53,6 +53,11 @@ import type {
   CardIssueInput,
   ClientErrorReceipt,
   ClientErrorReport,
+  EmailHealth,
+  EmailSettings,
+  EmailSettingsUpdate,
+  EmailTestInput,
+  EmailTestResult,
   ErrorMessage,
   ExportAdminAuditParams,
   ExportAdminTransactionsParams,
@@ -348,6 +353,407 @@ export const useTriggerMonitoringTestError = <TError = ErrorType<ErrorMessage>,
         TContext
       > => {
       return useMutation(getTriggerMonitoringTestErrorMutationOptions(options));
+    }
+
+export const getGetEmailSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/settings/email`
+}
+
+/**
+ * @summary Email settings in use (secrets only as hints) and where each value comes from
+ */
+export const getEmailSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmailSettings> => {
+
+  return customFetch<EmailSettings>(getGetEmailSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmailSettingsQueryKey = () => {
+    return [
+    `/api/admin/settings/email`
+    ] as const;
+    }
+
+
+export const getGetEmailSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getEmailSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmailSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmailSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmailSettings>>> = ({ signal }) => getEmailSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmailSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEmailSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getEmailSettings>>>
+export type GetEmailSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Email settings in use (secrets only as hints) and where each value comes from
+ */
+
+export function useGetEmailSettings<TData = Awaited<ReturnType<typeof getEmailSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmailSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEmailSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateEmailSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/settings/email`
+}
+
+/**
+ * @summary Save email settings; fields left out are unchanged, empty text removes a value (falls back to the environment)
+ */
+export const updateEmailSettings = async (emailSettingsUpdate: EmailSettingsUpdate, options?: Parameters<typeof customFetch>[1]): Promise<EmailSettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EmailSettings>(getUpdateEmailSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(emailSettingsUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateEmailSettingsMutationKey = () => ['updateEmailSettings'] as const;
+
+export const getUpdateEmailSettingsMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEmailSettings>>, TError,UpdateEmailSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateEmailSettings>>, TError,UpdateEmailSettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateEmailSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateEmailSettings>>, UpdateEmailSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateEmailSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateEmailSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateEmailSettings>>>
+    export type UpdateEmailSettingsMutationBody = BodyType<EmailSettingsUpdate>
+    export type UpdateEmailSettingsMutationError = ErrorType<ErrorMessage>
+    export type UpdateEmailSettingsMutationVariables = {data: BodyType<EmailSettingsUpdate>}
+
+    /**
+ * @summary Save email settings; fields left out are unchanged, empty text removes a value (falls back to the environment)
+ */
+export const useUpdateEmailSettings = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEmailSettings>>, TError,UpdateEmailSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateEmailSettings>>,
+        TError,
+        UpdateEmailSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateEmailSettingsMutationOptions(options));
+    }
+
+export const getRemoveEmailSecretUrl = (name: 'resendApiKey' | 'hookSecret',) => {
+
+
+
+
+  return `/api/admin/settings/email/secrets/${name}`
+}
+
+/**
+ * @summary Remove a secret saved in Settings (the environment value, if any, is used again)
+ */
+export const removeEmailSecret = async (name: 'resendApiKey' | 'hookSecret', options?: Parameters<typeof customFetch>[1]): Promise<EmailSettings> => {
+
+  return customFetch<EmailSettings>(getRemoveEmailSecretUrl(name),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveEmailSecretMutationKey = () => ['removeEmailSecret'] as const;
+
+export const getRemoveEmailSecretMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeEmailSecret>>, TError,RemoveEmailSecretMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeEmailSecret>>, TError,RemoveEmailSecretMutationVariables, TContext> => {
+
+const mutationKey = getRemoveEmailSecretMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeEmailSecret>>, RemoveEmailSecretMutationVariables> = (props) => {
+          const {name} = props ?? {};
+
+          return  removeEmailSecret(name,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveEmailSecretMutationResult = NonNullable<Awaited<ReturnType<typeof removeEmailSecret>>>
+
+    export type RemoveEmailSecretMutationError = ErrorType<unknown>
+    export type RemoveEmailSecretMutationVariables = {name: 'resendApiKey' | 'hookSecret'}
+
+    /**
+ * @summary Remove a secret saved in Settings (the environment value, if any, is used again)
+ */
+export const useRemoveEmailSecret = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeEmailSecret>>, TError,RemoveEmailSecretMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeEmailSecret>>,
+        TError,
+        RemoveEmailSecretMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveEmailSecretMutationOptions(options));
+    }
+
+export const getCheckEmailHealthUrl = () => {
+
+
+
+
+  return `/api/admin/settings/email/check`
+}
+
+/**
+ * @summary Run the email health checks (Resend key, sender domain, links, Supabase hook, outbox)
+ */
+export const checkEmailHealth = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmailHealth> => {
+
+  return customFetch<EmailHealth>(getCheckEmailHealthUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckEmailHealthMutationKey = () => ['checkEmailHealth'] as const;
+
+export const getCheckEmailHealthMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkEmailHealth>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkEmailHealth>>, TError,void, TContext> => {
+
+const mutationKey = getCheckEmailHealthMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkEmailHealth>>, void> = () => {
+
+
+          return  checkEmailHealth(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckEmailHealthMutationResult = NonNullable<Awaited<ReturnType<typeof checkEmailHealth>>>
+
+    export type CheckEmailHealthMutationError = ErrorType<unknown>
+
+
+    /**
+ * @summary Run the email health checks (Resend key, sender domain, links, Supabase hook, outbox)
+ */
+export const useCheckEmailHealth = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkEmailHealth>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof checkEmailHealth>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCheckEmailHealthMutationOptions(options));
+    }
+
+export const getSendTestEmailUrl = () => {
+
+
+
+
+  return `/api/admin/settings/email/test`
+}
+
+/**
+ * @summary Send a test email with the settings in use
+ */
+export const sendTestEmail = async (emailTestInput: EmailTestInput, options?: Parameters<typeof customFetch>[1]): Promise<EmailTestResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EmailTestResult>(getSendTestEmailUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(emailTestInput)
+  }
+);}
+
+
+
+
+
+export const getSendTestEmailMutationKey = () => ['sendTestEmail'] as const;
+
+export const getSendTestEmailMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTestEmail>>, TError,SendTestEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendTestEmail>>, TError,SendTestEmailMutationVariables, TContext> => {
+
+const mutationKey = getSendTestEmailMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendTestEmail>>, SendTestEmailMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendTestEmail(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendTestEmailMutationResult = NonNullable<Awaited<ReturnType<typeof sendTestEmail>>>
+    export type SendTestEmailMutationBody = BodyType<EmailTestInput>
+    export type SendTestEmailMutationError = ErrorType<ErrorMessage>
+    export type SendTestEmailMutationVariables = {data: BodyType<EmailTestInput>}
+
+    /**
+ * @summary Send a test email with the settings in use
+ */
+export const useSendTestEmail = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTestEmail>>, TError,SendTestEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendTestEmail>>,
+        TError,
+        SendTestEmailMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendTestEmailMutationOptions(options));
     }
 
 export const getHealthCheckUrl = () => {

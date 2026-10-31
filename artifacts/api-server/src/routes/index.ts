@@ -4,6 +4,7 @@ import healthRouter from "./health";
 import authRouter from "./auth";
 import workspaceRouter from "./workspace";
 import { clientErrorsRouter, monitoringAdminRouter } from "./monitoring";
+import emailSettingsRouter from "./emailSettings";
 import { authenticate, requireAdmin, requireApplicant } from "../lib/auth";
 import { perIp, perUserUploads, perUserWrites } from "../lib/rateLimit";
 
@@ -20,6 +21,7 @@ router.use(authRouter);
 router.use("/applicant", requireApplicant);
 router.use("/admin", requireAdmin);
 router.use(monitoringAdminRouter);
+router.use(emailSettingsRouter);
 router.use(workspaceRouter);
 
 export default router;

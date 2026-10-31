@@ -48,6 +48,8 @@ export const demoNotificationsTable = pgTable("demo_notifications", {
   emailKind: text("email_kind"),
   /** Values for that template (amount, reference, reason). */
   emailData: jsonb("email_data"),
+  /** Why the last email attempt failed (scrubbed), shown in Admin Settings → Email health. */
+  emailLastError: text("email_last_error"),
   /** False when an administrator turned in-app notifications off for the user: kept for the email, hidden from the bell. */
   inApp: boolean("in_app").notNull().default(true),
 }).enableRLS();

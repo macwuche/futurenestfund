@@ -4,6 +4,14 @@ import type { OutgoingEmail } from "./email";
 export const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
+/**
+ * Set from Admin Settings → Email (emailSettings.ts): a plain-text signature added to every email, and the address
+ * people can write to for help. Both are escaped like everything else.
+ */
+export type EmailBranding = { signature: string | null; supportEmail: string | null };
+let branding: EmailBranding = { signature: null, supportEmail: null };
+export function setEmailBranding(next: EmailBranding) { branding = next; }
+
 type Block = { kind: "p"; text: string } | { kind: "button"; label: string; href: string } | { kind: "code"; code: string } | { kind: "small"; text: string }
   | { kind: "rows"; rows: [string, string][] };
 
@@ -23,17 +31,24 @@ function render(to: string, subject: string, heading: string, blocks: Block[]): 
         + `<p style="margin:0 0 16px;font-size:12px;line-height:1.5;color:#64748B">Button not working? Paste this link into your browser:<br><a href="${escapeHtml(b.href)}" style="color:#1E3A8A;word-break:break-all">${escapeHtml(b.href)}</a></p>`;
     }
   }).join("");
+  const sig = branding.signature?.trim()
+    ? `<p style="margin:24px 0 0;padding-top:16px;border-top:1px solid #E5E7EB;font-size:14px;line-height:1.6;color:#334155" data-signature>${branding.signature.trim().split("\n").map(escapeHtml).join("<br>")}</p>`
+    : "";
+  const support = branding.supportEmail
+    ? ` Questions? Write to <a href="mailto:${escapeHtml(branding.supportEmail)}" style="color:#1E3A8A">${escapeHtml(branding.supportEmail)}</a>.`
+    : "";
   const page = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(subject)}</title></head>`
     + `<body style="margin:0;padding:0;background:#F3F4F6;font-family:Inter,-apple-system,'Segoe UI',Roboto,Arial,sans-serif">`
     + `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F3F4F6;padding:32px 16px"><tr><td align="center">`
     + `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px">`
     + `<tr><td style="padding:0 4px 20px;font-size:22px;font-weight:700;color:#0F172A">GrantApp</td></tr>`
     + `<tr><td style="background:#FFFFFF;border:1px solid #E5E7EB;border-radius:16px;padding:28px">`
-    + `<h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#0F172A">${escapeHtml(heading)}</h1>${html}</td></tr>`
-    + `<tr><td style="padding:20px 4px 0;font-size:12px;line-height:1.5;color:#64748B">Sent by GrantApp to ${escapeHtml(to)}. If you didn't expect this email, you can ignore it.</td></tr>`
+    + `<h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#0F172A">${escapeHtml(heading)}</h1>${html}${sig}</td></tr>`
+    + `<tr><td style="padding:20px 4px 0;font-size:12px;line-height:1.5;color:#64748B">Sent by GrantApp to ${escapeHtml(to)}. If you didn't expect this email, you can ignore it.${support}</td></tr>`
     + `</table></td></tr></table></body></html>`;
   const text = [heading, "", ...blocks.map((b) => (b.kind === "button" ? `${b.label}: ${b.href}` : b.kind === "code" ? b.code : b.kind === "rows" ? b.rows.map(([k, v]) => `${k}: ${v}`).join("\n") : b.text)), "",
-    `Sent by GrantApp to ${to}. If you didn't expect this email, you can ignore it.`].join("\n");
+    ...(branding.signature?.trim() ? ["--", branding.signature.trim(), ""] : []),
+    `Sent by GrantApp to ${to}. If you didn't expect this email, you can ignore it.${branding.supportEmail ? ` Questions? Write to ${branding.supportEmail}.` : ""}`].join("\n");
   return { to, subject, html: page, text };
 }
 
@@ -129,4 +144,13 @@ export function moneyEmail(kind: MoneyEmailKind, to: string, name: string, d: Mo
       { kind: "rows", rows: [...rows, ["Status", "Declined"], ["Reason", d.reason || "Not given"]] },
       { kind: "p", text: "You can submit a new request at any time." }, button, footer]);
   }
+}
+
+/** The "Send test email" button in Admin Settings → Email. */
+export function testEmail(to: string, from: string, sentBy: string): OutgoingEmail {
+  return render(to, "GrantApp: test email", "Your email settings work", [
+    { kind: "p", text: "This is a test email from Admin Settings → Email. If you can read it, GrantApp can send email through Resend." },
+    { kind: "rows", rows: [["Sender", from], ["Requested by", sentBy], ["Sent", new Date().toUTCString()]] },
+    { kind: "small", text: "Check the sender name, the signature below and the footer: every email GrantApp sends looks like this." },
+  ]);
 }

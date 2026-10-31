@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { authEmail, escapeHtml, moneyEmail, notificationEmail } from "./emailTemplates";
+import { afterEach, describe, expect, it } from "vitest";
+import { authEmail, escapeHtml, moneyEmail, notificationEmail, setEmailBranding, testEmail } from "./emailTemplates";
+import { parseFrom } from "./email";
 
 describe("email templates", () => {
   it("escapes HTML special characters", () => {
@@ -46,5 +47,41 @@ describe("email templates", () => {
       expect(m.subject).toBe("We received your deposit request ($1,234.56)");
       expect(m.text).toContain("added to your deposit balance");
     });
+  });
+});
+
+describe("signature and support address (Admin Settings → Email)", () => {
+  afterEach(() => setEmailBranding({ signature: null, supportEmail: null }));
+  it("adds them to every kind of email, escaped, with line breaks kept", () => {
+    setEmailBranding({ signature: 'Future Nest Fund\n<script>alert(1)</script>\n"Grants" team', supportEmail: "help@futurenestfund.org" });
+    const emails = [
+      authEmail("recovery", "ada@x.org", { link: "https://app.example.org/auth/confirm?token_hash=a&type=recovery" }),
+      notificationEmail("ada@x.org", "Ada", "Hello", "https://app.example.org/"),
+      moneyEmail("request_received", "ada@x.org", "Ada", { request: "Withdrawal", amountCents: 1000, reference: "ABC", date: "Oct 31, 2026" }, "https://app.example.org/withdrawals"),
+      testEmail("ada@x.org", "GrantApp <no-reply@x.org>", "admin@x.org"),
+    ];
+    for (const m of emails) {
+      expect(m.html).toContain("Future Nest Fund<br>&lt;script&gt;alert(1)&lt;/script&gt;<br>&quot;Grants&quot; team");
+      expect(m.html).not.toContain("<script>");
+      expect(m.html).toContain('href="mailto:help@futurenestfund.org"');
+      expect(m.text).toContain("--\nFuture Nest Fund\n<script>alert(1)</script>\n\"Grants\" team");
+      expect(m.text).toContain("Questions? Write to help@futurenestfund.org.");
+    }
+  });
+  it("leaves them out when not set", () => {
+    const m = notificationEmail("ada@x.org", "Ada", "Hello", "https://app.example.org/");
+    expect(m.html).not.toContain("data-signature");
+    expect(m.text).not.toContain("--\n");
+    expect(m.text).not.toContain("Questions?");
+  });
+});
+
+describe("parseFrom", () => {
+  it("reads a From header or a bare address", () => {
+    expect(parseFrom("GrantApp <no-reply@futurenestfund.org>")).toEqual({ name: "GrantApp", address: "no-reply@futurenestfund.org" });
+    expect(parseFrom('"Future Nest, Fund" <a@b.org>')).toEqual({ name: "Future Nest, Fund", address: "a@b.org" });
+    expect(parseFrom("a@b.org")).toEqual({ name: null, address: "a@b.org" });
+    expect(parseFrom("")).toBeNull();
+    expect(parseFrom("not an address")).toBeNull();
   });
 });

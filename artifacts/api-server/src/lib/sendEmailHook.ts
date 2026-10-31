@@ -1,23 +1,24 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { EmailError, emailConfigured, sendEmail, type OutgoingEmail } from "./email";
+import { EmailError, emailConfigured, emailRuntime, reportHookCall, sendEmail, type OutgoingEmail } from "./email";
 import { authEmail, type AuthEmailKind } from "./emailTemplates";
 import { logger } from "./logger";
 
 /**
  * Supabase Auth's Send Email Hook: Supabase POSTs each auth email here (signed with Standard Webhooks) instead of
  * sending it, and we send it through Resend. Configure in the Supabase dashboard → Authentication → Hooks →
- * Send Email → HTTPS, URL `<api>/api/hooks/supabase/send-email`, and copy the generated secret to SEND_EMAIL_HOOK_SECRET.
+ * Send Email → HTTPS, URL `<api>/api/hooks/supabase/send-email`, and copy the generated secret into Admin Settings → Email
+ * (or SEND_EMAIL_HOOK_SECRET). The secret in use is read on every call, so a change in Settings applies at once.
  */
-const rawSecret = process.env.SEND_EMAIL_HOOK_SECRET?.trim();
-const secret = rawSecret ? Buffer.from(rawSecret.replace(/^v1,/, "").replace(/^whsec_/, ""), "base64") : null;
+/** The signing key inside a `v1,whsec_<base64>` secret. */
+export const hookKey = (raw: string | null | undefined) => (raw ? Buffer.from(raw.trim().replace(/^v1,/, "").replace(/^whsec_/, ""), "base64") : null);
 const supabaseUrl = process.env.SUPABASE_URL?.trim().replace(/\/+$/, "");
 const appUrl = process.env.APP_URL?.trim().replace(/\/+$/, "");
 const TOLERANCE_SECONDS = 5 * 60;
 
 /** Standard Webhooks check: HMAC-SHA256 over `id.timestamp.body`, timestamp within five minutes. */
-export function verifyHookSignature(body: Buffer, id: string | undefined, timestamp: string | undefined, signatures: string | undefined, key = secret): boolean {
+export function verifyHookSignature(body: Buffer, id: string | undefined, timestamp: string | undefined, signatures: string | undefined, key = hookKey(emailRuntime().hookSecret)): boolean {
   if (!key || !id || !timestamp || !signatures || !/^\d{1,12}$/.test(timestamp)) return false;
   if (Math.abs(Date.now() / 1000 - Number(timestamp)) > TOLERANCE_SECONDS) return false;
   const expected = createHmac("sha256", key).update(`${id}.${timestamp}.`).update(body).digest();
@@ -127,15 +128,16 @@ const fail = (res: Response, status: number, message: string) => res.status(stat
 
 /** Mounted before express.json() with a raw body parser: the signature covers the exact bytes. */
 export async function sendEmailHook(req: Request, res: Response): Promise<void> {
-  if (!secret || !emailConfigured) { fail(res, 503, "Email sending is not configured."); return; }
+  if (!emailRuntime().hookSecret || !emailConfigured()) { reportHookCall("refused: email not configured"); fail(res, 503, "Email sending is not configured."); return; }
   const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
   const id = req.get("webhook-id");
   if (!verifyHookSignature(body, id, req.get("webhook-timestamp"), req.get("webhook-signature"))) {
     req.log.warn("Send Email Hook: bad or missing signature");
+    reportHookCall("refused: bad signature (check the hook secret)");
     fail(res, 401, "Invalid signature.");
     return;
   }
-  if (delivered.has(id!)) { res.json({}); return; }
+  if (delivered.has(id!)) { reportHookCall("ok (repeat)"); res.json({}); return; }
   let emails: OutgoingEmail[];
   try {
     const parsed = Payload.safeParse(JSON.parse(body.toString("utf8")));
@@ -143,6 +145,7 @@ export async function sendEmailHook(req: Request, res: Response): Promise<void> 
     emails = emailsFor(parsed.data);
   } catch (err) {
     req.log.error({ err }, "Send Email Hook: payload rejected");
+    reportHookCall("refused: unexpected payload");
     fail(res, 400, err instanceof HookInputError ? err.message : "Unreadable payload.");
     return;
   }
@@ -150,9 +153,11 @@ export async function sendEmailHook(req: Request, res: Response): Promise<void> 
     // Resend idempotency keys make a retry after a partial failure deliver each email once.
     for (const [i, email] of emails.entries()) await sendEmail(email, `supabase-hook:${id}:${i}`);
     remember(id!);
+    reportHookCall("ok");
     res.json({});
   } catch (err) {
     logger.error({ err: (err as Error).message }, "Send Email Hook: Resend failed");
+    reportHookCall("failed: Resend refused or couldn't be reached");
     fail(res, err instanceof EmailError && err.retryable ? 503 : 500, "The email could not be sent. Please try again.");
   }
 }

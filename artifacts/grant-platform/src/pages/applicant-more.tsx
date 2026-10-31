@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  useCreateApplicantMilestone, useUpdateApplicantMilestone, useDeleteApplicantMilestone, getListApplicantMilestonesQueryKey,
+  useGetAuthConfig, useCreateApplicantMilestone, useUpdateApplicantMilestone, useDeleteApplicantMilestone, getListApplicantMilestonesQueryKey,
   type ApplicantDashboard, type ApplicantApplication,
 } from '@workspace/api-client-react';
 import {
@@ -422,6 +422,7 @@ export function HelpPage() {
   return <Shell title="Help Centre"><HelpBody /></Shell>;
 }
 function HelpBody() {
+  const supportEmail = useGetAuthConfig().data?.supportEmail ?? null;
   const [q, setQ] = useState('');
   const [topic, setTopic] = useState<string>('All');
   const term = q.trim().toLowerCase();
@@ -466,9 +467,15 @@ function HelpBody() {
         <div className="space-y-5">
           <section className={cx(card, 'p-5')} aria-labelledby="contact-heading" data-testid="section-contact">
             <h2 id="contact-heading" className="mb-3 text-lg font-semibold text-slate-900">Contact support</h2>
-            <p className="flex items-center gap-2 text-sm text-slate-700"><Mail className="h-4 w-4 text-[#1E3A8A]" /><span className="font-semibold">support@grantapp.mx</span></p>
-            <p className="mt-2 flex items-center gap-2 text-sm text-slate-700"><Clock className="h-4 w-4 text-[#1E3A8A]" />Mon–Fri, 9:00–17:00 · reply within 1 business day</p>
-            <p className="mt-3 text-xs text-slate-500">Demo preview: this support inbox is a placeholder and isn’t monitored.</p>
+            {supportEmail ? (
+              <>
+                <p className="flex items-center gap-2 text-sm text-slate-700"><Mail className="h-4 w-4 shrink-0 text-[#1E3A8A]" />
+                  <a href={`mailto:${supportEmail}`} className="break-all font-semibold text-[#1E3A8A] hover:underline" data-testid="link-support-email">{supportEmail}</a></p>
+                <p className="mt-2 flex items-center gap-2 text-sm text-slate-700"><Clock className="h-4 w-4 shrink-0 text-[#1E3A8A]" />Mon–Fri, 9:00–17:00 · reply within 1 business day</p>
+              </>
+            ) : (
+              <p className="text-sm text-slate-600" data-testid="text-support-none">Contact your grant administrator. A support email address hasn't been set up yet.</p>
+            )}
           </section>
           <section className={cx(card, 'p-5')} aria-labelledby="links-heading">
             <h2 id="links-heading" className="mb-3 text-lg font-semibold text-slate-900">Quick links</h2>

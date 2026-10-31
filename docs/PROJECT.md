@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-10-31 · branch `user-side-redesign` · Phases 0–5 complete; Phase 6 under way (6.1–6.5 done, 6.6–6.7 to do) · **live at https://access.futurenestfund.org**._
+_Last updated 2026-10-31 · branch `user-side-redesign` · Phases 0–5 complete; Phase 6 under way (6.1–6.5 done, 6.6–6.7 to do); Phase 7 (UI) under way (7.1 done) · **live at https://access.futurenestfund.org**._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -17,6 +17,7 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 4 | Real accounts on Supabase: sign-in, API auth, email through Resend, Settings security; then a hardening pass (RLS, `app_api` role, migrations, CSP, rate limits, unit tests) | Done (4.5 two-factor dropped by decision) |
 | 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
 | 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.5 done 2026-10-30/31; **6.5: deployed on the EU VPS at https://access.futurenestfund.org on 2026-10-31** ([`docs/DEPLOY.md`](DEPLOY.md), record in [`server.md`](../server.md)); then 6.6 virus scanning of uploads (storage and backups already done), 6.7 shared rate limits (only with several servers) |
+| 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin tables on phones, applicant fixes (review scored the UI 67/100) | 7.1 email settings done 2026-10-31; 7.2–7.7 to do ([`work.md`](../work.md) §13) |
 
 What still needs you is listed in §12 (go-live checklist) and §15 (open items).
 
@@ -246,6 +247,7 @@ Dashboard settings to check (see §12): Site URL (still `http://localhost:3000`)
 | `lib/db/migrations/0004_withdrawal_limits.sql` | Global (`demo_settings`) and per-user (`demo_profiles`) withdrawal limits |
 | `lib/db/migrations/0005_admin_profiles.sql` | `demo_admin_profiles` (admins' own photo) |
 | `lib/db/migrations/0006_matchmaking.sql` | `demo_profiles.matchmaking` (the applicant's matchmaking answers) |
+| `lib/db/migrations/0007_email_settings.sql` | `demo_settings.email_config`, `email_secrets`, `email_hook_seen_at`, `email_hook_result`; `demo_notifications.email_last_error` |
 | `lib/db/supabase/migrations/0001_user_roles.sql` | `user_roles` (Supabase only) |
 | `lib/db/supabase/migrations/0002_app_api_role.sql` | `app_api` role, grants, `app_api_all` policies, revoked Data API grants |
 | `lib/db/supabase/migrations/0003_admin_profiles.sql` | `app_api_all` policy for `demo_admin_profiles`; no Data API grants |
@@ -256,7 +258,14 @@ Changing the schema: edit `lib/db/src/schema` → `pnpm --filter @workspace/db r
 
 ## 7. Email
 
-All email goes through **Resend** (`lib/email.ts`). Without `RESEND_API_KEY` and `EMAIL_FROM`, email is off and the server logs a warning.
+All email goes through **Resend** (`lib/email.ts`). Email is off until there's an API key and a sender address.
+
+**Admin → Settings → Email** (`lib/emailSettings.ts`, `components/email-settings.tsx`, Phase 7.1) is where it's set up, with no SSH or restart:
+- **Resend API key** and **Send Email Hook secret**: write-only. Each is encrypted (AES-256-GCM, field-bound) with `SETTINGS_ENCRYPTION_KEY` from the server environment before it's stored in `demo_settings.email_secrets`; the browser only ever gets a hint like `re_••••abcd`. Without the master key, secrets can't be saved there (the page says so).
+- **Sender name and address, reply-to, support address, signature** (plain text, up to 600 characters / 10 lines, added to every email; the support address goes in every footer and the Help Centre, via `GET /api/auth/config`).
+- **Precedence:** a value saved in Settings wins over `RESEND_API_KEY` / `EMAIL_FROM` / `EMAIL_REPLY_TO` / `SUPPORT_EMAIL` / `SEND_EMAIL_HOOK_SECRET`; removing it falls back to the environment. The page shows where each value comes from. Saving applies at once; other processes re-read every minute.
+- **Health checks:** Resend accepts the key (sending-only keys recognised); the sender's domain is on the account and verified, with its DNS records; `APP_URL` set; when Supabase last called the hook and how it ended; outbox: waiting, retrying, gave up in 7 days, last error (`demo_notifications.email_last_error`). **Send test email** to any address.
+- Every change is audited without the secret values.
 
 **Supabase sign-in emails:** the **Send Email Hook** at `POST /api/hooks/supabase/send-email` (`lib/sendEmailHook.ts`).
 - **Signature check:** Standard Webhooks (HMAC-SHA256 over `id.timestamp.body` with the `v1,whsec_…` secret), a 5-minute timestamp window, constant-time comparison.
@@ -326,10 +335,12 @@ Put these in **Replit Secrets** (development) and the **VPS environment** (produ
 | `SUPABASE_DB_URL` | yes (prod) | `postgresql://app_api.fybslfcepjnswcnoewgi:<APP_DB_PASSWORD>@aws-1-eu-central-1.pooler.supabase.com:5432/postgres` | **Secret.** The API's `app_api` connection. Unset → Replit Postgres. |
 | `DATABASE_URL` | dev | Replit Postgres (set by Replit) | Fallback database |
 | `AUTH_MODE` | no | `demo` or `supabase` | `demo` only in development |
-| `RESEND_API_KEY` | for email | from Resend | **Secret** |
-| `EMAIL_FROM` | for email | `GrantApp <no-reply@futurenestfund.org>` | Domain verified in Resend |
+| `SETTINGS_ENCRYPTION_KEY` | for email settings | 32 random bytes, base64 (`openssl rand -base64 32`) | **Secret.** Encrypts the email secrets saved in Admin Settings; losing it means entering them again |
+| `RESEND_API_KEY` | optional | from Resend | **Secret.** Fallback; Admin Settings → Email wins |
+| `EMAIL_FROM` | optional | `Future Nest Fund <no-reply@mail.futurenestfund.org>` | Fallback; domain verified in Resend |
+| `EMAIL_REPLY_TO`, `SUPPORT_EMAIL` | optional | addresses | Fallbacks for the reply-to and support address |
 | `APP_URL` | for email | public web address: `https://access.futurenestfund.org` | Email links and notification buttons |
-| `SEND_EMAIL_HOOK_SECRET` | for email | `v1,whsec_…` from Supabase | **Secret** |
+| `SEND_EMAIL_HOOK_SECRET` | optional | `v1,whsec_…` from Supabase | **Secret.** Fallback; Admin Settings → Email wins |
 | `TRUST_PROXY` | VPS | `1` | Number of proxies in front (nginx), for real client IPs and `req.secure` |
 | `UPLOAD_DIR` | no | default `artifacts/api-server/uploads/`; VPS: `/var/lib/futurenestfund/uploads` | Must be persistent disk |
 | `RATE_LIMIT_IP_PER_MIN`, `RATE_LIMIT_WRITES_PER_MIN`, `RATE_LIMIT_UPLOADS_PER_10MIN`, `RATE_LIMIT_HOOK_PER_MIN`, `RATE_LIMIT_CLIENT_ERRORS_PER_MIN` | no | defaults 600 / 60 / 20 / 120 / 20 | |
@@ -358,7 +369,7 @@ No secrets. `PORT` and `BASE_PATH` for Vite; everything else comes from `GET /ap
 | Command | What it does |
 |---|---|
 | `pnpm run typecheck` | Type-check every package |
-| `pnpm test` | Vitest unit tests (67) |
+| `pnpm test` | Vitest unit tests (73) |
 | `pnpm --filter @workspace/api-spec run codegen` | Regenerate API hooks / validators after editing `openapi.yaml` |
 | `pnpm --filter @workspace/db run generate` | Write a new migration from schema changes |
 | `pnpm --filter @workspace/scripts run db:migrate` | Apply pending migrations (`-- --baseline` once for a database built with push) |
@@ -373,7 +384,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 
 ## 11. Testing
 
-**Committed:** `pnpm test`, 67 Vitest tests.
+**Committed:** `pnpm test`, 73 Vitest tests.
 - Token verification: valid, expired, other project, wrong audience, anonymous, forged key, tampered payload, `alg: none`, HS256 algorithm confusion, key server down/timeout → 503.
 - Standard Webhooks signatures.
 - Email link mapping (including the reversed email-change fields) and HTML escaping.
@@ -382,6 +393,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 - Error wording.
 - Matchmaking rules (scores, reasons, closed and not-eligible grants).
 - Error monitoring: scrubbing (emails, tokens, secrets, long numbers), DSN and stack parsing, the exact fields sent to Sentry, the React component stack.
+- Email settings: secret encryption (round trip, tampering, wrong field or master key), signature and support address escaped in every template, From parsing.
 
 **Local browser / end-to-end suites** (git-ignored `.unlazy/`, see `.unlazy/README.md`). They drive headless Chromium against a test copy of the API.
 
@@ -395,6 +407,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 | `phase5-*` | Admin operations from Phase 5: withdrawals, limits, audit log, users directory, debits, cards, photos |
 | `phase6-matchmaking`, `phase6-cards` (+ `-ui`) | Rule-based matchmaking; applicant card controls (8 + 7 + 7; 7 + 6 + 6) |
 | `phase6-monitoring` (+ `-ui`) | Request ids, 500 references, server and browser errors in the log and in a mock Sentry (envelope shape, nothing personal, scrubbing), signed-out reports, rate limit; test button, uncaught error, rejection, render crash screen (8; 4 + 4) |
+| `phase7-email` (+ `-ui`) | Email settings: validation, secrets never returned / stored plain / logged / audited, precedence, every health state (pending or missing domain, sending-only or refused key, hook calls, outbox failures, undecryptable secret), test email, removal (11; 9 + 9) |
 | `phase6-mobile` | Phone audit at 390 px of every page, menu, panel, main dialogs and the sign-in pages: zoom-out, overflow, boxes sticking out, 44 px targets, bell / menu / search reachable; full-page screenshots with `SHOTS=` (35). Sign-in pages need `AUTH_WEB`: a proxy to a signed-out Supabase-mode API |
 
 Full run on 2026-10-29: all green on the dev frontend, on the **production build with its CSP**, and **on Supabase as `app_api`**.
@@ -408,14 +421,15 @@ Latest run (2026-10-31, after 6.4, demo mode): typecheck clean, `pnpm test` 67/6
 **Supabase dashboard**
 - [x] Authentication → URL Configuration: **Site URL** `https://access.futurenestfund.org/`, **Redirect URLs** `https://access.futurenestfund.org/**` (2026-10-31). Add the Replit dev URL only if you test sign-in there.
 - [ ] Authentication → Policies (passwords): **minimum length 8** (today 6).
-- [ ] Authentication → Hooks → **Send Email** → HTTPS → `<public API URL>/api/hooks/supabase/send-email`; generate the secret and copy it into `SEND_EMAIL_HOOK_SECRET`.
+- [ ] Authentication → Hooks → **Send Email** → HTTPS → the URL shown in Admin → Settings → Email; generate the secret and save it there as Hook secret.
 
 **Resend**
 - [ ] Add and verify the sending domain (e.g. `futurenestfund.org`, using the DNS records Resend lists); create an API key.
 
 **Secrets (Replit and VPS)**
 - [x] VPS: `/etc/futurenestfund/api.env` (`app_api` URL, Supabase URL and keys, `APP_URL`, `TRUST_PROXY=1`, `NODE_ENV=production`) and `migrate.env` (`SUPABASE_ADMIN_DB_URL`), 2026-10-31.
-- [ ] VPS, with step 10: `RESEND_API_KEY`, `EMAIL_FROM`, `SEND_EMAIL_HOOK_SECRET` (commented out in `api.env` until then).
+- [ ] VPS, with step 10: `SETTINGS_ENCRYPTION_KEY` in `api.env` (then restart); the Resend key, sender and hook secret go in Admin → Settings → Email.
+- [ ] Supabase migration check: `deploy.sh` applies app migration **0007** (email settings) on the next deploy.
 - [ ] Replit Secrets: optional, only for real sign-in on the Replit preview.
 
 **Rotate (pasted in chat on 2026-10-28 and 2026-10-31; never in git, a precaution)**
@@ -509,6 +523,10 @@ Latest run (2026-10-31, after 6.4, demo mode): typecheck clean, `pnpm test` 67/6
 - ~~6.5 deployment~~: done 2026-10-31 (runbook [`docs/DEPLOY.md`](DEPLOY.md) followed end to end; live at https://access.futurenestfund.org; record in [`server.md`](../server.md))
 - 6.6 virus scanning of uploads (persistent storage and nightly backups already in place on the VPS) (ClamAV, tested with the EICAR file)
 - 6.7 a Redis-backed rate limiter, only if there's more than one API server
+
+**Phase 7 (UI overhaul)**, full review and plan in `work.md` §13:
+- ~~7.1 email settings and health checks in Admin Settings~~: done 2026-10-31 (needs `SETTINGS_ENCRYPTION_KEY` on the VPS before keys can be saved there)
+- 7.2 Admin Settings rebuilt into sections · 7.3 one design system for both workspaces · 7.4 admin layout · 7.5 admin tables on phones · 7.6 applicant fixes · 7.7 applicant phone
 
 **Limits worth knowing:**
 - The API can't sign anyone in by itself if Supabase is down; requests answer 503 until it's back.

@@ -14,6 +14,7 @@ import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
 import { MonitoringSettings } from '@/components/monitoring-settings';
+import { EmailSettingsCard } from '@/components/email-settings';
 import { CardControls } from '@/components/card-controls';
 import { AdminPhotoSettings, UserPhotoControl } from '@/components/admin-photo';
 import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, initials, money } from '@/components/bits';
@@ -461,6 +462,7 @@ export function AdminSettingsPage() {
           <li className="flex items-start gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0" />Per-user KYC requirements, tiers, notification overrides and custom withdrawal limits are set on each user's profile.</li>
         </ul>
       </section>
+      <EmailSettingsCard />
       <AdminPhotoSettings />
       <GlobalWithdrawalLimits />
       <MonitoringSettings />

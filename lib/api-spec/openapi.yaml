@@ -66,6 +66,85 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/settings/email:
+    get:
+      operationId: getEmailSettings
+      tags: [admin]
+      summary: Email settings in use (secrets only as hints) and where each value comes from
+      responses:
+        "200":
+          description: Email settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailSettings" }
+    put:
+      operationId: updateEmailSettings
+      tags: [admin]
+      summary: Save email settings; fields left out are unchanged, empty text removes a value (falls back to the environment)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailSettingsUpdate" }
+      responses:
+        "200":
+          description: The settings now in use
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailSettings" }
+        "400":
+          description: Invalid value, or secrets can't be stored (no SETTINGS_ENCRYPTION_KEY)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/settings/email/secrets/{name}:
+    delete:
+      operationId: removeEmailSecret
+      tags: [admin]
+      summary: Remove a secret saved in Settings (the environment value, if any, is used again)
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string, enum: [resendApiKey, hookSecret] }
+      responses:
+        "200":
+          description: The settings now in use
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailSettings" }
+  /admin/settings/email/check:
+    post:
+      operationId: checkEmailHealth
+      tags: [admin]
+      summary: Run the email health checks (Resend key, sender domain, links, Supabase hook, outbox)
+      responses:
+        "200":
+          description: Check results
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailHealth" }
+  /admin/settings/email/test:
+    post:
+      operationId: sendTestEmail
+      tags: [admin]
+      summary: Send a test email with the settings in use
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailTestInput" }
+      responses:
+        "200":
+          description: Whether Resend accepted it
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailTestResult" }
+        "400":
+          description: Invalid address
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /healthz:
     get:
       operationId: healthCheck
@@ -1173,7 +1252,8 @@ components:
         mode: { type: string, enum: [supabase, demo] }
         supabaseUrl: { type: [string, "null"] }
         publishableKey: { type: [string, "null"] }
-      required: [mode, supabaseUrl, publishableKey]
+        supportEmail: { type: [string, "null"], description: "Where people can write for help (Admin Settings → Email)" }
+      required: [mode, supabaseUrl, publishableKey, supportEmail]
     Me:
       type: object
       properties:
@@ -1210,6 +1290,112 @@ components:
       properties:
         reference: { type: string, description: "Short reference to quote to support; it is in the server log" }
       required: [reference]
+    EmailSettingSource:
+      type: string
+      enum: [settings, environment, none]
+    EmailSettingValue:
+      type: object
+      properties:
+        value: { type: [string, "null"] }
+        source: { $ref: "#/components/schemas/EmailSettingSource" }
+      required: [value, source]
+    EmailSecretStatus:
+      type: object
+      properties:
+        set: { type: boolean }
+        source: { $ref: "#/components/schemas/EmailSettingSource" }
+        hint: { type: [string, "null"], description: "e.g. re_••••abcd; the secret itself is never returned" }
+        updatedAt: { type: [string, "null"] }
+        updatedBy: { type: [string, "null"] }
+        unreadable: { type: boolean, description: "Saved, but can't be decrypted with the current SETTINGS_ENCRYPTION_KEY" }
+      required: [set, source, hint, updatedAt, updatedBy, unreadable]
+    EmailSettings:
+      type: object
+      properties:
+        canStoreSecrets: { type: boolean }
+        encryptionProblem: { type: [string, "null"] }
+        apiKey: { $ref: "#/components/schemas/EmailSecretStatus" }
+        hookSecret: { $ref: "#/components/schemas/EmailSecretStatus" }
+        fromName: { $ref: "#/components/schemas/EmailSettingValue" }
+        fromAddress: { $ref: "#/components/schemas/EmailSettingValue" }
+        replyTo: { $ref: "#/components/schemas/EmailSettingValue" }
+        signature: { $ref: "#/components/schemas/EmailSettingValue" }
+        supportEmail: { $ref: "#/components/schemas/EmailSettingValue" }
+        from: { type: [string, "null"], description: "The From header in use" }
+        sending: { type: boolean, description: "Whether email can be sent (key and sender address set)" }
+        appUrl: { type: [string, "null"] }
+        hookUrl: { type: [string, "null"], description: "The URL to paste into Supabase's Send Email Hook" }
+        updatedAt: { type: [string, "null"] }
+        updatedBy: { type: [string, "null"] }
+      required: [canStoreSecrets, encryptionProblem, apiKey, hookSecret, fromName, fromAddress, replyTo, signature, supportEmail, from, sending, appUrl, hookUrl, updatedAt, updatedBy]
+    EmailSettingsUpdate:
+      type: object
+      properties:
+        fromName: { type: [string, "null"], maxLength: 200 }
+        fromAddress: { type: [string, "null"], maxLength: 300 }
+        replyTo: { type: [string, "null"], maxLength: 300 }
+        signature: { type: [string, "null"], maxLength: 1000 }
+        supportEmail: { type: [string, "null"], maxLength: 300 }
+        apiKey: { type: string, maxLength: 300, description: "New Resend API key; leave out to keep the current one" }
+        hookSecret: { type: string, maxLength: 300, description: "New Send Email Hook secret (v1,whsec_…); leave out to keep the current one" }
+      additionalProperties: false
+    EmailHealthCheck:
+      type: object
+      properties:
+        id: { type: string }
+        label: { type: string }
+        status: { type: string, enum: [ok, warn, fail, "off"] }
+        detail: { type: string }
+      required: [id, label, status, detail]
+    EmailDomainRecord:
+      type: object
+      properties:
+        record: { type: string }
+        type: { type: string }
+        name: { type: string }
+        status: { type: string }
+      required: [record, type, name, status]
+    EmailHealth:
+      type: object
+      properties:
+        checkedAt: { type: string }
+        checks:
+          type: array
+          items: { $ref: "#/components/schemas/EmailHealthCheck" }
+        domain:
+          type: [object, "null"]
+          properties:
+            name: { type: string }
+            status: { type: string }
+            records:
+              type: array
+              items: { $ref: "#/components/schemas/EmailDomainRecord" }
+          required: [name, status, records]
+        outbox:
+          type: object
+          properties:
+            waiting: { type: integer }
+            retrying: { type: integer }
+            failed: { type: integer }
+            sentLast24h: { type: integer }
+            lastSentAt: { type: [string, "null"] }
+            lastError: { type: [string, "null"] }
+            lastErrorAt: { type: [string, "null"] }
+          required: [waiting, retrying, failed, sentLast24h, lastSentAt, lastError, lastErrorAt]
+      required: [checkedAt, checks, domain, outbox]
+    EmailTestInput:
+      type: object
+      properties:
+        to: { type: string, maxLength: 254 }
+      required: [to]
+    EmailTestResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        to: { type: string }
+        id: { type: [string, "null"] }
+        message: { type: string }
+      required: [ok, to, id, message]
     MonitoringStatus:
       type: object
       properties:

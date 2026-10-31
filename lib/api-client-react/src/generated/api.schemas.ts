@@ -23,6 +23,11 @@ export interface AuthConfig {
   supabaseUrl: string | null;
   /** @nullable */
   publishableKey: string | null;
+  /**
+     * Where people can write for help (Admin Settings → Email)
+     * @nullable
+     */
+  supportEmail: string | null;
 }
 
 export type MeMode = typeof MeMode[keyof typeof MeMode];
@@ -96,6 +101,173 @@ export interface ClientErrorReport {
 export interface ClientErrorReceipt {
   /** Short reference to quote to support; it is in the server log */
   reference: string;
+}
+
+export type EmailSettingSource = typeof EmailSettingSource[keyof typeof EmailSettingSource];
+
+
+export const EmailSettingSource = {
+  settings: 'settings',
+  environment: 'environment',
+  none: 'none',
+} as const;
+
+export interface EmailSettingValue {
+  /** @nullable */
+  value: string | null;
+  source: EmailSettingSource;
+}
+
+export interface EmailSecretStatus {
+  set: boolean;
+  source: EmailSettingSource;
+  /**
+     * e.g. re_••••abcd; the secret itself is never returned
+     * @nullable
+     */
+  hint: string | null;
+  /** @nullable */
+  updatedAt: string | null;
+  /** @nullable */
+  updatedBy: string | null;
+  /** Saved, but can't be decrypted with the current SETTINGS_ENCRYPTION_KEY */
+  unreadable: boolean;
+}
+
+export interface EmailSettings {
+  canStoreSecrets: boolean;
+  /** @nullable */
+  encryptionProblem: string | null;
+  apiKey: EmailSecretStatus;
+  hookSecret: EmailSecretStatus;
+  fromName: EmailSettingValue;
+  fromAddress: EmailSettingValue;
+  replyTo: EmailSettingValue;
+  signature: EmailSettingValue;
+  supportEmail: EmailSettingValue;
+  /**
+     * The From header in use
+     * @nullable
+     */
+  from: string | null;
+  /** Whether email can be sent (key and sender address set) */
+  sending: boolean;
+  /** @nullable */
+  appUrl: string | null;
+  /**
+     * The URL to paste into Supabase's Send Email Hook
+     * @nullable
+     */
+  hookUrl: string | null;
+  /** @nullable */
+  updatedAt: string | null;
+  /** @nullable */
+  updatedBy: string | null;
+}
+
+export interface EmailSettingsUpdate {
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  fromName?: string | null;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  fromAddress?: string | null;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  replyTo?: string | null;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  signature?: string | null;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  supportEmail?: string | null;
+  /**
+     * New Resend API key; leave out to keep the current one
+     * @maxLength 300
+     */
+  apiKey?: string;
+  /**
+     * New Send Email Hook secret (v1,whsec_…); leave out to keep the current one
+     * @maxLength 300
+     */
+  hookSecret?: string;
+}
+
+export type EmailHealthCheckStatus = typeof EmailHealthCheckStatus[keyof typeof EmailHealthCheckStatus];
+
+
+export const EmailHealthCheckStatus = {
+  ok: 'ok',
+  warn: 'warn',
+  fail: 'fail',
+  off: 'off',
+} as const;
+
+export interface EmailHealthCheck {
+  id: string;
+  label: string;
+  status: EmailHealthCheckStatus;
+  detail: string;
+}
+
+export interface EmailDomainRecord {
+  record: string;
+  type: string;
+  name: string;
+  status: string;
+}
+
+/**
+ * @nullable
+ */
+export type EmailHealthDomain = {
+  name: string;
+  status: string;
+  records: EmailDomainRecord[];
+} | null;
+
+export type EmailHealthOutbox = {
+  waiting: number;
+  retrying: number;
+  failed: number;
+  sentLast24h: number;
+  /** @nullable */
+  lastSentAt: string | null;
+  /** @nullable */
+  lastError: string | null;
+  /** @nullable */
+  lastErrorAt: string | null;
+};
+
+export interface EmailHealth {
+  checkedAt: string;
+  checks: EmailHealthCheck[];
+  /** @nullable */
+  domain: EmailHealthDomain;
+  outbox: EmailHealthOutbox;
+}
+
+export interface EmailTestInput {
+  /** @maxLength 254 */
+  to: string;
+}
+
+export interface EmailTestResult {
+  ok: boolean;
+  to: string;
+  /** @nullable */
+  id: string | null;
+  message: string;
 }
 
 export interface MonitoringStatus {

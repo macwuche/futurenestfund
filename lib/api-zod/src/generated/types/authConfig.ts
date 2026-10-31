@@ -13,4 +13,9 @@ export interface AuthConfig {
   supabaseUrl: string | null;
   /** @nullable */
   publishableKey: string | null;
+  /**
+     * Where people can write for help (Admin Settings → Email)
+     * @nullable
+     */
+  supportEmail: string | null;
 }

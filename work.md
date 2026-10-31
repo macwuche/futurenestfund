@@ -1710,3 +1710,161 @@ The runbook (`docs/DEPLOY.md`) was followed end to end on the VPS (steps 1–9).
 - Step 10: email through Resend and the Send Email Hook. Needed before real applicants, since Supabase's own sender allows only a few emails an hour.
 - Rotate the secrets pasted in chat (two database passwords, secret key, admin password) and delete the unused GitHub token. They were never committed (`secrets.local.md` is git-ignored and has no history).
 - Minimum password length 8; off-server copies of backups; 6.6 virus scanning.
+
+---
+
+## 13. UI review and Phase 7 build plan (2026-10-31)
+
+**How it was reviewed:** headless Chromium screenshots of all 25 screens (15 applicant, 10 admin) at desktop (1440 px) and phone (390 px) width, 50 in total, demo mode, read alongside the page code. The charts looked empty in the first shots, but measuring them showed they just hadn't finished their entry animation, so that's not a bug. The phone audit from 6.3 (tap targets, overflow) still passes; this review looks at what it can't measure: hierarchy, consistency, wording, missing features.
+
+### 13a. Score
+
+| Area | Score | In one line |
+|---|---|---|
+| Applicant, desktop | **74** | Clean and close to the reference design; long flat menu, some repeated or misleading details |
+| Applicant, phone | **70** | Works everywhere; cramped list rows, and things from the desktop are missing (New application on the dashboard) |
+| Admin, desktop | **66** | Powerful, but the header wastes space, money is in a typewriter font, Settings is a flat pile of cards and **has no email settings at all** |
+| Admin, phone | **58** | Everything is reachable, but tables are cut off at the side, the header takes ~110 px, and the user inspector is a 3,500 px scroll |
+| **Overall** | **67 / 100** | Solid and functional; it now needs a design-system pass and an admin Settings rebuild more than new pages |
+
+Scoring weights: visual consistency 20, layout and hierarchy 20, phone experience 20, clarity of wording and states 15, completeness (features you'd expect on the screen) 15, accessibility 10.
+
+### 13b. What's wrong (by area, worst first)
+
+Severity: **H** = broken, misleading or missing something needed · **M** = clearly hurts use or looks · **L** = polish.
+
+**Both workspaces**
+
+| # | Sev | Problem | Where |
+|---|---|---|---|
+| G1 | M | **Two design systems.** The applicant side uses Inter; the admin side uses DM Sans + Bricolage Grotesque headings + **Spline Sans Mono for every amount** (`$65,530.00` looks like code, with wide commas). Buttons, radii, label styles and empty states differ too. Four font families come from two separate Google Fonts requests (`index.html` + `index.css` `@import`). | `index.css:1,436-448`, `index.html:18` |
+| G2 | M | **Avatar initials collide with the camera button**: "DA" / "JC" sit off-centre and the camera badge covers part of them (admin Settings photo, user inspector header). | `admin-photo.tsx`, inspector header |
+| G3 | M | **Status shown twice** in list rows: sub-line "Submitted" plus a "Submitted" badge (applicant dashboard, Grant highlights). The space could show category, amount and date instead. On phones this pushes titles onto 3 lines ("Youth / Coding / Bootcamp"). | `applicant.tsx` highlights |
+| G4 | L | Different words for the same action: "Save changes" (applicant) vs "Save Updates" (admin); "Global Freeze" / "Freeze" / "Enable freeze". | several |
+| G5 | L | Charts replay their entry animation on every visit (≈1.5 s before numbers are readable). | `applicant.tsx:101`, `admin.tsx:52`, `applicant-more.tsx:179` |
+| G6 | L | The live site's page description still says "Interactive demo". | `index.html:7-14` |
+
+**Admin, desktop**
+
+| # | Sev | Problem | Where |
+|---|---|---|---|
+| A1 | **H** | **No email settings.** The Resend API key, sending address, sender name, reply-to, signature and Send Email Hook secret can only be set in `/etc/futurenestfund/api.env` + a restart. There's **no way to see whether email works**: nothing shows if the key is valid, the domain is verified, the hook is receiving, or emails are failing in the outbox. | `email.ts` reads env once at start-up; Settings page |
+| A2 | M | **Settings is a flat grid of 6 unrelated cards** (freeze, security rules, photo, limits, monitoring, audit log) with no grouping or navigation; adding email there makes it worse. Your own profile photo sits between platform controls. | `admin.tsx` Settings |
+| A3 | M | **Header layout:** title, "4-Eyes not active" badge, search, Global Freeze and avatar are packed to the left, leaving ~350 px of empty header on the right; the search box is a fixed width. | `shell.tsx:600-620` |
+| A4 | M | **"4-Eyes not active" is shown in three places** (header badge on every page, System health, Security rules) although two-person approval was dropped by decision on 2026-10-30. It reads like a warning that something is off. | `shell.tsx:610`, `admin.tsx:70` |
+| A5 | M | **Dashboard KPIs repeat themselves:** "Total users 3 / 3 active" and "Active users 3 / 0 frozen". | `admin.tsx` KPIs |
+| A6 | L | User inspector header shows `•••• •••• 4829 usr-jane`: a masked card number next to an internal id is meaningless to an admin. | inspector |
+| A7 | L | Empty states on Deposit/Withdrawal/KYC are tall boxes with a tiny icon (two per page when both queues are empty). | `admin-ops.tsx` |
+| A8 | L | The ledger search placeholder is cut off ("Entry or request ID, reason, u"). | Transactions |
+
+**Admin, phone**
+
+| # | Sev | Problem | Where |
+|---|---|---|---|
+| AM1 | **H** | **The ledger and audit tables are cut off on the right:** you see Date, User and half of Type ("Opening balan"); **the amount isn't visible** without scrolling sideways, and nothing shows that you can. | `admin-ops.tsx` ledger, audit |
+| AM2 | M | **The header takes ~110 px**: menu, title, Freeze, avatar, then a full-width search on its own row, on every page. | `shell.tsx` |
+| AM3 | M | **User inspector is a ~3,500 px single column** with no way to jump to a section (Profile → Access → Limits → Balances → Cards → Applications → KYC → Audit). | inspector |
+| AM4 | M | Settings on phones is a ~1,900 px stack of the same 6 cards (see A2). | Settings |
+| AM5 | L | KPI tiles: labels wrap to 2 lines ("PENDING / APPLICATIONS"), so tiles have uneven heights. | dashboard, queues |
+| AM6 | L | Dashboard "Applications awaiting a decision" cuts the date ("Oct …"). | dashboard |
+
+**Applicant, desktop**
+
+| # | Sev | Problem | Where |
+|---|---|---|---|
+| U1 | M | **The menu has 13 flat items** (Dashboard … Milestones, Settings, Help) with no groups; Grant Search, Grant categories and Funding Tracker / Reports are hard to tell apart. | `shell.tsx` nav |
+| U2 | M | **Grant categories and Grant Search show the same 12 grant cards** with the same Apply/Save buttons; only the filters differ. | `applicant.tsx`, `applicant-more.tsx` |
+| U3 | M | **Setup cards keep their green "Recommended" badge after they're done** ("Submit First Proposal: ✓ Complete" still says Recommended). | dashboard |
+| U4 | M | **"All Revenue" dropdown** on Grant Highlights: the label comes from the reference image and doesn't describe what it filters (application status). | dashboard |
+| U5 | L | The **"Acme Foundation ▾" organisation switcher** looks interactive but there is only ever one organisation. | header |
+| U6 | L | Help Centre shows **support@grantapp.mx** ("placeholder, not monitored") on the live site. | `applicant-more.tsx:469` |
+| U7 | L | The virtual card picture is a large empty blue block (no chip, the gap is ~200 px). | Cards |
+| U8 | L | Withdrawals / Add funds: no explanation of where money goes to or comes from (bank details, timing), only "reviewed by our finance team". | Withdrawals, Add funds |
+
+**Applicant, phone**
+
+| # | Sev | Problem | Where |
+|---|---|---|---|
+| UM1 | M | **No "New application" on the phone dashboard** (desktop has it at the top); you have to go to Apps first. | dashboard |
+| UM2 | M | List rows squeeze titles to 2–3 lines because of the doubled status (G3) and badge width. | dashboard, Applications |
+| UM3 | M | **Grant categories / Grant Search are ~3,000 px long**: 12 full cards, each with category, title, amount, deadline and two buttons; no compact list view. | grants |
+| UM4 | L | The setup-card swipe row runs edge to edge while every other card has a 16 px margin. | dashboard |
+| UM5 | L | The greeting "Here are your account's highlights." sits loose under the profile row. | dashboard |
+
+### 13c. Phase 7 build plan
+
+Order: **7.1 first** (what you asked for), then the shared design pass, then each workspace. Each step is committed on its own after typecheck, `pnpm test`, its browser suite and the 390 px phone audit pass, with before/after screenshots reviewed.
+
+| Step | Goal | What gets built | Fixes | Done when |
+|---|---|---|---|---|
+| **7.1 Email settings + health** | Configure and check email from Admin Settings, no SSH | See 13d | A1 | Key saved in the UI sends a real test email; every health check shows its state |
+| 7.2 Admin Settings rebuilt | Findable settings | Settings becomes sections with a side menu (tabs on phones): **General** (global freeze, security rules), **Email** (7.1), **Withdrawal limits**, **Monitoring**, **Audit log**, **Your account** (photo, sign-in & security) | A2, AM4, A4 | Every old setting reachable; phone audit clean |
+| 7.3 Design-system pass | One look across both workspaces | One font loading path; one sans for both sides (Inter, admin keeps its black/lime theme); money in tabular figures of the same font (no mono); shared `Button`, `Card`, `KpiTile`, `EmptyState`, `Avatar` (initials centred, camera badge outside the letters); same wording for the same actions; charts animate once per session | G1, G2, G4, G5, A7, AM5 | Screenshots of all 50 screens reviewed; no visual regressions in suites |
+| 7.4 Admin layout | Use the space | Header: title left, search fills the middle, freeze + avatar pinned right; on phones search collapses to an icon (header ≤ 64 px); "4-Eyes" badge removed (decision of 2026-10-30), health row reworded; KPIs de-duplicated; inspector gets a sticky section menu (chips on phones) | A3–A6, A8, AM2, AM3, AM6 | Phone header ≤ 64 px; inspector sections reachable in one tap |
+| 7.5 Admin tables on phones | Read money on a phone | Ledger, audit log and users become stacked cards below the desktop breakpoint (date · user · type · **amount** visible without scrolling) | AM1 | No hidden amount column at 390 px |
+| 7.6 Applicant fixes | Clearer applicant side | Menu grouped (Overview · Funding · Money · Account); Grant categories becomes a category overview that links into Grant Search (one grant list, not two); "Recommended" badge only on unfinished setup cards; highlights filter renamed "All statuses"; rows show category · amount · date instead of the repeated status; org switcher becomes a plain label unless there are several organisations; Help support address from the email settings (7.1); virtual card visual; money pages explain timing | U1–U8 | Phase 1/6 suites updated and green |
+| 7.7 Applicant phone | Shorter, faster pages | "New application" on the phone dashboard; compact grant rows with "Show details"; setup-card row aligned to the 16 px margin; greeting tidied | UM1–UM5 | Phone audit clean; grants page roughly half as long |
+
+Not in Phase 7: new features beyond email settings; the open go-live items (§12 of `docs/PROJECT.md`) stay separate.
+
+### 13d. Step 7.1 in detail: email settings and health checks
+
+**Admin → Settings → Email** (a section of its own):
+
+- **Provider:** Resend API key, **write-only**: after saving, only `re_••••abcd` and "saved on <date> by <admin>" are shown, with Replace and Remove. The key is never sent back to the browser.
+- **Sender:** from name (e.g. "Future Nest Fund"), from address (e.g. `no-reply@mail.futurenestfund.org`), optional reply-to. The from address is checked against the domains on the Resend account, and the form says when its domain isn't verified.
+- **Signature:** a plain-text signature (e.g. name, organisation, address, support email) added to the footer of **every** email (sign-in emails and notifications), with a live preview of a sample email. Plain text, escaped, so nobody can put scripts or tracking into emails.
+- **Support email**, shown in emails and in the Help Centre (replaces the `support@grantapp.mx` placeholder).
+- **Send Email Hook secret** (`v1,whsec_…`), also write-only, with the exact URL to paste into Supabase shown next to it (copy button).
+- **Health checks** (refreshed on open and with a "Run checks" button):
+  1. API key accepted by Resend (Resend's domains API)
+  2. sending domain verified, with the SPF / DKIM / MX record states Resend reports
+  3. from address on a verified domain
+  4. Send Email Hook: secret set, and **when the hook last received a request** from Supabase (never / time)
+  5. Outbox: emails waiting, emails that gave up after 5 tries, last email sent, last error (scrubbed)
+  6. **"Send test email"** to the signed-in admin's address, which shows Resend's message id or the exact refusal.
+
+**How it's stored and kept safe:**
+- Settings live in the database (new columns on `demo_settings`, migration `0007`, so no new table and no new RLS policy). Secrets (API key, hook secret) are **encrypted** (AES-256-GCM) with a master key that stays in the server environment (`SETTINGS_ENCRYPTION_KEY` in `api.env`), so a database backup or dump alone can't reveal them. Without that master key, the UI shows the email settings but says secrets can't be saved there yet.
+- `RESEND_API_KEY` / `EMAIL_FROM` / `SEND_EMAIL_HOOK_SECRET` in `api.env` keep working. **Precedence: a value saved in the UI wins over the environment;** the page shows where each value comes from ("from server environment" / "set in Settings"). Removing a UI value falls back to the environment.
+- Changes take effect **without a restart** (the API reloads its email settings on save).
+- Every change is audited ("Updated email sender", "Replaced Resend API key") **without** the secret values. Admin-only endpoints; the rate limits apply.
+- Outbox failures get a `last_error` column so the health panel can show why mail failed.
+
+**API:** `GET /admin/settings/email` (settings with secrets masked + where each comes from), `PUT /admin/settings/email` (validated; secrets optional), `DELETE /admin/settings/email/{api-key|hook-secret}`, `POST /admin/settings/email/check` (health checks), `POST /admin/settings/email/test` (test email).
+
+**Tests:** Vitest for encryption round trip, tampered ciphertext refused, precedence UI > env, signature escaping in every template. `.unlazy/phase7-email.mjs` against the local Resend stand-in (extended with a domains endpoint): save/replace/remove, the key never appears in any response or log, health states (bad key, unverified domain, hook never called, failing outbox), test email, audit wording. Plus `phase7-email-ui.mjs` desktop + phone.
+
+**Decision needed before 7.1:** whether secrets may be stored (encrypted) in the database at all; the alternative keeps keys only in `api.env` and the page shows status and health checks but can't change the key.
+
+### 2026-10-31: Step 7.1 done (email settings and health checks)
+
+**Decision (user, 2026-10-31): secrets may be stored in the database, encrypted.**
+
+**Built:**
+- **Admin → Settings → Email** (`components/email-settings.tsx`), a full-width section:
+  - Resend API key and Supabase hook secret: write-only fields showing a hint (`re_••••abcd`), where the value comes from (Settings / server environment / not set) and who saved it when; Replace, and Remove after a confirmation
+  - sender name and address, reply-to, support address, signature (counter: 600 characters / 10 lines), each showing the environment value it replaces
+  - a live preview of an email with the sender, signature and footer
+  - health checks with Run checks: key accepted (sending-only keys recognised), sender domain on the account and verified (with a DNS record table), links (`APP_URL`), when Supabase last called the hook and how it ended, outbox (waiting / retrying / gave up, last error)
+  - Send test email to any address, with Resend's answer
+  - hook URL with a Copy button and setup steps
+- **Server:**
+  - `lib/secretBox.ts`: AES-256-GCM sealing with `SETTINGS_ENCRYPTION_KEY`, field name as associated data
+  - `lib/emailSettings.ts`: loads, validates, saves and audits (never the secret values); health checks; test email
+  - `email.ts` / `sendEmailHook.ts` / `emailTemplates.ts` read the settings at runtime instead of once at start-up; saving applies at once, and every process re-reads them each minute
+  - the outbox worker always runs (email can be switched on later) and stores each failure's scrubbed reason
+  - every email (sign-in, notifications, money, test) carries the signature and the support line, escaped
+- **Migration 0007** (`demo_settings.email_config`, `email_secrets`, `email_hook_seen_at`, `email_hook_result`; `demo_notifications.email_last_error`): no new table, so no new RLS policy.
+- **API:** `GET|PUT /admin/settings/email`, `DELETE /admin/settings/email/secrets/{resendApiKey|hookSecret}`, `POST /admin/settings/email/check`, `POST /admin/settings/email/test`; `GET /auth/config` gains `supportEmail`.
+- **Help Centre** shows the real support address as a mail link (or "contact your grant administrator"), replacing the `support@grantapp.mx` placeholder (finding U6).
+- `deploy/api.env.example`, `docs/DEPLOY.md` step 10 and `server.md` step 10 rewritten: the server only needs `SETTINGS_ENCRYPTION_KEY`; the rest happens in Settings.
+
+**Tests (2026-10-31):**
+- typecheck clean · `pnpm test` 73/73 (6 new: encryption, signature/support in every template, From parsing)
+- new `.unlazy/phase7-email.mjs` 11/11 (mock Resend extended with domain endpoints): validation; the key never appears in responses, the database, the audit log or the API log; From header; unchanged save writes no audit; health for verified / pending / missing domain, sending-only and refused keys; test email (key, sender, reply-to, signature escaped, support line) and a refused one; hook secret used at once, last call ok / bad signature; outbox failures with their reason; an undecryptable secret reported and fixed by re-entering; removal
+- new `.unlazy/phase7-email-ui.mjs` 9/9 desktop + 9/9 phone
+- by hand: environment values shown and used, Settings values win, removing falls back to the environment; without `SETTINGS_ENCRYPTION_KEY` secrets are refused with the reason and plain settings still save
+- regressions (data restored before each): phase5-withdrawals 11/11, phase5-limits 10/10, phase3-api 24/24, phase6-mobile 32/32 with 0 problems (the 3 sign-in pages weren't included: they need a Supabase-mode API), smoke 23+23, phase5-ui 4+4. `phase6-monitoring-ui` wasn't run: it needs the Sentry stand-in, and monitoring wasn't changed.
+
+**Before it works on the live site:** deploy, then add `SETTINGS_ENCRYPTION_KEY` to `/etc/futurenestfund/api.env` and restart (step 10 in `docs/DEPLOY.md`). The Replit preview's API workflow also needs a restart to pick up the new code.

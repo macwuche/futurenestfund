@@ -52,6 +52,241 @@ export const TriggerMonitoringTestErrorResponse = zod.void()
 
 
 /**
+ * @summary Email settings in use (secrets only as hints) and where each value comes from
+ */
+export const GetEmailSettingsResponse = zod.object({
+  "canStoreSecrets": zod.boolean(),
+  "encryptionProblem": zod.string().nullable(),
+  "apiKey": zod.object({
+  "set": zod.boolean(),
+  "source": zod.enum(['settings', 'environment', 'none']),
+  "hint": zod.string().nullable().describe('e.g. re_••••abcd; the secret itself is never returned'),
+  "updatedAt": zod.string().nullable(),
+  "updatedBy": zod.string().nullable(),
+  "unreadable": zod.boolean().describe('Saved, but can\'t be decrypted with the current SETTINGS_ENCRYPTION_KEY')
+}),
+  "hookSecret": zod.object({
+  "set": zod.boolean(),
+  "source": zod.enum(['settings', 'environment', 'none']),
+  "hint": zod.string().nullable().describe('e.g. re_••••abcd; the secret itself is never returned'),
+  "updatedAt": zod.string().nullable(),
+  "updatedBy": zod.string().nullable(),
+  "unreadable": zod.boolean().describe('Saved, but can\'t be decrypted with the current SETTINGS_ENCRYPTION_KEY')
+}),
+  "fromName": zod.object({
+  "value": zod.string().nullable(),
+  "source": zod.enum(['settings', 'environment', 'none'])
+}),
+  "fromAddress": zod.object({
+  "value": zod.string().nullable(),
+  "source": zod.enum(['settings', 'environment', 'none'])
+}),
+  "replyTo": zod.object({
+  "value": zod.string().nullable(),
+  "source": zod.enum(['settings', 'environment', 'none'])
+}),
+  "signature": zod.object({
+  "value": zod.string().nullable(),
+  "source": zod.enum(['settings', 'environment', 'none'])
+}),
+  "supportEmail": zod.object({
+  "value": zod.string().nullable(),
+  "source": zod.enum(['settings', 'environment', 'none'])
+}),
+  "from": zod.string().nullable().describe('The From header in use'),
+  "sending": zod.boolean().describe('Whether email can be sent (key and sender address set)'),
+  "appUrl": zod.string().nullable(),
+  "hookUrl": zod.string().nullable().describe('The URL to paste into Supabase\'s Send Email Hook'),
+  "updatedAt": zod.string().nullable(),
+  "updatedBy": zod.string().nullable()
+})
+
+
+/**
+ * @summary Save email settings; fields left out are unchanged, empty text removes a value (falls back to the environment)
+ */
+export const updateEmailSettingsBodyFromNameMax = 200;
+
+export const updateEmailSettingsBodyFromAddressMax = 300;
+
+export const updateEmailSettingsBodyReplyToMax = 300;
+
+export const updateEmailSettingsBodySignatureMax = 1000;
+
+export const updateEmailSettingsBodySupportEmailMax = 300;
+
+export const updateEmailSettingsBodyApiKeyMax = 300;
+
+export const updateEmailSettingsBodyHookSecretMax = 300;
+
+
+
+export const UpdateEmailSettingsBody = zod.object({
+  "fromName": zod.string().max(updateEmailSettingsBodyFromNameMax).nullish(),
+  "fromAddress": zod.string().max(updateEmailSettingsBodyFromAddressMax).nullish(),
+  "replyTo": zod.string().max(updateEmailSettingsBodyReplyToMax).nullish(),
+  "signature": zod.string().max(updateEmailSettingsBodySignatureMax).nullish(),
+  "supportEmail": zod.string().max(updateEmailSettingsBodySupportEmailMax).nullish(),
+  "apiKey": zod.string().max(updateEmailSettingsBodyApiKeyMax).optional().describe('New Resend API key; leave out to keep the current one'),
+  "hookSecret": zod.string().max(updateEmailSettingsBodyHookSecretMax).optional().describe('New Send Email Hook secret (v1,whsec_…); leave out to keep the current one')
+})
+
+export const UpdateEmailSettingsResponse = zod.object({
+  "canStoreSecrets": zod.boolean(),
+  "encryptionProblem": zod.string().nullable(),
+  "apiKey": zod.object({
+  "set": zod.boolean(),
+  "source": zod.enum(['settings', 'environment', 'none']),
+  "hint": zod.string().nullable().describe('e.g. re_••••abcd; the secret itself is never returned'),
+  "updatedAt": zod.string().nullable(),
+  "updatedBy": zod.string().nullable(),
+  "unreadable": zod.boolean().describe('Saved, but can\'t be decrypted with the current SETTINGS_ENCRYPTION_KEY')
+}),
+  "hookSecret": zod.object({
+  "set": zod.boolean(),
+  "source": zod.enum(['settings', 'environment', 'none']),
+  "hint": zod.string().nullable().describe('e.g. re_••••abcd; the secret itself is never returned'),
+  "updatedAt": zod.string().nullable(),
+  "updatedBy": zod.string().nullable(),
+  "unreadable": zod.boolean().describe('Saved, but can\'t be decrypted with the current SETTINGS_ENCRYPTION_KEY')
+}),
+  "fromName": zod.object({
+  "value": zod.string().nullable(),
+  "source": zod.enum(['settings', 'environment', 'none'])
+}),
+  "fromAddress": zod.object({
+  "value": zod.string().nullable(),
+  "source": zod.enum(['settings', 'environment', 'none'])
+}),
+  "replyTo": zod.object({
+  "value": zod.string().nullable(),
+  "source": zod.enum(['settings', 'environment', 'none'])
+}),
+  "signature": zod.object({
+  "value": zod.string().nullable(),
+  "source": zod.enum(['settings', 'environment', 'none'])
+}),
+  "supportEmail": zod.object({
+  "value": zod.string().nullable(),
+  "source": zod.enum(['settings', 'environment', 'none'])
+}),
+  "from": zod.string().nullable().describe('The From header in use'),
+  "sending": zod.boolean().describe('Whether email can be sent (key and sender address set)'),
+  "appUrl": zod.string().nullable(),
+  "hookUrl": zod.string().nullable().describe('The URL to paste into Supabase\'s Send Email Hook'),
+  "updatedAt": zod.string().nullable(),
+  "updatedBy": zod.string().nullable()
+})
+
+
+/**
+ * @summary Remove a secret saved in Settings (the environment value, if any, is used again)
+ */
+export const RemoveEmailSecretParams = zod.object({
+  "name": zod.enum(['resendApiKey', 'hookSecret'])
+})
+
+export const RemoveEmailSecretResponse = zod.object({
+  "canStoreSecrets": zod.boolean(),
+  "encryptionProblem": zod.string().nullable(),
+  "apiKey": zod.object({
+  "set": zod.boolean(),
+  "source": zod.enum(['settings', 'environment', 'none']),
+  "hint": zod.string().nullable().describe('e.g. re_••••abcd; the secret itself is never returned'),
+  "updatedAt": zod.string().nullable(),
+  "updatedBy": zod.string().nullable(),
+  "unreadable": zod.boolean().describe('Saved, but can\'t be decrypted with the current SETTINGS_ENCRYPTION_KEY')
+}),
+  "hookSecret": zod.object({
+  "set": zod.boolean(),
+  "source": zod.enum(['settings', 'environment', 'none']),
+  "hint": zod.string().nullable().describe('e.g. re_••••abcd; the secret itself is never returned'),
+  "updatedAt": zod.string().nullable(),
+  "updatedBy": zod.string().nullable(),
+  "unreadable": zod.boolean().describe('Saved, but can\'t be decrypted with the current SETTINGS_ENCRYPTION_KEY')
+}),
+  "fromName": zod.object({
+  "value": zod.string().nullable(),
+  "source": zod.enum(['settings', 'environment', 'none'])
+}),
+  "fromAddress": zod.object({
+  "value": zod.string().nullable(),
+  "source": zod.enum(['settings', 'environment', 'none'])
+}),
+  "replyTo": zod.object({
+  "value": zod.string().nullable(),
+  "source": zod.enum(['settings', 'environment', 'none'])
+}),
+  "signature": zod.object({
+  "value": zod.string().nullable(),
+  "source": zod.enum(['settings', 'environment', 'none'])
+}),
+  "supportEmail": zod.object({
+  "value": zod.string().nullable(),
+  "source": zod.enum(['settings', 'environment', 'none'])
+}),
+  "from": zod.string().nullable().describe('The From header in use'),
+  "sending": zod.boolean().describe('Whether email can be sent (key and sender address set)'),
+  "appUrl": zod.string().nullable(),
+  "hookUrl": zod.string().nullable().describe('The URL to paste into Supabase\'s Send Email Hook'),
+  "updatedAt": zod.string().nullable(),
+  "updatedBy": zod.string().nullable()
+})
+
+
+/**
+ * @summary Run the email health checks (Resend key, sender domain, links, Supabase hook, outbox)
+ */
+export const CheckEmailHealthResponse = zod.object({
+  "checkedAt": zod.string(),
+  "checks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "status": zod.enum(['ok', 'warn', 'fail', 'off']),
+  "detail": zod.string()
+})),
+  "domain": zod.object({
+  "name": zod.string(),
+  "status": zod.string(),
+  "records": zod.array(zod.object({
+  "record": zod.string(),
+  "type": zod.string(),
+  "name": zod.string(),
+  "status": zod.string()
+}))
+}).nullable(),
+  "outbox": zod.object({
+  "waiting": zod.number().int(),
+  "retrying": zod.number().int(),
+  "failed": zod.number().int(),
+  "sentLast24h": zod.number().int(),
+  "lastSentAt": zod.string().nullable(),
+  "lastError": zod.string().nullable(),
+  "lastErrorAt": zod.string().nullable()
+})
+})
+
+
+/**
+ * @summary Send a test email with the settings in use
+ */
+export const sendTestEmailBodyToMax = 254;
+
+
+
+export const SendTestEmailBody = zod.object({
+  "to": zod.string().max(sendTestEmailBodyToMax)
+})
+
+export const SendTestEmailResponse = zod.object({
+  "ok": zod.boolean(),
+  "to": zod.string(),
+  "id": zod.string().nullable(),
+  "message": zod.string()
+})
+
+
+/**
  * Returns server health status
  * @summary Health check
  */
@@ -66,7 +301,8 @@ export const HealthCheckResponse = zod.object({
 export const GetAuthConfigResponse = zod.object({
   "mode": zod.enum(['supabase', 'demo']),
   "supabaseUrl": zod.string().nullable(),
-  "publishableKey": zod.string().nullable()
+  "publishableKey": zod.string().nullable(),
+  "supportEmail": zod.string().nullable().describe('Where people can write for help (Admin Settings → Email)')
 })
 
 

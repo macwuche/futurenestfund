@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { seedDemoData } from "./lib/demoSeed";
 import { database } from "@workspace/db";
 import { startNotificationMailer } from "./lib/notificationMailer";
+import { loadEmailSettings, startEmailSettingsRefresh } from "./lib/emailSettings";
 import { flushReports, forwardError } from "./lib/monitoring";
 
 // Errors outside a request: logged and reported. A crash still exits (systemd restarts the service), after sending.
@@ -36,6 +37,9 @@ if (Number.isNaN(port) || port <= 0) {
 const host = process.env["HOST"]?.trim() || undefined;
 
 await seedDemoData();
+// Email settings saved in Admin Settings (they win over the env vars); re-read every minute.
+await loadEmailSettings();
+startEmailSettingsRefresh();
 startNotificationMailer();
 
 const onListening = (err?: Error) => {
