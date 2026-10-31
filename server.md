@@ -23,7 +23,7 @@ Replit stays the development environment. It isn't the production host: its dev 
 | 2026-10-31 | GrantApp gets its **own** Node 24, PM2 daemon, system user (`futurenestfund`) and boot service | Root's PM2 runs noveriqgroups and akkayalar; a second install or `pm2 startup` as root could break them |
 | 2026-10-31 | Address **`access.futurenestfund.org`** | `futurenestfund.org` is the organisation's live WordPress site (Cloudflare DNS, hosted elsewhere) and must not change; matches the `access.` names of the other apps |
 | 2026-10-31 | Cloudflare record **DNS only** (grey cloud) | certbot works directly; the API sees visitors' real IP addresses for its rate limits (`TRUST_PROXY=1`) |
-| 2026-10-31 | Code comes from a **private GitHub repo** with a read-only deploy key | Same as the other apps; updates are `deploy.sh` (git + build) |
+| 2026-10-31 | Code comes from the **private GitHub repo `macwuche/futurenestfund`**, branch **`user-side-redesign`**, with a read-only deploy key | Same as the other apps. The Replit Git pane's sync pushes that branch, so no separate `main` to keep in step. Updates are `deploy.sh` (git + build) |
 | 2026-10-31 | API listens on **127.0.0.1:3200** only | The firewall is off; only nginx should reach the API |
 | 2026-10-29 | Supabase over the **session pooler** | The VPS has no IPv6; Supabase's direct address is IPv6-only |
 | 2026-10-29 | The running app connects as **`app_api`**; the `postgres` owner is used only for migrations and backups | Least privilege; the owner URL never reaches the app |
@@ -82,8 +82,8 @@ Status: ☐ not started · ◐ in progress · ☑ done. "Who": **you** = in a da
 | # | Step | Who | Status | Done when |
 |---|---|---|---|---|
 | 1a | Cloudflare: `A` record `access` → `77.68.98.14`, **DNS only** | you | ☐ | `getent hosts access.futurenestfund.org` on the server prints `77.68.98.14` |
-| 1b | GitHub: create an empty **private** repo; send Claude the URL | you | ☐ | URL received |
-| 1c | Push the code to that repo as `main` | Claude (you may need to run one `!` command for GitHub sign-in) | ☐ | Repo shows commit `dcc7ba9` or newer |
+| 1b | GitHub: private repo `macwuche/futurenestfund`, connected to Replit | you | ☑ 2026-10-31 | `origin` = `https://github.com/macwuche/futurenestfund` |
+| 1c | Code on GitHub, branch `user-side-redesign` (Replit Git pane → Sync) | you | ☑ 2026-10-31 | GitHub had `e44c98d`; re-sync after each new commit |
 | 2 | User `futurenestfund`, folders, Node 24.22.1 (checksum verified), pnpm 10.26.1, PM2 7.0.4 in `/opt/futurenestfund-node` | you | ☐ | `node -v` = v24.22.1, `pnpm -v` = 10.26.1 |
 | 3 | Deploy key (read-only) on GitHub; SSH alias `github.com-futurenestfund`; clone to `/var/www/futurenestfund` | you | ☐ | Clone succeeds |
 | 4 | Fill in `/etc/futurenestfund/api.env` and `migrate.env` from `secrets.local.md`; set permissions | you | ☐ | Files exist with 640 / 600 |
@@ -125,7 +125,7 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 ## 9. Updating and rolling back (after go-live)
 
 - **Update:**
-  1. Claude commits and pushes to GitHub `main`.
+  1. Claude commits; you press **Sync** in Replit's Git pane (pushes `user-side-redesign`).
   2. On the server: `bash /var/www/futurenestfund/deploy/deploy.sh`.
 - **Roll back:**
   1. `git -C /var/www/futurenestfund log --oneline -5`
@@ -138,3 +138,4 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 |---|---|
 | 2026-10-31 | The Replit preview showed "Can't reach GrantApp" (502). Cause: the dev API workflow had been stopped by a test clean-up, and Replit Secrets lack the Supabase settings. Decided to deploy to the VPS instead. |
 | 2026-10-31 | Decisions in §2 made; runbook and `deploy/` files written and tested (commit `dcc7ba9`). Waiting on step 1 (Cloudflare record, GitHub repo URL). |
+| 2026-10-31 | GitHub repo `macwuche/futurenestfund` connected and synced from Replit's Git pane (branch `user-side-redesign`, `e44c98d`). Server deploys that branch; no `main` needed. A personal access token was pasted in chat; it isn't used and should be deleted on GitHub. |

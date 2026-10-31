@@ -68,7 +68,7 @@ export PATH=/opt/futurenestfund-node/bin:$PATH
    - Type `A`, Name `access`, IPv4 `77.68.98.14`
    - Proxy status **DNS only** (grey cloud), so certbot works and the API sees visitors' real IP addresses for its rate limits
    - Don't add an AAAA record: the server has no IPv6.
-2. **GitHub**: create an empty **private** repository (no README). The app's code is pushed there as branch `main`.
+2. **GitHub**: the private repository is `macwuche/futurenestfund`. The server deploys branch **`user-side-redesign`**, which the Replit Git pane's sync pushes.
 3. Check DNS from the server; the command should print `77.68.98.14`:
    ```bash
    getent hosts access.futurenestfund.org
@@ -101,9 +101,9 @@ GitHub → the repository → Settings → **Deploy keys** → Add: paste the li
 Then add the SSH host alias, the same pattern as the other apps:
 ```bash
 printf '\nHost github.com-futurenestfund\n  HostName github.com\n  User git\n  IdentityFile /root/.ssh/futurenestfund_deploy\n  IdentitiesOnly yes\n' >> /root/.ssh/config
-git clone git@github.com-futurenestfund:OWNER/REPO.git /var/www/futurenestfund
+git clone git@github.com-futurenestfund:macwuche/futurenestfund.git /var/www/futurenestfund
 ```
-Replace `OWNER/REPO` with the repository, and answer `yes` to GitHub's fingerprint the first time.
+Answer `yes` to GitHub's fingerprint the first time.
 
 ### Step 4. Settings files
 ```bash
@@ -197,7 +197,7 @@ ls -lh /var/backups/futurenestfund
 
 | Task | Command |
 |---|---|
-| Deploy the latest `main` | `bash /var/www/futurenestfund/deploy/deploy.sh` |
+| Deploy the latest `user-side-redesign` (after a Replit Git sync) | `bash /var/www/futurenestfund/deploy/deploy.sh` |
 | Roll back to an earlier commit | `git -C /var/www/futurenestfund log --oneline -5`, then `bash /var/www/futurenestfund/deploy/deploy.sh <commit>` |
 | Status | `fnf-pm2 list` |
 | Logs (live / last 100 lines) | `fnf-pm2 logs futurenestfund-api` / `fnf-pm2 logs futurenestfund-api --lines 100 --nostream` |

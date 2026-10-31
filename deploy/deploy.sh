@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploy or roll back GrantApp on the VPS (docs/DEPLOY.md). Run as root:
-#   bash /var/www/futurenestfund/deploy/deploy.sh            latest commit of $BRANCH (default main)
+#   bash /var/www/futurenestfund/deploy/deploy.sh            latest commit of $BRANCH (default user-side-redesign)
 #   bash /var/www/futurenestfund/deploy/deploy.sh <commit>   that commit (rollback)
 # Builds the API and the web app, runs database migrations, switches the web files in one step and reloads the API.
 # Everything is inside main(), so bash has read the whole script before git checkout changes this file.
@@ -8,7 +8,7 @@ set -euo pipefail
 
 main() {
   local APP=/var/www/futurenestfund WEB=/var/www/futurenestfund-web
-  local REF=${1:-origin/${BRANCH:-main}}
+  local REF=${1:-origin/${BRANCH:-user-side-redesign}}
   export PATH=/opt/futurenestfund-node/bin:$PATH
 
   cd "$APP"
