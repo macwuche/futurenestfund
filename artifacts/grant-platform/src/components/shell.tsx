@@ -396,7 +396,7 @@ const appSchema = z.object({
   amount: z.coerce.number().min(100, 'Minimum is $100').max(10_000_000, 'Maximum is $10,000,000'),
 });
 export function NewApplicationModal() {
-  const { newApp, closeNewApp, completeSetup } = useDemo();
+  const { newApp, closeNewApp } = useDemo();
   const [, nav] = useLocation();
   const { toast } = useToast();
   const create = useCreateApplicantApplication();
@@ -415,7 +415,7 @@ export function NewApplicationModal() {
     <Modal open={!!newApp} onClose={closeNewApp} title="New application" testid="dialog-new-application">
       <form className="space-y-4" noValidate onSubmit={f.handleSubmit((v) => create.mutate({ data: v }, {
         onSuccess: (app) => {
-          refresh(); completeSetup('proposal');
+          refresh();
           closeNewApp(); nav(`/applications/${app.id}`);
           if (!doc) { toast({ title: 'Application submitted', description: v.title }); return; }
           // The application exists either way; a failed upload can be retried from its page.

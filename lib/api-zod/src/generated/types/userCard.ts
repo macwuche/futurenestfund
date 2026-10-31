@@ -5,6 +5,7 @@
  * Grant applicant and administration dashboard API
  * OpenAPI spec version: 0.1.0
  */
+import type { UserCardFrozenBy } from './userCardFrozenBy';
 import type { UserCardKind } from './userCardKind';
 import type { UserCardNetwork } from './userCardNetwork';
 import type { UserCardStatus } from './userCardStatus';
@@ -18,5 +19,9 @@ export interface UserCard {
   balance: number;
   /** Why an administrator froze or cancelled the card */
   statusReason?: string;
+  /** Who froze a frozen card; a card frozen by an administrator stays locked to the user */
+  frozenBy?: UserCardFrozenBy;
+  /** When the user said a pending physical card arrived and asked for it to be activated */
+  activationRequestedAt?: Date;
   issuedAt?: Date;
 }

@@ -11,6 +11,7 @@ import {
   IssueUserCardParams, IssueUserCardBody, IssueUserCardResponse, ChangeUserCardParams, ChangeUserCardBody, ChangeUserCardResponse,
   UpdateUserWithdrawalLimitsParams, UpdateUserWithdrawalLimitsBody, UpdateUserWithdrawalLimitsResponse, UpdateApplicantPreferencesBody, UpdateApplicantPreferencesResponse,
   GetApplicantMatchmakingResponse, SaveApplicantMatchmakingBody, SaveApplicantMatchmakingResponse,
+  ChangeApplicantCardParams, ChangeApplicantCardBody, ChangeApplicantCardResponse,
 } from "@workspace/api-zod";
 import {
   ListApplicantApplicationsResponse, CreateApplicantApplicationBody, GetApplicantApplicationParams, GetApplicantApplicationResponse,
@@ -33,7 +34,7 @@ import {
   ExportAdminTransactionsQueryParams, GetAdminKycQueueResponse, ReviewAdminKycDocumentParams, ReviewAdminKycDocumentBody, ReviewAdminKycDocumentResponse,
 } from "@workspace/api-zod";
 import { db, demoProfilesTable } from "@workspace/db";
-import { changeCard, issueCard } from "../lib/cards";
+import { changeCard, changeOwnCard, issueCard } from "../lib/cards";
 import {
   adminSearch, listAdminApplications, adminApplicationDetail, decideApplication, listAdminRequests, approveRequest, rejectRequest,
   listLedger, exportLedgerCsv, adminKycQueue, reviewKycDocument,
@@ -91,6 +92,15 @@ router.put("/applicant/matchmaking", async (req, res): Promise<void> => {
 
 router.get("/applicant/account", async (req, res): Promise<void> => {
   res.json(GetApplicantAccountResponse.parse(await applicantAccount(currentUserId(req))));
+});
+
+router.post("/applicant/cards/:cardId/actions", async (req, res): Promise<void> => {
+  const params = ChangeApplicantCardParams.safeParse(req.params);
+  const input = ChangeApplicantCardBody.safeParse(req.body);
+  if (!params.success || !input.success) { res.status(400).json({ error: "Choose freeze, unfreeze or request activation." }); return; }
+  const id = currentUserId(req);
+  if (!await changeOwnCard(id, params.data.cardId, input.data.action, req.identity!.name)) { res.status(404).json({ error: "Card not found." }); return; }
+  res.json(ChangeApplicantCardResponse.parse(await applicantAccount(id)));
 });
 
 router.post("/applicant/requests", async (req, res): Promise<void> => {

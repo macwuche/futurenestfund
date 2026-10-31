@@ -179,6 +179,17 @@ export const UserCardStatus = {
   Cancelled: 'Cancelled',
 } as const;
 
+/**
+ * Who froze a frozen card; a card frozen by an administrator stays locked to the user
+ */
+export type UserCardFrozenBy = typeof UserCardFrozenBy[keyof typeof UserCardFrozenBy];
+
+
+export const UserCardFrozenBy = {
+  user: 'user',
+  admin: 'admin',
+} as const;
+
 export interface UserCard {
   id: string;
   network: UserCardNetwork;
@@ -188,6 +199,10 @@ export interface UserCard {
   balance: number;
   /** Why an administrator froze or cancelled the card */
   statusReason?: string;
+  /** Who froze a frozen card; a card frozen by an administrator stays locked to the user */
+  frozenBy?: UserCardFrozenBy;
+  /** When the user said a pending physical card arrived and asked for it to be activated */
+  activationRequestedAt?: string;
   issuedAt?: string;
 }
 
@@ -873,6 +888,19 @@ export interface CardActionInput {
      * @maxLength 240
      */
   reason?: string;
+}
+
+export type ApplicantCardActionInputAction = typeof ApplicantCardActionInputAction[keyof typeof ApplicantCardActionInputAction];
+
+
+export const ApplicantCardActionInputAction = {
+  freeze: 'freeze',
+  unfreeze: 'unfreeze',
+  'request-activation': 'request-activation',
+} as const;
+
+export interface ApplicantCardActionInput {
+  action: ApplicantCardActionInputAction;
 }
 
 export interface GlobalFreezeUpdate {

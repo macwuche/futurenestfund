@@ -35,6 +35,7 @@ import type {
   AdminUsersPage,
   ApplicantAccount,
   ApplicantApplication,
+  ApplicantCardActionInput,
   ApplicantDashboard,
   ApplicantKyc,
   ApplicantPreferences,
@@ -989,6 +990,95 @@ export function useGetApplicantAccount<TData = Awaited<ReturnType<typeof getAppl
 
 
 
+
+export const getChangeApplicantCardUrl = (cardId: string,) => {
+
+
+
+
+  return `/api/applicant/cards/${cardId}/actions`
+}
+
+/**
+ * @summary Freeze or unfreeze your own card, or ask for a delivered physical card to be activated
+ */
+export const changeApplicantCard = async (cardId: string,
+    applicantCardActionInput: ApplicantCardActionInput, options?: Parameters<typeof customFetch>[1]): Promise<ApplicantAccount> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ApplicantAccount>(getChangeApplicantCardUrl(cardId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(applicantCardActionInput)
+  }
+);}
+
+
+
+
+
+export const getChangeApplicantCardMutationKey = () => ['changeApplicantCard'] as const;
+
+export const getChangeApplicantCardMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeApplicantCard>>, TError,ChangeApplicantCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeApplicantCard>>, TError,ChangeApplicantCardMutationVariables, TContext> => {
+
+const mutationKey = getChangeApplicantCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeApplicantCard>>, ChangeApplicantCardMutationVariables> = (props) => {
+          const {cardId,data} = props ?? {};
+
+          return  changeApplicantCard(cardId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeApplicantCardMutationResult = NonNullable<Awaited<ReturnType<typeof changeApplicantCard>>>
+    export type ChangeApplicantCardMutationBody = BodyType<ApplicantCardActionInput>
+    export type ChangeApplicantCardMutationError = ErrorType<ErrorMessage>
+    export type ChangeApplicantCardMutationVariables = {cardId: string;data: BodyType<ApplicantCardActionInput>}
+
+    /**
+ * @summary Freeze or unfreeze your own card, or ask for a delivered physical card to be activated
+ */
+export const useChangeApplicantCard = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeApplicantCard>>, TError,ChangeApplicantCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof changeApplicantCard>>,
+        TError,
+        ChangeApplicantCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChangeApplicantCardMutationOptions(options));
+    }
 
 export const getCreateApplicantRequestUrl = () => {
 

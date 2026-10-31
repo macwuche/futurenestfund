@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-10-30 · branch `user-side-redesign` · Phase 5 complete; Phase 6 under way (6.1 done)._
+_Last updated 2026-10-30 · branch `user-side-redesign` · Phase 5 complete; Phase 6 under way (6.1 and 6.2 done)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -35,7 +35,7 @@ Pages: Dashboard, My Applications (+ detail page), Grant Search, Grant categorie
 
 - **Dashboard:**
   - funding tracker (stacked chart on desktop, progress bar on phones)
-  - setup cards: grant matchmaking, first proposal
+  - setup cards: grant matchmaking, first proposal (each is marked complete by the server: answers saved / an application submitted)
   - grant highlights
 - **Applications:** create (with an optional PDF/Word proposal), list with filters, detail page.
   - The detail page has a status timeline and documents (attach up to 5, download, remove).
@@ -44,7 +44,7 @@ Pages: Dashboard, My Applications (+ detail page), Grant Search, Grant categorie
 - **Money:**
   - deposit and withdrawal requests, checked server-side: 2 decimals, $0.01 to $1M, freezes, KYC rules, and withdrawals can't exceed the available balance
   - transactions list (real ledger entries plus requests)
-  - balances and sample cards
+  - balances and sample cards: the applicant can freeze and unfreeze their own card (a card an administrator froze stays locked to them), see card details, and say a physical card has arrived to ask for it to be activated
 - **Milestones:** add, tick, delete (stored per user).
 - **Notifications:** the bell (polled every 30 s), plus an **email** for each notification when enabled. Deposit and withdrawal requests get dedicated emails when placed, approved and declined (with a reference, and the reason for a decline). An admin can override a user's email and in-app notifications (always on / always off).
 - **Settings:**
@@ -71,7 +71,7 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
   - edit profile; tier; account freeze
   - per-user rules: KYC for deposits / withdrawals; email and in-app notification overrides (user's choice / always on / always off)
   - credit and **debit** balances (a debit needs a reason shown to the user, never goes below $0 or below what pending withdrawals hold, and asks for confirmation)
-  - **cards:** issue a sample card (virtual active at once, physical pending until marked issued), freeze / unfreeze with a reason shown to the user, cancel (permanent)
+  - **cards:** issue a sample card (virtual active at once, physical pending until marked issued), freeze / unfreeze with a reason shown to the user (also locks a card the user froze themselves), cancel (permanent); shows who froze a card and when a user asked for a physical card to be activated
   - **profile photo:** upload or remove the user's photo (same checks and re-encoding as the applicant's own upload; removal asks first). Audited, and the user is notified.
   - the user's applications and KYC documents
 - **Application review:** Submitted → Review → Approved / Declined / Changes requested, with notes. Approving credits the grant balance through the ledger.
@@ -433,6 +433,7 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 | `057fce1` | Debit adjustments (5.5) |
 | `0f64fd4` | Admin card controls (5.6) |
 | `349ec5f` | Profile photos: the admin's own, and users' from the inspector (5.7) |
+| `92bc2a7` | Rule-based grant matchmaking (6.1) |
 
 ---
 
@@ -450,7 +451,7 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 
 **Phase 6 (finish and harden)**, full plan in `work.md` §12:
 - ~~6.1 grant matchmaking (rule-based)~~: done 2026-10-30
-- card controls for applicants
+- ~~6.2 card controls for applicants~~: done 2026-10-31
 - final mobile polish
 - error monitoring, a deployment runbook, persistent upload storage, virus scanning for uploads, a Redis-backed rate limiter if more than one server
 

@@ -268,6 +268,74 @@ export const GetApplicantAccountResponse = zod.object({
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
   "balance": zod.number(),
   "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
+  "frozenBy": zod.enum(['user', 'admin']).optional().describe('Who froze a frozen card; a card frozen by an administrator stays locked to the user'),
+  "activationRequestedAt": zod.coerce.date().optional().describe('When the user said a pending physical card arrived and asked for it to be activated'),
+  "issuedAt": zod.coerce.date().optional()
+})),
+  "transactions": zod.array(zod.object({
+  "id": zod.string(),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance']),
+  "account": zod.enum(['grant', 'deposit', 'card']),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "description": zod.string(),
+  "status": zod.enum(['Pending', 'Completed', 'Declined']),
+  "createdAt": zod.coerce.date(),
+  "reference": zod.string().optional().describe('Short reference for a deposit or withdrawal request'),
+  "reviewNote": zod.string().optional().describe('Why a request was declined')
+})),
+  "withdrawalLimits": zod.object({
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "maxPerRequest": zod.number().nullable(),
+  "dailyTotal": zod.number().nullable(),
+  "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
+})
+})
+
+
+/**
+ * @summary Freeze or unfreeze your own card, or ask for a delivered physical card to be activated
+ */
+export const ChangeApplicantCardParams = zod.object({
+  "cardId": zod.coerce.string()
+})
+
+export const ChangeApplicantCardBody = zod.object({
+  "action": zod.enum(['freeze', 'unfreeze', 'request-activation'])
+})
+
+export const changeApplicantCardResponseTierMax = 3;
+
+
+
+export const ChangeApplicantCardResponse = zod.object({
+  "status": zod.enum(['Active', 'Frozen']),
+  "platformFrozen": zod.boolean(),
+  "tier": zod.number().int().min(1).max(changeApplicantCardResponseTierMax),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "permissions": zod.object({
+  "emailNotifications": zod.boolean(),
+  "withdrawalKycRequired": zod.boolean(),
+  "depositKycRequired": zod.boolean(),
+  "emailOverride": zod.boolean().nullish().describe('Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user'),
+  "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
+}),
+  "balances": zod.object({
+  "grant": zod.number(),
+  "deposit": zod.number(),
+  "card": zod.number()
+}),
+  "availableToWithdraw": zod.number(),
+  "cards": zod.array(zod.object({
+  "id": zod.string(),
+  "network": zod.enum(['Visa', 'Mastercard']),
+  "kind": zod.enum(['Virtual', 'Physical']),
+  "lastFour": zod.string(),
+  "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
+  "balance": zod.number(),
+  "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
+  "frozenBy": zod.enum(['user', 'admin']).optional().describe('Who froze a frozen card; a card frozen by an administrator stays locked to the user'),
+  "activationRequestedAt": zod.coerce.date().optional().describe('When the user said a pending physical card arrived and asked for it to be activated'),
   "issuedAt": zod.coerce.date().optional()
 })),
   "transactions": zod.array(zod.object({
@@ -906,6 +974,8 @@ export const GetAdminUserResponse = zod.object({
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
   "balance": zod.number(),
   "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
+  "frozenBy": zod.enum(['user', 'admin']).optional().describe('Who froze a frozen card; a card frozen by an administrator stays locked to the user'),
+  "activationRequestedAt": zod.coerce.date().optional().describe('When the user said a pending physical card arrived and asked for it to be activated'),
   "issuedAt": zod.coerce.date().optional()
 })),
   "documents": zod.array(zod.object({
@@ -1005,6 +1075,8 @@ export const UpdateAdminUserResponse = zod.object({
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
   "balance": zod.number(),
   "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
+  "frozenBy": zod.enum(['user', 'admin']).optional().describe('Who froze a frozen card; a card frozen by an administrator stays locked to the user'),
+  "activationRequestedAt": zod.coerce.date().optional().describe('When the user said a pending physical card arrived and asked for it to be activated'),
   "issuedAt": zod.coerce.date().optional()
 })),
   "documents": zod.array(zod.object({
@@ -1144,6 +1216,8 @@ export const UploadAdminUserAvatarResponse = zod.object({
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
   "balance": zod.number(),
   "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
+  "frozenBy": zod.enum(['user', 'admin']).optional().describe('Who froze a frozen card; a card frozen by an administrator stays locked to the user'),
+  "activationRequestedAt": zod.coerce.date().optional().describe('When the user said a pending physical card arrived and asked for it to be activated'),
   "issuedAt": zod.coerce.date().optional()
 })),
   "documents": zod.array(zod.object({
@@ -1217,6 +1291,8 @@ export const DeleteAdminUserAvatarResponse = zod.object({
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
   "balance": zod.number(),
   "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
+  "frozenBy": zod.enum(['user', 'admin']).optional().describe('Who froze a frozen card; a card frozen by an administrator stays locked to the user'),
+  "activationRequestedAt": zod.coerce.date().optional().describe('When the user said a pending physical card arrived and asked for it to be activated'),
   "issuedAt": zod.coerce.date().optional()
 })),
   "documents": zod.array(zod.object({
@@ -1295,6 +1371,8 @@ export const IssueUserCardResponse = zod.object({
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
   "balance": zod.number(),
   "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
+  "frozenBy": zod.enum(['user', 'admin']).optional().describe('Who froze a frozen card; a card frozen by an administrator stays locked to the user'),
+  "activationRequestedAt": zod.coerce.date().optional().describe('When the user said a pending physical card arrived and asked for it to be activated'),
   "issuedAt": zod.coerce.date().optional()
 })),
   "documents": zod.array(zod.object({
@@ -1378,6 +1456,8 @@ export const ChangeUserCardResponse = zod.object({
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
   "balance": zod.number(),
   "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
+  "frozenBy": zod.enum(['user', 'admin']).optional().describe('Who froze a frozen card; a card frozen by an administrator stays locked to the user'),
+  "activationRequestedAt": zod.coerce.date().optional().describe('When the user said a pending physical card arrived and asked for it to be activated'),
   "issuedAt": zod.coerce.date().optional()
 })),
   "documents": zod.array(zod.object({
@@ -1457,6 +1537,8 @@ export const UpdateUserWithdrawalLimitsResponse = zod.object({
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
   "balance": zod.number(),
   "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
+  "frozenBy": zod.enum(['user', 'admin']).optional().describe('Who froze a frozen card; a card frozen by an administrator stays locked to the user'),
+  "activationRequestedAt": zod.coerce.date().optional().describe('When the user said a pending physical card arrived and asked for it to be activated'),
   "issuedAt": zod.coerce.date().optional()
 })),
   "documents": zod.array(zod.object({

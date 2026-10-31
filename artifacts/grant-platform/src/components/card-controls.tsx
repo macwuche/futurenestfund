@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useChangeUserCard, useIssueUserCard, type AdminUserProfile, type CardActionInputAction, type UserCard } from '@workspace/api-client-react';
 import { CreditCard, Loader2, Plus } from 'lucide-react';
-import { Empty, Field, Modal, StatusBadge, cx, money } from '@/components/bits';
+import { Empty, Field, Modal, StatusBadge, cx, dateFmt, money } from '@/components/bits';
 import { ainput, dark, ghost, lime, ReasonModal, useAdminRefresh } from '@/components/admin-bits';
 import { apiError } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
@@ -50,13 +50,15 @@ export function CardControls({ u, onTopUp }: { u: AdminUserProfile; onTopUp: () 
                   <p className="font-num text-lg" data-testid={`text-user-card-balance-${c.id}`}>{c.status === 'Pending' ? 'Awaiting delivery' : money(c.balance)}</p>
                   <StatusBadge status={c.status} testid={`badge-card-${c.id}`} />
                   {c.statusReason && <p className="mt-1 break-words text-xs text-white/80" data-testid={`text-card-reason-${c.id}`}>{c.statusReason}</p>}
+                  {c.status === 'Frozen' && c.frozenBy === 'user' && <p className="mt-1 text-xs text-white/80" data-testid={`text-card-frozen-by-${c.id}`}>Frozen by the user. Freeze it yourself to lock it.</p>}
+                  {c.status === 'Pending' && c.activationRequestedAt && <p className="mt-1 text-xs font-semibold text-[#C6F432]" data-testid={`text-card-activation-requested-${c.id}`}>User says it arrived · activation requested {dateFmt(c.activationRequestedAt)}</p>}
                 </div>
                 <CreditCard className="h-5 w-5 shrink-0 opacity-60" />
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {c.status === 'Pending' && <button data-testid={`button-card-activate-${c.id}`} disabled={change.isPending || accountFrozen} onClick={() => run(c, 'activate')} className={cx(lime, small)}>{busy(c, 'activate') && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Mark as issued</button>}
                 {c.status === 'Active' && <button data-testid={`button-topup-${c.id}`} disabled={accountFrozen} onClick={onTopUp} className={cx(lime, small)}>Top up</button>}
-                {c.status === 'Active' && <button data-testid={`button-card-freeze-${c.id}`} disabled={change.isPending || accountFrozen} onClick={() => { setError(''); setAsking({ card: c, action: 'freeze' }); }} className={cx(ghost, small)}>Freeze</button>}
+                {(c.status === 'Active' || (c.status === 'Frozen' && c.frozenBy === 'user')) && <button data-testid={`button-card-freeze-${c.id}`} disabled={change.isPending || accountFrozen} onClick={() => { setError(''); setAsking({ card: c, action: 'freeze' }); }} className={cx(ghost, small)}>Freeze</button>}
                 {c.status === 'Frozen' && <button data-testid={`button-card-unfreeze-${c.id}`} disabled={change.isPending || accountFrozen} onClick={() => run(c, 'unfreeze')} className={cx(lime, small)}>{busy(c, 'unfreeze') && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Unfreeze</button>}
                 <button data-testid={`button-card-cancel-${c.id}`} disabled={change.isPending || accountFrozen} onClick={() => { setError(''); setAsking({ card: c, action: 'cancel' }); }} className={cx('press rounded-lg px-3 font-semibold text-red-200 hover:bg-white/10 disabled:opacity-50', small)}>Cancel card</button>
               </div>
@@ -75,7 +77,7 @@ export function CardControls({ u, onTopUp }: { u: AdminUserProfile; onTopUp: () 
         title={asking?.action === 'cancel' ? `Cancel card •• ${asking.card.lastFour}?` : `Freeze card •• ${asking?.card.lastFour ?? ''}?`}
         intro={asking?.action === 'cancel'
           ? <p>Cancelling is permanent: the card can't be used or reactivated. {asking.card.kind === 'Virtual' ? 'The card account balance stays on the account and can be moved to a new card.' : ''} {u.name} is notified with your reason.</p>
-          : <p>A frozen card can't be topped up until it's unfrozen. {u.name} is notified with your reason.</p>}
+          : <p>A frozen card can't be topped up until it's unfrozen{asking?.card.status === 'Frozen' ? ', and the user can no longer unfreeze it themselves' : ''}. {u.name} is notified with your reason.</p>}
         confirmLabel={asking?.action === 'cancel' ? 'Cancel card' : 'Freeze card'}
         onClose={() => setAsking(null)} onSubmit={(reason) => asking && run(asking.card, asking.action, reason)} />
     </div>

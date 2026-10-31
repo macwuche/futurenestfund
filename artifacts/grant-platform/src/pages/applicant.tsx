@@ -21,6 +21,7 @@ import { Shell } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { useAuth } from '@/lib/auth';
 import { MatchPill, TopMatches, WhyMatch, useMatchmakingDialog } from '@/components/matchmaking';
+import { OwnCardControls } from '@/components/card-self-service';
 import { Avatar, Empty, ErrorState, Field, FILE_RULES, Modal, PageSkeleton, Skel, StatusBadge, checkFile, cx, dateFmt, fileSize, inputCls, money, statusLabel } from '@/components/bits';
 import { apiError, matchesSearch, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
@@ -115,9 +116,9 @@ function FundingTracker({ d }: { d: ApplicantDashboard }) {
 const setupIcon: Record<string, LucideIcon> = { matchmaking: Sparkles, proposal: FileText };
 
 function SetupCards({ d }: { d: ApplicantDashboard }) {
-  const { doneSetup, openNewApp } = useDemo();
+  const { openNewApp } = useDemo();
   const mm = useMatchmakingDialog();
-  // Matchmaking is complete once its answers are saved (server-side); the proposal step once an application is submitted.
+  // Completion comes from the server: matchmaking once its answers are saved, the proposal step once an application is submitted.
   const act = (id: string) => (id === 'proposal' ? openNewApp() : mm.open());
   if (d.setupCards.length === 0) return null;
   return (
@@ -125,7 +126,6 @@ function SetupCards({ d }: { d: ApplicantDashboard }) {
       <h2 id="setup-heading" className="sr-only">Setup and recommendations</h2>
       <div className="noscroll -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0" data-testid="list-setup-cards">
         {d.setupCards.map((c) => {
-          const done = c.complete || (c.id !== 'matchmaking' && doneSetup.includes(c.id));
           const Icon = setupIcon[c.id] ?? Sparkles;
           return (
             <div key={c.id} data-testid={`card-setup-${c.id}`} className="flex min-w-[85%] snap-start flex-col rounded-2xl border border-[#DBEAFE] bg-[#EEF4FB] p-5 sm:min-w-[60%] md:min-w-0">
@@ -135,7 +135,7 @@ function SetupCards({ d }: { d: ApplicantDashboard }) {
               </div>
               <h3 className="mt-4 text-lg font-semibold text-slate-900">{c.title}</h3>
               <p className="mt-1.5 flex-1 text-[15px] leading-relaxed text-slate-600">{c.description}</p>
-              {done ? (
+              {c.complete ? (
                 <span data-testid={`status-setup-${c.id}`} className="mt-4 inline-flex items-center gap-1.5 self-start rounded-full bg-[#DCFCE7] px-4 py-2 text-sm font-semibold text-[#166534]"><Check className="h-4 w-4" />Complete</span>
               ) : (
                 <button data-testid={`button-setup-${c.id}`} onClick={() => act(c.id)} className="press mt-4 self-start rounded-full bg-[#1E3A8A] px-5 py-2.5 text-[15px] font-semibold text-white hover:bg-[#0F172A]">{c.actionLabel || 'Complete Setup'}</button>
@@ -561,11 +561,7 @@ function CardsBody({ a }: { a: Account }) {
                   </div>
                   <StatusBadge status={c.status} dot={false} testid={`badge-card-${c.id}`} />
                 </div>
-                {c.status === 'Frozen' && (
-                  <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid={`text-card-frozen-${c.id}`}>
-                    Frozen by an administrator{c.statusReason ? `: ${c.statusReason}${/[.!?]$/.test(c.statusReason) ? '' : '.'}` : '.'} It can’t be topped up until it’s unfrozen.
-                  </p>
-                )}
+                <OwnCardControls c={c} accountFrozen={a.status === 'Frozen'} />
               </div>
             ))}
           </div>

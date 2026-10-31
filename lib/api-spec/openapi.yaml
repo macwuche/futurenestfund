@@ -194,6 +194,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApplicantAccount"
+  /applicant/cards/{cardId}/actions:
+    post:
+      operationId: changeApplicantCard
+      tags: [applicant]
+      summary: Freeze or unfreeze your own card, or ask for a delivered physical card to be activated
+      parameters:
+        - { name: cardId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApplicantCardActionInput" }
+      responses:
+        "200":
+          description: The updated account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicantAccount" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Card not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /applicant/requests:
     post:
       operationId: createApplicantRequest
@@ -1456,6 +1484,8 @@ components:
         status: { type: string, enum: [Active, Frozen, Pending, Cancelled] }
         balance: { type: number }
         statusReason: { type: string, description: "Why an administrator froze or cancelled the card" }
+        frozenBy: { type: string, enum: [user, admin], description: "Who froze a frozen card; a card frozen by an administrator stays locked to the user" }
+        activationRequestedAt: { type: string, format: date-time, description: "When the user said a pending physical card arrived and asked for it to be activated" }
         issuedAt: { type: string, format: date-time }
       required: [id, network, kind, lastFour, status, balance]
     KycDocument:
@@ -1604,6 +1634,12 @@ components:
       properties:
         action: { type: string, enum: [activate, freeze, unfreeze, cancel] }
         reason: { type: string, maxLength: 240, description: "Required (5+ characters) to freeze or cancel; shown to the user" }
+      required: [action]
+      additionalProperties: false
+    ApplicantCardActionInput:
+      type: object
+      properties:
+        action: { type: string, enum: [freeze, unfreeze, request-activation] }
       required: [action]
       additionalProperties: false
     GlobalFreezeUpdate:

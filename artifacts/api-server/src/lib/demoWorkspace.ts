@@ -101,13 +101,15 @@ export async function applicantDashboard(profileId: string, monthly: boolean) {
   const review = monthly ? [4000, 16000, 4500, 12000, 6500, 4500, 9500, 6000] : [1500, 2000, 1000, 3500, 2500, 1000, 500];
   const apps = await db.select().from(demoApplicationsTable)
     .where(and(eq(demoApplicationsTable.profileId, person.id), activeApplicationsFilter)).orderBy(desc(demoApplicationsTable.submittedAt));
+  // Any application ever submitted counts, including one withdrawn since.
+  const [{ submittedAny }] = await db.select({ submittedAny: sql<boolean>`count(*) > 0` }).from(demoApplicationsTable).where(eq(demoApplicationsTable.profileId, person.id));
   return {
     profile: applicantProfile(person),
     totalBudget: 50000, allocatedFunds: person.grantCents / 100, remainingFunds: 50000 - person.grantCents / 100,
     fundingTrend: labels.map((label, index) => ({ label, submitted: submitted[index], review: review[index] })),
     setupCards: [
       { id: "matchmaking", title: "Grant Matchmaking", description: "Answer five quick questions and we'll rank grants for your organization.", actionLabel: "Find my matches", complete: storedAnswers(person) !== null },
-      { id: "proposal", title: "Submit First Proposal", description: "Upload your first proposal and we'll use your facturas to pre-fill your business information.", actionLabel: "Complete Setup", complete: false },
+      { id: "proposal", title: "Submit First Proposal", description: "Start an application and attach your proposal as a PDF or Word file. You can follow it from review to decision.", actionLabel: "Start an application", complete: submittedAny },
     ],
     highlights: apps.slice(0, 5).map(applicationSummary),
     recommendations: grantRecommendations(storedAnswers(person)),

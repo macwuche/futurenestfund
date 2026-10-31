@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Inbox, RefreshCw, X } from 'lucide-react';
 
 export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(' ');
@@ -108,7 +109,8 @@ export function Modal({ open, onClose, title, children, testid }: { open: boolea
     return () => { window.removeEventListener('keydown', h); document.body.style.overflow = overflow; prev?.focus?.(); };
   }, [open]);
   if (!open) return null;
-  return (
+  // Portalled to <body> so no ancestor's stacking context (animations, transforms) can put the bottom nav above it.
+  return createPortal(
     <div className="fixed inset-0 z-[80] grid place-items-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} data-testid={`overlay-${testid}`} />
       <div ref={box} role="dialog" aria-modal="true" aria-label={title} data-testid={testid} className="pop relative max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
@@ -118,7 +120,8 @@ export function Modal({ open, onClose, title, children, testid }: { open: boolea
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

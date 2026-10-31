@@ -1534,4 +1534,31 @@ Tests (2026-10-30), all passing:
 - regressions (data restored before each): smoke 23+23, phase1-desktop 26/26, phase1-phone 10/10, phase2-desktop 25/25, phase5-ui 4+4
 - Demo data restored.
 
-Not changed, but worth a look: the second setup card ("Submit First Proposal") still says "we'll use your facturas to pre-fill your business information", which the app doesn't do.
+Not changed, but worth a look: the second setup card ("Submit First Proposal") still says "we'll use your facturas to pre-fill your business information", which the app doesn't do. *(Fixed 2026-10-31, see 6.2 below.)*
+
+### 2026-10-31: "Submit First Proposal" setup card reworded
+
+At the user's request. It promised to "use your facturas to pre-fill your business information", which the app doesn't do. It now reads "Start an application and attach your proposal as a PDF or Word file. You can follow it from review to decision." with the button "Start an application" (it opens the New application form, which takes a PDF/Word file). It's marked complete by the server once the applicant has submitted any application (a withdrawn one still counts). Before, completion lived only in browser storage; that storage (`doneSetup` / `completeSetup`) is removed.
+
+### 2026-10-31: Step 6.2 plan and done (card controls for applicants)
+
+**What the applicant can do on Cards:**
+- **Freeze** an active card, and **unfreeze** it again. No reason is needed; the user isn't notified of their own action. Freezing works even while the account is frozen, because it only makes the card safer. Unfreezing doesn't.
+- **A card an administrator froze stays locked.** The card says who froze it and why: "Only they can unfreeze it; contact support …". Each card now records `frozenBy` (`user` / `admin`). A card frozen before this was recorded counts as frozen by an administrator.
+- **"It's arrived: activate"** on a pending physical card records `activationRequestedAt` and is audited once; asking again changes nothing. The administrator still activates it ("Mark as issued"), which clears the request and notifies the user as before.
+- **Card details:** a sheet showing the masked number, type, network, status (and who froze it) and the issue date. **Deviation from the plan:** the plan said "show card details behind a confirmation". These are sample cards with only a random last four; there's no full number, expiry or security code to protect. Making them up would misrepresent the demo, so the sheet says so plainly and needs no confirmation. When a real card provider is connected, the reveal should go behind a re-authentication step.
+
+**Administrator side (user inspector):** shows "Frozen by the user" and "User says it arrived · activation requested <date>". An administrator can freeze a card the user froze (with a reason), which locks it to the user. Admin freeze sets `frozenBy: admin`; unfreeze, activate and cancel clear the flags. The request also shows in the dashboard's recent activity (audit), but there's no separate queue for it.
+
+**API:** `POST /applicant/cards/{cardId}/actions` with `{ action: freeze | unfreeze | request-activation }` returns the account. Another person's or an unknown card → 404 "Card not found."; refusals → 400 with the reason. `UserCard` gains optional `frozenBy` and `activationRequestedAt`. No migration (cards are JSON on the profile).
+
+**Also:** the shared `Modal` now renders into `<body>` (React portal). The card-details sheet opened inside an animated card, and on phones the bottom navigation covered its last lines. Two Help Centre answers were added (freezing a card, activating a physical card).
+
+Tests (2026-10-31):
+- typecheck clean · `pnpm test` 60/60
+- new `.unlazy/phase6-cards.mjs` 7/7: own freeze / unfreeze (audited, no notification); admin freeze stays locked; admin can lock a user-frozen card; old frozen cards count as admin-frozen; activation request (once, admin sees it, activate clears it); account frozen (freeze yes, unfreeze no); cancelled / unknown / other people's cards and bad actions
+- new `.unlazy/phase6-cards-ui.mjs` 6/6 desktop + 6/6 phone
+- `.unlazy/phase6-matchmaking.mjs` 8/8 (now also checks the reworded proposal card)
+- `.unlazy/phase5-cards-ui.mjs` updated for the new frozen-card wording
+- regressions after the Modal change (data restored before each): phase5-cards 9/9, phase5-cards-ui 5+5, phase6-matchmaking-ui 7+7, smoke 23+23, phase1 26 + 10, phase2 25 + 6, phase3 22 + 16, phase5-ui 4+4, avatars-ui 6+6, debits-ui 5+5, users-ui 6+6
+- Demo data restored.
