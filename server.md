@@ -81,7 +81,7 @@ Status: ☐ not started · ◐ in progress · ☑ done. "Who": **you** = in a da
 
 | # | Step | Who | Status | Done when |
 |---|---|---|---|---|
-| 1a | Cloudflare: `A` record `access` → `77.68.98.14`, **DNS only** | you | ◐ record added, still **Proxied**: switch to DNS only | `getent hosts access.futurenestfund.org` on the server prints `77.68.98.14` |
+| 1a | Cloudflare: `A` record `access` → `77.68.98.14`, **DNS only** | you | ☑ 2026-10-31 (DNS only; Google and Cloudflare resolvers return `77.68.98.14`, no AAAA) | `getent hosts access.futurenestfund.org` on the server prints `77.68.98.14` |
 | 1b | GitHub: private repo `macwuche/futurenestfund`, connected to Replit | you | ☑ 2026-10-31 | `origin` = `https://github.com/macwuche/futurenestfund` |
 | 1c | Code on GitHub, branch `user-side-redesign` (Replit Git pane → Sync) | you | ☑ 2026-10-31 | GitHub had `e44c98d`; re-sync after each new commit |
 | 2 | User `futurenestfund`, folders, Node 24.22.1 (checksum verified), pnpm 10.26.1, PM2 7.0.4 in `/opt/futurenestfund-node` | you | ☐ | `node -v` = v24.22.1, `pnpm -v` = 10.26.1 |
@@ -139,4 +139,5 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 | 2026-10-31 | The Replit preview showed "Can't reach GrantApp" (502). Cause: the dev API workflow had been stopped by a test clean-up, and Replit Secrets lack the Supabase settings. Decided to deploy to the VPS instead. |
 | 2026-10-31 | Decisions in §2 made; runbook and `deploy/` files written and tested (commit `dcc7ba9`). Waiting on step 1 (Cloudflare record, GitHub repo URL). |
 | 2026-10-31 | Cloudflare `access` A record → `77.68.98.14` added but **Proxied**. Through the proxy it reached the VPS and showed akkayalar's "Navarro Shipping" page (no GrantApp nginx site yet). Asked to switch to DNS only. Zone also has `app.futurenestfund.org` → `15.204.46.232` (same host as WordPress) and Resend records on `mail.futurenestfund.org`. |
+| 2026-10-31 | `access` record switched to DNS only: resolves to `77.68.98.14`; HTTP reaches the VPS's nginx (404 until step 7). **Step 1 complete.** |
 | 2026-10-31 | GitHub repo `macwuche/futurenestfund` connected and synced from Replit's Git pane (branch `user-side-redesign`, `e44c98d`). Server deploys that branch; no `main` needed. A personal access token was pasted in chat; it isn't used and should be deleted on GitHub. |
