@@ -4,7 +4,7 @@ _Written 2026-10-31 (Phase 6.5). Server `77.68.98.14`, Ubuntu 26.04, 1 vCPU, 1.8
 
 `futurenestfund.org` itself is the organisation's WordPress website, hosted elsewhere. **Don't change its DNS records.** The app gets its own subdomain, like the other apps on this server (`access.novabridgegrant.org`, `access.noveriqgroups.com`).
 
-Secret values are in the git-ignored `secrets.local.md`, never in this file.
+Secret values are in the git-ignored `secrets.local.md`, never in this file. Progress (what's done, what's left) is tracked in [`server.md`](../server.md).
 
 ---
 

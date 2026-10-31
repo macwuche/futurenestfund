@@ -16,7 +16,7 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 3 | Admin operations: ledger, deposit / withdrawal / KYC queues, application decisions | Done |
 | 4 | Real accounts on Supabase: sign-in, API auth, email through Resend, Settings security; then a hardening pass (RLS, `app_api` role, migrations, CSP, rate limits, unit tests) | Done (4.5 two-factor dropped by decision) |
 | 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
-| 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.4 done 2026-10-30/31; **6.5 deployment runbook written ([`docs/DEPLOY.md`](DEPLOY.md)), being followed on the VPS**; then 6.6 upload storage + virus scanning, 6.7 shared rate limits (only with several servers) |
+| 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.4 done 2026-10-30/31; **6.5 deployment runbook written ([`docs/DEPLOY.md`](DEPLOY.md)), being followed on the VPS** (progress in [`server.md`](../server.md)); then 6.6 upload storage + virus scanning, 6.7 shared rate limits (only with several servers) |
 
 What still needs you is listed in §12 (go-live checklist) and §15 (open items).
 

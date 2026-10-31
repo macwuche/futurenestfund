@@ -1,0 +1,140 @@
+# GrantApp deployment tracker (server.md)
+
+_Deployment only. Last updated 2026-10-31._
+
+- **Exact commands:** [`docs/DEPLOY.md`](docs/DEPLOY.md).
+- **This file:** the record of what's decided, done, not done yet and still to do.
+- **Secret values:** only in the git-ignored `secrets.local.md` and on the server in `/etc/futurenestfund/`. Never here.
+
+---
+
+## 1. Goal
+
+Run GrantApp on the EU VPS at **https://access.futurenestfund.org**, so the admin and applicants can sign in for real, on Supabase project `futurenestfund` (ref `fybslfcepjnswcnoewgi`, EU).
+
+Replit stays the development environment. It isn't the production host: its dev servers stop, and it only serves a temporary preview address.
+
+## 2. Decisions
+
+| Date | Decision | Why |
+|---|---|---|
+| 2026-10-31 | Deploy on the existing VPS `77.68.98.14` | The EU server already used for three other apps |
+| 2026-10-31 | **PM2**, not Docker | Already used on the server, nothing extra to run in 1.8 GB of memory, same pattern as the other apps (comparison table in `docs/DEPLOY.md`) |
+| 2026-10-31 | GrantApp gets its **own** Node 24, PM2 daemon, system user (`futurenestfund`) and boot service | Root's PM2 runs noveriqgroups and akkayalar; a second install or `pm2 startup` as root could break them |
+| 2026-10-31 | Address **`access.futurenestfund.org`** | `futurenestfund.org` is the organisation's live WordPress site (Cloudflare DNS, hosted elsewhere) and must not change; matches the `access.` names of the other apps |
+| 2026-10-31 | Cloudflare record **DNS only** (grey cloud) | certbot works directly; the API sees visitors' real IP addresses for its rate limits (`TRUST_PROXY=1`) |
+| 2026-10-31 | Code comes from a **private GitHub repo** with a read-only deploy key | Same as the other apps; updates are `deploy.sh` (git + build) |
+| 2026-10-31 | API listens on **127.0.0.1:3200** only | The firewall is off; only nginx should reach the API |
+| 2026-10-29 | Supabase over the **session pooler** | The VPS has no IPv6; Supabase's direct address is IPv6-only |
+| 2026-10-29 | The running app connects as **`app_api`**; the `postgres` owner is used only for migrations and backups | Least privilege; the owner URL never reaches the app |
+
+## 3. The server (from the checks of 2026-10-10 to 2026-10-18)
+
+| Item | Value |
+|---|---|
+| OS / size | Ubuntu 26.04.1, 1 vCPU, 1.8 GB RAM + 2 GB swap, 58 GB disk (51 GB free) |
+| Network | IPv4 `77.68.98.14` only (no public IPv6) |
+| Already installed | nginx, certbot (auto-renewal timer active), git |
+| Not installed | Docker, psql/pg_dump, fail2ban, Redis |
+| SSH | Key-only, root by key (password logins off) |
+| Firewall | `ufw` **inactive** |
+
+**Other apps on the server (don't touch):**
+
+| App | Address | Runs as | Port |
+|---|---|---|---|
+| akkayalar | access.akkayalartransportation.online | root's PM2, `/opt/akkayalar-node` | 127.0.0.1:3010 |
+| novabridgegrant | access.novabridgegrant.org | systemd `novabridgegrant-api`, user novabridgegrant | *:3100 |
+| noveriqgroups | access.noveriqgroups.com | root's PM2, `/opt/noveriqgroups-node` (holds PM2 7.0.4) | 0.0.0.0:4001 |
+| **GrantApp (new)** | **access.futurenestfund.org** | **own PM2 as user futurenestfund** | **127.0.0.1:3200** |
+
+## 4. Done
+
+| Date | What | Evidence |
+|---|---|---|
+| 2026-10-31 | Server inspected: apps, ports, PM2, nginx, certificates, users, env file names | Your three check rounds (summarised in §3) |
+| 2026-10-31 | Domain checked | `futurenestfund.org` = WordPress behind Cloudflare (NS `weston`/`isabel.ns.cloudflare.com`); no `www`, no MX; `access.` doesn't exist yet |
+| 2026-10-31 | Admin account works on Supabase | Sign-in as `admin@futurenestfund.org` accepted; email confirmed; role `admin` |
+| 2026-10-31 | Git history checked before pushing to GitHub | No passwords, secret keys or database URLs in any commit (only the public publishable key) |
+| 2026-10-31 | API can listen on one address (`HOST`) | Tested: `HOST=127.0.0.1` binds locally only |
+| 2026-10-31 | Deployment files written (`deploy/`) and runbook (`docs/DEPLOY.md`) | Commit `dcc7ba9` |
+| 2026-10-31 | Deployment tested here as far as possible | Clean clone without Replit settings: install, API build, web build with CSP. PM2 7.0.4 ran the API from the process file + env file, health 200, reload OK |
+
+**Files in `deploy/` and where each goes:**
+
+| File | Installed as |
+|---|---|
+| `deploy.sh` | run in place: `bash /var/www/futurenestfund/deploy/deploy.sh [commit]` |
+| `ecosystem.config.cjs` | used in place by `deploy.sh` |
+| `fnf-pm2` | `/usr/local/bin/fnf-pm2` |
+| `pm2-futurenestfund.service` | `/etc/systemd/system/` |
+| `nginx-futurenestfund.conf` | `/etc/nginx/sites-available/futurenestfund` (+ link in `sites-enabled`) |
+| `api.env.example` | `/etc/futurenestfund/api.env` (filled in, root:futurenestfund 640) |
+| `migrate.env.example` | `/etc/futurenestfund/migrate.env` (filled in, root 600) |
+| `backup.sh` | run in place by cron |
+| `cron-futurenestfund-backup` | `/etc/cron.d/futurenestfund-backup` |
+| `logrotate-futurenestfund` | `/etc/logrotate.d/futurenestfund` |
+
+## 5. To do: the deployment steps
+
+Status: ☐ not started · ◐ in progress · ☑ done. "Who": **you** = in a dashboard or on the server over SSH; **Claude** = here in Replit.
+
+| # | Step | Who | Status | Done when |
+|---|---|---|---|---|
+| 1a | Cloudflare: `A` record `access` → `77.68.98.14`, **DNS only** | you | ☐ | `getent hosts access.futurenestfund.org` on the server prints `77.68.98.14` |
+| 1b | GitHub: create an empty **private** repo; send Claude the URL | you | ☐ | URL received |
+| 1c | Push the code to that repo as `main` | Claude (you may need to run one `!` command for GitHub sign-in) | ☐ | Repo shows commit `dcc7ba9` or newer |
+| 2 | User `futurenestfund`, folders, Node 24.22.1 (checksum verified), pnpm 10.26.1, PM2 7.0.4 in `/opt/futurenestfund-node` | you | ☐ | `node -v` = v24.22.1, `pnpm -v` = 10.26.1 |
+| 3 | Deploy key (read-only) on GitHub; SSH alias `github.com-futurenestfund`; clone to `/var/www/futurenestfund` | you | ☐ | Clone succeeds |
+| 4 | Fill in `/etc/futurenestfund/api.env` and `migrate.env` from `secrets.local.md`; set permissions | you | ☐ | Files exist with 640 / 600 |
+| 5 | Install `fnf-pm2`; first `deploy.sh`: build, **database migrations 0003–0006 on Supabase**, start API | you | ☐ | Prints `OK: <commit> is live` |
+| 6 | Boot service `pm2-futurenestfund` enabled and running | you | ☐ | `systemctl status` active; `fnf-pm2 list` shows `futurenestfund-api` online |
+| 7 | nginx site + `certbot --nginx -d access.futurenestfund.org` (redirect to HTTPS) | you | ☐ | `https://access.futurenestfund.org/api/healthz` → `{"status":"ok"}` |
+| 8a | Supabase → Auth → URL Configuration: Site URL `https://access.futurenestfund.org`, Redirect URL `https://access.futurenestfund.org/**` | you | ☐ | Saved |
+| 8b | Admin signs in at `/admin` | you | ☐ | Admin dashboard loads |
+| 8c | Applicant signs up (real inbox), confirms, signs in | you | ☐ | Applicant dashboard loads |
+| 8d | Admin → Settings → "Send test errors" | you | ☐ | Both references found in `fnf-pm2 logs` |
+| 9 | `postgresql-client` (pg_dump ≥ 17), log rotation, nightly backup cron, one manual backup | you | ☐ | Files in `/var/backups/futurenestfund` |
+| 10 | Email: verify `futurenestfund.org` in Resend (its DNS records in Cloudflare; the website isn't affected), API key, `EMAIL_FROM`, Send Email Hook → `https://access.futurenestfund.org/api/hooks/supabase/send-email` | you + Claude | ☐ | A password-reset email arrives from Resend |
+
+Step 6.5 counts as **done** when steps 1–9 have been followed once end to end. Step 10 can follow later.
+
+## 6. Not done yet, outside the steps
+
+| Item | Why it matters | When |
+|---|---|---|
+| **Supabase database is 4 migrations behind** (has 0000–0002; needs 0003–0006 and Supabase 0003) | The API can't start on Supabase until they're applied | Step 5 applies them from the server |
+| **Rotate the secrets pasted in chat** (database password, secret key, admin password; pasted 2026-10-28 and again 2026-10-31) | Anyone who sees the chat could use them | After step 8 works; then update `secrets.local.md` and `/etc/futurenestfund/*.env` |
+| Supabase Auth: password minimum length 8 (today 6) | Weak passwords | Any time (dashboard) |
+| Off-server copies of backups | Backups on the same server are lost with it | After step 9 |
+| Optional: Sentry (EU) or GlitchTip, `SENTRY_DSN` in `api.env` | Errors reported outside the server log | Any time after step 8 |
+| Replit Secrets (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_DB_URL`) | Only for real sign-in on the Replit preview; the VPS doesn't need them | Optional |
+
+## 7. Server housekeeping (affects all apps: do separately, carefully)
+
+These were found during the checks and **aren't part of GrantApp's deployment**:
+- **Firewall off.** noveriqgroups listens on `0.0.0.0:4001`, so it's reachable without nginx. Enabling `ufw` (allow 22, 80, 443) would close that. Allow SSH first, or you lock yourself out.
+- fail2ban isn't installed; SSH sees constant login attempts (key-only, so they fail).
+- 7 package updates were waiting (`apt upgrade`), last seen on 2026-10-18.
+
+## 8. Later (Phase 6, after go-live)
+
+- **6.6**: virus scanning of uploads (ClamAV, tested with the EICAR file). Uploads are already on the server's own disk (`/var/lib/futurenestfund/uploads`), which survives deploys, and backed up nightly.
+- **6.7**: shared rate limits (Redis), only if there's ever more than one API server.
+
+## 9. Updating and rolling back (after go-live)
+
+- **Update:**
+  1. Claude commits and pushes to GitHub `main`.
+  2. On the server: `bash /var/www/futurenestfund/deploy/deploy.sh`.
+- **Roll back:**
+  1. `git -C /var/www/futurenestfund log --oneline -5`
+  2. `bash /var/www/futurenestfund/deploy/deploy.sh <commit>`
+- **Status, logs, restarts:** see "Everyday operations" in `docs/DEPLOY.md`.
+
+## 10. Log
+
+| Date | Entry |
+|---|---|
+| 2026-10-31 | The Replit preview showed "Can't reach GrantApp" (502). Cause: the dev API workflow had been stopped by a test clean-up, and Replit Secrets lack the Supabase settings. Decided to deploy to the VPS instead. |
+| 2026-10-31 | Decisions in §2 made; runbook and `deploy/` files written and tested (commit `dcc7ba9`). Waiting on step 1 (Cloudflare record, GitHub repo URL). |
