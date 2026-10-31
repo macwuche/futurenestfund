@@ -1688,3 +1688,25 @@ Tests (2026-10-31):
   - a reload swaps in the new version
 - `bash -n` passes on all scripts; the test daemon and copy were removed.
 - **Not tested here:** systemd, nginx, certbot, `runuser`. They're checked as the runbook is followed on the VPS.
+
+### 2026-10-31: Step 6.5 done (deployed on the EU VPS)
+
+The runbook (`docs/DEPLOY.md`) was followed end to end on the VPS (steps 1–9). GrantApp is live at **https://access.futurenestfund.org**. The step-by-step record, with evidence, is in `server.md`.
+
+**What was done:**
+- DNS: Cloudflare `A access → 77.68.98.14`, DNS only. Code from the private repo `macwuche/futurenestfund`, branch `user-side-redesign`, via a read-only deploy key.
+- Server: user `futurenestfund`, its own Node 24.22.1, pnpm 10.26.1, PM2 7.0.4 and boot service `pm2-futurenestfund`. The other apps' PM2 wasn't touched.
+- First `deploy.sh`: builds OK; app migrations 0003–0006 and Supabase `0003_admin_profiles` applied; API on 127.0.0.1:3200 with `database: supabase`.
+- nginx site + Let's Encrypt certificate (expires 2027-01-29, renewed by the existing timer); HTTP redirects to HTTPS.
+- Supabase Auth URL Configuration: Site URL and Redirect URL set to the new address.
+- Backups: `postgresql-client` 18 (`pg_dump` 18.6), nightly cron at 02:30 UTC keeping 14 days, log rotation; first backup made and read back with `pg_restore --list` (86 entries).
+
+**Checked on the live site:**
+- Admin sign-in at `/admin`: dashboard loads.
+- Applicant sign-up with a real inbox: the confirmation email (Supabase's own sender) arrived; the applicant dashboard loads (applicant routes 200 in the log).
+- "Send test errors": the server error (`240ee29f…`, 500) and the browser error (`a746d44f…`, via `/api/client-errors`) both in `fnf-pm2 logs`.
+
+**Still open:**
+- Step 10: email through Resend and the Send Email Hook. Needed before real applicants, since Supabase's own sender allows only a few emails an hour.
+- Rotate the secrets pasted in chat (two database passwords, secret key, admin password) and delete the unused GitHub token. They were never committed (`secrets.local.md` is git-ignored and has no history).
+- Minimum password length 8; off-server copies of backups; 6.6 virus scanning.

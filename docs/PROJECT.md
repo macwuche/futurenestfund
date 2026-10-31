@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-10-31 · branch `user-side-redesign` · Phases 0–5 complete; Phase 6 under way (6.1–6.4 done, 6.5–6.7 to do)._
+_Last updated 2026-10-31 · branch `user-side-redesign` · Phases 0–5 complete; Phase 6 under way (6.1–6.5 done, 6.6–6.7 to do) · **live at https://access.futurenestfund.org**._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -16,7 +16,7 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 3 | Admin operations: ledger, deposit / withdrawal / KYC queues, application decisions | Done |
 | 4 | Real accounts on Supabase: sign-in, API auth, email through Resend, Settings security; then a hardening pass (RLS, `app_api` role, migrations, CSP, rate limits, unit tests) | Done (4.5 two-factor dropped by decision) |
 | 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
-| 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.4 done 2026-10-30/31; **6.5 deployment runbook written ([`docs/DEPLOY.md`](DEPLOY.md)), being followed on the VPS** (progress in [`server.md`](../server.md)); then 6.6 upload storage + virus scanning, 6.7 shared rate limits (only with several servers) |
+| 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.5 done 2026-10-30/31; **6.5: deployed on the EU VPS at https://access.futurenestfund.org on 2026-10-31** ([`docs/DEPLOY.md`](DEPLOY.md), record in [`server.md`](../server.md)); then 6.6 virus scanning of uploads (storage and backups already done), 6.7 shared rate limits (only with several servers) |
 
 What still needs you is listed in §12 (go-live checklist) and §15 (open items).
 
@@ -303,7 +303,7 @@ All email goes through **Resend** (`lib/email.ts`). Without `RESEND_API_KEY` and
 
 Known limits:
 - Rate limits are per process.
-- Uploads live on the server's local disk (needs persistent storage on the VPS).
+- Uploads live on the VPS's own disk (`/var/lib/futurenestfund/uploads`): survives deploys, backed up nightly, but only on that one server.
 - PDF/DOCX checks are structural (no virus scan).
 - The minimum password length is 6 until changed in the dashboard.
 - Crash reports are unauthenticated (they must work on the sign-in page), so anyone can write rate-limited entries to the log. Page paths in reports can include internal record ids (e.g. `usr-…`), never names or emails.
@@ -328,10 +328,10 @@ Put these in **Replit Secrets** (development) and the **VPS environment** (produ
 | `AUTH_MODE` | no | `demo` or `supabase` | `demo` only in development |
 | `RESEND_API_KEY` | for email | from Resend | **Secret** |
 | `EMAIL_FROM` | for email | `GrantApp <no-reply@futurenestfund.org>` | Domain verified in Resend |
-| `APP_URL` | for email | public web address, e.g. `https://app.futurenestfund.org` | Email links and notification buttons |
+| `APP_URL` | for email | public web address: `https://access.futurenestfund.org` | Email links and notification buttons |
 | `SEND_EMAIL_HOOK_SECRET` | for email | `v1,whsec_…` from Supabase | **Secret** |
 | `TRUST_PROXY` | VPS | `1` | Number of proxies in front (nginx), for real client IPs and `req.secure` |
-| `UPLOAD_DIR` | no | default `artifacts/api-server/uploads/` | Must be persistent disk on the VPS |
+| `UPLOAD_DIR` | no | default `artifacts/api-server/uploads/`; VPS: `/var/lib/futurenestfund/uploads` | Must be persistent disk |
 | `RATE_LIMIT_IP_PER_MIN`, `RATE_LIMIT_WRITES_PER_MIN`, `RATE_LIMIT_UPLOADS_PER_10MIN`, `RATE_LIMIT_HOOK_PER_MIN`, `RATE_LIMIT_CLIENT_ERRORS_PER_MIN` | no | defaults 600 / 60 / 20 / 120 / 20 | |
 | `SENTRY_DSN` | no | e.g. `https://<key>@o<org>.ingest.de.sentry.io/<project>` (EU region), or a GlitchTip DSN | **Secret-ish** (lets anyone send events). Unset → errors go to the log only |
 | `SENTRY_ENVIRONMENT` | no | default `NODE_ENV` | e.g. `production`, `staging` |
@@ -406,7 +406,7 @@ Latest run (2026-10-31, after 6.4, demo mode): typecheck clean, `pnpm test` 67/6
 ## 12. Deployment and go-live checklist
 
 **Supabase dashboard**
-- [ ] Authentication → URL Configuration: **Site URL** = the production web address (today `http://localhost:3000`); **Redirect URLs** = the production address (and the Replit dev URL for testing).
+- [x] Authentication → URL Configuration: **Site URL** `https://access.futurenestfund.org/`, **Redirect URLs** `https://access.futurenestfund.org/**` (2026-10-31). Add the Replit dev URL only if you test sign-in there.
 - [ ] Authentication → Policies (passwords): **minimum length 8** (today 6).
 - [ ] Authentication → Hooks → **Send Email** → HTTPS → `<public API URL>/api/hooks/supabase/send-email`; generate the secret and copy it into `SEND_EMAIL_HOOK_SECRET`.
 
@@ -414,26 +414,32 @@ Latest run (2026-10-31, after 6.4, demo mode): typecheck clean, `pnpm test` 67/6
 - [ ] Add and verify the sending domain (e.g. `futurenestfund.org`, using the DNS records Resend lists); create an API key.
 
 **Secrets (Replit and VPS)**
-- [ ] `SUPABASE_DB_URL` = the **`app_api`** URL (changed on 2026-10-29); add `SUPABASE_ADMIN_DB_URL` where migrations run.
-- [ ] `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`, `SEND_EMAIL_HOOK_SECRET`, `TRUST_PROXY=1` (VPS), `NODE_ENV=production`.
+- [x] VPS: `/etc/futurenestfund/api.env` (`app_api` URL, Supabase URL and keys, `APP_URL`, `TRUST_PROXY=1`, `NODE_ENV=production`) and `migrate.env` (`SUPABASE_ADMIN_DB_URL`), 2026-10-31.
+- [ ] VPS, with step 10: `RESEND_API_KEY`, `EMAIL_FROM`, `SEND_EMAIL_HOOK_SECRET` (commented out in `api.env` until then).
+- [ ] Replit Secrets: optional, only for real sign-in on the Replit preview.
 
-**Rotate (pasted in chat on 2026-10-28)**
-- [ ] Database password (Supabase → Database settings), then update `SUPABASE_ADMIN_DB_URL`.
-- [ ] Secret key (Supabase → API keys), then update `SUPABASE_SECRET_KEY`.
+**Rotate (pasted in chat on 2026-10-28 and 2026-10-31; never in git, a precaution)**
+- [ ] Delete the GitHub personal access token (unused; the server uses its read-only deploy key).
+- [ ] `postgres` database password (Supabase → Database settings), then update `SUPABASE_ADMIN_DB_URL` in `secrets.local.md` and `/etc/futurenestfund/migrate.env`.
+- [ ] `app_api` database password, then update `SUPABASE_DB_URL` in `api.env` and restart the API.
+- [ ] Secret key (Supabase → API keys), then update `SUPABASE_SECRET_KEY` in `api.env` and restart.
 - [ ] Admin password (change it in the app's Settings, or set `ADMIN_SEED_PASSWORD` and run `seed:admin -- --reset-password`).
 
 **VPS** (follow [`docs/DEPLOY.md`](DEPLOY.md); address `https://access.futurenestfund.org`, since `futurenestfund.org` is the WordPress site)
-- [ ] Cloudflare: `A access → 77.68.98.14`, DNS only; private GitHub repo with a read-only deploy key.
-- [ ] nginx + Let's Encrypt in front, API under its own PM2 (user `futurenestfund`, port 3200, 127.0.0.1 only), uploads in `/var/lib/futurenestfund/uploads`, nightly backups.
-- [ ] Run `db:migrate` on each deploy before starting the API.
+- [x] Cloudflare: `A access → 77.68.98.14`, DNS only; private GitHub repo with a read-only deploy key.
+- [x] nginx + Let's Encrypt in front (certificate to 2027-01-29, auto-renewed), API under its own PM2 (user `futurenestfund`, port 3200, 127.0.0.1 only), boot service, uploads in `/var/lib/futurenestfund/uploads`.
+- [x] `db:migrate` runs on every `deploy.sh` before the API starts.
+- [x] Nightly backups (02:30 UTC, 14 days, `pg_dump` 18.6) and log rotation; first backup checked with `pg_restore --list`.
+- [ ] Copy backups off the server now and then.
 
-**Now (Supabase)**
-- [ ] Run `db:migrate` against Supabase with `SUPABASE_ADMIN_DB_URL` to apply migrations **0005** (admin profile photos) and **0006** (matchmaking answers). Until then those two features fail on the Supabase database.
+**Supabase migrations**
+- [x] App migrations 0003–0006 (incl. **0005** admin profile photos and **0006** matchmaking answers) and Supabase `0003_admin_profiles` applied by the first `deploy.sh` (2026-10-31).
 
 **Error monitoring (optional)**
 - [ ] Create a Sentry project in the **EU (Frankfurt) region**, or run GlitchTip on the VPS; set `SENTRY_DSN` (and `APP_RELEASE` to the deployed commit) on the server.
-- [ ] Admin Settings → Error monitoring → **Send test errors**; check both references arrive.
-- [ ] After go-live: one real sign-up and one password reset to an inbox you control; check the response times from the VPS.
+- [x] Admin Settings → Error monitoring → **Send test errors**: both references in the server log (2026-10-31).
+- [x] After go-live: one real sign-up (confirmation email arrived from Supabase's own sender, applicant dashboard loads, 2026-10-31).
+- [ ] After step 10: one password reset to an inbox you control; check the response times from the VPS.
 
 ---
 
@@ -478,12 +484,14 @@ Latest run (2026-10-31, after 6.4, demo mode): typecheck clean, `pnpm test` 67/6
 | `33ef864` | Applicant card controls; proposal setup card reworded (6.2) |
 | `0c1f657` | Phone polish: 44 px tap targets, overflow fixes, search in the phone menu (6.3) |
 | `6bca36f` | Error monitoring: request ids, crash reporting, optional Sentry (6.4) |
+| `dcc7ba9` | Deployment runbook and `deploy/` files: PM2, nginx, HTTPS, backups (6.5) |
+| `e44c98d` … `74350c3` | `server.md` deployment record: steps 1–9 followed on the VPS, live at `access.futurenestfund.org` (6.5) |
 
 ---
 
 ## 15. Open items and next steps
 
-**Needs you:** everything in the §12 checklist, most urgently the Supabase migrations 0005 and 0006.
+**Needs you:** the open §12 items: rotate the secrets pasted in chat, email through Resend (step 10 in `docs/DEPLOY.md`), minimum password length 8, off-server backup copies. Shared-server housekeeping (firewall, fail2ban, 29 package updates) is listed in `server.md` §7.
 
 **Phase 5 (admin controls)**, full plan in `work.md` §11:
 - ~~5.1 withdrawal notifications~~ and ~~5.2 withdrawal limits~~: done 2026-10-30
@@ -498,12 +506,12 @@ Latest run (2026-10-31, after 6.4, demo mode): typecheck clean, `pnpm test` 67/6
 - ~~6.2 card controls for applicants~~: done 2026-10-31
 - ~~6.3 mobile polish~~: done 2026-10-31 (every screen audited at 390 px: 44 px tap targets, no overflow, search in the phone menu)
 - ~~6.4 error monitoring~~: done 2026-10-31 (own logs with request ids; optional Sentry via `SENTRY_DSN`)
-- **6.5 deployment runbook**: written 2026-10-31 ([`docs/DEPLOY.md`](DEPLOY.md): PM2 + nginx + HTTPS, `deploy.sh` with migrations and rollback, backups); done when followed once end to end on the VPS
-- 6.6 persistent upload storage and virus scanning (ClamAV, tested with the EICAR file)
+- ~~6.5 deployment~~: done 2026-10-31 (runbook [`docs/DEPLOY.md`](DEPLOY.md) followed end to end; live at https://access.futurenestfund.org; record in [`server.md`](../server.md))
+- 6.6 virus scanning of uploads (persistent storage and nightly backups already in place on the VPS) (ClamAV, tested with the EICAR file)
 - 6.7 a Redis-backed rate limiter, only if there's more than one API server
 
 **Limits worth knowing:**
 - The API can't sign anyone in by itself if Supabase is down; requests answer 503 until it's back.
 - Grants, balances and cards are sample data; nothing moves real money.
 - Card activation requests have no admin queue yet: they show in the user inspector and recent activity only.
-- Uploads live on one server's disk and aren't virus-scanned yet (6.6); rate limits are in memory, fine for one server (6.7).
+- Uploads live on one server's disk (backed up nightly on that same server) and aren't virus-scanned yet (6.6); rate limits are in memory, fine for one server (6.7).
