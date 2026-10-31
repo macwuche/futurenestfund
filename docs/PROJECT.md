@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-10-30 · branch `user-side-redesign` · Phase 5 complete; Phase 6 under way (6.1 and 6.2 done)._
+_Last updated 2026-10-30 · branch `user-side-redesign` · Phase 5 complete; Phase 6 under way (6.1–6.3 done)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -364,6 +364,9 @@ On Replit, restart the existing workflows instead of starting extra servers.
 | `phase4-security` | Settings security: preference API, switch, password change ends other sessions, sign out others / everywhere, 44 px targets (7 + 1) |
 | `phase4-email` | Hook signatures, every email type, escaping, replay, Resend failures, notification outbox (11) |
 | `phase1-*`, `phase2-*`, `phase3-*`, `smoke` | Everything built in Phases 0–3 (175 checks, demo mode) |
+| `phase5-*` | Admin operations from Phase 5: withdrawals, limits, audit log, users directory, debits, cards, photos |
+| `phase6-matchmaking`, `phase6-cards` (+ `-ui`) | Rule-based matchmaking; applicant card controls (8 + 7 + 7; 7 + 6 + 6) |
+| `phase6-mobile` | Phone audit at 390 px of every page, menu, panel, main dialogs and the sign-in pages: zoom-out, overflow, boxes sticking out, 44 px targets, bell / menu / search reachable; full-page screenshots with `SHOTS=` (35). Sign-in pages need `AUTH_WEB`: a proxy to a signed-out Supabase-mode API |
 
 Last full run (2026-10-29): all green on the dev frontend, on the **production build with its CSP**, and **on Supabase as `app_api`**.
 
@@ -434,6 +437,7 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 | `0f64fd4` | Admin card controls (5.6) |
 | `349ec5f` | Profile photos: the admin's own, and users' from the inspector (5.7) |
 | `92bc2a7` | Rule-based grant matchmaking (6.1) |
+| `33ef864` | Applicant card controls; proposal setup card reworded (6.2) |
 
 ---
 
@@ -452,7 +456,7 @@ Last full run (2026-10-29): all green on the dev frontend, on the **production b
 **Phase 6 (finish and harden)**, full plan in `work.md` §12:
 - ~~6.1 grant matchmaking (rule-based)~~: done 2026-10-30
 - ~~6.2 card controls for applicants~~: done 2026-10-31
-- final mobile polish
+- ~~6.3 mobile polish~~: done 2026-10-31 (every screen audited at 390 px: 44 px tap targets, no overflow, search in the phone menu)
 - error monitoring, a deployment runbook, persistent upload storage, virus scanning for uploads, a Redis-backed rate limiter if more than one server
 
 **Limits worth knowing:**

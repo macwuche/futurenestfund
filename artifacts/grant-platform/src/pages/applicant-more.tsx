@@ -189,7 +189,7 @@ function TrackerBody({ d }: { d: ApplicantDashboard }) {
         </div>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2">
         <section className={cx(card, 'p-5')} aria-labelledby="pipeline-heading" data-testid="section-pipeline">
           <h2 id="pipeline-heading" className="mb-4 text-lg font-semibold text-slate-900">Application pipeline</h2>
           <ul className="space-y-4">{byStatus.map((x) => <BarRow key={x.s} label={`${statusLabel(x.s)} · ${x.n}`} value={x.amt} max={maxStatus} color={statusColor[x.s]} right={money(x.amt)} />)}</ul>
@@ -245,7 +245,7 @@ function ReportsBody({ d }: { d: ApplicantDashboard }) {
         <Tile label="Approved funding" value={money(approvedAmt)} hint={`${approved.length} approved`} testid="text-report-approved" />
         <Tile label="Approval rate" value={`${rate}%`} hint="Approved ÷ all applications" testid="text-report-rate" />
       </div>
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2">
         <section className={cx(card, 'p-5')} aria-labelledby="money-heading" data-testid="section-money-summary">
           <h2 id="money-heading" className="mb-3 text-lg font-semibold text-slate-900">Money movements</h2>
           {acct.isLoading ? <div className="space-y-2"><Skel className="h-10" /><Skel className="h-10" /><Skel className="h-10" /></div>
@@ -267,7 +267,7 @@ function ReportsBody({ d }: { d: ApplicantDashboard }) {
             {exports.map((x) => (
               <li key={x.k} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#EEF4FB] text-[#1E3A8A]"><x.icon className="h-5 w-5" /></span>
-                <span className="min-w-0 flex-1"><span className="block font-semibold text-slate-900">{x.title}</span><span className="block truncate text-sm text-slate-500">{x.hint}</span></span>
+                <span className="min-w-0 flex-1"><span className="block font-semibold text-slate-900">{x.title}</span><span className="block text-sm text-slate-500">{x.hint}</span></span>
                 <button data-testid={`button-export-${x.k}`} disabled={x.disabled} onClick={() => { x.run(); toast({ title: `${x.title} report downloaded` }); }}
                   className="press inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-300 px-3.5 py-1.5 text-sm font-semibold text-slate-700 hover:border-[#1E3A8A] hover:text-[#1E3A8A] disabled:opacity-50"><Download className="h-4 w-4" />CSV</button>
               </li>

@@ -183,7 +183,7 @@ function Highlights({ d }: { d: ApplicantDashboard }) {
                 <Link href={`/applications/${a.id}`} data-testid={`row-application-${a.id}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-slate-300 hover:bg-slate-50 sm:px-4">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#EEF4FB] text-[#1E3A8A]"><Icon className="h-5 w-5" /></span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold text-slate-900" data-testid={`text-app-title-${a.id}`}>{a.title}</span>
+                    <span className="line-clamp-2 block font-semibold text-slate-900" data-testid={`text-app-title-${a.id}`}>{a.title}</span>
                     <span className="block text-sm text-slate-500">{statusLabel(a.status)}</span>
                   </span>
                   <StatusBadge status={a.status} dot={false} testid={`badge-app-status-${a.id}`} />
@@ -596,7 +596,7 @@ export function TxRow({ t }: { t: Tx }) {
     <li data-testid={`row-transaction-${t.id}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 sm:px-4">
       <span className={cx('grid h-10 w-10 shrink-0 place-items-center rounded-lg', incoming ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#EEF4FB] text-[#1E3A8A]')}><Icon className="h-5 w-5" /></span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-semibold text-slate-900">{t.description}</span>
+        <span className="line-clamp-2 block font-semibold text-slate-900">{t.description}</span>
         <span className="block truncate text-sm text-slate-500">{t.type}{t.reference && <> · <span data-testid={`text-transaction-ref-${t.id}`}>Ref {t.reference}</span></>}<span className="hidden sm:inline"> · {accountLabel[t.account]} account</span> · {dateFmt(t.createdAt)}</span>
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1">

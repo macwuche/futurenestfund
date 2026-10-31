@@ -1562,3 +1562,38 @@ Tests (2026-10-31):
 - `.unlazy/phase5-cards-ui.mjs` updated for the new frozen-card wording
 - regressions after the Modal change (data restored before each): phase5-cards 9/9, phase5-cards-ui 5+5, phase6-matchmaking-ui 7+7, smoke 23+23, phase1 26 + 10, phase2 25 + 6, phase3 22 + 16, phase5-ui 4+4, avatars-ui 6+6, debits-ui 5+5, users-ui 6+6
 - Demo data restored.
+
+### 2026-10-31: Step 6.3 plan and done (mobile polish)
+
+**How it was checked:** a new audit, `.unlazy/phase6-mobile.mjs`, runs at 390 × 844. It visits every applicant and admin page (25), the 404 page, both menus, the notifications panel, the New application and matchmaking dialogs, and the three sign-in pages. For the sign-in pages it uses a second test API in Supabase mode, signed out, with only the public URL and publishable key. For each screen it lists every problem it finds:
+- a page wider than the phone (a phone browser zooms out instead of scrolling, which hides the overflow from a scroll check)
+- horizontal scroll, and content poking out of the screen
+- a box sticking out of the box it sits in
+- tap targets under 44 × 44, counting invisible hit areas; links inside a sentence are exempt
+- whether the bell, the menu button and search are on screen
+
+It saves full-page screenshots. I reviewed them as contact sheets and caught what the checks can't (squeezed text, cut titles).
+
+**First run: 306 problems.** Almost all were tap targets of 32–43 px: menu and close buttons, filter chips, the Apply / Save buttons on grant cards, admin action buttons, 38–42 px form fields, and small text links. The audit and the screenshots also found:
+- **Reports was zoomed out (522 px wide).** A one-line "truncate" hint under each download stretched the CSS grid column. **The KYC queue** had the same cause: the Pending badge and the Reject button stuck out of their cards.
+- **"Find grants that fit you"** on Grant categories squeezed its text into a column one or two words wide.
+- **The admin header** wrapped the avatar onto a second line on pages with long titles (User inspector, Application review, Withdrawal Page).
+- **The user inspector header** wrapped the masked ID one character per line beside the Freeze account button.
+- **Admin application rows** (dashboard queue, inspector) cut titles to a few letters, and the applicant dashboard and Transactions cut titles to one line.
+- **On phones there was no search except inside Applications.** The desktop header search had no phone equivalent.
+
+**Fixes:**
+- **Tap targets, in one place (`index.css`):** below the desktop breakpoint (lg), every button, link, summary, switch, tab, menu item and checkbox label gets an invisible, centred hit area of at least 44 × 44 px. Nothing changes visually. It's the same technique as the camera button, written with zero specificity, so an element's own position class still wins. Form fields and selects get a real minimum height of 44 px.
+- **Grids:** Reports and the KYC queue use `grid-cols-[minmax(0,1fr)]`. The Reports download hints wrap instead of being cut.
+- **Flex rows that never wrapped** (the matchmaking prompt, the inspector header): the text block has a minimum width of 12 rem, so the button drops below it on phones. The masked ID no longer breaks.
+- **Admin header:** the title truncates. On phones the freeze button says "Freeze" / "Lift" (its accessible name stays "Global freeze"), so the title, button and avatar fit on one line.
+- **Admin application rows:** on phones the title gets its own line, with the amount and status below. Applicant application and transaction titles wrap to two lines.
+- **Search in the phone menu:** a "Search applications" field at the top of the applicant menu shares the desktop header search. Enter closes the menu and opens Applications, filtered.
+
+**Not changed:**
+- Horizontally scrolling chip rows (filters, Help topics, Transactions types) and the admin ledger table scroll on purpose.
+- The admin workspace has no bell, because administrators have no notifications.
+
+Tests (2026-10-31): typecheck clean · `pnpm test` 60/60 · `phase6-mobile` 35/35, 0 problems · browser regressions, with data restored before each: smoke 23+23, phase1 26 + 10, phase2 25 + 6, phase3 22 + 16, phase5-ui 4+4, cards-ui 5+5, debits-ui 5+5, users-ui 6+6, avatars-ui 6+6, audit-ui 6+6, limits-ui 6+6, phase6-matchmaking-ui 7+7, phase6-cards-ui 6+6. The desktop admin header was checked by screenshot (unchanged). Not re-run: `phase4-ui` / `phase4-security`, which need the Supabase secret key and create throwaway users. Demo data restored.
+
+Audit result after the fixes: 35/35 screens, 0 problems. I confirmed it catches regressions by briefly undoing the Reports and KYC fixes: both were reported, then the fixes were restored.

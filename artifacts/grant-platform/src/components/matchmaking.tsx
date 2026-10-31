@@ -183,7 +183,7 @@ export function TopMatches({ d }: { d: ApplicantDashboard }) {
     return (
       <section className="flex flex-wrap items-center gap-4 rounded-2xl border border-[#DBEAFE] bg-[#EEF4FB] p-5" data-testid="section-find-matches">
         <span className="grid h-11 w-11 place-items-center rounded-xl bg-white text-[#1E3A8A] shadow-sm"><Sparkles className="h-5 w-5" /></span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[12rem] flex-1">
           <h2 className="text-lg font-semibold text-slate-900">Find grants that fit you</h2>
           <p className="text-sm text-slate-600">Answer five quick questions and we'll rank these grants by how well they fit, and show why.</p>
         </div>

@@ -356,7 +356,7 @@ export function AdminKycPage() {
             <SectionTitle>Identity documents awaiting review</SectionTitle>
             <p className="-mt-2 mb-4 text-xs text-slate-500">Oldest first. A user becomes Verified once both their Government ID and proof of address are approved. Uploaded files are not machine-checked; OCR scores appear on sample documents only and are demonstration data.</p>
             {q.data.pending.length === 0 ? <Empty title="Queue is clear" hint="Documents applicants upload in Settings appear here." /> : (
-              <ul className="grid gap-3 md:grid-cols-2" data-testid="list-kyc-queue">{q.data.pending.map((d) => (
+              <ul className="grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-2" data-testid="list-kyc-queue">{q.data.pending.map((d) => (
                 <li key={d.id} className="flex flex-col gap-3 rounded-xl border border-[#E2E8F0] p-4" data-testid={`row-kyc-${d.id}`}>
                   <button onClick={() => setDoc(d)} data-testid={`button-view-kyc-${d.id}`} className="press flex items-start gap-3 text-left">
                     <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg border bg-slate-50">

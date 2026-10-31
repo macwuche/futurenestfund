@@ -114,7 +114,7 @@ function ReviewQueue() {
           <ul className="divide-y" data-testid="list-review-queue">{q.data.map((a) => (
             <li key={a.id}>
               <Link href={appReviewHref(a)} data-testid={`link-review-app-${a.id}`} className="group flex flex-wrap items-center gap-x-3 gap-y-1 py-3 hover:bg-[#F7FADC] sm:flex-nowrap sm:px-2">
-                <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{a.title}</span><span className="block truncate text-xs text-slate-500">{a.userName} · {a.organization} · {a.id} · {dateFmt(a.submittedAt)}</span></span>
+                <span className="min-w-0 basis-full sm:flex-1 sm:basis-0"><span className="block truncate font-semibold">{a.title}</span><span className="block truncate text-xs text-slate-500">{a.userName} · {a.organization} · {a.id} · {dateFmt(a.submittedAt)}</span></span>
                 <span className="font-num text-sm font-semibold">{money(a.amount)}</span>
                 <StatusBadge status={a.status} />
                 <ChevronRight className="hidden h-4 w-4 text-slate-400 transition group-hover:translate-x-1 sm:block" />
@@ -320,11 +320,11 @@ function Inspector({ u }: { u: AdminUserProfile }) {
     <div className="space-y-5">
       <section className={cx(card, 'flex flex-wrap items-center gap-4 p-5')} data-testid="section-user-header">
         <UserPhotoControl u={u} />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[12rem] flex-1">
           <h2 className="font-display text-2xl font-bold" data-testid="text-user-name">{u.name}</h2>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
             <StatusBadge status={u.verificationLevel} testid="badge-verification" /><StatusBadge status={u.status} testid="badge-user-status" />
-            <span className="font-num" data-testid="text-masked-id">{u.maskedId}</span><span className="font-num text-xs text-slate-500">{u.id}</span><span>{u.organization}</span>
+            <span className="font-num whitespace-nowrap" data-testid="text-masked-id">{u.maskedId}</span><span className="font-num text-xs text-slate-500">{u.id}</span><span>{u.organization}</span>
           </div>
         </div>
         <button data-testid="button-toggle-freeze" disabled={freeze.pending} onClick={() => freeze.run({ status: frozen ? 'Active' : 'Frozen' }, frozen ? 'Account unfrozen' : 'Account frozen')} className={cx('press inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60', frozen ? 'bg-[#C6F432] text-[#111]' : 'bg-red-700 text-white')}>
@@ -425,7 +425,7 @@ function UserApplications({ userId }: { userId: string }) {
           <ul className="divide-y">{q.data.map((a) => (
             <li key={a.id}>
               <Link href={appReviewHref(a)} data-testid={`link-user-app-${a.id}`} className="group flex flex-wrap items-center gap-x-3 gap-y-1 py-3 hover:bg-[#F7FADC] sm:flex-nowrap sm:px-2">
-                <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{a.title}</span><span className="block text-xs text-slate-500">{a.category} · {a.id} · {dateFmt(a.submittedAt)}</span></span>
+                <span className="min-w-0 basis-full sm:flex-1 sm:basis-0"><span className="block truncate font-semibold">{a.title}</span><span className="block text-xs text-slate-500">{a.category} · {a.id} · {dateFmt(a.submittedAt)}</span></span>
                 <span className="font-num text-sm font-semibold">{money(a.amount)}</span>
                 <StatusBadge status={a.status} />
                 <ChevronRight className="hidden h-4 w-4 text-slate-400 transition group-hover:translate-x-1 sm:block" />
