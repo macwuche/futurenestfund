@@ -32,14 +32,19 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+// On the VPS set HOST=127.0.0.1 so only nginx can reach the API; unset, it listens on every interface (Replit).
+const host = process.env["HOST"]?.trim() || undefined;
+
 await seedDemoData();
 startNotificationMailer();
 
-app.listen(port, (err) => {
+const onListening = (err?: Error) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
   }
 
-  logger.info({ port, database: database.target }, "Server listening");
-});
+  logger.info({ port, host: host ?? "all interfaces", database: database.target }, "Server listening");
+};
+if (host) app.listen(port, host, onListening);
+else app.listen(port, onListening);

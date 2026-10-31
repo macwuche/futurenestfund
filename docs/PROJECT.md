@@ -16,7 +16,7 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 3 | Admin operations: ledger, deposit / withdrawal / KYC queues, application decisions | Done |
 | 4 | Real accounts on Supabase: sign-in, API auth, email through Resend, Settings security; then a hardening pass (RLS, `app_api` role, migrations, CSP, rate limits, unit tests) | Done (4.5 two-factor dropped by decision) |
 | 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
-| 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.4 done 2026-10-30/31; **next: 6.5 deployment runbook**, then 6.6 upload storage + virus scanning, 6.7 shared rate limits (only with several servers) |
+| 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.4 done 2026-10-30/31; **6.5 deployment runbook written ([`docs/DEPLOY.md`](DEPLOY.md)), being followed on the VPS**; then 6.6 upload storage + virus scanning, 6.7 shared rate limits (only with several servers) |
 
 What still needs you is listed in §12 (go-live checklist) and §15 (open items).
 
@@ -319,7 +319,8 @@ Put these in **Replit Secrets** (development) and the **VPS environment** (produ
 | Variable | Required | Value / format | Notes |
 |---|---|---|---|
 | `NODE_ENV` | prod | `production` | Enables HSTS and secure cookies; forbids demo mode |
-| `PORT` | yes | `8080` | |
+| `PORT` | yes | `8080` | VPS: `3200` |
+| `HOST` | VPS | `127.0.0.1` | Listen address. Unset: every interface (Replit). On the VPS only nginx should reach the API |
 | `SUPABASE_URL` | yes (prod) | `https://fybslfcepjnswcnoewgi.supabase.co` | Token verification, live session check |
 | `SUPABASE_PUBLISHABLE_KEY` | yes (prod) | `sb_publishable_nDwJ…` (see §4) | Public; handed to the browser |
 | `SUPABASE_DB_URL` | yes (prod) | `postgresql://app_api.fybslfcepjnswcnoewgi:<APP_DB_PASSWORD>@aws-1-eu-central-1.pooler.supabase.com:5432/postgres` | **Secret.** The API's `app_api` connection. Unset → Replit Postgres. |
@@ -421,9 +422,9 @@ Latest run (2026-10-31, after 6.4, demo mode): typecheck clean, `pnpm test` 67/6
 - [ ] Secret key (Supabase → API keys), then update `SUPABASE_SECRET_KEY`.
 - [ ] Admin password (change it in the app's Settings, or set `ADMIN_SEED_PASSWORD` and run `seed:admin -- --reset-password`).
 
-**VPS**
-- [ ] HTTPS in front (nginx), proxying `/api` to the API on 8080 and serving the web build.
-- [ ] Persistent disk for `UPLOAD_DIR`; backups of the database and uploads.
+**VPS** (follow [`docs/DEPLOY.md`](DEPLOY.md); address `https://access.futurenestfund.org`, since `futurenestfund.org` is the WordPress site)
+- [ ] Cloudflare: `A access → 77.68.98.14`, DNS only; private GitHub repo with a read-only deploy key.
+- [ ] nginx + Let's Encrypt in front, API under its own PM2 (user `futurenestfund`, port 3200, 127.0.0.1 only), uploads in `/var/lib/futurenestfund/uploads`, nightly backups.
 - [ ] Run `db:migrate` on each deploy before starting the API.
 
 **Now (Supabase)**
@@ -497,7 +498,7 @@ Latest run (2026-10-31, after 6.4, demo mode): typecheck clean, `pnpm test` 67/6
 - ~~6.2 card controls for applicants~~: done 2026-10-31
 - ~~6.3 mobile polish~~: done 2026-10-31 (every screen audited at 390 px: 44 px tap targets, no overflow, search in the phone menu)
 - ~~6.4 error monitoring~~: done 2026-10-31 (own logs with request ids; optional Sentry via `SENTRY_DSN`)
-- **6.5 deployment runbook** (`docs/DEPLOY.md`: nginx + HTTPS, systemd, env, `db:migrate` on deploy, backups, rollback): next, needs you to follow it once on the EU VPS
+- **6.5 deployment runbook**: written 2026-10-31 ([`docs/DEPLOY.md`](DEPLOY.md): PM2 + nginx + HTTPS, `deploy.sh` with migrations and rollback, backups); done when followed once end to end on the VPS
 - 6.6 persistent upload storage and virus scanning (ClamAV, tested with the EICAR file)
 - 6.7 a Redis-backed rate limiter, only if there's more than one API server
 

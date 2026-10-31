@@ -1,0 +1,12 @@
+# Rotates the API's PM2 logs daily, keeps 14 days (docs/DEPLOY.md step 9).
+# Install: cp deploy/logrotate-futurenestfund /etc/logrotate.d/futurenestfund
+/home/futurenestfund/.pm2/logs/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    su futurenestfund futurenestfund
+}

@@ -1,0 +1,3 @@
+# Nightly GrantApp backup at 02:30 UTC (docs/DEPLOY.md step 9).
+# Install: cp deploy/cron-futurenestfund-backup /etc/cron.d/futurenestfund-backup
+30 2 * * * root /var/www/futurenestfund/deploy/backup.sh >> /var/log/futurenestfund-backup.log 2>&1

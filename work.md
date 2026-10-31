@@ -1654,3 +1654,37 @@ Tests (2026-10-31):
   - browser: smoke 23+23, phase1 26 + 10, phase2 25 + 6, phase3 22 + 16, phase5-ui 4+4, cards-ui 5+5, users-ui 6+6, avatars-ui 6+6, debits-ui 5+5, limits-ui 6+6, audit-ui 6+6, phase6 cards-ui 6+6, matchmaking-ui 7+7
   - The email and avatar suites first failed only because the test API had been started without the email settings and the suite without `UPLOAD_DIR`. With both set, they pass.
 - Demo data restored.
+
+### 2026-10-31: Step 6.5 plan and runbook (deployment on the EU VPS)
+
+**Decisions (user, 2026-10-31):**
+- **PM2**, not Docker. The comparison table is in `docs/DEPLOY.md`.
+- **Address `access.futurenestfund.org`.** `futurenestfund.org` is the organisation's live WordPress site (Cloudflare DNS, hosted elsewhere), so it stays untouched.
+- **Code from a private GitHub repo** with a read-only deploy key, as the server's other apps do.
+
+**Server facts (from the user's checks):**
+- Hardware and OS: Ubuntu 26.04, 1 vCPU, 1.8 GB + 2 GB swap, IPv4 only.
+- **Shared** with three apps:
+  - akkayalar: PM2, port 3010
+  - noveriqgroups: PM2, port 4001
+  - novabridgegrant: systemd, port 3100
+- Root's PM2 7.0.4 lives in `/opt/noveriqgroups-node`, and each app has its own `/opt/<app>-node`.
+- nginx + certbot are in place; the firewall is off.
+
+**Built:**
+- `HOST` setting for the API (`index.ts`): the VPS listens on 127.0.0.1 only.
+- `deploy/`:
+  - `deploy.sh`: fetch, install only the needed packages, build both, migrate, switch web build atomically, reload, health check, `pm2 save`; `deploy.sh <commit>` rolls back
+  - `ecosystem.config.cjs`, plus `fnf-pm2`: GrantApp's own PM2 daemon as user `futurenestfund`, never root's
+  - `pm2-futurenestfund.service`: our own boot unit; `pm2 startup` isn't used, because it could touch root's PM2
+  - nginx site, `api.env` / `migrate.env` examples, `backup.sh` + cron, logrotate
+- `docs/DEPLOY.md`: the 10-step runbook, everyday operations, and the shared-server rules.
+
+**Tested here (2026-10-31):**
+- In a clean clone without Replit's variables: the trimmed install (the design sandbox isn't installed), the API build and the web build with its CSP all work.
+- With PM2 7.0.4:
+  - the process file starts the API from `--env-file` (port and `HOST=127.0.0.1` read from the file, `APP_RELEASE` passed)
+  - health 200
+  - a reload swaps in the new version
+- `bash -n` passes on all scripts; the test daemon and copy were removed.
+- **Not tested here:** systemd, nginx, certbot, `runuser`. They're checked as the runbook is followed on the VPS.

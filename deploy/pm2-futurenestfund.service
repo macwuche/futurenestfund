@@ -1,0 +1,26 @@
+# Starts GrantApp's own PM2 daemon at boot, as the futurenestfund user (docs/DEPLOY.md step 6).
+# Install: cp deploy/pm2-futurenestfund.service /etc/systemd/system/ && systemctl daemon-reload && systemctl enable pm2-futurenestfund
+# Same shape as the server's pm2-root.service, which it doesn't touch. `pm2 resurrect` restores what `fnf-pm2 save` stored.
+[Unit]
+Description=PM2 for GrantApp (futurenestfund)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+User=futurenestfund
+Group=futurenestfund
+LimitNOFILE=65536
+Environment=PATH=/opt/futurenestfund-node/bin:/usr/bin:/bin
+Environment=PM2_HOME=/home/futurenestfund/.pm2
+PIDFile=/home/futurenestfund/.pm2/pm2.pid
+Restart=on-failure
+ExecStart=/opt/futurenestfund-node/bin/pm2 resurrect
+ExecReload=/opt/futurenestfund-node/bin/pm2 reload all
+ExecStop=/opt/futurenestfund-node/bin/pm2 kill
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

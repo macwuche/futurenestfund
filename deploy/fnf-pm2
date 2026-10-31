@@ -1,0 +1,6 @@
+#!/bin/sh
+# PM2 for GrantApp only (docs/DEPLOY.md). Install: cp deploy/fnf-pm2 /usr/local/bin/ && chmod 755 /usr/local/bin/fnf-pm2
+# Runs GrantApp's own PM2 daemon as the futurenestfund user with its own PM2_HOME, so root's PM2 (noveriqgroups,
+# akkayalar) is never touched. Use it like pm2: `fnf-pm2 list`, `fnf-pm2 logs`, `fnf-pm2 restart futurenestfund-api`.
+cd /home/futurenestfund || exit 1
+exec runuser -u futurenestfund -- env PM2_HOME=/home/futurenestfund/.pm2 PATH=/opt/futurenestfund-node/bin:/usr/bin:/bin /opt/futurenestfund-node/bin/pm2 "$@"
