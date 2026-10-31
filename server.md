@@ -91,7 +91,7 @@ Status: ☐ not started · ◐ in progress · ☑ done. "Who": **you** = in a da
 | 6 | Boot service `pm2-futurenestfund` enabled and running | you | ☑ 2026-10-31 (enabled; active since 13:25:39 UTC; `pm2 resurrect` restored `futurenestfund-api` online) | `systemctl status` active; `fnf-pm2 list` shows `futurenestfund-api` online |
 | 7 | nginx site + `certbot --nginx -d access.futurenestfund.org` (redirect to HTTPS) | you | ☑ 2026-10-31 (certificate expires 2027-01-29; HTTPS healthz OK; HTTP → 301) | `https://access.futurenestfund.org/api/healthz` → `{"status":"ok"}` |
 | 8a | Supabase → Auth → URL Configuration: Site URL `https://access.futurenestfund.org`, Redirect URL `https://access.futurenestfund.org/**` | you | ☑ 2026-10-31 (both saved; Site URL entered with a trailing `/`) | Saved |
-| 8b | Admin signs in at `/admin` | you | ☐ | Admin dashboard loads |
+| 8b | Admin signs in at `/admin` | you | ☑ 2026-10-31 | Admin dashboard loads |
 | 8c | Applicant signs up (real inbox), confirms, signs in | you | ☐ | Applicant dashboard loads |
 | 8d | Admin → Settings → "Send test errors" | you | ☐ | Both references found in `fnf-pm2 logs` |
 | 9 | `postgresql-client` (pg_dump ≥ 17), log rotation, nightly backup cron, one manual backup | you | ☐ | Files in `/var/backups/futurenestfund` |
@@ -148,3 +148,4 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 | 2026-10-31 | **Step 7 (in progress):** nginx site installed and enabled; `nginx -t` OK, reloaded. Through nginx: `/api/healthz` → `{"status":"ok"}`, `/admin` → 200. First certbot run failed (typo `futurenestfunds.org`, NXDOMAIN; nothing changed). Second run: certificate for `access.futurenestfund.org` issued and deployed to the site, expires 2027-01-29, renewed by the existing timer. Waiting on the HTTPS and redirect check from outside. |
 | 2026-10-31 | **Step 7 complete:** `https://access.futurenestfund.org/api/healthz` → `{"status":"ok"}`; `http://…/admin` → 301 to HTTPS; `nginx -t` still OK after certbot's edit. |
 | 2026-10-31 | **Step 8a complete:** Supabase Auth → URL Configuration: Site URL `https://access.futurenestfund.org/`, Redirect URLs `https://access.futurenestfund.org/**` (the only entry). Confirmed from a dashboard screenshot. |
+| 2026-10-31 | **Step 8b complete:** admin signed in at `https://access.futurenestfund.org/admin`; dashboard loads. |
