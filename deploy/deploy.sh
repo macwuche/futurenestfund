@@ -40,7 +40,7 @@ main() {
   local port
   port=$(grep -E '^PORT=' /etc/futurenestfund/api.env | cut -d= -f2)
   for _ in $(seq 1 30); do
-    if curl -fsS -o /dev/null "http://127.0.0.1:$port/api/healthz"; then
+    if curl -fs -o /dev/null "http://127.0.0.1:$port/api/healthz"; then
       echo "OK: $SHA is live"
       # Remembered for the next boot (pm2-futurenestfund.service runs `pm2 resurrect`).
       fnf-pm2 save
