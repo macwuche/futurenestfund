@@ -104,6 +104,7 @@ Step 6.5 counts as **done** when steps 1–9 have been followed once end to end.
 | Item | Why it matters | When |
 |---|---|---|
 | **Rotate the secrets pasted in chat** (`postgres` database password, `app_api` database password, secret key, admin password; pasted 2026-10-28 and again 2026-10-31) | Anyone who sees the chat could use them | After step 8 works; then update `secrets.local.md` and `/etc/futurenestfund/*.env` |
+| Delete the GitHub personal access token pasted in chat | Unused (the server pulls with its deploy key), but it gives access to the GitHub account, private repos included. Never in git: `secrets.local.md` is git-ignored and was never committed (re-checked 2026-10-31) | Any time |
 | Supabase Auth: password minimum length 8 (today 6) | Weak passwords | Any time (dashboard) |
 | Off-server copies of backups | Backups on the same server are lost with it | After step 9 |
 | Optional: Sentry (EU) or GlitchTip, `SENTRY_DSN` in `api.env` | Errors reported outside the server log | Any time after step 8 |
