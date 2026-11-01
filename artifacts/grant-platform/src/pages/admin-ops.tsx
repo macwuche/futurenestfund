@@ -190,7 +190,7 @@ export function AdminTransactionsPage() {
           }>Immutable ledger</SectionTitle>
           <p className="-mt-2 mb-4 text-xs text-slate-500">Every credit and debit, newest first. Entries can't be edited or deleted. Dates are UTC; the export includes all matching entries (up to 10,000).</p>
           <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <Field label="Search"><input data-testid="input-ledger-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Entry or request ID, reason, user" className={ainput} /></Field>
+            <Field label="Search"><input data-testid="input-ledger-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ID, reason or user" className={ainput} /></Field>
             <Field label="Type"><select data-testid="select-ledger-type" value={type} onChange={(e) => setType(e.target.value as ListAdminTransactionsType)} className={ainput}>{LEDGER_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}</select></Field>
             <Field label="User"><select data-testid="select-ledger-user" value={userId} onChange={(e) => setUserId(e.target.value)} className={ainput}><option value="">All users</option>{users.data?.items.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></Field>
             <Field label="From"><input data-testid="input-ledger-from" type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className={ainput} /></Field>

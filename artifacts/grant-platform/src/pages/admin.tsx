@@ -37,7 +37,7 @@ export function AdminOverviewPage() {
         <Stat id="total-users" label="Total users" value={d.totalUsers} accent hint={`${d.activeUsers} active`} href="/admin/users" />
         <Stat id="grant-balances" label="Grant balances" value={money(d.totalGrantBalances)} />
         <Stat id="deposit-balances" label="Deposit balances" value={money(d.totalDepositBalances)} />
-        <Stat id="active-users" label="Active users" value={d.activeUsers} hint={`${d.totalUsers - d.activeUsers} frozen`} />
+        <Stat id="frozen-users" label="Frozen accounts" value={d.totalUsers - d.activeUsers} hint="Can't move money" href="/admin/users?status=frozen" />
         <Stat id="pending-applications" label="Pending applications" value={d.pendingApplications} hint="Submitted or under review" href="#review-queue" />
         <Stat id="pending-kyc" label="Pending KYC" value={d.pendingKyc} hint="Users with documents to review" href="/admin/kyc" />
         <Stat id="pending-deposits" label="Pending deposits" value={d.pendingDeposits} href="/admin/deposits" />
@@ -121,7 +121,7 @@ function ReviewQueue() {
           <ul className="divide-y" data-testid="list-review-queue">{q.data.map((a) => (
             <li key={a.id}>
               <Link href={appReviewHref(a)} data-testid={`link-review-app-${a.id}`} className="group flex flex-wrap items-center gap-x-3 gap-y-1 py-3 hover:bg-[#F7FADC] sm:flex-nowrap sm:px-2">
-                <span className="min-w-0 basis-full sm:flex-1 sm:basis-0"><span className="block truncate font-semibold">{a.title}</span><span className="block truncate text-xs text-slate-500">{a.userName} · {a.organization} · {a.id} · {dateFmt(a.submittedAt)}</span></span>
+                <span className="min-w-0 basis-full sm:flex-1 sm:basis-0"><span className="block truncate font-semibold">{a.title}</span><span className="block text-xs text-slate-500 sm:truncate">{a.userName} · {a.organization} · {a.id} · {dateFmt(a.submittedAt)}</span></span>
                 <span className="font-num text-sm font-semibold">{money(a.amount)}</span>
                 <StatusBadge status={a.status} />
                 <ChevronRight className="hidden h-4 w-4 text-slate-400 transition group-hover:translate-x-1 sm:block" />
@@ -322,6 +322,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
   const permList = [
     ['withdrawalKycRequired', 'Withdrawal requires KYC'], ['depositKycRequired', 'Deposit requires KYC'],
   ] as const;
+  const sections = [['profile', 'Profile'], ['limits', 'Limits'], ['balances', 'Balances & cards'], ['applications', 'Applications'], ['kyc', 'KYC'], ['audit', 'Audit trail']] as const;
   const savingPerm = perms.pending ? Object.keys(perms.variables?.data.permissions ?? {}).find((k) => perms.variables?.data.permissions?.[k as keyof typeof u.permissions] !== u.permissions[k as keyof typeof u.permissions]) : undefined;
   return (
     <div className="space-y-5">
@@ -330,8 +331,10 @@ function Inspector({ u }: { u: AdminUserProfile }) {
         <div className="min-w-[12rem] flex-1">
           <h2 className="font-display text-2xl font-bold" data-testid="text-user-name">{u.name}</h2>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
-            <StatusBadge status={u.verificationLevel} testid="badge-verification" /><StatusBadge status={u.status} testid="badge-user-status" />
-            <span className="font-num whitespace-nowrap" data-testid="text-masked-id">{u.maskedId}</span><span className="font-num text-xs text-slate-500">{u.id}</span><span>{u.organization}</span>
+            <StatusBadge status={u.verificationLevel} testid="badge-verification" /><StatusBadge status={u.status} testid="badge-user-status" /><span className="text-slate-500">Level {u.tier}</span>
+          </div>
+          <div className="mt-1 flex flex-wrap gap-x-2 text-sm text-slate-600">
+            <span className="break-all" data-testid="text-user-email">{u.email}</span><span aria-hidden="true" className="text-slate-300">·</span><span>{u.organization}</span>
           </div>
         </div>
         <button data-testid="button-toggle-freeze" disabled={freeze.pending} onClick={() => freeze.run({ status: frozen ? 'Active' : 'Frozen' }, frozen ? 'Account unfrozen' : 'Account frozen')} className={cx('press inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60', frozen ? 'bg-[#C6F432] text-[#111]' : 'bg-red-700 text-white')}>
@@ -339,7 +342,14 @@ function Inspector({ u }: { u: AdminUserProfile }) {
         </button>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      {/* Jump to a section: sticky under the header, one scrollable row of chips on phones. */}
+      <nav aria-label="Profile sections" data-testid="nav-inspector" className="noscroll sticky top-16 z-20 -mx-4 flex gap-2 overflow-x-auto border-b border-slate-200 bg-[#F4F5F8]/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
+        {sections.map(([id, label]) => (
+          <a key={id} href={`#sec-${id}`} data-testid={`link-section-${id}`} className="press shrink-0 whitespace-nowrap rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-[#111]">{label}</a>
+        ))}
+      </nav>
+
+      <div id="sec-profile" className="grid scroll-mt-32 gap-5 lg:grid-cols-2">
         <form className={cx(card, 'space-y-3 p-5')} data-testid="form-user-profile" onSubmit={f.handleSubmit((v) => profile.run(v, 'Profile saved'))}>
           <h3 className="font-display font-bold">Personal information</h3>
           <Field label="Full name" error={f.formState.errors.name?.message}><input data-testid="input-user-name" className={ainput} {...f.register('name')} /></Field>
@@ -373,9 +383,9 @@ function Inspector({ u }: { u: AdminUserProfile }) {
         </div>
       </div>
 
-      <UserWithdrawalLimits u={u} />
+      <div id="sec-limits" className="scroll-mt-32"><UserWithdrawalLimits u={u} /></div>
 
-      <section className={cx(card, 'p-5')} data-testid="section-balances">
+      <section id="sec-balances" className={cx(card, 'scroll-mt-32 p-5')} data-testid="section-balances">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="font-display font-bold">Balances and cards</h3><span className="text-xs text-slate-500">Sample balances. Credits and debits write a ledger entry; no real transfer.</span></div>
         <div className="grid gap-3 sm:grid-cols-3">
           {(['grant', 'deposit', 'card'] as const).map((a) => (
@@ -395,7 +405,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
       <UserApplications userId={u.id} />
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <section className={cx(card, 'p-5')} data-testid="section-kyc">
+        <section id="sec-kyc" className={cx(card, 'scroll-mt-32 p-5')} data-testid="section-kyc">
           <h3 className="mb-3 font-display font-bold">KYC documents</h3>
           {u.documents.length === 0 ? <Empty title="No documents submitted" /> : u.documents.map((d) => (
             <div key={d.id} className="mb-2 rounded-xl border p-3" data-testid={`row-doc-${d.id}`}>
@@ -406,7 +416,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
             </div>
           ))}
         </section>
-        <section className={cx(card, 'p-5')} data-testid="section-audit">
+        <section id="sec-audit" className={cx(card, 'scroll-mt-32 p-5')} data-testid="section-audit">
           <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-display font-bold">Audit trail</h3><Link href={`/admin/audit?userId=${encodeURIComponent(u.id)}`} data-testid="link-user-audit" className="text-xs font-semibold hover:underline">View all</Link></div>
           {u.audit.length === 0 ? <Empty title="No audit entries" /> : <ul className="max-h-[28rem] space-y-3 overflow-y-auto">{u.audit.map((a) => <li key={a.id} data-testid={`row-audit-${a.id}`} className="border-l-2 border-[#C6F432] pl-3 text-sm"><p className="break-words font-semibold">{a.action}</p><p className="text-xs text-slate-500">{a.actor} · {dateFmt(a.createdAt)}</p></li>)}</ul>}
         </section>
@@ -424,7 +434,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
 function UserApplications({ userId }: { userId: string }) {
   const q = useListAdminApplications({ userId });
   return (
-    <section className={cx(card, 'p-5')} data-testid="section-user-applications">
+    <section id="sec-applications" className={cx(card, 'scroll-mt-32 p-5')} data-testid="section-user-applications">
       <h3 className="mb-3 font-display font-bold">Applications</h3>
       {q.isLoading ? <Skel className="h-24" /> : q.isError || !q.data ? <ErrorState onRetry={() => q.refetch()} />
         : q.data.length === 0 ? <Empty title="No applications" />

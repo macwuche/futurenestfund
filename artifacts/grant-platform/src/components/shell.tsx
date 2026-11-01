@@ -598,22 +598,31 @@ function AdminTop({ title, onMenu }: { title: string; onMenu: () => void }) {
   const { data } = useGetAdminDashboard();
   const account = useAdminAccount();
   const [confirm, setConfirm] = useState(false);
+  const [searching, setSearching] = useState(false); // phones: the search row opens from an icon
+  const [loc] = useLocation();
+  useEffect(() => setSearching(false), [loc]);
   const frozen = data?.globalFrozen ?? false;
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
-      <div className="flex flex-wrap items-center gap-2 px-4 py-3 sm:px-6">
-        <button aria-label="Open menu" data-testid="button-open-drawer" onClick={onMenu} className="press grid h-10 w-10 place-items-center rounded-lg bg-[#111] text-[#C6F432] lg:hidden"><Menu className="h-5 w-5" /></button>
-        <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold sm:text-xl md:flex-none" data-testid="text-page-title">{title}</h1>
-        <AdminSearch />
-        <button data-testid="button-global-freeze" onClick={() => setConfirm(true)} disabled={!data} aria-label={frozen ? 'Lift global freeze' : 'Global freeze'} className={cx('press flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition disabled:opacity-50', frozen ? 'bg-[#C6F432] text-[#111]' : 'bg-red-700 text-white hover:bg-red-800')}>
-          {/* Phones show the short label so the title, the button and the avatar fit on one line. */}
-          <Snowflake className="h-4 w-4" /><span className="sm:hidden">{frozen ? 'Lift' : 'Freeze'}</span><span className="hidden sm:inline">{frozen ? 'Lift freeze' : 'Freeze platform'}</span>
-        </button>
-        {account && (
-          <Link href="/admin/settings/account" aria-label={`Your profile and settings (${account.email || account.name})`} title={account.email || account.name} data-testid="link-admin-avatar" className="press shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111]/40">
-            <AdminAvatar name={account.name} url={account.avatarUrl} className="h-10 w-10 text-sm" testid="avatar-admin-header" />
-          </Link>
-        )}
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur" data-testid="header-admin">
+      {/* One 64 px row: title left, search fills the middle (md+), freeze and avatar pinned right. */}
+      <div className="flex min-h-16 flex-wrap items-center gap-2 px-4 py-3 sm:px-6 md:flex-nowrap md:gap-4">
+        <button aria-label="Open menu" data-testid="button-open-drawer" onClick={onMenu} className="press grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#111] text-[#C6F432] lg:hidden"><Menu className="h-5 w-5" /></button>
+        <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold sm:text-xl md:max-w-[16rem] md:flex-none lg:max-w-[20rem]" data-testid="text-page-title">{title}</h1>
+        <AdminSearch open={searching} onClose={() => setSearching(false)} className={cx('order-last basis-full md:order-none md:block md:max-w-xl md:flex-1 md:basis-auto', searching ? 'block' : 'hidden')} />
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <button type="button" aria-label={searching ? 'Close search' : 'Search'} aria-expanded={searching} data-testid="button-admin-search-toggle" onClick={() => setSearching(!searching)}
+            className={cx('press grid h-10 w-10 place-items-center rounded-lg border md:hidden', searching ? 'border-[#111] bg-[#111] text-[#C6F432]' : 'border-slate-300 text-slate-700')}>
+            {searching ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
+          </button>
+          <button data-testid="button-global-freeze" onClick={() => setConfirm(true)} disabled={!data} aria-label={frozen ? 'Lift global freeze' : 'Freeze the platform'} className={cx('press flex h-10 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition disabled:opacity-50', frozen ? 'bg-[#C6F432] text-[#111]' : 'bg-red-700 text-white hover:bg-red-800')}>
+            <Snowflake className="h-4 w-4" /><span className="sm:hidden">{frozen ? 'Lift' : 'Freeze'}</span><span className="hidden sm:inline">{frozen ? 'Lift freeze' : 'Freeze platform'}</span>
+          </button>
+          {account && (
+            <Link href="/admin/settings/account" aria-label={`Your profile and settings (${account.email || account.name})`} title={account.email || account.name} data-testid="link-admin-avatar" className="press hidden shrink-0 rounded-full sm:block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111]/40">
+              <AdminAvatar name={account.name} url={account.avatarUrl} className="h-10 w-10 text-sm" testid="avatar-admin-header" />
+            </Link>
+          )}
+        </div>
       </div>
       {frozen && <div data-testid="banner-frozen" className="bg-red-700 px-6 py-1.5 text-center text-xs font-semibold text-white">Platform is globally frozen. Balance credits, approvals and new deposit or withdrawal requests are paused.</div>}
       <GlobalFreezeDialog open={confirm} onClose={() => setConfirm(false)} frozen={frozen} />
@@ -652,8 +661,10 @@ export function GlobalFreezeDialog({ open, onClose, frozen }: { open: boolean; o
 }
 
 /** Header search over users, applications, ledger entries and audit logs (names, text or IDs). */
-function AdminSearch() {
+function AdminSearch({ className, open: shown, onClose }: { className?: string; open?: boolean; onClose?: () => void }) {
   const [text, setText] = useState('');
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (shown) input.current?.focus(); }, [shown]);
   const [open, setOpen] = useState(false);
   const [, nav] = useLocation();
   const ref = useRef<HTMLFormElement>(null);
@@ -662,7 +673,7 @@ function AdminSearch() {
   const term = useDeferredValue(text.trim());
   const params = { q: term };
   const q = useSearchAdmin(params, { query: { enabled: term.length >= 2, queryKey: getSearchAdminQueryKey(params), placeholderData: keepPreviousData } });
-  const go = (href: string) => { close(); setText(''); nav(href); };
+  const go = (href: string) => { close(); setText(''); onClose?.(); nav(href); };
   const r = term.length >= 2 ? q.data : undefined;
   const empty = r && !r.users.length && !r.applications.length && !r.transactions.length && !r.audit.length;
   const row = 'flex w-full flex-col rounded-lg px-2 py-1.5 text-left hover:bg-[#F7FADC]';
@@ -670,10 +681,10 @@ function AdminSearch() {
     <div className="py-1"><p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>{items}</div>
   );
   return (
-    <form ref={ref} role="search" onSubmit={(e) => { e.preventDefault(); if (term) go(`/admin/users?q=${encodeURIComponent(term)}`); }} className="relative order-last w-full md:order-none md:ml-4 md:w-80">
+    <form ref={ref} role="search" onSubmit={(e) => { e.preventDefault(); if (term) go(`/admin/users?q=${encodeURIComponent(term)}`); }} className={cx('relative', className)}>
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-      <input data-testid="input-admin-search" type="search" aria-label="Search users, applications, transactions and logs" value={text}
-        onChange={(e) => { setText(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder="Search logs, users, IDs"
+      <input ref={input} data-testid="input-admin-search" type="search" enterKeyHint="search" aria-label="Search users, applications, transactions and logs" value={text}
+        onChange={(e) => { setText(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder="Search users, applications, ledger, audit log"
         className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-[#111] focus:ring-2 focus:ring-[#C6F432]" />
       {open && term.length >= 2 && (
         <div className="pop absolute left-0 right-0 top-full z-50 mt-2 max-h-[70dvh] overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl md:w-[26rem]" data-testid="panel-admin-search">

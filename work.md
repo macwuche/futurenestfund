@@ -1893,3 +1893,14 @@ Not in Phase 7: new features beyond email settings; the open go-live items (§12
 **Not done as planned:** no new `Button` / `Card` / `KpiTile` React components. The existing shared class tokens (`card`, `lime`, `dark`, `ghost`, `danger`, `inputCls`) and `Stat`, `Empty`, `Avatar` stayed the single source; a component-level refactor would touch every page without changing what users see.
 
 **Tests (2026-11-01):** typecheck clean; smoke 23+23, phase1-desktop 26/26, phase1-phone 10/10, phase3-desktop 22/22, phase3-phone 16/16, phase5-avatars-ui 6+6, phase5-users-ui 6+6, phase6-mobile 37/37 with 0 problems. Screenshots of the admin dashboard, inspector and applicant dashboard reviewed at both widths. (A full-page headless screenshot draws the money chart's bar in the wrong place; the DOM and a normal screenshot show it correctly at October.)
+
+### 2026-11-01: Step 7.4 done (admin layout)
+
+**Built:**
+- **Header (A3, AM2):** one 64 px row: title on the left, search fills the middle (up to 36 rem), freeze button and avatar pinned right. On phones the search is an icon that opens a focused search row (closes on navigation), so the header stays 64 px instead of ~110 px. The phone header leaves out the avatar so the title fits; the account is in the menu and Settings → Your account. Search placeholder says what it covers.
+- **Dashboard KPIs (A5):** "Active users 3 / 0 frozen" replaced by **Frozen accounts** (links to the users directory filtered to frozen). The review queue's details line wraps on phones instead of cutting the date (AM6).
+- **User inspector (A6, AM3):** the header shows status, verification, level, email and organisation; the masked card number and internal id are gone. A **sticky section menu** (Profile, Limits, Balances & cards, Applications, KYC, Audit trail) sits under the header, one scrollable row of chips on phones; each section scrolls into view below it.
+- Ledger search placeholder shortened so it fits (A8).
+- (4-Eyes badge removal from A4 was done in 7.2.)
+
+**Tests (2026-11-01):** typecheck clean; phase3-desktop 22/22, phase3-phone 16/16 (new: header ≤ 64 px, search hidden until the icon is tapped, focus moves to it), phase5-avatars-ui / users-ui / audit-ui 6+6 each, phase5-cards-ui 5+5, phase5-debits-ui 5+5, phase6-mobile 37/37 with 0 problems (it now checks the search button and the 64 px header on every admin page), smoke 23+23. By hand: the inspector chips land each section 17 px below the menu (or as far as the page can scroll).
