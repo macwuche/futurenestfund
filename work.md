@@ -1910,3 +1910,18 @@ Not in Phase 7: new features beyond email settings; the open go-live items (§12
 **Built:** below the `md` breakpoint (768 px) the **ledger** (Transactions) and the **Recent decisions** table on the Deposit and Withdrawal pages become one card per entry: user, type · account and the **signed amount** on the first line; reason; then date, who did it and the linked application or request. The audit log and users directory already had phone cards (5.3, 5.4). Wider screens keep the tables.
 
 **Tests (2026-11-01):** typecheck clean; phase3-desktop 22/22; phase3-phone 17/17 (new: at 390 px the ledger table is hidden, every amount is fully on screen, no sideways scroll; the old "table scrolls sideways" check replaced); phase5-debits-ui 5+5; phase5-limits-ui 6+6; phase6-mobile 37/37 with 0 problems. `phase5-withdrawals` was run but its email checks need an API started with a Resend key and sender (this test API had none), so its 3 email checks failed for that reason; it tests the API, which 7.5 didn't change.
+
+### 2026-11-01: Step 7.6 done (applicant fixes)
+
+**Built:**
+- **Menu in groups (U1):** Overview (Dashboard, My Applications, Milestones) · Find funding (Grant categories, Grant Search) · Track (Funding Tracker, Reports) · Money (Cards, Transactions, Withdrawals, Add funds); Settings and Help stay at the bottom. "Grant Funding Tracker" is "Funding Tracker" in the menu.
+- **Grant categories is an overview (U2):** your top matches, then one tile per category (number of grants, largest amount, next deadline, how many are recommended for you; ranked by best match once you've answered). A tile opens **Grant Search filtered to that category** (`/grant-search?category=…`; an unknown value falls back to All). The grant cards appear only in Grant Search now.
+- **Setup cards (U3):** "Recommended" only while the step is unfinished.
+- **Highlights filter (U4):** it filters by amount, not status as the review said, so "All Revenue" became **"All amounts"**.
+- **Dashboard rows (G3, UM2):** the line under each title shows category · amount · date instead of repeating the status badge.
+- **Organisation (U5):** the "Acme Foundation ▾" switcher is a plain label.
+- **Cards (U7):** both card designs show a chip and a contactless mark, so the virtual card is no longer an empty blue block.
+- **Withdrawals / Add funds (U8):** a "What happens next" box: reference, the hold on withdrawals, a finance administrator's decision (told in the app, and by email when email is on), what approval does to which balance. It promises no timings or bank details, because no payment processor is connected.
+- (U6, the Help Centre support address, was done in 7.1.)
+
+**Tests (2026-11-01):** typecheck clean; phase6-matchmaking-ui 7+7 (ranked grid and "Why this match" now checked in Grant Search; new: no grant cards on the overview, category tile → filtered search, no Recommended badge on a finished setup card, row shows category · amount · date), phase6-matchmaking 8/8, phase1-desktop 26/26, phase1-phone 10/10, phase2-desktop 25/25, phase2-phone 6/6, phase6-cards-ui 6+6, phase5-limits-ui 6+6, phase6-mobile 37/37 with 0 problems, smoke 23+23.

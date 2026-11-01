@@ -10,7 +10,7 @@ import {
 } from '@workspace/api-client-react';
 import {
   LayoutDashboard, Layers, FileText, CreditCard, ArrowLeftRight, ArrowUpFromLine, PlusCircle, Settings, Bell, Search, Plus, Menu, X,
-  ChevronDown, Users, ArrowDownToLine, Snowflake, Building2, ScanLine, House, ClipboardList, ChartPie, Milestone,
+  Users, ArrowDownToLine, Snowflake, Building2, ScanLine, House, ClipboardList, ChartPie, Milestone,
   MessageCircleQuestion, Ellipsis, BadgeCheck, Upload, ArrowLeftRight as SwitchIcon, LogOut,
 } from 'lucide-react';
 import { Avatar, checkFile, cx, Field, FILE_RULES, fileSize, inputCls, Modal, money, Skel, useDismiss } from '@/components/bits';
@@ -21,18 +21,27 @@ import { AdminAvatar, useAdminAccount } from '@/components/admin-photo';
 
 type NavItem = { href: string; label: string; icon: typeof House };
 
-const userNav: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: House },
-  { href: '/applications', label: 'My Applications', icon: FileText },
-  { href: '/grant-search', label: 'Grant Search', icon: Search },
-  { href: '/grants', label: 'Grant categories', icon: Layers },
-  { href: '/funding-tracker', label: 'Grant Funding Tracker', icon: ClipboardList },
-  { href: '/cards', label: 'Cards', icon: CreditCard },
-  { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
-  { href: '/withdrawals', label: 'Withdrawals', icon: ArrowUpFromLine },
-  { href: '/deposits', label: 'Add funds', icon: PlusCircle },
-  { href: '/reports', label: 'Reports', icon: ChartPie },
-  { href: '/milestones', label: 'Milestones', icon: Milestone },
+/** The applicant menu, in groups (finding U1). Settings and Help sit at the bottom with the account card. */
+const userNavGroups: { label: string; items: NavItem[] }[] = [
+  { label: 'Overview', items: [
+    { href: '/dashboard', label: 'Dashboard', icon: House },
+    { href: '/applications', label: 'My Applications', icon: FileText },
+    { href: '/milestones', label: 'Milestones', icon: Milestone },
+  ] },
+  { label: 'Find funding', items: [
+    { href: '/grants', label: 'Grant categories', icon: Layers },
+    { href: '/grant-search', label: 'Grant Search', icon: Search },
+  ] },
+  { label: 'Track', items: [
+    { href: '/funding-tracker', label: 'Funding Tracker', icon: ClipboardList },
+    { href: '/reports', label: 'Reports', icon: ChartPie },
+  ] },
+  { label: 'Money', items: [
+    { href: '/cards', label: 'Cards', icon: CreditCard },
+    { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+    { href: '/withdrawals', label: 'Withdrawals', icon: ArrowUpFromLine },
+    { href: '/deposits', label: 'Add funds', icon: PlusCircle },
+  ] },
 ];
 const userNavFooter: NavItem[] = [
   { href: '/settings', label: 'Settings', icon: Settings },
@@ -181,8 +190,13 @@ function UserSidebar({ onNav }: { onNav?: () => void }) {
   const count = data?.applicationCount;
   return (
     <div className="flex flex-1 flex-col gap-4">
-      <nav aria-label="User navigation" className="flex flex-col gap-0.5">
-        {userNav.map((i) => <NavRow key={i.href} item={i} active={isActive(loc, i.href)} onNav={onNav} count={i.href === '/applications' ? count : undefined} />)}
+      <nav aria-label="User navigation" className="flex flex-col gap-3">
+        {userNavGroups.map((g) => (
+          <div key={g.label} role="group" aria-labelledby={`nav-group-${g.label.replace(/\s+/g, '-').toLowerCase()}`} className="flex flex-col gap-0.5">
+            <p id={`nav-group-${g.label.replace(/\s+/g, '-').toLowerCase()}`} className="px-3 pb-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{g.label}</p>
+            {g.items.map((i) => <NavRow key={i.href} item={i} active={isActive(loc, i.href)} onNav={onNav} count={i.href === '/applications' ? count : undefined} />)}
+          </div>
+        ))}
       </nav>
       <div className="mt-auto flex flex-col gap-0.5">
         {userNavFooter.map((i) => <NavRow key={i.href} item={i} active={isActive(loc, i.href)} onNav={onNav} />)}
@@ -243,23 +257,12 @@ function UserCard({ onNav }: { onNav?: () => void }) {
   );
 }
 
-function OrgSwitcher({ name }: { name: string }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const close = useCallback(() => setOpen(false), []);
-  useDismiss(ref, open, close);
+/** The organisation name. A plain label: applicants belong to one organisation, so there is nothing to switch (finding U5). */
+function OrgLabel({ name }: { name: string }) {
   return (
-    <div ref={ref} className="relative">
-      <button data-testid="button-org-switcher" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)} className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[15px] font-semibold text-slate-900 hover:bg-slate-100">
-        <span data-testid="text-org-name">{name}</span><ChevronDown className={cx('h-4 w-4 text-slate-500 transition-transform', open && 'rotate-180')} />
-      </button>
-      {open && (
-        <div role="menu" className="pop absolute left-0 top-full z-50 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
-          <button role="menuitem" data-testid="menu-org-current" onClick={close} className="flex w-full items-center justify-between rounded-lg bg-[#EEF4FB] px-3 py-2 text-sm font-medium text-[#1E3A8A]"><span className="flex items-center gap-2"><Building2 className="h-4 w-4" />{name}</span><span className="text-xs">Current</span></button>
-          <p className="px-3 py-2 text-xs text-slate-500">Single organization in this demo.</p>
-        </div>
-      )}
-    </div>
+    <p className="flex items-center gap-2 px-2 text-[15px] font-semibold text-slate-900" data-testid="text-org-name">
+      <Building2 className="h-4 w-4 text-slate-500" aria-hidden="true" />{name}
+    </p>
   );
 }
 
@@ -327,7 +330,7 @@ function UserTopDesktop() {
   const [loc, nav] = useLocation();
   return (
     <header className="sticky top-0 z-30 hidden h-16 items-center gap-3 border-b border-slate-200 bg-white px-8 lg:flex">
-      {data ? <OrgSwitcher name={data.profile.organization} /> : <Skel className="h-7 w-40" />}
+      {data ? <OrgLabel name={data.profile.organization} /> : <Skel className="h-7 w-40" />}
       <div className="ml-auto flex items-center gap-3">
         <NotificationBell />
         <form role="search" onSubmit={(e) => { e.preventDefault(); if (loc !== '/applications' && loc !== '/dashboard' && loc !== '/') nav('/applications'); }} className="relative">

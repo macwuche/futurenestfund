@@ -13,9 +13,9 @@ import {
   type ApplicantDashboard, type ApplicantKyc, type KycDocumentKind, type ApplicantAccount, type ApplicantApplication, type ApplicationDetail,
 } from '@workspace/api-client-react';
 import {
-  Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Clock, FileText, PenLine, Sparkles,
+  Check, ChevronDown, ChevronRight, Layers, CircleCheck, CircleX, Clock, FileText, PenLine, Sparkles,
   Search, ArrowDownLeft, Undo2, ArrowLeft, ArrowUpRight, Snowflake, Landmark, Wallet,
-  CreditCard, BadgeCheck, Lock, Camera, Upload, Download, Trash2, IdCard, House as HouseIcon, Loader2, type LucideIcon,
+  CreditCard, BadgeCheck, Lock, Camera, Upload, Download, Trash2, IdCard, House as HouseIcon, Loader2, Nfc, type LucideIcon,
 } from 'lucide-react';
 import { Shell } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
@@ -132,7 +132,7 @@ function SetupCards({ d }: { d: ApplicantDashboard }) {
             <div key={c.id} data-testid={`card-setup-${c.id}`} className="flex min-w-[85%] snap-start flex-col rounded-2xl border border-[#DBEAFE] bg-[#EEF4FB] p-5 sm:min-w-[60%] md:min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <span className="grid h-11 w-11 place-items-center rounded-xl bg-white text-[#1E3A8A] shadow-sm"><Icon className="h-5 w-5" /></span>
-                <StatusBadge status="Recommended" dot={false} />
+                {!c.complete && <StatusBadge status="Recommended" dot={false} />}
               </div>
               <h3 className="mt-4 text-lg font-semibold text-slate-900">{c.title}</h3>
               <p className="mt-1.5 flex-1 text-[15px] leading-relaxed text-slate-600">{c.description}</p>
@@ -152,7 +152,7 @@ function SetupCards({ d }: { d: ApplicantDashboard }) {
 
 export const statusIcon: Record<string, LucideIcon> = { Submitted: FileText, Review: Clock, Approved: CircleCheck, 'Changes requested': PenLine, Declined: CircleX, Withdrawn: Undo2 };
 const revenueRanges = [
-  { k: 'all', label: 'All Revenue', test: () => true },
+  { k: 'all', label: 'All amounts', test: () => true },
   { k: 'lt10', label: 'Under $10,000', test: (n: number) => n < 10000 },
   { k: '10to25', label: '$10,000 – $24,999', test: (n: number) => n >= 10000 && n < 25000 },
   { k: 'gte25', label: '$25,000 and above', test: (n: number) => n >= 25000 },
@@ -185,7 +185,7 @@ function Highlights({ d }: { d: ApplicantDashboard }) {
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#EEF4FB] text-[#1E3A8A]"><Icon className="h-5 w-5" /></span>
                   <span className="min-w-0 flex-1">
                     <span className="line-clamp-2 block font-semibold text-slate-900" data-testid={`text-app-title-${a.id}`}>{a.title}</span>
-                    <span className="block text-sm text-slate-500">{statusLabel(a.status)}</span>
+                    <span className="block text-sm text-slate-500" data-testid={`text-app-meta-${a.id}`}>{a.category} · <span className="tabular-nums">{money(a.amount)}</span> · {dateFmt(a.submittedAt)}</span>
                   </span>
                   <StatusBadge status={a.status} dot={false} testid={`badge-app-status-${a.id}`} />
                   <ChevronRight className="hidden h-5 w-5 shrink-0 text-slate-400 sm:block" />
@@ -246,21 +246,50 @@ export function GrantCard({ g }: { g: ApplicantDashboard['recommendations'][numb
   );
 }
 
+/**
+ * Grant categories is an overview: your top matches, then one tile per category that opens Grant Search filtered to it.
+ * The grant cards themselves live only in Grant Search (finding U2: the two pages used to show the same 12 cards).
+ */
 function GrantsBody({ d }: { d: ApplicantDashboard }) {
-  const cats = useMemo(() => Array.from(new Set(d.recommendations.map((r) => r.category))), [d]);
-  const [cat, setCat] = useState('All');
-  const list = d.recommendations.filter((r) => cat === 'All' || r.category === cat);
+  const scored = d.recommendations.some((g) => g.matchScore !== undefined);
+  const cats = useMemo(() => {
+    const by = new Map<string, ApplicantDashboard['recommendations']>();
+    for (const g of d.recommendations) by.set(g.category, [...(by.get(g.category) ?? []), g]);
+    return [...by.entries()].map(([name, grants]) => ({
+      name, grants,
+      top: Math.max(...grants.map((g) => g.amount)),
+      next: grants.map((g) => g.deadline).sort()[0],
+      recommended: grants.filter((g) => g.recommended).length,
+      best: Math.max(...grants.map((g) => g.matchScore ?? 0)),
+    })).sort((x, y) => (scored ? y.best - x.best : 0) || x.name.localeCompare(y.name));
+  }, [d, scored]);
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <TopMatches d={d} />
-      <div className="noscroll flex gap-2 overflow-x-auto">
-        {['All', ...cats].map((c) => <button key={c} data-testid={`filter-category-${c.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} onClick={() => setCat(c)} className={cx('press whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-semibold', cat === c ? 'border-[#1E3A8A] bg-[#1E3A8A] text-white' : 'border-slate-300 bg-white text-slate-600')}>{c}</button>)}
-      </div>
-      {list.length === 0 ? <Empty title="No grants in this category" /> : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {list.map((g) => <GrantCard key={g.id} g={g} />)}
+      <section aria-labelledby="categories-heading" data-testid="section-categories">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="categories-heading" className="text-lg font-semibold text-slate-900">Browse by category</h2>
+          <Link href="/grant-search" data-testid="link-all-grants" className="inline-flex min-h-11 items-center text-sm font-semibold text-[#1E3A8A] hover:underline md:min-h-0">See all {d.recommendations.length} grants</Link>
         </div>
-      )}
+        {cats.length === 0 ? <Empty title="No grants open right now" /> : (
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {cats.map((c) => (
+              <li key={c.name}>
+                <Link href={`/grant-search?category=${encodeURIComponent(c.name)}`} data-testid={`link-category-${c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                  className={cx(card, 'lift group flex h-full items-start gap-3 p-4 transition hover:border-[#1E3A8A]')}>
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#EEF4FB] text-[#1E3A8A]"><Layers className="h-5 w-5" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-2"><span className="font-semibold text-slate-900">{c.name}</span><ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition group-hover:translate-x-0.5" /></span>
+                    <span className="mt-0.5 block text-sm text-slate-600">{c.grants.length} {c.grants.length === 1 ? 'grant' : 'grants'} · up to <span className="tabular-nums">{usd0(c.top)}</span></span>
+                    <span className="mt-0.5 block text-xs text-slate-500">Next deadline {dateFmt(c.next)}</span>
+                    {c.recommended > 0 && <span className="mt-2 inline-block"><StatusBadge status="Recommended" dot={false} label={`${c.recommended} recommended`} /></span>}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
@@ -548,7 +577,10 @@ function CardsBody({ a }: { a: Account }) {
                     <span className="text-base font-bold tracking-tight">GrantApp</span>
                     <span className="text-xs font-semibold uppercase tracking-widest text-white/80">{c.kind}</span>
                   </div>
-                  {c.kind === 'Physical' && <span className="mt-4 h-8 w-11 rounded-md bg-gradient-to-br from-amber-200 to-amber-400" aria-hidden="true" />}
+                  <span className="mt-4 flex items-center gap-2" aria-hidden="true">
+                    <span className="relative h-8 w-11 overflow-hidden rounded-md bg-gradient-to-br from-amber-200 to-amber-400"><i className="absolute inset-x-0 top-1/2 h-px bg-amber-600/40" /><i className="absolute inset-y-0 left-1/2 w-px bg-amber-600/40" /></span>
+                    <Nfc className="h-6 w-6 text-white/80" />
+                  </span>
                   <p className="mt-auto text-lg tracking-[0.2em] tabular-nums sm:text-xl">•••• •••• •••• {c.lastFour}</p>
                   <div className="mt-3 flex items-end justify-between">
                     <span className="text-sm font-medium uppercase tracking-wide text-white/85">{d?.profile.name ?? ''}</span>
@@ -709,7 +741,16 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
           <button data-testid="button-submit-money" type="submit" disabled={paused || m.isPending} className="press w-full rounded-full bg-[#1E3A8A] py-2.5 text-[15px] font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60">
             {m.isPending ? 'Submitting…' : isDeposit ? 'Request deposit' : 'Request withdrawal'}
           </button>
-          <p className="text-xs text-slate-500">Every request is reviewed by our finance team{isDeposit ? '' : ' before funds are released'}. Demo: no real money moves.</p>
+          {/* What happens after "Request" (finding U8). No payment processor is connected, so no timings or bank details are promised. */}
+          <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600" data-testid="text-money-steps">
+            <p className="mb-2 font-semibold text-slate-900">What happens next</p>
+            <ol className="list-decimal space-y-1 pl-5">
+              <li>You get a reference number{isDeposit ? '' : ', and the amount is held from your grant balance'}.</li>
+              <li>A finance administrator approves or declines it. You're told in the app{a.permissions.emailOverride ?? a.permissions.emailNotifications ? ' and by email' : ''}, with the reason if it's declined.</li>
+              <li>{isDeposit ? 'Once approved, the amount is added to your deposit balance.' : 'Once approved, the amount leaves your grant balance. A declined request releases the hold.'}</li>
+            </ol>
+            <p className="mt-2 text-xs text-slate-500">Sample balances: no real money moves, and no bank details are needed here.</p>
+          </div>
         </form>
         <section className={cx(card, 'p-4 sm:p-5 lg:col-span-3')} aria-labelledby="requests-heading">
           <h2 id="requests-heading" className="mb-4 text-lg font-semibold text-slate-900">Your {kind.toLowerCase()} requests</h2>

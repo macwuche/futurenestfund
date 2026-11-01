@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import { Link } from 'wouter';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Link, useSearch } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -79,7 +79,10 @@ const amountBands = [
 function GrantSearchBody({ d }: { d: ApplicantDashboard }) {
   const { savedGrants } = useDemo();
   const [q, setQ] = useState('');
-  const [cat, setCat] = useState('All');
+  // Grant categories links here with ?category=…, so the search opens already filtered.
+  const urlCat = new URLSearchParams(useSearch()).get('category');
+  const [cat, setCat] = useState(urlCat ?? 'All');
+  useEffect(() => { if (urlCat) setCat(urlCat); }, [urlCat]);
   const [band, setBand] = useState<string>('any');
   const [within, setWithin] = useState('any');
   const scored = d.recommendations.some((g) => g.matchScore !== undefined);
@@ -87,6 +90,7 @@ function GrantSearchBody({ d }: { d: ApplicantDashboard }) {
   const [recommendedOnly, setRecommendedOnly] = useState(false);
   const [savedOnly, setSavedOnly] = useState(false);
   const cats = useMemo(() => Array.from(new Set(d.recommendations.map((r) => r.category))).sort(), [d]);
+  if (cat !== 'All' && !cats.includes(cat)) setCat('All'); // an unknown ?category= falls back to every category
   const test = amountBands.find((b) => b.k === band)!.test;
   const term = q.trim().toLowerCase();
   const list = d.recommendations
