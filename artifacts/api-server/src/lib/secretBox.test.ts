@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { randomBytes } from "node:crypto";
-import { masterKey, open, seal, SecretBoxError } from "./secretBox";
+import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { keyFilePath, keyFromFile, open, parseKey, seal, SecretBoxError } from "./secretBox";
 
 const key = randomBytes(32);
 
@@ -24,9 +27,36 @@ describe("secretBox", () => {
   });
 
   it("checks the master key", () => {
-    expect(masterKey(undefined).key).toBeNull();
-    expect(masterKey("short").problem).toMatch(/32 random bytes/);
-    expect(masterKey(randomBytes(16).toString("base64")).key).toBeNull();
-    expect(masterKey(key.toString("base64")).key?.equals(key)).toBe(true);
+    expect(parseKey(undefined).key).toBeNull();
+    expect(parseKey("short").problem).toMatch(/32 random bytes/);
+    expect(parseKey(randomBytes(16).toString("base64")).key).toBeNull();
+    expect(parseKey(key.toString("base64")).key?.equals(key)).toBe(true);
+  });
+
+  it("creates its own key file once, private, and keeps using it", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "secretbox-"));
+    const file = path.join(dir, "settings.key");
+    const first = keyFromFile(file);
+    expect(first.key?.length).toBe(32);
+    expect(statSync(file).mode & 0o777).toBe(0o600);
+    const again = keyFromFile(file); // never replaced
+    expect(again.key?.equals(first.key!)).toBe(true);
+    expect(readFileSync(file, "utf8").trim()).toBe(first.key!.toString("base64"));
+    const sealed = seal("re_x", "resendApiKey", first.key!);
+    expect(open(sealed, "resendApiKey", keyFromFile(file).key!)).toBe("re_x");
+  });
+
+  it("reports a broken key file without overwriting it, and an unwritable folder", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "secretbox-"));
+    const file = path.join(dir, "settings.key");
+    writeFileSync(file, "not-a-key");
+    expect(keyFromFile(file).problem).toMatch(/32 random bytes/);
+    expect(readFileSync(file, "utf8")).toBe("not-a-key");
+    expect(keyFromFile(path.join(dir, "missing", "settings.key")).problem).toMatch(/couldn't create/);
+  });
+
+  it("puts the key file next to the uploads folder, not inside it", () => {
+    expect(keyFilePath({ UPLOAD_DIR: "/var/lib/futurenestfund/uploads" })).toBe("/var/lib/futurenestfund/settings.key");
+    expect(keyFilePath({ SETTINGS_KEY_FILE: "/etc/x/k", UPLOAD_DIR: "/u" })).toBe("/etc/x/k");
   });
 });

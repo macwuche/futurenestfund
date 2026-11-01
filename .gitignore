@@ -56,3 +56,6 @@ artifacts/api-server/uploads/
 
 # Local secrets file (never commit)
 /secrets.local.md
+
+# Encryption key the API creates for secrets saved in Admin Settings (lib/secretBox.ts)
+artifacts/api-server/settings.key

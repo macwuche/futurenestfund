@@ -186,15 +186,9 @@ ls -lh /var/backups/futurenestfund
 `pg_dump` must be version **17 or newer**, because Supabase runs Postgres 17. The backup covers the app's tables and uploaded files. Sign-in accounts are in Supabase's own backups. These copies are on the same server, so download one now and then (e.g. `scp`) or copy them to other storage.
 
 ### Step 10. Email (when ready)
-Email is set up in the app: **Admin → Settings → Email**. The server only needs a master key that encrypts the secrets you save there.
+Email is set up entirely in the app: **Admin → Settings → Email**. Nothing is needed on the server.
 
-1. **Master key (once), on the server:**
-   ```bash
-   openssl rand -base64 32
-   nano /etc/futurenestfund/api.env
-   fnf-pm2 restart futurenestfund-api --update-env
-   ```
-   Put the printed value in `SETTINGS_ENCRYPTION_KEY=` and keep a copy in `secrets.local.md`. If it's ever lost or changed, the saved Resend key and hook secret can't be read any more; Settings says so, and you enter them again.
+1. **Encryption key (automatic):** the Resend key and hook secret saved in Settings are encrypted with a master key that never goes into the database. The API creates it by itself on first start as `/var/lib/futurenestfund/settings.key` (user `futurenestfund`, mode 600). It survives deploys and isn't in the nightly backup, so a stolen backup can't reveal the secrets. If the file is ever lost (e.g. a new server), Settings says the saved secrets can't be read and you enter them again. To check it's there: `ls -l /var/lib/futurenestfund/settings.key`. (Setting `SETTINGS_ENCRYPTION_KEY` in `api.env` still works and takes precedence; don't add it now, or the secrets saved with the file can't be read.)
 2. **Resend:** records already exist for `mail.futurenestfund.org`, so check that domain in Resend → Domains first (otherwise add a domain and put the DNS records it lists in Cloudflare; they're on their own names and **don't affect the website**). Create an API key (Sending access is enough).
 3. **Admin → Settings → Email:** paste the API key; set the sender name and address (e.g. `no-reply@mail.futurenestfund.org`), the support address and the signature; save. The health checks show whether Resend accepts the key and the domain is verified. Send a test email to yourself.
 4. **Supabase → Authentication → Hooks → Send Email** → HTTPS: paste the hook URL shown in Settings (`https://access.futurenestfund.org/api/hooks/supabase/send-email`), generate the secret, and save it as **Hook secret** in Settings. No restart is needed.

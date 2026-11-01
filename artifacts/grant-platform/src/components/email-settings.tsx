@@ -46,7 +46,7 @@ export function EmailSettingsCard() {
           {!s.canStoreSecrets && (
             <p role="note" data-testid="text-email-no-encryption" className="mb-4 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>Keys can't be saved here yet: {s.encryptionProblem} Add it to the server's <code className="rounded bg-white/70 px-1">api.env</code> and restart the API. The other settings can be saved now.</span>
+              <span>Keys can't be saved here right now: {s.encryptionProblem} The other settings can be saved.</span>
             </p>
           )}
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">

@@ -264,7 +264,7 @@ Changing the schema: edit `lib/db/src/schema` → `pnpm --filter @workspace/db r
 All email goes through **Resend** (`lib/email.ts`). Email is off until there's an API key and a sender address.
 
 **Admin → Settings → Email** (`lib/emailSettings.ts`, `components/email-settings.tsx`, Phase 7.1) is where it's set up, with no SSH or restart:
-- **Resend API key** and **Send Email Hook secret**: write-only. Each is encrypted (AES-256-GCM, field-bound) with `SETTINGS_ENCRYPTION_KEY` from the server environment before it's stored in `demo_settings.email_secrets`; the browser only ever gets a hint like `re_••••abcd`. Without the master key, secrets can't be saved there (the page says so).
+- **Resend API key** and **Send Email Hook secret**: write-only. Each is encrypted (AES-256-GCM, field-bound) with a master key that never goes into the database before it's stored in `demo_settings.email_secrets`; the browser only ever gets a hint like `re_••••abcd`. The master key is `SETTINGS_ENCRYPTION_KEY` when set, otherwise a key file the API creates itself on first start (`settings.key` next to `UPLOAD_DIR`, mode 600; on the VPS `/var/lib/futurenestfund/settings.key`, not in the nightly backup; `SETTINGS_KEY_FILE` overrides the place), so the admin can save the Resend key with nothing done on the server (2026-11-01). Losing the key file means entering the secrets again.
 - **Sender name and address, reply-to, support address, signature** (plain text, up to 600 characters / 10 lines, added to every email; the support address goes in every footer and the Help Centre, via `GET /api/auth/config`).
 - **Precedence:** a value saved in Settings wins over `RESEND_API_KEY` / `EMAIL_FROM` / `EMAIL_REPLY_TO` / `SUPPORT_EMAIL` / `SEND_EMAIL_HOOK_SECRET`; removing it falls back to the environment. The page shows where each value comes from. Saving applies at once; other processes re-read every minute.
 - **Health checks:** Resend accepts the key (sending-only keys recognised); the sender's domain is on the account and verified, with its DNS records; `APP_URL` set; when Supabase last called the hook and how it ended; outbox: waiting, retrying, gave up in 7 days, last error (`demo_notifications.email_last_error`). **Send test email** to any address.
@@ -339,7 +339,8 @@ Put these in **Replit Secrets** (development) and the **VPS environment** (produ
 | `SUPABASE_DB_URL` | yes (prod) | `postgresql://app_api.fybslfcepjnswcnoewgi:<APP_DB_PASSWORD>@aws-1-eu-central-1.pooler.supabase.com:5432/postgres` | **Secret.** The API's `app_api` connection. Unset → Replit Postgres. |
 | `DATABASE_URL` | dev | Replit Postgres (set by Replit) | Fallback database |
 | `AUTH_MODE` | no | `demo` or `supabase` | `demo` only in development |
-| `SETTINGS_ENCRYPTION_KEY` | for email settings | 32 random bytes, base64 (`openssl rand -base64 32`) | **Secret.** Encrypts the email secrets saved in Admin Settings; losing it means entering them again |
+| `SETTINGS_ENCRYPTION_KEY` | no | 32 random bytes, base64 (`openssl rand -base64 32`) | **Secret.** Optional master key for the email secrets saved in Admin Settings. Unset: the API creates and uses its own key file (see `SETTINGS_KEY_FILE`) |
+| `SETTINGS_KEY_FILE` | no | default `settings.key` next to `UPLOAD_DIR` (VPS: `/var/lib/futurenestfund/settings.key`) | Where the API keeps its self-created master key (mode 600). Losing it means entering the email secrets again |
 | `RESEND_API_KEY` | optional | from Resend | **Secret.** Fallback; Admin Settings → Email wins |
 | `EMAIL_FROM` | optional | `Future Nest Fund <no-reply@mail.futurenestfund.org>` | Fallback; domain verified in Resend |
 | `EMAIL_REPLY_TO`, `SUPPORT_EMAIL` | optional | addresses | Fallbacks for the reply-to and support address |
@@ -377,7 +378,7 @@ No secrets. `PORT` and `BASE_PATH` for Vite; everything else comes from `GET /ap
 | Command | What it does |
 |---|---|
 | `pnpm run typecheck` | Type-check every package |
-| `pnpm test` | Vitest unit tests (80) |
+| `pnpm test` | Vitest unit tests (83) |
 | `pnpm --filter @workspace/api-spec run codegen` | Regenerate API hooks / validators after editing `openapi.yaml` |
 | `pnpm --filter @workspace/db run generate` | Write a new migration from schema changes |
 | `pnpm --filter @workspace/scripts run db:migrate` | Apply pending migrations (`-- --baseline` once for a database built with push) |
@@ -392,7 +393,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 
 ## 11. Testing
 
-**Committed:** `pnpm test`, 80 Vitest tests.
+**Committed:** `pnpm test`, 83 Vitest tests.
 - Token verification: valid, expired, other project, wrong audience, anonymous, forged key, tampered payload, `alg: none`, HS256 algorithm confusion, key server down/timeout → 503.
 - Standard Webhooks signatures.
 - Email link mapping (including the reversed email-change fields) and HTML escaping.
@@ -401,7 +402,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 - Error wording.
 - Matchmaking rules (scores, reasons, closed and not-eligible grants).
 - Error monitoring: scrubbing (emails, tokens, secrets, long numbers), DSN and stack parsing, the exact fields sent to Sentry, the React component stack.
-- Email settings: secret encryption (round trip, tampering, wrong field or master key), signature and support address escaped in every template, From parsing.
+- Email settings: secret encryption (round trip, tampering, wrong field or master key; the self-created key file: made once with mode 600, never overwritten, broken or unwritable file reported), signature and support address escaped in every template, From parsing.
 - Virus scanning: off without settings, chunked INSTREAM, the EICAR test string refused with its signature, fail closed / fail open, scanner errors and timeouts, status for Settings.
 
 **Local browser / end-to-end suites** (git-ignored `.unlazy/`, see `.unlazy/README.md`). They drive headless Chromium against a test copy of the API.
@@ -437,7 +438,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 
 **Secrets (Replit and VPS)**
 - [x] VPS: `/etc/futurenestfund/api.env` (`app_api` URL, Supabase URL and keys, `APP_URL`, `TRUST_PROXY=1`, `NODE_ENV=production`) and `migrate.env` (`SUPABASE_ADMIN_DB_URL`), 2026-10-31.
-- [ ] VPS, with step 10: `SETTINGS_ENCRYPTION_KEY` in `api.env` (then restart); the Resend key, sender and hook secret go in Admin → Settings → Email.
+- [ ] Step 10: the Resend key, sender and hook secret go in Admin → Settings → Email (no server change needed since 2026-11-01: the API creates its own encryption key file).
 - [x] App migration **0007** (email settings) applied on Supabase by `deploy.sh` at `a82a158` (2026-11-01).
 - [ ] Replit Secrets: optional, only for real sign-in on the Replit preview.
 
@@ -542,7 +543,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 - 6.7 a Redis-backed rate limiter, only if there's more than one API server
 
 **Phase 7 (UI overhaul)**, full review and plan in `work.md` §13:
-- ~~7.1 email settings and health checks in Admin Settings~~: done 2026-10-31 (needs `SETTINGS_ENCRYPTION_KEY` on the VPS before keys can be saved there)
+- ~~7.1 email settings and health checks in Admin Settings~~: done 2026-10-31 (since 2026-11-01 the API creates its own encryption key, so keys can be saved there with no server change)
 - ~~7.2 Settings in sections · 7.3 design system · 7.4 admin layout · 7.5 admin tables on phones · 7.6 applicant fixes · 7.7 applicant phone~~: done 2026-11-01. Not done as planned: no new shared `Button`/`Card` React components (the shared class tokens stayed the single source), and Grant Search on phones is 38% shorter rather than half.
 
 **Limits worth knowing:**

@@ -12,7 +12,7 @@ import { masterKey, open, seal, SecretBoxError } from "./secretBox";
  * secret, plus health checks and a test email.
  *
  * - Stored on the `platform` row of demo_settings: `email_config` (plain settings) and `email_secrets` (each secret
- *   sealed with SETTINGS_ENCRYPTION_KEY, see secretBox.ts; only a hint such as `re_••••abcd` is ever sent to a browser).
+ *   sealed with the server's master key, see secretBox.ts; only a hint such as `re_••••abcd` is ever sent to a browser).
  * - Precedence: a value saved here wins over the environment (RESEND_API_KEY, EMAIL_FROM, EMAIL_REPLY_TO,
  *   SEND_EMAIL_HOOK_SECRET, SUPPORT_EMAIL); removing it falls back to the environment.
  * - Applied without a restart: saving reloads the settings in this process, and every process re-reads them each minute.
@@ -88,7 +88,7 @@ export async function loadEmailSettings(): Promise<void> {
       unreadable[name] = true;
     }
   }
-  if (Object.keys(unreadable).length) logger.error({ secrets: Object.keys(unreadable) }, "Saved email secrets can't be decrypted: check SETTINGS_ENCRYPTION_KEY, or enter them again in Admin Settings → Email");
+  if (Object.keys(unreadable).length) logger.error({ secrets: Object.keys(unreadable) }, "Saved email secrets can't be decrypted: the server's encryption key changed; enter them again in Admin Settings → Email");
   apply();
 }
 
@@ -250,7 +250,7 @@ export async function emailHealth() {
 
   // 1. Saved secrets readable
   const lost = (Object.keys(unreadable) as SecretName[]).map((n) => SECRETS[n]);
-  if (lost.length) checks.push({ id: "secrets", label: "Saved secrets", status: "fail", detail: `${lost.join(" and ")} can't be decrypted: SETTINGS_ENCRYPTION_KEY changed or is missing. Enter ${lost.length > 1 ? "them" : "it"} again.` });
+  if (lost.length) checks.push({ id: "secrets", label: "Saved secrets", status: "fail", detail: `${lost.join(" and ")} can't be decrypted: the server's encryption key changed or is missing. Enter ${lost.length > 1 ? "them" : "it"} again.` });
 
   // 2. API key, and the domain list it gives access to
   let domains: { id: string; name: string; status: string }[] | null = null;
