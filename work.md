@@ -1868,3 +1868,13 @@ Not in Phase 7: new features beyond email settings; the open go-live items (§12
 - regressions (data restored before each): phase5-withdrawals 11/11, phase5-limits 10/10, phase3-api 24/24, phase6-mobile 32/32 with 0 problems (the 3 sign-in pages weren't included: they need a Supabase-mode API), smoke 23+23, phase5-ui 4+4. `phase6-monitoring-ui` wasn't run: it needs the Sentry stand-in, and monitoring wasn't changed.
 
 **Before it works on the live site:** deploy, then add `SETTINGS_ENCRYPTION_KEY` to `/etc/futurenestfund/api.env` and restart (step 10 in `docs/DEPLOY.md`). The Replit preview's API workflow also needs a restart to pick up the new code.
+
+### 2026-11-01: Step 7.2 done (Admin Settings rebuilt into sections)
+
+**Built:**
+- `/admin/settings/<section>`: **General** (global freeze, security rules), **Email**, **Withdrawal limits**, **Monitoring**, **Audit log**, **Your account** (photo, sign-in & security). `/admin/settings` is General; an unknown section redirects there. One section shows at a time, so the phone page is no longer a ~1,900 px stack (AM4).
+- Side menu on desktop (sticky), one scrollable row of tabs on phones and tablets (`tab-settings-*`). The header avatar opens **Your account**.
+- "4-Eyes" removed everywhere (A4, decision of 2026-10-30): header badge, dashboard health row, Settings rule and footnote. The rule now reads "One finance administrator approves or declines each request" (Single approver). The withdrawal queue's amber 4-eyes warning became a plain note.
+- Card titles that repeated the section name renamed ("Sending and sender", "Platform-wide limits").
+
+**Tests (2026-11-01, test API on :8099 through the proxy, demo data restored after each suite):** typecheck clean; phase3-desktop 22/22 (4-eyes checks now assert absence), phase3-phone 16/16, phase5-audit-ui 6+6, phase5-avatars-ui 6+6, phase5-limits-ui 6+6, phase7-email-ui 9+9, phase6-mobile 37/37 with 0 problems (all six Settings sections added), smoke 23+23. Suites updated to open their section's URL. `phase4-security` and `phase6-monitoring-ui` weren't run (Supabase secret key / Sentry stand-in needed); their URLs were updated.

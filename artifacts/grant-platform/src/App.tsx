@@ -58,6 +58,7 @@ function Router() {
         <Route path="/admin/withdrawals" component={AdminWithdrawalsPage} />
         <Route path="/admin/kyc" component={AdminKycPage} />
         <Route path="/admin/settings" component={AdminSettingsPage} />
+        <Route path="/admin/settings/:section" component={AdminSettingsPage} />
         <Route component={NotFound} />
       </Switch>
     </RoutedErrorBoundary>

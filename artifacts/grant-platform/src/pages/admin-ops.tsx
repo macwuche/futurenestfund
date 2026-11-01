@@ -5,7 +5,7 @@ import {
   useListAdminUsers, useListAdminAudit, getListAdminAuditQueryKey, getExportAdminAuditUrl, useGetAdminKycQueue, useGetAdminApplication, useDecideAdminApplication, getGetAdminApplicationQueryKey,
   type AdminRequest, type AdminKycItem, type ListAdminTransactionsType, type ApplicationDecisionInputStatus,
 } from '@workspace/api-client-react';
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Download, FileText, Plus, ShieldAlert, X } from 'lucide-react';
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Download, FileText, Plus, Info, X } from 'lucide-react';
 import { keepPreviousData, useQueryClient } from '@tanstack/react-query';
 import { Shell } from '@/components/shell';
 import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, fileSize, money, statusLabel } from '@/components/bits';
@@ -37,8 +37,8 @@ function RequestQueuePage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
           <Stat id={`queue-total-${kind.toLowerCase()}s`} label="Amount waiting" value={pending.data ? money(total) : '–'} />
         </div>
         {!deposit && (
-          <p className="flex items-start gap-2 rounded-xl border border-[#FDE68A] bg-[#FEF3C7] p-3 text-sm text-[#92400E]" data-testid="text-four-eyes-note">
-            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />4-eyes sign-off is not used: one finance administrator's approval releases the payout. The applicant is notified in the app and by email either way.
+          <p className="flex items-start gap-2 rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-600" data-testid="text-four-eyes-note">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" />Your approval releases the payout. The applicant is told in the app and by email, whether you approve or decline.
           </p>
         )}
         <section className={cx(card, 'p-5')} data-testid="section-request-queue">

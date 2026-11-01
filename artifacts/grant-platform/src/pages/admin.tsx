@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useState, type ReactNode } from 'react';
-import { Link, useLocation, useParams, useSearch } from 'wouter';
+import { Link, Redirect, useLocation, useParams, useSearch } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,7 +9,7 @@ import {
   getGetAdminUserQueryKey, getListAdminUsersQueryKey, type ListAdminUsersSort, type ListAdminUsersDir, type AdminDashboard, type AdminUserProfile, type AdminUserSummary,
 } from '@workspace/api-client-react';
 import { keepPreviousData } from '@tanstack/react-query';
-import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck } from 'lucide-react';
+import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck, Mail, Gauge, Activity, ScrollText, UserRound } from 'lucide-react';
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
@@ -18,7 +18,7 @@ import { EmailSettingsCard } from '@/components/email-settings';
 import { CardControls } from '@/components/card-controls';
 import { AdminPhotoSettings, UserPhotoControl } from '@/components/admin-photo';
 import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, initials, money } from '@/components/bits';
-import { card, ainput, lime, dark, ghost, Stat, SectionTitle, useAdminRefresh, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
+import { card, ainput, lime, dark, ghost, danger, Stat, SectionTitle, useAdminRefresh, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
 import { apiError } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
@@ -68,10 +68,8 @@ export function AdminOverviewPage() {
             <li className="flex items-center justify-between gap-2"><span>API</span><StatusBadge status={d.systemHealth.api} testid="health-api" /></li>
             <li className="flex items-center justify-between gap-2"><span>Database</span><StatusBadge status={d.systemHealth.database} testid="health-database" /></li>
             <li className="flex items-center justify-between gap-2"><span title="Audit log, ledger and application history refuse edits and deletes">Audit log (append-only)</span><StatusBadge status={d.systemHealth.auditLog} testid="health-audit-log" /></li>
-            <li className="flex items-center justify-between gap-2"><span>4-Eyes approval</span><StatusBadge status={d.systemHealth.fourEyes ? 'Active' : 'Not active'} testid="health-four-eyes" /></li>
             <li className="flex items-center justify-between gap-2"><span>Global freeze</span><StatusBadge status={d.globalFrozen ? 'Frozen' : 'Off'} testid="health-global-freeze" /></li>
           </ul>
-          {!d.systemHealth.fourEyes && <p className="mt-3 text-xs text-slate-500">Approvals need one administrator in this demo. Two-person sign-off needs real admin accounts.</p>}
         </section>
       </div>
 
@@ -440,38 +438,91 @@ function UserApplications({ userId }: { userId: string }) {
 }
 
 /* ---------- Settings ---------- */
+const SETTINGS_SECTIONS = [
+  { id: 'general', label: 'General', icon: Snowflake, hint: 'Global freeze and the rules every approval follows' },
+  { id: 'email', label: 'Email', icon: Mail, hint: 'Resend key, sender, signature and health checks' },
+  { id: 'limits', label: 'Withdrawal limits', icon: Gauge, hint: 'Platform-wide limits per request and per day' },
+  { id: 'monitoring', label: 'Monitoring', icon: Activity, hint: 'Where errors go, and a test button' },
+  { id: 'audit', label: 'Audit log', icon: ScrollText, hint: 'Every recorded change, searchable' },
+  { id: 'account', label: 'Your account', icon: UserRound, hint: 'Your photo, password and sessions' },
+] as const;
+type SettingsSection = (typeof SETTINGS_SECTIONS)[number]['id'];
+export const settingsHref = (s: SettingsSection) => (s === 'general' ? '/admin/settings' : `/admin/settings/${s}`);
+
 export function AdminSettingsPage() {
+  const { section: raw } = useParams<{ section?: string }>();
+  const current = SETTINGS_SECTIONS.find((x) => x.id === (raw ?? 'general'));
+  if (!current) return <Redirect to="/admin/settings" replace />;
+  return (
+    <Shell admin title="Settings">
+      <div className="lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-6">
+        {/* Desktop: a side menu. Phones and tablets: one scrollable row of tabs. */}
+        <nav aria-label="Settings sections" data-testid="nav-settings" className="noscroll -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 lg:sticky lg:top-24 lg:mx-0 lg:mb-0 lg:flex-col lg:gap-1 lg:overflow-visible lg:px-0">
+          {SETTINGS_SECTIONS.map((x) => {
+            const active = x.id === current.id;
+            return (
+              <Link key={x.id} href={settingsHref(x.id)} aria-current={active ? 'page' : undefined} data-testid={`tab-settings-${x.id}`}
+                className={cx('press flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3.5 py-2 text-sm font-semibold transition lg:rounded-xl lg:border-transparent lg:px-3 lg:py-2.5',
+                  active ? 'border-[#111] bg-[#111] text-[#C6F432]' : 'border-slate-300 bg-white text-slate-700 hover:border-[#111] lg:bg-transparent lg:hover:border-transparent lg:hover:bg-white')}>
+                <x.icon className="h-4 w-4 shrink-0" />{x.label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="min-w-0 space-y-4" data-testid={`settings-section-${current.id}`}>
+          <header>
+            <h2 className="font-display text-xl font-bold" data-testid="text-settings-heading">{current.label}</h2>
+            <p className="text-sm text-slate-500">{current.hint}</p>
+          </header>
+          {current.id === 'general' && <GeneralSettings />}
+          {current.id === 'email' && <EmailSettingsCard />}
+          {current.id === 'limits' && <GlobalWithdrawalLimits />}
+          {current.id === 'monitoring' && <MonitoringSettings />}
+          {current.id === 'audit' && <AuditSettings />}
+          {current.id === 'account' && <><AdminPhotoSettings /><AccountSecurity tone="admin" /></>}
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+function GeneralSettings() {
   const [confirm, setConfirm] = useState(false);
-  return <DashGate title="Settings">{(d) => (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <section className={cx(card, 'p-5')}>
+  const q = useGetAdminDashboard();
+  if (q.isLoading) return <Skel className="h-64" />;
+  if (q.isError || !q.data) return <ErrorState onRetry={() => q.refetch()} />;
+  const d = q.data;
+  return (
+    <>
+      <section className={cx(card, 'p-5')} data-testid="card-global-freeze">
         <SectionTitle>Global freeze</SectionTitle>
         <p className="mb-3 text-sm text-slate-600">Pauses every money movement on the platform: balance credits, approvals of deposits, withdrawals and grant awards, and new applicant deposit or withdrawal requests. Declining requests still works.</p>
-        <div className="mb-4"><StatusBadge status={d.globalFrozen ? 'Frozen' : 'Off'} testid="status-global-freeze" /></div>
-        <button data-testid="button-settings-freeze" className={d.globalFrozen ? lime : 'press rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800'} onClick={() => setConfirm(true)}>
-          <span className="inline-flex items-center gap-1.5"><Snowflake className="h-4 w-4" />{d.globalFrozen ? 'Lift freeze' : 'Enable freeze'}</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <StatusBadge status={d.globalFrozen ? 'Frozen' : 'Off'} label={d.globalFrozen ? 'Frozen' : 'Not frozen'} testid="status-global-freeze" />
+          <button data-testid="button-settings-freeze" className={d.globalFrozen ? lime : danger} onClick={() => setConfirm(true)}>
+            <span className="inline-flex items-center gap-1.5"><Snowflake className="h-4 w-4" />{d.globalFrozen ? 'Lift freeze' : 'Freeze platform'}</span>
+          </button>
+        </div>
         <GlobalFreezeDialog open={confirm} onClose={() => setConfirm(false)} frozen={d.globalFrozen} />
       </section>
-      <section className={cx(card, 'p-5')}>
+      <section className={cx(card, 'p-5')} data-testid="card-security-rules">
         <SectionTitle>Security rules</SectionTitle>
-        <ul className="space-y-3 text-sm">
-          <li className="flex items-start justify-between gap-3"><span>Audit log, ledger and application history are append-only (edits and deletes are refused by the database)</span><StatusBadge status={d.systemHealth.auditLog} /></li>
-          <li className="flex items-start justify-between gap-3"><span>4-eyes sign-off is not used: one finance administrator approves or declines each request.</span><StatusBadge status={d.systemHealth.fourEyes ? 'Active' : 'Not active'} /></li>
-          <li className="flex items-start justify-between gap-3"><span>Approvals re-check freezes, balances and each user's KYC requirement at the moment of approval</span><StatusBadge status="Active" /></li>
-          <li className="flex items-start gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0" />Per-user KYC requirements, tiers, notification overrides and custom withdrawal limits are set on each user's profile.</li>
+        <ul className="divide-y text-sm">
+          <li className="flex items-start justify-between gap-3 py-3 first:pt-0"><span>Audit log, ledger and application history are append-only: the database refuses edits and deletes.</span><StatusBadge status={d.systemHealth.auditLog} /></li>
+          <li className="flex items-start justify-between gap-3 py-3"><span>Approvals re-check freezes, balances and each user's KYC requirement at the moment of approval.</span><StatusBadge status="Active" /></li>
+          <li className="flex items-start justify-between gap-3 py-3"><span>One finance administrator approves or declines each request, and the applicant is told by email and in the app.</span><StatusBadge status="Active" label="Single approver" dot={false} /></li>
         </ul>
+        <p className="mt-2 flex items-start gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0" />Per-user KYC requirements, tiers, notification overrides and custom withdrawal limits are set on each user's profile.</p>
       </section>
-      <EmailSettingsCard />
-      <AdminPhotoSettings />
-      <GlobalWithdrawalLimits />
-      <MonitoringSettings />
-      <section className={cx(card, 'p-5')} data-testid="card-settings-audit">
-        <SectionTitle>Audit log</SectionTitle>
-        <p className="mb-4 text-sm text-slate-600">Every change made by administrators and applicants: approvals, declines, limits, freezes, profile and permission edits. Search, filter by user, admin or date, and export to CSV. Entries can't be edited or deleted.</p>
-        <Link href="/admin/audit" data-testid="link-settings-audit" className={cx(lime, 'inline-flex items-center gap-1.5')}>Open audit log</Link>
-      </section>
-      <div className="lg:col-span-2"><AccountSecurity tone="admin" /></div>
-    </div>
-  )}</DashGate>;
+    </>
+  );
+}
+
+function AuditSettings() {
+  return (
+    <section className={cx(card, 'p-5')} data-testid="card-settings-audit">
+      <p className="mb-4 text-sm text-slate-600">Every change made by administrators and applicants: approvals, declines, limits, freezes, profile and permission edits. Search, filter by user, admin or date, and export to CSV. Entries can't be edited or deleted.</p>
+      <Link href="/admin/audit" data-testid="link-settings-audit" className={cx(lime, 'inline-flex items-center gap-1.5')}><ScrollText className="h-4 w-4" />Open audit log</Link>
+    </section>
+  );
 }

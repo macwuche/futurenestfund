@@ -10,7 +10,7 @@ import {
 } from '@workspace/api-client-react';
 import {
   LayoutDashboard, Layers, FileText, CreditCard, ArrowLeftRight, ArrowUpFromLine, PlusCircle, Settings, Bell, Search, Plus, Menu, X,
-  ChevronDown, Users, ArrowDownToLine, ShieldCheck, Snowflake, Building2, ScanLine, House, ClipboardList, ChartPie, Milestone,
+  ChevronDown, Users, ArrowDownToLine, Snowflake, Building2, ScanLine, House, ClipboardList, ChartPie, Milestone,
   MessageCircleQuestion, Ellipsis, BadgeCheck, Upload, ArrowLeftRight as SwitchIcon, LogOut,
 } from 'lucide-react';
 import { Avatar, checkFile, cx, Field, FILE_RULES, fileSize, inputCls, Modal, money, Skel, useDismiss } from '@/components/bits';
@@ -56,7 +56,7 @@ const bottomNav: NavItem[] = [
 ];
 
 const isActive = (loc: string, href: string) =>
-  loc === href || (href === '/dashboard' && loc === '/') || (href === '/admin/users' && loc.startsWith('/admin/users')) || (href === '/applications' && loc.startsWith('/applications/'));
+  loc === href || (href === '/dashboard' && loc === '/') || (href === '/admin/users' && loc.startsWith('/admin/users')) || (href === '/admin/settings' && loc.startsWith('/admin/settings/')) || (href === '/applications' && loc.startsWith('/applications/'));
 const testId = (href: string) => `link-nav-${href.replace(/\//g, '-').slice(1)}`;
 
 /* ---------- Page title plumbing: pages render <Shell title>, the persistent layout renders the chrome ---------- */
@@ -589,7 +589,7 @@ function AdminFootNote() {
     <p className="mt-8 text-center text-xs text-slate-500" data-testid="text-demo-note">
       {status === 'demo'
         ? 'Demo preview. No real sign-in, transfers, card networks or OCR are connected; there is one shared demo administrator.'
-        : 'Sample data. No real transfers, card networks or OCR are connected; one administrator approves each request (4-eyes is not active).'}
+        : 'Sample data. No real transfers, card networks or OCR are connected.'}
     </p>
   );
 }
@@ -604,19 +604,13 @@ function AdminTop({ title, onMenu }: { title: string; onMenu: () => void }) {
       <div className="flex flex-wrap items-center gap-2 px-4 py-3 sm:px-6">
         <button aria-label="Open menu" data-testid="button-open-drawer" onClick={onMenu} className="press grid h-10 w-10 place-items-center rounded-lg bg-[#111] text-[#C6F432] lg:hidden"><Menu className="h-5 w-5" /></button>
         <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold sm:text-xl md:flex-none" data-testid="text-page-title">{title}</h1>
-        {data && (
-          <span data-testid="badge-four-eyes" title={data.systemHealth.fourEyes ? 'Two-person approval is enforced.' : 'One finance administrator approves or declines each request (two-person approval is not used).'}
-            className={cx('hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold sm:inline-flex', data.systemHealth.fourEyes ? 'bg-[#111] text-[#C6F432]' : 'bg-slate-100 text-slate-600')}>
-            <ShieldCheck className="h-3.5 w-3.5" />{data.systemHealth.fourEyes ? '4-Eyes Active' : '4-Eyes not active'}
-          </span>
-        )}
         <AdminSearch />
         <button data-testid="button-global-freeze" onClick={() => setConfirm(true)} disabled={!data} aria-label={frozen ? 'Lift global freeze' : 'Global freeze'} className={cx('press flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition disabled:opacity-50', frozen ? 'bg-[#C6F432] text-[#111]' : 'bg-red-700 text-white hover:bg-red-800')}>
           {/* Phones show the short label so the title, the button and the avatar fit on one line. */}
           <Snowflake className="h-4 w-4" /><span className="sm:hidden">{frozen ? 'Lift' : 'Freeze'}</span><span className="hidden sm:inline">{frozen ? 'Lift Freeze' : 'Global Freeze'}</span>
         </button>
         {account && (
-          <Link href="/admin/settings" aria-label={`Your profile and settings (${account.email || account.name})`} title={account.email || account.name} data-testid="link-admin-avatar" className="press shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111]/40">
+          <Link href="/admin/settings/account" aria-label={`Your profile and settings (${account.email || account.name})`} title={account.email || account.name} data-testid="link-admin-avatar" className="press shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111]/40">
             <AdminAvatar name={account.name} url={account.avatarUrl} className="h-10 w-10 text-sm" testid="avatar-admin-header" />
           </Link>
         )}

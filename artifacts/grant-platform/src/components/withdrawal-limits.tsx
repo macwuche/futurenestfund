@@ -66,7 +66,7 @@ export function GlobalWithdrawalLimits() {
   };
   return (
     <form noValidate onSubmit={save} className={cx(card, 'space-y-3 p-5')} data-testid="form-global-limits">
-      <SectionTitle>Withdrawal limits</SectionTitle>
+      <SectionTitle>Platform-wide limits</SectionTitle>
       <p className="text-sm text-slate-600">Apply to every user unless their profile has custom limits. Checked when an applicant places a withdrawal; the daily total counts requests under review or approved in the last 24 hours. Leave a field empty for no limit.</p>
       <LimitFields prefix="global" max={max} daily={daily} setMax={(v) => { setMax(v); setErr(''); }} setDaily={(v) => { setDaily(v); setErr(''); }} disabled={!q.data} />
       {err && <p role="alert" className="text-sm text-red-700" data-testid="error-global-limits">{err}</p>}

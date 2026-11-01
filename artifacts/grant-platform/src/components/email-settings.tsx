@@ -32,8 +32,8 @@ export function EmailSettingsCard() {
   const q = useGetEmailSettings();
   const s = q.data;
   return (
-    <section className={cx(card, 'p-5 lg:col-span-2')} data-testid="card-email-settings">
-      <SectionTitle action={s && <SendingBadge s={s} />}>Email</SectionTitle>
+    <section className={cx(card, 'p-5')} data-testid="card-email-settings">
+      <SectionTitle action={s && <SendingBadge s={s} />}>Sending and sender</SectionTitle>
       {!s ? (
         q.isError ? <p className="text-sm text-red-700">The email settings couldn't be loaded. <button className="underline" onClick={() => void q.refetch()}>Try again</button></p>
           : <p className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Loading…</p>
