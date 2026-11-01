@@ -11,6 +11,17 @@ export const dateFmt = (s: string) => {
   const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(s);
   return isNaN(d.getTime()) ? s : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
+const animated = new Set<string>();
+/** Charts play their entry animation once per browser session, not on every visit (finding G5). Respects reduced motion. */
+export function useAnimateOnce(id: string) {
+  const [first] = useState(() => {
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const fresh = !animated.has(id) && !reduce;
+    animated.add(id);
+    return fresh;
+  });
+  return first;
+}
 export const initials = (n: string) =>
   n.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('');
 
@@ -63,12 +74,13 @@ export function ErrorState({ message, onRetry }: { message?: string; onRetry: ()
   );
 }
 export function Empty({ title, hint, children }: { title: string; hint?: string; children?: ReactNode }) {
+  // Compact on purpose: an empty queue is normal, so it shouldn't take half the screen (finding A7).
   return (
-    <div data-testid="state-empty" className="flex flex-col items-center rounded-2xl border border-dashed border-slate-300 bg-white/60 px-6 py-10 text-center">
-      <span className="mb-3 grid h-11 w-11 place-items-center rounded-full bg-slate-100"><Inbox className="h-5 w-5 text-slate-500" /></span>
-      <p className="font-display font-semibold">{title}</p>
-      {hint && <p className="mt-1 max-w-sm text-sm text-slate-500">{hint}</p>}
-      {children && <div className="mt-4">{children}</div>}
+    <div data-testid="state-empty" className="flex flex-col items-center rounded-xl border border-dashed border-slate-300 bg-slate-50/60 px-5 py-6 text-center">
+      <span className="mb-2 grid h-9 w-9 place-items-center rounded-full bg-white shadow-sm"><Inbox className="h-4 w-4 text-slate-500" /></span>
+      <p className="font-display text-sm font-semibold">{title}</p>
+      {hint && <p className="mt-0.5 max-w-sm text-sm text-slate-500">{hint}</p>}
+      {children && <div className="mt-3">{children}</div>}
     </div>
   );
 }
@@ -141,7 +153,7 @@ export function Avatar({ name, url, className, testid }: { name: string; url?: s
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [url]);
   return (
-    <span data-testid={testid} className={cx('grid shrink-0 place-items-center overflow-hidden rounded-full bg-[#1E3A8A] font-semibold text-white', className)}>
+    <span data-testid={testid} className={cx('grid shrink-0 place-items-center overflow-hidden rounded-full bg-[#1E3A8A] font-semibold leading-none text-white', className)}>
       {url && !failed ? <img src={url} alt="" className="h-full w-full object-cover" onError={() => setFailed(true)} /> : name.charAt(0)}
     </span>
   );

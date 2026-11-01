@@ -22,7 +22,7 @@ import { AccountSecurity } from '@/components/security';
 import { useAuth } from '@/lib/auth';
 import { MatchPill, TopMatches, WhyMatch, useMatchmakingDialog } from '@/components/matchmaking';
 import { OwnCardControls } from '@/components/card-self-service';
-import { Avatar, Empty, ErrorState, Field, FILE_RULES, Modal, PageSkeleton, Skel, StatusBadge, checkFile, cx, dateFmt, fileSize, inputCls, money, statusLabel } from '@/components/bits';
+import { Avatar, Empty, ErrorState, Field, FILE_RULES, Modal, PageSkeleton, Skel, StatusBadge, checkFile, cx, dateFmt, useAnimateOnce, fileSize, inputCls, money, statusLabel } from '@/components/bits';
 import { apiError, matchesSearch, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
@@ -65,6 +65,7 @@ export function Legend({ className }: { className?: string }) {
 }
 
 function FundingTracker({ d }: { d: ApplicantDashboard }) {
+  const anim = useAnimateOnce('chart-funding');
   const pct = d.totalBudget > 0 ? Math.min(100, Math.max(0, (d.allocatedFunds / d.totalBudget) * 100)) : 0;
   return (
     <section className={cx(card, 'p-5 lg:p-6')} data-testid="card-funding-tracker" aria-labelledby="tracker-heading">
@@ -104,8 +105,8 @@ function FundingTracker({ d }: { d: ApplicantDashboard }) {
             <YAxis tickLine={false} axisLine={false} fontSize={12} width={68} tick={{ fill: '#475569' }} tickFormatter={usd0}
               domain={[0, (max: number) => Math.max(10000, Math.ceil(max / 10000) * 10000)]} />
             <Tooltip cursor={{ fill: '#EEF4FB' }} formatter={(v: number) => money(v)} contentStyle={{ borderRadius: 12, borderColor: '#E5E7EB', fontSize: 13 }} />
-            <Bar dataKey="submitted" name="Submitted" stackId="a" fill={NAVY} />
-            <Bar dataKey="review" name="Review" stackId="a" fill={GREY} radius={[4, 4, 0, 0]} />
+            <Bar dataKey="submitted" name="Submitted" stackId="a" fill={NAVY} isAnimationActive={anim} />
+            <Bar dataKey="review" name="Review" stackId="a" fill={GREY} radius={[4, 4, 0, 0]} isAnimationActive={anim} />
           </BarChart>
         </ResponsiveContainer>
       </div>

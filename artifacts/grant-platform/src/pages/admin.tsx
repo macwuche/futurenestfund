@@ -17,7 +17,7 @@ import { MonitoringSettings } from '@/components/monitoring-settings';
 import { EmailSettingsCard } from '@/components/email-settings';
 import { CardControls } from '@/components/card-controls';
 import { AdminPhotoSettings, UserPhotoControl } from '@/components/admin-photo';
-import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, initials, money } from '@/components/bits';
+import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, initials, money, useAnimateOnce } from '@/components/bits';
 import { card, ainput, lime, dark, ghost, danger, Stat, SectionTitle, useAdminRefresh, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
 import { apiError } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
@@ -48,19 +48,7 @@ export function AdminOverviewPage() {
         <section className={cx(card, 'min-w-0 p-5 lg:col-span-2')} data-testid="card-money-trend">
           <SectionTitle action={<Link href="/admin/transactions" className="text-xs font-semibold hover:underline">Open ledger</Link>}>Money movement</SectionTitle>
           <p className="-mt-2 mb-3 text-xs text-slate-500">Ledger credits and debits per month (UTC), last six months. Opening balances excluded.</p>
-          <div className="h-56" aria-label="Bar chart of money in and out per month">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={d.moneyTrend} barCategoryGap="30%">
-                <CartesianGrid vertical={false} stroke="#E2E8F0" />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
-                <YAxis tickLine={false} axisLine={false} fontSize={12} width={64} tickFormatter={(v: number) => `$${v >= 1000 ? `${Math.round(v / 1000)}k` : v}`} />
-                <Tooltip formatter={(v: number) => money(v)} cursor={{ fill: '#F4F5F8' }} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-slate-700">{v}</span>} />
-                <Bar dataKey="inflow" name="Money in" fill="#111111" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="outflow" name="Money out" fill="#A3C92A" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <MoneyChart data={d.moneyTrend} />
         </section>
         <section className={cx(card, 'p-5')} data-testid="card-system-health">
           <SectionTitle>System health</SectionTitle>
@@ -100,6 +88,25 @@ export function AdminOverviewPage() {
       </div>
     </div>
   )}</DashGate>;
+}
+
+function MoneyChart({ data }: { data: AdminDashboard['moneyTrend'] }) {
+  const anim = useAnimateOnce('chart-money');
+  return (
+    <div className="h-56" aria-label="Bar chart of money in and out per month">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} barCategoryGap="30%">
+          <CartesianGrid vertical={false} stroke="#E2E8F0" />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
+          <YAxis tickLine={false} axisLine={false} fontSize={12} width={64} tickFormatter={(v: number) => `$${v >= 1000 ? `${Math.round(v / 1000)}k` : v}`} />
+          <Tooltip formatter={(v: number) => money(v)} cursor={{ fill: '#F4F5F8' }} />
+          <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-slate-700">{v}</span>} />
+          <Bar dataKey="inflow" name="Money in" fill="#111111" radius={[4, 4, 0, 0]} isAnimationActive={anim} />
+          <Bar dataKey="outflow" name="Money out" fill="#A3C92A" radius={[4, 4, 0, 0]} isAnimationActive={anim} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
 }
 
 function ReviewQueue() {
@@ -339,7 +346,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
           <Field label="Email (locked)"><div className="relative"><input data-testid="input-user-email" disabled readOnly value={u.email} className={ainput} /><Lock className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /></div></Field>
           <Field label="Phone" error={f.formState.errors.phone?.message}><input data-testid="input-user-phone" className={ainput} {...f.register('phone')} /></Field>
           <Field label="Telegram" error={f.formState.errors.telegram?.message}><input data-testid="input-user-telegram" className={ainput} {...f.register('telegram')} /></Field>
-          <button data-testid="button-save-user" disabled={profile.pending || !f.formState.isDirty} className={lime}>{profile.pending ? 'Saving…' : 'Save Updates'}</button>
+          <button data-testid="button-save-user" disabled={profile.pending || !f.formState.isDirty} className={lime}>{profile.pending ? 'Saving…' : 'Save changes'}</button>
         </form>
 
         <div className={cx(card, 'space-y-4 p-5')}>

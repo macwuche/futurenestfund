@@ -1878,3 +1878,18 @@ Not in Phase 7: new features beyond email settings; the open go-live items (§12
 - Card titles that repeated the section name renamed ("Sending and sender", "Platform-wide limits").
 
 **Tests (2026-11-01, test API on :8099 through the proxy, demo data restored after each suite):** typecheck clean; phase3-desktop 22/22 (4-eyes checks now assert absence), phase3-phone 16/16, phase5-audit-ui 6+6, phase5-avatars-ui 6+6, phase5-limits-ui 6+6, phase7-email-ui 9+9, phase6-mobile 37/37 with 0 problems (all six Settings sections added), smoke 23+23. Suites updated to open their section's URL. `phase4-security` and `phase6-monitoring-ui` weren't run (Supabase secret key / Sentry stand-in needed); their URLs were updated.
+
+### 2026-11-01: Step 7.3 done (design-system pass)
+
+**Built:**
+- **One typeface (G1):** Inter for both workspaces, loaded once from `index.html`. The second Google Fonts request (`@import` of Bricolage Grotesque, DM Sans, Spline Sans Mono) is gone. Headings are Inter bold with slightly tighter tracking; amounts (`.font-num`) use Inter's tabular figures instead of the monospace font. The admin side keeps its black / lime colours.
+- **Avatars (G2):** initials centred (`leading-none`), and the camera badge is smaller and sits outside the letters (`-bottom-1.5 -right-1.5`, 28 px).
+- **Wording (G4):** "Save Updates" → "Save changes"; the header button says "Freeze platform" / "Lift freeze" (phones: "Freeze" / "Lift"), the same as Settings.
+- **Charts (G5):** `useAnimateOnce()` in `bits.tsx`: each chart plays its entry animation once per browser session (none with reduced motion). The admin money chart moved into its own component (`MoneyChart`) so the hook follows React's rules.
+- **Empty states (A7):** compact (about half the height, smaller icon).
+- **KPI tiles (AM5):** sentence-case labels; on phones the label keeps room for two lines, so the values in a row line up.
+- **Page description (G6):** title "GrantApp", and the description no longer says "Interactive demo".
+
+**Not done as planned:** no new `Button` / `Card` / `KpiTile` React components. The existing shared class tokens (`card`, `lime`, `dark`, `ghost`, `danger`, `inputCls`) and `Stat`, `Empty`, `Avatar` stayed the single source; a component-level refactor would touch every page without changing what users see.
+
+**Tests (2026-11-01):** typecheck clean; smoke 23+23, phase1-desktop 26/26, phase1-phone 10/10, phase3-desktop 22/22, phase3-phone 16/16, phase5-avatars-ui 6+6, phase5-users-ui 6+6, phase6-mobile 37/37 with 0 problems. Screenshots of the admin dashboard, inspector and applicant dashboard reviewed at both widths. (A full-page headless screenshot draws the money chart's bar in the wrong place; the DOM and a normal screenshot show it correctly at October.)

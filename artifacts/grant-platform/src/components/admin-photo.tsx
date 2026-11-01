@@ -13,7 +13,7 @@ export function AdminAvatar({ name, url, className, testid }: { name: string; ur
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [url]);
   return (
-    <span data-testid={testid} className={cx('grid shrink-0 place-items-center overflow-hidden rounded-full bg-[#111] font-display font-bold text-[#C6F432]', className)}>
+    <span data-testid={testid} className={cx('grid shrink-0 place-items-center overflow-hidden rounded-full bg-[#111] font-bold leading-none tracking-tight text-[#C6F432]', className)}>
       {url && !failed ? <img src={url} alt="" className="h-full w-full object-cover" onError={() => setFailed(true)} /> : initials(name) || '?'}
     </span>
   );
@@ -33,7 +33,7 @@ function PhotoPicker({ name, url, label, busy, onPick, error, size, testid }: {
       {busy && <span className="absolute inset-0 grid place-items-center rounded-full bg-black/50"><Loader2 className="h-6 w-6 animate-spin text-white" /></span>}
       <button type="button" aria-label={label} title={label} data-testid="button-avatar-upload" disabled={busy} onClick={() => input.current?.click()}
         aria-describedby={error ? 'avatar-error' : undefined}
-        className="press absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full bg-[#C6F432] text-[#111] ring-2 ring-white before:absolute before:-inset-1.5 before:content-[''] disabled:opacity-60"><Camera className="h-4 w-4" /></button>
+        className="press absolute -bottom-1.5 -right-1.5 grid h-7 w-7 place-items-center rounded-full bg-[#C6F432] text-[#111] shadow-sm ring-2 ring-white before:absolute before:-inset-1.5 before:content-[''] disabled:opacity-60"><Camera className="h-3.5 w-3.5" /></button>
       <input ref={input} type="file" accept={FILE_RULES.image.accept} hidden data-testid="input-avatar-file" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onPick(f); }} />
     </div>
   );

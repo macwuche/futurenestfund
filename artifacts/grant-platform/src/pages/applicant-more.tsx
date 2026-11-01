@@ -14,7 +14,7 @@ import {
   CreditCard, Settings, ChevronDown, type LucideIcon,
 } from 'lucide-react';
 import { Shell } from '@/components/shell';
-import { Empty, ErrorState, Field, Modal, Skel, StatusBadge, cx, dateFmt, inputCls, money, statusLabel } from '@/components/bits';
+import { Empty, ErrorState, Field, Modal, Skel, StatusBadge, cx, dateFmt, inputCls, useAnimateOnce, money, statusLabel } from '@/components/bits';
 import { apiError, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useMilestones, useRefreshApplicant, type Milestone } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 import { Gate, GrantCard, GREY, Legend, NAVY, card, usd0 } from '@/pages/applicant';
@@ -144,6 +144,7 @@ export function FundingTrackerPage() {
   return <Gate title="Grant Funding Tracker">{(d) => <TrackerBody d={d} />}</Gate>;
 }
 function TrackerBody({ d }: { d: ApplicantDashboard }) {
+  const anim = useAnimateOnce('chart-tracker');
   const [period, setPeriod] = useState<'weekly' | 'monthly'>('monthly');
   const q = useApplicantDashboard(period);
   const trend = q.data?.fundingTrend ?? d.fundingTrend;
@@ -181,8 +182,8 @@ function TrackerBody({ d }: { d: ApplicantDashboard }) {
                 <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} tick={{ fill: '#475569' }} />
                 <YAxis tickLine={false} axisLine={false} fontSize={12} width={68} tick={{ fill: '#475569' }} tickFormatter={usd0} domain={[0, (max: number) => Math.max(5000, Math.ceil(max / 5000) * 5000)]} />
                 <Tooltip cursor={{ fill: '#EEF4FB' }} formatter={(v: number) => money(v)} contentStyle={{ borderRadius: 12, borderColor: '#E5E7EB', fontSize: 13 }} />
-                <Bar dataKey="submitted" name="Submitted" stackId="a" fill={NAVY} />
-                <Bar dataKey="review" name="Review" stackId="a" fill={GREY} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="submitted" name="Submitted" stackId="a" fill={NAVY} isAnimationActive={anim} />
+                <Bar dataKey="review" name="Review" stackId="a" fill={GREY} radius={[4, 4, 0, 0]} isAnimationActive={anim} />
               </BarChart>
             </ResponsiveContainer>
           )}

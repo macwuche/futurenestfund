@@ -79,8 +79,8 @@ export function Layout({ admin, children }: { admin: boolean; children: ReactNod
     if (!title) return;
     document.title = `${title} | GrantApp`;
     const description = admin
-      ? `${title} — sample grant administration, profile controls and operations. Interactive demo.`
-      : `${title} — discover funding, follow grant applications and manage your sample workspace. Interactive demo.`;
+      ? `${title}: grant administration.`
+      : `${title}: apply for grants, follow your applications and manage your funding.`;
     document.querySelector('meta[name="description"]')?.setAttribute('content', description);
     document.querySelector('meta[property="og:title"]')?.setAttribute('content', document.title);
     document.querySelector('meta[property="og:description"]')?.setAttribute('content', description);
@@ -607,7 +607,7 @@ function AdminTop({ title, onMenu }: { title: string; onMenu: () => void }) {
         <AdminSearch />
         <button data-testid="button-global-freeze" onClick={() => setConfirm(true)} disabled={!data} aria-label={frozen ? 'Lift global freeze' : 'Global freeze'} className={cx('press flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition disabled:opacity-50', frozen ? 'bg-[#C6F432] text-[#111]' : 'bg-red-700 text-white hover:bg-red-800')}>
           {/* Phones show the short label so the title, the button and the avatar fit on one line. */}
-          <Snowflake className="h-4 w-4" /><span className="sm:hidden">{frozen ? 'Lift' : 'Freeze'}</span><span className="hidden sm:inline">{frozen ? 'Lift Freeze' : 'Global Freeze'}</span>
+          <Snowflake className="h-4 w-4" /><span className="sm:hidden">{frozen ? 'Lift' : 'Freeze'}</span><span className="hidden sm:inline">{frozen ? 'Lift freeze' : 'Freeze platform'}</span>
         </button>
         {account && (
           <Link href="/admin/settings/account" aria-label={`Your profile and settings (${account.email || account.name})`} title={account.email || account.name} data-testid="link-admin-avatar" className="press shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111]/40">

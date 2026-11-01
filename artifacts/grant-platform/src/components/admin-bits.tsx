@@ -22,12 +22,13 @@ export const danger = 'press rounded-lg bg-red-700 px-4 py-2 text-sm font-semibo
 export function Stat({ label, value, id, accent, href, hint }: { label: string; value: string | number; id: string; accent?: boolean; href?: string; hint?: string }) {
   const body = (
     <>
-      <p className={cx('text-xs font-semibold uppercase tracking-wide', accent ? 'text-[#C6F432]' : 'text-slate-500')}>{label}</p>
-      <p className="font-num mt-2 text-2xl font-semibold" data-testid={`stat-${id}`}>{value}</p>
-      {hint && <p className={cx('mt-1 text-xs', accent ? 'text-slate-300' : 'text-slate-500')}>{hint}</p>}
+      {/* On phones the label keeps room for two lines, so values in a row line up even when one label wraps (finding AM5). */}
+      <p className={cx('min-h-[2.75em] text-[13px] font-semibold leading-snug sm:min-h-0', accent ? 'text-[#C6F432]' : 'text-slate-500')}>{label}</p>
+      <p className="font-num mt-1 text-2xl font-semibold tracking-tight sm:mt-2" data-testid={`stat-${id}`}>{value}</p>
+      {hint && <p className={cx('mt-0.5 text-xs', accent ? 'text-slate-300' : 'text-slate-500')}>{hint}</p>}
     </>
   );
-  const cls = cx('lift block rounded-2xl border p-4 shadow-sm', accent ? 'border-[#111] bg-[#111] text-white' : 'border-[#E2E8F0] bg-white', href && 'transition hover:border-[#111]');
+  const cls = cx('lift flex h-full flex-col rounded-2xl border p-4 shadow-sm', accent ? 'border-[#111] bg-[#111] text-white' : 'border-[#E2E8F0] bg-white', href && 'transition hover:border-[#111]');
   if (!href) return <div className={cls}>{body}</div>;
   // In-page anchors scroll natively; routes go through the router.
   return href.startsWith('#')
