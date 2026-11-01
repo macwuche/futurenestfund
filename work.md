@@ -1925,3 +1925,13 @@ Not in Phase 7: new features beyond email settings; the open go-live items (§12
 - (U6, the Help Centre support address, was done in 7.1.)
 
 **Tests (2026-11-01):** typecheck clean; phase6-matchmaking-ui 7+7 (ranked grid and "Why this match" now checked in Grant Search; new: no grant cards on the overview, category tile → filtered search, no Recommended badge on a finished setup card, row shows category · amount · date), phase6-matchmaking 8/8, phase1-desktop 26/26, phase1-phone 10/10, phase2-desktop 25/25, phase2-phone 6/6, phase6-cards-ui 6+6, phase5-limits-ui 6+6, phase6-mobile 37/37 with 0 problems, smoke 23+23.
+
+### 2026-11-01: Step 7.7 done (applicant phone)
+
+**Built:**
+- **Dashboard (UM1, UM5):** a full-width **New Application** button under the name and organisation replaces the loose "Here are your account's highlights." line.
+- **Setup cards (UM4):** the swipe row snaps to the 16 px page margin (`scroll-px-4`) instead of the screen edge.
+- **Application rows (UM2):** on phones the status badge sits under the details, so titles use the full width (one or two lines instead of three).
+- **Grant Search (UM3):** below 768 px the filters fold behind a **Filters** button (shows how many are on), with the result count beside it. Grant cards on phones are three lines: category · due date (with the match badges), title, then amount next to Apply / Save. The page went from **3,258 px to 2,006 px** (−38%; the plan's "about half" wasn't fully reached without hiding Apply behind a tap, which would be worse). Desktop cards are unchanged.
+
+**Tests (2026-11-01):** typecheck clean; `pnpm test` 73/73; phase6-mobile 39/39 with 0 problems (new: phone New Application on screen, first setup card at 16 px, filters folded and reopenable, Grant Search under 2,200 px); phase6-matchmaking-ui 7+7; phase1-desktop 26/26; phase1-phone 10/10; phase2-desktop 25/25; phase2-phone 6/6; smoke 23+23.

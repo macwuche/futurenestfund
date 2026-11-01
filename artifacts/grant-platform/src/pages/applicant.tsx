@@ -125,7 +125,7 @@ function SetupCards({ d }: { d: ApplicantDashboard }) {
   return (
     <section aria-labelledby="setup-heading">
       <h2 id="setup-heading" className="sr-only">Setup and recommendations</h2>
-      <div className="noscroll -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0" data-testid="list-setup-cards">
+      <div className="noscroll -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0" data-testid="list-setup-cards">
         {d.setupCards.map((c) => {
           const Icon = setupIcon[c.id] ?? Sparkles;
           return (
@@ -186,8 +186,10 @@ function Highlights({ d }: { d: ApplicantDashboard }) {
                   <span className="min-w-0 flex-1">
                     <span className="line-clamp-2 block font-semibold text-slate-900" data-testid={`text-app-title-${a.id}`}>{a.title}</span>
                     <span className="block text-sm text-slate-500" data-testid={`text-app-meta-${a.id}`}>{a.category} · <span className="tabular-nums">{money(a.amount)}</span> · {dateFmt(a.submittedAt)}</span>
+                    {/* Phones: the badge goes under the text, so the title gets the full width (finding UM2). */}
+                    <span className="mt-1.5 block sm:hidden"><StatusBadge status={a.status} dot={false} testid={`badge-app-status-m-${a.id}`} /></span>
                   </span>
-                  <StatusBadge status={a.status} dot={false} testid={`badge-app-status-${a.id}`} />
+                  <span className="hidden sm:inline-flex"><StatusBadge status={a.status} dot={false} testid={`badge-app-status-${a.id}`} /></span>
                   <ChevronRight className="hidden h-5 w-5 shrink-0 text-slate-400 sm:block" />
                 </Link>
               </li>
@@ -229,13 +231,21 @@ export function GrantCard({ g }: { g: ApplicantDashboard['recommendations'][numb
   const { toast } = useToast();
   const saved = savedGrants.includes(g.id);
   return (
-    <div data-testid={`card-grant-${g.id}`} className={cx(card, 'lift flex flex-col p-5')}>
-      <div className="mb-3 flex items-start justify-between gap-2"><span className="rounded-full bg-[#EEF4FB] px-2.5 py-0.5 text-xs font-semibold text-[#1E3A8A]">{g.category}</span><span className="flex flex-wrap justify-end gap-1.5">{g.recommended && <StatusBadge status="Recommended" dot={false} />}<MatchPill g={g} /></span></div>
-      <h3 className="text-lg font-semibold text-slate-900">{g.title}</h3>
-      <p className="mt-1 text-xl font-bold tabular-nums text-[#1E3A8A]">{money(g.amount)}</p>
-      <p className="mt-1 text-xs text-slate-500">Deadline {dateFmt(g.deadline)}</p>
+    <div data-testid={`card-grant-${g.id}`} className={cx(card, 'lift flex flex-col p-4 sm:p-5')}>
+      {/* Phones: category and deadline share one small line, and the amount sits beside the buttons (finding UM3). */}
+      <div className="mb-1 flex items-start justify-between gap-2 sm:mb-3">
+        <span className="pt-0.5 text-xs text-slate-500 sm:hidden">{g.category} · due {dateFmt(g.deadline)}</span>
+        <span className="hidden rounded-full bg-[#EEF4FB] px-2.5 py-0.5 text-xs font-semibold text-[#1E3A8A] sm:inline">{g.category}</span>
+        <span className="flex flex-wrap justify-end gap-1.5">{g.recommended && <StatusBadge status="Recommended" dot={false} />}<MatchPill g={g} /></span>
+      </div>
+      <h3 className="text-base font-semibold text-slate-900 sm:text-lg">{g.title}</h3>
+      <p className="mt-1 hidden flex-wrap items-baseline gap-x-3 gap-y-0.5 sm:flex">
+        <span className="text-lg font-bold tabular-nums text-[#1E3A8A] sm:text-xl">{money(g.amount)}</span>
+        <span className="text-xs text-slate-500">Deadline {dateFmt(g.deadline)}</span>
+      </p>
       <WhyMatch g={g} />
-      <div className="mt-auto flex gap-2 pt-4">
+      <div className="mt-auto flex items-center gap-2 pt-2 sm:pt-4">
+        <span className="mr-auto text-lg font-bold tabular-nums text-[#1E3A8A] sm:hidden">{money(g.amount)}</span>
         <button data-testid={`button-apply-${g.id}`} onClick={() => openNewApp({ title: g.title, category: g.category, amount: g.amount })} className="press rounded-full bg-[#1E3A8A] px-4 py-1.5 text-sm font-semibold text-white hover:bg-[#0F172A]">Apply</button>
         <button data-testid={`button-save-${g.id}`} aria-pressed={saved} onClick={() => {
           const nowSaved = toggleSavedGrant(g.id);

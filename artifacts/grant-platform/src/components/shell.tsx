@@ -161,10 +161,10 @@ function UserFrame({ title, open, setOpen, close, loc, children }: { title: stri
   );
 }
 
-function NewAppButton({ className }: { className?: string }) {
+function NewAppButton({ className, testid = 'button-new-application' }: { className?: string; testid?: string }) {
   const { openNewApp } = useDemo();
   return (
-    <button data-testid="button-new-application" onClick={() => openNewApp()} className={cx('press items-center gap-1.5 rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0F172A]', className)}>
+    <button data-testid={testid} onClick={() => openNewApp()} className={cx('press items-center gap-1.5 rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0F172A]', className)}>
       <Plus className="h-4 w-4" />New Application
     </button>
   );
@@ -386,7 +386,8 @@ function UserTopMobile({ title, isDash, onMenu }: { title: string; isDash: boole
         <NotificationBell compact />
         {menu}
       </div>
-      <p className="mt-2 text-[15px] text-slate-600">Here are your account's highlights.</p>
+      {/* Phones: start an application straight from the dashboard, like the desktop button (finding UM1). */}
+      <NewAppButton className="mt-4 flex w-full justify-center py-2.5 text-[15px]" testid="button-new-application-mobile" />
     </header>
   );
 }

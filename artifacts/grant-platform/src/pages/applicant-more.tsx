@@ -104,6 +104,10 @@ function GrantSearchBody({ d }: { d: ApplicantDashboard }) {
     .sort((a, b) => sort === 'match' ? (b.matchScore ?? 0) - (a.matchScore ?? 0) : sort === 'amount-desc' ? b.amount - a.amount : sort === 'amount-asc' ? a.amount - b.amount : a.deadline.localeCompare(b.deadline));
   const active = !!term || cat !== 'All' || band !== 'any' || within !== 'any' || savedOnly || recommendedOnly;
   const reset = () => { setQ(''); setCat('All'); setBand('any'); setWithin('any'); setSavedOnly(false); setRecommendedOnly(false); };
+  // Phones: the filters fold away behind one button, so the results start near the top (finding UM3).
+  const [showFilters, setShowFilters] = useState(false);
+  const nFilters = [cat !== 'All', band !== 'any', within !== 'any', savedOnly, recommendedOnly].filter(Boolean).length;
+  const count = `${list.length} ${list.length === 1 ? 'grant' : 'grants'} found`;
   return (
     <div className="space-y-5">
       <section className={cx(card, 'space-y-4 p-4 sm:p-5')} aria-label="Search filters">
@@ -111,6 +115,14 @@ function GrantSearchBody({ d }: { d: ApplicantDashboard }) {
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
           <input data-testid="input-grant-search" type="search" aria-label="Search grants" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search grants by name or category" className={cx(inputCls, 'py-3 pl-11 text-[15px]')} />
         </div>
+        <div className="flex items-center justify-between gap-3 md:hidden">
+          <button type="button" data-testid="button-toggle-filters" aria-expanded={showFilters} aria-controls="grant-filters" onClick={() => setShowFilters(!showFilters)}
+            className={cx('press inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold', showFilters || nFilters ? 'border-[#1E3A8A] bg-[#EEF4FB] text-[#1E3A8A]' : 'border-slate-300 text-slate-700')}>
+            <SlidersHorizontal className="h-4 w-4" />Filters{nFilters > 0 && ` (${nFilters})`}
+          </button>
+          <p className="text-sm text-slate-500" data-testid="text-search-count-mobile">{count}</p>
+        </div>
+        <div id="grant-filters" className={cx('space-y-4 md:block', showFilters ? 'block' : 'hidden')}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Select label="Category" value={cat} onChange={setCat} testid="select-search-category"><option>All</option>{cats.map((c) => <option key={c}>{c}</option>)}</Select>
           <Select label="Amount" value={band} onChange={setBand} testid="select-search-amount">{amountBands.map((b) => <option key={b.k} value={b.k}>{b.label}</option>)}</Select>
@@ -131,7 +143,8 @@ function GrantSearchBody({ d }: { d: ApplicantDashboard }) {
             </label>
           )}
           {active && <button data-testid="button-clear-filters" onClick={reset} className="text-sm font-semibold text-[#1E3A8A] hover:underline">Clear filters</button>}
-          <p className="ml-auto text-sm text-slate-500" data-testid="text-search-count"><SlidersHorizontal className="mr-1 inline h-4 w-4" />{list.length} {list.length === 1 ? 'grant' : 'grants'} found</p>
+          <p className="ml-auto hidden text-sm text-slate-500 md:block" data-testid="text-search-count"><SlidersHorizontal className="mr-1 inline h-4 w-4" />{count}</p>
+        </div>
         </div>
       </section>
       {list.length === 0
