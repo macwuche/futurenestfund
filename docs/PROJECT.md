@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-11-01 · branch `user-side-redesign` · Phases 0–5 and 7 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet), 6.7 only with several servers · **live at https://access.futurenestfund.org** (the Phase 7 and 6.6 commits still need a `deploy.sh`)._
+_Last updated 2026-11-01 · branch `user-side-redesign` · Phases 0–5 and 7 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet), 6.7 only with several servers · **live at https://access.futurenestfund.org** (`a82a158` deployed 2026-11-01)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -438,7 +438,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 **Secrets (Replit and VPS)**
 - [x] VPS: `/etc/futurenestfund/api.env` (`app_api` URL, Supabase URL and keys, `APP_URL`, `TRUST_PROXY=1`, `NODE_ENV=production`) and `migrate.env` (`SUPABASE_ADMIN_DB_URL`), 2026-10-31.
 - [ ] VPS, with step 10: `SETTINGS_ENCRYPTION_KEY` in `api.env` (then restart); the Resend key, sender and hook secret go in Admin → Settings → Email.
-- [ ] Supabase migration check: `deploy.sh` applies app migration **0007** (email settings) on the next deploy.
+- [x] App migration **0007** (email settings) applied on Supabase by `deploy.sh` at `a82a158` (2026-11-01).
 - [ ] Replit Secrets: optional, only for real sign-in on the Replit preview.
 
 **Rotate (pasted in chat on 2026-10-28 and 2026-10-31; never in git, a precaution)**
@@ -522,7 +522,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 
 ## 15. Open items and next steps
 
-**Needs you:** deploy the latest commits (`deploy.sh`: Phase 7 + 6.6, and migration 0007); the open §12 items: rotate the secrets pasted in chat, email through Resend (step 10 in `docs/DEPLOY.md`), minimum password length 8, off-server backup copies; and the ClamAV memory decision (step 11). Shared-server housekeeping (firewall, fail2ban, 29 package updates) is listed in `server.md` §7.
+**Needs you** (Phase 7 + 6.6 deployed 2026-11-01 at `a82a158`): the open §12 items: rotate the secrets pasted in chat, email through Resend (step 10 in `docs/DEPLOY.md`), minimum password length 8, off-server backup copies; and the ClamAV memory decision (step 11). Shared-server housekeeping (firewall, fail2ban, 29 package updates) is listed in `server.md` §7.
 
 **Phase 5 (admin controls)**, full plan in `work.md` §11:
 - ~~5.1 withdrawal notifications~~ and ~~5.2 withdrawal limits~~: done 2026-10-30
