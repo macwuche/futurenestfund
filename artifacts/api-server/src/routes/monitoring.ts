@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { ReportClientErrorBody, ReportClientErrorResponse, GetMonitoringStatusResponse } from "@workspace/api-zod";
 import { forwardError, monitoringStatus, scrub, shortReference } from "../lib/monitoring";
 import { rateLimit } from "../lib/rateLimit";
+import { scanStatus } from "../lib/virusScan";
 
 const n = (v: string | undefined, d: number) => (v && /^\d+$/.test(v) ? Number(v) : d);
 /** Browser crash reports, per IP: a broken page can fire errors in a loop. */
@@ -22,8 +23,8 @@ clientErrorsRouter.post("/client-errors", clientErrorLimit, (req, res): void => 
 
 /** Under /admin (admins only). */
 export const monitoringAdminRouter: IRouter = Router();
-monitoringAdminRouter.get("/admin/monitoring", (_req, res): void => {
-  res.json(GetMonitoringStatusResponse.parse(monitoringStatus()));
+monitoringAdminRouter.get("/admin/monitoring", async (_req, res): Promise<void> => {
+  res.json(GetMonitoringStatusResponse.parse({ ...monitoringStatus(), virusScan: await scanStatus() }));
 });
 monitoringAdminRouter.post("/admin/monitoring/test-error", (): void => {
   throw new Error("Monitoring test: a deliberate error raised from Admin settings");

@@ -5,6 +5,7 @@
  * Grant applicant and administration dashboard API
  * OpenAPI spec version: 0.1.0
  */
+import type { VirusScanStatus } from './virusScanStatus';
 
 export interface MonitoringStatus {
   /** Whether errors are also sent to Sentry (SENTRY_DSN is set and valid) */
@@ -14,4 +15,5 @@ export interface MonitoringStatus {
   environment: string;
   /** @nullable */
   release: string | null;
+  virusScan: VirusScanStatus;
 }

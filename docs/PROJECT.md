@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-10-31 · branch `user-side-redesign` · Phases 0–5 complete; Phase 6 under way (6.1–6.5 done, 6.6–6.7 to do); Phase 7 (UI) under way (7.1 done) · **live at https://access.futurenestfund.org**._
+_Last updated 2026-11-01 · branch `user-side-redesign` · Phases 0–5 and 7 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet), 6.7 only with several servers · **live at https://access.futurenestfund.org** (the Phase 7 and 6.6 commits still need a `deploy.sh`)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -16,8 +16,8 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 3 | Admin operations: ledger, deposit / withdrawal / KYC queues, application decisions | Done |
 | 4 | Real accounts on Supabase: sign-in, API auth, email through Resend, Settings security; then a hardening pass (RLS, `app_api` role, migrations, CSP, rate limits, unit tests) | Done (4.5 two-factor dropped by decision) |
 | 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
-| 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.5 done 2026-10-30/31; **6.5: deployed on the EU VPS at https://access.futurenestfund.org on 2026-10-31** ([`docs/DEPLOY.md`](DEPLOY.md), record in [`server.md`](../server.md)); then 6.6 virus scanning of uploads (storage and backups already done), 6.7 shared rate limits (only with several servers) |
-| 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin tables on phones, applicant fixes (review scored the UI 67/100) | 7.1 email settings done 2026-10-31; 7.2–7.7 to do ([`work.md`](../work.md) §13) |
+| 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.5 done 2026-10-30/31; **6.5: deployed on the EU VPS at https://access.futurenestfund.org on 2026-10-31** ([`docs/DEPLOY.md`](DEPLOY.md), record in [`server.md`](../server.md)); **6.6 virus scanning of uploads: code done 2026-11-01**, off until ClamAV is installed on the server (DEPLOY step 11, memory decision); 6.7 shared rate limits (only with several servers) |
+| 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin layout, admin tables on phones, applicant fixes (review scored the UI 67/100) | Done: 7.1 on 2026-10-31, 7.2–7.7 on 2026-11-01 ([`work.md`](../work.md) §13 and the log after it) |
 
 What still needs you is listed in §12 (go-live checklist) and §15 (open items).
 
@@ -46,7 +46,7 @@ What still needs you is listed in §12 (go-live checklist) and §15 (open items)
 ## 1. What's built
 
 ### Applicant workspace (navy theme)
-Pages: Dashboard, My Applications (+ detail page), Grant Search, Grant categories, Grant Funding Tracker, Cards, Transactions, Withdrawals, Add funds, Reports, Milestones, Settings, Help Centre.
+Menu in groups: **Overview** (Dashboard, My Applications (+ detail page), Milestones) · **Find funding** (Grant categories, Grant Search) · **Track** (Funding Tracker, Reports) · **Money** (Cards, Transactions, Withdrawals, Add funds) · Settings and Help Centre at the bottom. Phones keep the bottom tab bar and a New Application button on the dashboard.
 
 - **Dashboard:**
   - funding tracker (stacked chart on desktop, progress bar on phones)
@@ -68,7 +68,7 @@ Pages: Dashboard, My Applications (+ detail page), Grant Search, Grant categorie
   - account panel with an **email-notifications switch**
   - **Sign-in & security**: change password, sign out of other devices, sign out everywhere
 - **Grant matchmaking (rule-based, no AI):** five questions (organization type, focus areas, goals, funding size, timing), stored per applicant and editable. Every sample grant gets a 0–100 score from fixed rules, with a reason for each point: focus area 40, goal 20, amount 20 (neighbouring band 8), timing 20 (5–10 if later than needed). Grants not open to the applicant's organization type score 0, and closed grants are never recommended. **Recommended = score ≥ 70.** Before answering, nothing is marked Recommended.
-  - Grant categories: "Your top matches" (top 3 with reasons) and "Edit answers"; each grant card shows its % match and "Why this match"
+  - Grant categories: "Your top matches" (top 3 with reasons), "Edit answers", and one tile per category (grants, largest amount, next deadline, how many recommended) that opens Grant Search filtered to it (`/grant-search?category=…`); grant cards (with % match and "Why this match") are in Grant Search only
   - Grant Search: "Best match" sort (default once answered) and a "Recommended only" filter
   - Catalogue and rules: `api-server/src/lib/grantCatalog.ts`; API `GET|PUT /applicant/matchmaking`
 - **Grant Search, Funding Tracker, Reports** (with CSV downloads) and a **Help Centre** FAQ.
@@ -94,12 +94,13 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
 - **Withdrawal limits:** a global max per request and daily total (last 24 h, under review + approved) in Settings, and optional custom limits per user that replace them. Enforced when the applicant places a request.
 - **Transactions:** the full ledger with filters, search, pagination, totals and **CSV export** (spreadsheet-formula injection neutralised).
 - **KYC:** a document queue with previews; approve or reject (with a reason). The verification level is recomputed.
-- **Settings:**
-  - global freeze, with a confirmation and a reason
-  - security rules overview
-  - **error monitoring:** where errors go (server log, plus Sentry when configured) and a "Send test errors" button that raises one server and one browser error and shows their references
-  - the admin's **own profile photo**, shown in the sidebar and as the header avatar (which links to Settings)
-  - the admin's own **Sign-in & security**
+- **Settings** (`/admin/settings/<section>`, side menu on desktop, tabs on phones):
+  - **General:** global freeze (with a confirmation and a reason) and the security rules
+  - **Email:** Resend key, sender, signature, health checks, test email (§7)
+  - **Withdrawal limits:** the platform-wide limits
+  - **Monitoring:** where errors go (server log, plus Sentry when configured), a "Send test errors" button that raises one server and one browser error and shows their references, and **upload virus scanning** status (Scanning / Not answering / Off, with the ClamAV version)
+  - **Audit log:** a link to the full log
+  - **Your account:** the admin's own profile photo (shown in the sidebar and as the header avatar, which links here) and **Sign-in & security**
 - **Audit log** (`/admin/audit`, from Settings, the dashboard and each user's audit trail): every recorded change, searchable and filterable by user (or platform-wide), who did it and date, 25 per page, with CSV export.
 - **Header search** across users, applications, ledger entries and the audit log.
 
@@ -114,12 +115,14 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
   - Images are re-encoded with sharp, stripping EXIF/GPS.
   - PDFs with scripts or attachments and macro-enabled Word files are refused; 10 MB cap.
   - Files are served owner-only with a sandbox CSP.
+  - **Virus scanning** (6.6, `lib/virusScan.ts`): with `CLAMAV_SOCKET` (or `CLAMAV_HOST`) set, every upload is streamed to a ClamAV daemon first, before the type check or any decoder. A flagged file is refused ("didn't pass the virus scan") and logged with its signature; nothing is written. While the scanner is down, uploads answer 503 "try again" (fail closed; `CLAMAV_FAIL_OPEN=1` accepts them unscanned instead). Off until ClamAV is installed on the server.
 - **Email** for everything (sign-in emails and notifications) through Resend. This is built and tested, but waiting for go-live settings (§12).
 - **Error monitoring:** every response carries a random `X-Request-Id`, also on every log line.
   - A server error shows the user only "contact support with reference `1a2b3c4d`" (the first 8 characters of the request id); the details go to the log.
   - Browser crashes (uncaught errors, failed promises, the "Something went wrong" screen) are reported to the API, even when signed out, and the crash screen shows a reference too.
   - With `SENTRY_DSN` set, errors also go to Sentry (EU region) or GlitchTip, without the user, cookies, headers, IP or query strings, and with emails, tokens, secrets and long numbers removed from messages.
-- **Phones:** every page was audited at 390 px: 44 px tap targets, no sideways scrolling, bell, menu and search reachable.
+- **Phones:** every page was audited at 390 px: 44 px tap targets, no sideways scrolling, bell, menu and search reachable. The admin header is one 64 px row (search opens from an icon); the ledger and request decisions become cards.
+- **Look:** one typeface (Inter) on both sides; amounts in tabular figures; the admin side keeps its black / lime colours.
 
 ---
 
@@ -168,7 +171,7 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
 | Database users | `postgres` (owner, for migrations and seeding) and **`app_api`** (the running API) |
 | Secret key, DB password, `app_api` password, connection strings | in `secrets.local.md` |
 
-Dashboard settings to check (see §12): Site URL (still `http://localhost:3000`), Redirect URLs, minimum password length (6 today, should be 8), Send Email hook.
+Dashboard settings (see §12): Site URL and Redirect URLs are set to `https://access.futurenestfund.org` (2026-10-31); still to do: minimum password length (6 today, should be 8) and the Send Email hook.
 
 ---
 
@@ -305,6 +308,7 @@ All email goes through **Resend** (`lib/email.ts`). Email is off until there's a
 | API headers: `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `X-Frame-Options: DENY`, nosniff, `Cross-Origin-Resource-Policy: same-origin`, Permissions-Policy, Referrer-Policy, HSTS in production; JSON bodies ≤ 100 kB | `api-server/src/app.ts` |
 | Web app Content-Security-Policy (production build): scripts only from the site; network only to the site and `*.supabase.co` | `grant-platform/vite.config.ts` |
 | Upload checks (real type from the bytes, re-encoded images, PDF/DOCX structure checks, size and count caps, owner-only download, sandbox CSP) | `api-server/src/lib/uploads.ts` |
+| Virus scanning of uploads through ClamAV (clamd INSTREAM), fail closed, off until `CLAMAV_SOCKET` is set | `api-server/src/lib/virusScan.ts` |
 | Email: signed webhook, HTML escaping, enumeration-safe sign-up and reset screens | §7 |
 | Password changes and resets end other sessions | `security.tsx`, `auth.tsx` |
 | CSV export neutralises spreadsheet formulas | `adminOps.ts` |
@@ -313,7 +317,7 @@ All email goes through **Resend** (`lib/email.ts`). Email is off until there's a
 Known limits:
 - Rate limits are per process.
 - Uploads live on the VPS's own disk (`/var/lib/futurenestfund/uploads`): survives deploys, backed up nightly, but only on that one server.
-- PDF/DOCX checks are structural (no virus scan).
+- PDF/DOCX checks are structural; virus scanning only runs once ClamAV is installed on the server (DEPLOY step 11).
 - The minimum password length is 6 until changed in the dashboard.
 - Crash reports are unauthenticated (they must work on the sign-in page), so anyone can write rate-limited entries to the log. Page paths in reports can include internal record ids (e.g. `usr-…`), never names or emails.
 
@@ -347,6 +351,10 @@ Put these in **Replit Secrets** (development) and the **VPS environment** (produ
 | `SENTRY_DSN` | no | e.g. `https://<key>@o<org>.ingest.de.sentry.io/<project>` (EU region), or a GlitchTip DSN | **Secret-ish** (lets anyone send events). Unset → errors go to the log only |
 | `SENTRY_ENVIRONMENT` | no | default `NODE_ENV` | e.g. `production`, `staging` |
 | `APP_RELEASE` | no | e.g. the git commit | Tags each error report with the release |
+| `CLAMAV_SOCKET` | no | `/var/run/clamav/clamd.ctl` | Turns on virus scanning of uploads (clamd's local socket) |
+| `CLAMAV_HOST`, `CLAMAV_PORT` | no | e.g. `127.0.0.1`, `3310` | clamd over TCP instead of a socket |
+| `CLAMAV_FAIL_OPEN` | no | `1` | Accept uploads unscanned while clamd is down (default: refuse with 503) |
+| `CLAMAV_TIMEOUT_MS` | no | default `30000` | |
 | `LOG_LEVEL` | no | default `info` | |
 | `RESEND_API_URL` | tests only | | Points email at the local stand-in |
 
@@ -369,7 +377,7 @@ No secrets. `PORT` and `BASE_PATH` for Vite; everything else comes from `GET /ap
 | Command | What it does |
 |---|---|
 | `pnpm run typecheck` | Type-check every package |
-| `pnpm test` | Vitest unit tests (73) |
+| `pnpm test` | Vitest unit tests (80) |
 | `pnpm --filter @workspace/api-spec run codegen` | Regenerate API hooks / validators after editing `openapi.yaml` |
 | `pnpm --filter @workspace/db run generate` | Write a new migration from schema changes |
 | `pnpm --filter @workspace/scripts run db:migrate` | Apply pending migrations (`-- --baseline` once for a database built with push) |
@@ -384,7 +392,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 
 ## 11. Testing
 
-**Committed:** `pnpm test`, 73 Vitest tests.
+**Committed:** `pnpm test`, 80 Vitest tests.
 - Token verification: valid, expired, other project, wrong audience, anonymous, forged key, tampered payload, `alg: none`, HS256 algorithm confusion, key server down/timeout → 503.
 - Standard Webhooks signatures.
 - Email link mapping (including the reversed email-change fields) and HTML escaping.
@@ -394,6 +402,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 - Matchmaking rules (scores, reasons, closed and not-eligible grants).
 - Error monitoring: scrubbing (emails, tokens, secrets, long numbers), DSN and stack parsing, the exact fields sent to Sentry, the React component stack.
 - Email settings: secret encryption (round trip, tampering, wrong field or master key), signature and support address escaped in every template, From parsing.
+- Virus scanning: off without settings, chunked INSTREAM, the EICAR test string refused with its signature, fail closed / fail open, scanner errors and timeouts, status for Settings.
 
 **Local browser / end-to-end suites** (git-ignored `.unlazy/`, see `.unlazy/README.md`). They drive headless Chromium against a test copy of the API.
 
@@ -412,7 +421,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 
 Full run on 2026-10-29: all green on the dev frontend, on the **production build with its CSP**, and **on Supabase as `app_api`**.
 
-Latest run (2026-10-31, after 6.4, demo mode): typecheck clean, `pnpm test` 67/67, every API suite from Phases 3, 5 and 6 and every browser suite from Phases 1–6 green (counts in `work.md` §12). `phase4-ui` and `phase4-security` weren't re-run: they need the Supabase secret key and create throwaway users.
+Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnpm test` 80/80, every suite touched by Phase 7 and 6.6 green, including the new `phase6-virus` (6/6, against `.unlazy/mock-clamd.mjs`) and the phone audit `phase6-mobile` (39/39, 0 problems); counts per step in `work.md`. Before that (2026-10-31, after 6.4): `pnpm test` 67/67, every API suite from Phases 3, 5 and 6 and every browser suite from Phases 1–6 green (counts in `work.md` §12). `phase4-ui` and `phase4-security` weren't re-run: they need the Supabase secret key and create throwaway users.
 
 ---
 
@@ -445,6 +454,7 @@ Latest run (2026-10-31, after 6.4, demo mode): typecheck clean, `pnpm test` 67/6
 - [x] `db:migrate` runs on every `deploy.sh` before the API starts.
 - [x] Nightly backups (02:30 UTC, 14 days, `pg_dump` 18.6) and log rotation; first backup checked with `pg_restore --list`.
 - [ ] Copy backups off the server now and then.
+- [ ] Optional, step 11: ClamAV for upload virus scanning, only with ~1.5 GB of memory free (`free -m`); then `CLAMAV_SOCKET` in `api.env` and the EICAR test.
 
 **Supabase migrations**
 - [x] App migrations 0003–0006 (incl. **0005** admin profile photos and **0006** matchmaking answers) and Supabase `0003_admin_profiles` applied by the first `deploy.sh` (2026-10-31).
@@ -500,12 +510,19 @@ Latest run (2026-10-31, after 6.4, demo mode): typecheck clean, `pnpm test` 67/6
 | `6bca36f` | Error monitoring: request ids, crash reporting, optional Sentry (6.4) |
 | `dcc7ba9` | Deployment runbook and `deploy/` files: PM2, nginx, HTTPS, backups (6.5) |
 | `e44c98d` … `74350c3` | `server.md` deployment record: steps 1–9 followed on the VPS, live at `access.futurenestfund.org` (6.5) |
+| `3b62c4c` | Email settings and health checks in Admin Settings (7.1) |
+| `f2891d7` | Admin Settings in sections; 4-Eyes wording removed (7.2) |
+| `6f44fba` | Design-system pass: one typeface, tabular amounts, avatars, wording, charts animate once (7.3) |
+| `0f339ec` | Admin layout: 64 px header, phone search icon, KPIs, inspector section menu (7.4) |
+| `cb909d4` | Admin ledger and decisions as cards on phones (7.5) |
+| `02bdf27` | Applicant fixes: grouped menu, category overview, rows, cards, money steps (7.6) |
+| `2bf48ad` | Applicant phone: New Application, compact grant cards, folding filters (7.7) |
 
 ---
 
 ## 15. Open items and next steps
 
-**Needs you:** the open §12 items: rotate the secrets pasted in chat, email through Resend (step 10 in `docs/DEPLOY.md`), minimum password length 8, off-server backup copies. Shared-server housekeeping (firewall, fail2ban, 29 package updates) is listed in `server.md` §7.
+**Needs you:** deploy the latest commits (`deploy.sh`: Phase 7 + 6.6, and migration 0007); the open §12 items: rotate the secrets pasted in chat, email through Resend (step 10 in `docs/DEPLOY.md`), minimum password length 8, off-server backup copies; and the ClamAV memory decision (step 11). Shared-server housekeeping (firewall, fail2ban, 29 package updates) is listed in `server.md` §7.
 
 **Phase 5 (admin controls)**, full plan in `work.md` §11:
 - ~~5.1 withdrawal notifications~~ and ~~5.2 withdrawal limits~~: done 2026-10-30
@@ -521,15 +538,15 @@ Latest run (2026-10-31, after 6.4, demo mode): typecheck clean, `pnpm test` 67/6
 - ~~6.3 mobile polish~~: done 2026-10-31 (every screen audited at 390 px: 44 px tap targets, no overflow, search in the phone menu)
 - ~~6.4 error monitoring~~: done 2026-10-31 (own logs with request ids; optional Sentry via `SENTRY_DSN`)
 - ~~6.5 deployment~~: done 2026-10-31 (runbook [`docs/DEPLOY.md`](DEPLOY.md) followed end to end; live at https://access.futurenestfund.org; record in [`server.md`](../server.md))
-- 6.6 virus scanning of uploads (persistent storage and nightly backups already in place on the VPS) (ClamAV, tested with the EICAR file)
+- ~~6.6 virus scanning of uploads~~: code done 2026-11-01 (ClamAV through `CLAMAV_SOCKET`, fail closed, tested with the EICAR string against a stand-in). **Needs you:** install ClamAV on the server (DEPLOY step 11) once there's memory for it (~1–1.2 GB; the server has 1.8 GB for four apps).
 - 6.7 a Redis-backed rate limiter, only if there's more than one API server
 
 **Phase 7 (UI overhaul)**, full review and plan in `work.md` §13:
 - ~~7.1 email settings and health checks in Admin Settings~~: done 2026-10-31 (needs `SETTINGS_ENCRYPTION_KEY` on the VPS before keys can be saved there)
-- 7.2 Admin Settings rebuilt into sections · 7.3 one design system for both workspaces · 7.4 admin layout · 7.5 admin tables on phones · 7.6 applicant fixes · 7.7 applicant phone
+- ~~7.2 Settings in sections · 7.3 design system · 7.4 admin layout · 7.5 admin tables on phones · 7.6 applicant fixes · 7.7 applicant phone~~: done 2026-11-01. Not done as planned: no new shared `Button`/`Card` React components (the shared class tokens stayed the single source), and Grant Search on phones is 38% shorter rather than half.
 
 **Limits worth knowing:**
 - The API can't sign anyone in by itself if Supabase is down; requests answer 503 until it's back.
 - Grants, balances and cards are sample data; nothing moves real money.
 - Card activation requests have no admin queue yet: they show in the user inspector and recent activity only.
-- Uploads live on one server's disk (backed up nightly on that same server) and aren't virus-scanned yet (6.6); rate limits are in memory, fine for one server (6.7).
+- Uploads live on one server's disk (backed up nightly on that same server) and are virus-scanned only once ClamAV is installed (6.6); rate limits are in memory, fine for one server (6.7).

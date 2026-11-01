@@ -13,7 +13,7 @@ import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDow
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
-import { MonitoringSettings } from '@/components/monitoring-settings';
+import { MonitoringSettings, VirusScanSettings } from '@/components/monitoring-settings';
 import { EmailSettingsCard } from '@/components/email-settings';
 import { CardControls } from '@/components/card-controls';
 import { AdminPhotoSettings, UserPhotoControl } from '@/components/admin-photo';
@@ -459,7 +459,7 @@ const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: Snowflake, hint: 'Global freeze and the rules every approval follows' },
   { id: 'email', label: 'Email', icon: Mail, hint: 'Resend key, sender, signature and health checks' },
   { id: 'limits', label: 'Withdrawal limits', icon: Gauge, hint: 'Platform-wide limits per request and per day' },
-  { id: 'monitoring', label: 'Monitoring', icon: Activity, hint: 'Where errors go, and a test button' },
+  { id: 'monitoring', label: 'Monitoring', icon: Activity, hint: 'Where errors go, and upload virus scanning' },
   { id: 'audit', label: 'Audit log', icon: ScrollText, hint: 'Every recorded change, searchable' },
   { id: 'account', label: 'Your account', icon: UserRound, hint: 'Your photo, password and sessions' },
 ] as const;
@@ -494,7 +494,7 @@ export function AdminSettingsPage() {
           {current.id === 'general' && <GeneralSettings />}
           {current.id === 'email' && <EmailSettingsCard />}
           {current.id === 'limits' && <GlobalWithdrawalLimits />}
-          {current.id === 'monitoring' && <MonitoringSettings />}
+          {current.id === 'monitoring' && <><MonitoringSettings /><VirusScanSettings /></>}
           {current.id === 'audit' && <AuditSettings />}
           {current.id === 'account' && <><AdminPhotoSettings /><AccountSecurity tone="admin" /></>}
         </div>

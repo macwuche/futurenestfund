@@ -6,6 +6,7 @@ import { logger } from "./lib/logger";
 import { DemoInputError } from "./lib/demoWorkspace";
 import { RecordInputError } from "./lib/applicantRecords";
 import { UploadError } from "./lib/uploads";
+import { ScanUnavailableError } from "./lib/virusScan";
 import { sendEmailHook } from "./lib/sendEmailHook";
 import { hookLimit } from "./lib/rateLimit";
 import { forwardError, shortReference } from "./lib/monitoring";
@@ -62,6 +63,12 @@ app.use("/api", router);
 app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err instanceof DemoInputError || err instanceof RecordInputError || err instanceof UploadError) {
     res.status(400).json({ error: err.message });
+    return;
+  }
+  if (err instanceof ScanUnavailableError) {
+    // Uploads fail closed while the scanner is down; logged as an error so it gets noticed.
+    req.log.error({ err: { message: err.message } }, "Upload refused: virus scanner unavailable");
+    res.status(503).json({ error: "Uploads are paused for a moment because the virus scanner isn't responding. Please try again in a few minutes." });
     return;
   }
   req.log.error({ err }, "Request failed");

@@ -1403,7 +1403,18 @@ components:
         sentryHost: { type: [string, "null"] }
         environment: { type: string }
         release: { type: [string, "null"] }
-      required: [sentry, sentryHost, environment, release]
+        virusScan: { $ref: "#/components/schemas/VirusScanStatus" }
+      required: [sentry, sentryHost, environment, release, virusScan]
+    VirusScanStatus:
+      type: object
+      description: Upload virus scanning through a ClamAV daemon (CLAMAV_SOCKET or CLAMAV_HOST)
+      properties:
+        enabled: { type: boolean, description: "A scanner address is configured" }
+        ok: { type: boolean, description: "The scanner answered just now" }
+        failOpen: { type: boolean, description: "CLAMAV_FAIL_OPEN=1: uploads are accepted unscanned while the scanner is down" }
+        version: { type: [string, "null"], description: "ClamAV version / signature version / signature date" }
+        error: { type: [string, "null"] }
+      required: [enabled, ok, failOpen, version, error]
     ApplicantTransaction:
       type: object
       properties:

@@ -270,6 +270,25 @@ export interface EmailTestResult {
   message: string;
 }
 
+/**
+ * Upload virus scanning through a ClamAV daemon (CLAMAV_SOCKET or CLAMAV_HOST)
+ */
+export interface VirusScanStatus {
+  /** A scanner address is configured */
+  enabled: boolean;
+  /** The scanner answered just now */
+  ok: boolean;
+  /** CLAMAV_FAIL_OPEN=1: uploads are accepted unscanned while the scanner is down */
+  failOpen: boolean;
+  /**
+     * ClamAV version / signature version / signature date
+     * @nullable
+     */
+  version: string | null;
+  /** @nullable */
+  error: string | null;
+}
+
 export interface MonitoringStatus {
   /** Whether errors are also sent to Sentry (SENTRY_DSN is set and valid) */
   sentry: boolean;
@@ -278,6 +297,7 @@ export interface MonitoringStatus {
   environment: string;
   /** @nullable */
   release: string | null;
+  virusScan: VirusScanStatus;
 }
 
 export type ApplicantTransactionType = typeof ApplicantTransactionType[keyof typeof ApplicantTransactionType];

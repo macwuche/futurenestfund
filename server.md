@@ -1,6 +1,6 @@
 # GrantApp deployment tracker (server.md)
 
-_Deployment only. Last updated 2026-10-31._
+_Deployment only. Last updated 2026-11-01._
 
 - **Exact commands:** [`docs/DEPLOY.md`](docs/DEPLOY.md).
 - **This file:** the record of what's decided, done, not done yet and still to do.
@@ -96,8 +96,9 @@ Status: ☐ not started · ◐ in progress · ☑ done. "Who": **you** = in a da
 | 8d | Admin → Settings → "Send test errors" | you | ☑ 2026-10-31 (server `240ee29f…` and browser `a746d44f…` both in `fnf-pm2 logs`) | Both references found in `fnf-pm2 logs` |
 | 9 | `postgresql-client` (pg_dump ≥ 17), log rotation, nightly backup cron, one manual backup | you | ☑ 2026-10-31 (pg_dump 18.6; `db-20261031-1503.dump` 32K + `uploads-20261031-1503.tar.gz`) | Files in `/var/backups/futurenestfund` |
 | 10 | Email: `SETTINGS_ENCRYPTION_KEY` in `api.env` (once, then restart); then everything in **Admin → Settings → Email**: Resend API key, sender (records already exist for **`mail.futurenestfund.org`**, so use e.g. `no-reply@mail.futurenestfund.org`), support address, signature, test email; Supabase Send Email Hook → the URL shown there, secret saved there (steps in `docs/DEPLOY.md`) | you | ☐ | All email health checks green; a password-reset email arrives from Resend |
+| 11 | Optional: virus scanning: check `free -m`; if there's room, `apt install clamav-daemon`, `CLAMAV_SOCKET` in `api.env`, restart; EICAR test (steps in `docs/DEPLOY.md`) | you | ☐ (decide on memory first, §8) | Settings → Monitoring says **Scanning**; an EICAR upload is refused |
 
-Step 6.5 counts as **done** when steps 1–9 have been followed once end to end. Step 10 can follow later.
+Step 6.5 counts as **done** when steps 1–9 have been followed once end to end. Steps 10 and 11 can follow later.
 
 ## 6. Not done yet, outside the steps
 
@@ -119,7 +120,7 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 
 ## 8. Later (Phase 6, after go-live)
 
-- **6.6**: virus scanning of uploads (ClamAV, tested with the EICAR file). Uploads are already on the server's own disk (`/var/lib/futurenestfund/uploads`), which survives deploys, and backed up nightly.
+- **6.6 (code done 2026-11-01):** the API scans every upload through a ClamAV daemon when `CLAMAV_SOCKET` is set (off until then). Installing ClamAV is step 11 in `docs/DEPLOY.md`. **Decision for you:** the daemon needs ~1–1.2 GB of memory and this server has 1.8 GB for four apps, so either add memory first (4 GB is comfortable) or leave scanning off. Uploads are already on the server's own disk (`/var/lib/futurenestfund/uploads`), which survives deploys, and backed up nightly.
 - **6.7**: shared rate limits (Redis), only if there's ever more than one API server.
 
 ## 9. Updating and rolling back (after go-live)

@@ -202,6 +202,33 @@ Email is set up in the app: **Admin → Settings → Email**. The server only ne
 
 Values saved in Settings win over `RESEND_API_KEY` / `EMAIL_FROM` / `SEND_EMAIL_HOOK_SECRET` in `api.env`; those still work as a fallback. Backups contain the secrets only in encrypted form; the master key isn't in them.
 
+### Step 11. Virus scanning of uploads (optional; check memory first)
+The API can scan every upload with ClamAV before saving it (Phase 6.6). It's **off** until `CLAMAV_SOCKET` is set.
+
+**Memory first.** The ClamAV daemon keeps its signature database in memory: about **1–1.2 GB**, plus a short peak while it reloads new signatures. This server has 1.8 GB for four apps (46.5% in use on 2026-10-31). Check before installing:
+```bash
+free -m
+```
+If "available" is under about 1,500 MB, don't install it here: add memory to the server first (4 GB is comfortable). Running it short of memory pushes every app into swap.
+
+When there's room:
+```bash
+apt install -y clamav-daemon
+systemctl status clamav-freshclam --no-pager | head -3
+printf 'ConcurrentDatabaseReload no\n' >> /etc/clamav/clamd.conf
+systemctl restart clamav-daemon
+ls -l /var/run/clamav/clamd.ctl
+nano /etc/futurenestfund/api.env
+fnf-pm2 restart futurenestfund-api --update-env
+```
+- `clamav-freshclam` downloads and updates the signatures; the first download takes a few minutes, and `clamd.ctl` appears only after that.
+- `ConcurrentDatabaseReload no` stops the daemon holding two copies of the database while it updates (a short pause in scanning instead of a memory peak).
+- In `api.env`, uncomment `CLAMAV_SOCKET=/var/run/clamav/clamd.ctl`.
+
+Check: **Admin → Settings → Monitoring → Upload virus scanning** says **Scanning** with the ClamAV version. Then test with the standard EICAR test file (harmless; every scanner flags it): save the 68-character line from https://www.eicar.org as `eicar.png` on your computer and upload it as a profile photo. It must be refused with "This file didn't pass the virus scan", and `fnf-pm2 logs futurenestfund-api --lines 20 --nostream` shows `Upload refused: virus scanner flagged it`.
+
+While the scanner is down, uploads answer "try again in a few minutes" (503) and Settings shows **Not answering**. To accept uploads unscanned instead, set `CLAMAV_FAIL_OPEN=1` (not recommended).
+
 ---
 
 ## Everyday operations
@@ -215,6 +242,7 @@ Values saved in Settings win over `RESEND_API_KEY` / `EMAIL_FROM` / `SEND_EMAIL_
 | Find an error reference (e.g. `1a2b3c4d`) | `grep -h 1a2b3c4d /home/futurenestfund/.pm2/logs/*` |
 | Restart after editing `api.env` | `fnf-pm2 restart futurenestfund-api --update-env` |
 | Backup now | `bash /var/www/futurenestfund/deploy/backup.sh` |
+| Virus scanner status (after step 11) | `systemctl status clamav-daemon clamav-freshclam --no-pager`; Admin → Settings → Monitoring |
 
 **Rollback notes:**
 - Migrations only ever add tables or columns, so an older commit runs fine on a newer database.

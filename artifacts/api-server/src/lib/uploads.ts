@@ -8,6 +8,7 @@ import sharp from "sharp";
 import { and, count, eq } from "drizzle-orm";
 import { db, demoFilesTable } from "@workspace/db";
 import { logger } from "./logger";
+import { VirusFoundError, scanBuffer, scanTarget } from "./virusScan";
 
 /** Thrown for uploads the user can fix; the app's error handler turns it into a 400. */
 export class UploadError extends Error {}
@@ -106,6 +107,19 @@ export async function storeUpload<T>(
   record: (stored: StoredFile, tx: DbTx) => Promise<T>, applicationId?: string,
 ): Promise<T> {
   if (!file || file.size === 0) throw new UploadError("Choose a file to upload.");
+  // Virus scan first, of the bytes exactly as received: before the type check and before any decoder (sharp, the PDF/DOCX checks) touches them.
+  // A down scanner throws ScanUnavailableError (503) unless CLAMAV_FAIL_OPEN=1.
+  const sha256In = createHash("sha256").update(file.buffer).digest("hex");
+  try {
+    const result = await scanBuffer(file.buffer);
+    if (result === "skipped" && scanTarget()) logger.warn({ profileId, purpose, sha256: sha256In }, "Virus scanner unavailable; upload accepted unscanned (CLAMAV_FAIL_OPEN=1)");
+  } catch (e) {
+    if (e instanceof VirusFoundError) {
+      logger.warn({ profileId, purpose, signature: e.signature, sha256: sha256In, size: file.size }, "Upload refused: virus scanner flagged it");
+      throw new UploadError("This file didn't pass the virus scan, so it wasn't saved. Scan your device, or upload a different copy.");
+    }
+    throw e;
+  }
   const detected = sniff(file.buffer);
   const accept = ACCEPTS[purpose];
   if (!detected || !accept.types.includes(detected)) throw new UploadError(`Upload ${accept.label}, up to 10 MB.`);

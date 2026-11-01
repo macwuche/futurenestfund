@@ -160,4 +160,5 @@ export * from './userCardNetwork';
 export * from './userCardStatus';
 export * from './userPermissions';
 export * from './userWithdrawalLimitsUpdate';
+export * from './virusScanStatus';
 export * from './withdrawalLimits';

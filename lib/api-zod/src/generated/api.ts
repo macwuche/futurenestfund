@@ -41,7 +41,14 @@ export const GetMonitoringStatusResponse = zod.object({
   "sentry": zod.boolean().describe('Whether errors are also sent to Sentry (SENTRY_DSN is set and valid)'),
   "sentryHost": zod.string().nullable(),
   "environment": zod.string(),
-  "release": zod.string().nullable()
+  "release": zod.string().nullable(),
+  "virusScan": zod.object({
+  "enabled": zod.boolean().describe('A scanner address is configured'),
+  "ok": zod.boolean().describe('The scanner answered just now'),
+  "failOpen": zod.boolean().describe('CLAMAV_FAIL_OPEN=1: uploads are accepted unscanned while the scanner is down'),
+  "version": zod.string().nullable().describe('ClamAV version / signature version / signature date'),
+  "error": zod.string().nullable()
+}).describe('Upload virus scanning through a ClamAV daemon (CLAMAV_SOCKET or CLAMAV_HOST)')
 })
 
 
