@@ -1904,3 +1904,9 @@ Not in Phase 7: new features beyond email settings; the open go-live items (§12
 - (4-Eyes badge removal from A4 was done in 7.2.)
 
 **Tests (2026-11-01):** typecheck clean; phase3-desktop 22/22, phase3-phone 16/16 (new: header ≤ 64 px, search hidden until the icon is tapped, focus moves to it), phase5-avatars-ui / users-ui / audit-ui 6+6 each, phase5-cards-ui 5+5, phase5-debits-ui 5+5, phase6-mobile 37/37 with 0 problems (it now checks the search button and the 64 px header on every admin page), smoke 23+23. By hand: the inspector chips land each section 17 px below the menu (or as far as the page can scroll).
+
+### 2026-11-01: Step 7.5 done (admin tables on phones)
+
+**Built:** below the `md` breakpoint (768 px) the **ledger** (Transactions) and the **Recent decisions** table on the Deposit and Withdrawal pages become one card per entry: user, type · account and the **signed amount** on the first line; reason; then date, who did it and the linked application or request. The audit log and users directory already had phone cards (5.3, 5.4). Wider screens keep the tables.
+
+**Tests (2026-11-01):** typecheck clean; phase3-desktop 22/22; phase3-phone 17/17 (new: at 390 px the ledger table is hidden, every amount is fully on screen, no sideways scroll; the old "table scrolls sideways" check replaced); phase5-debits-ui 5+5; phase5-limits-ui 6+6; phase6-mobile 37/37 with 0 problems. `phase5-withdrawals` was run but its email checks need an API started with a Resend key and sender (this test API had none), so its 3 email checks failed for that reason; it tests the API, which 7.5 didn't change.

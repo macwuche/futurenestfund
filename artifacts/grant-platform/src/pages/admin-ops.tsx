@@ -58,7 +58,18 @@ function RequestQueuePage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
           {decided.isLoading ? <Skel className="h-24" /> : decided.isError || !decided.data ? <ErrorState onRetry={() => decided.refetch()} />
             : decided.data.length === 0 ? <Empty title="No decisions yet" />
             : (
-              <div className="overflow-x-auto">
+              <>
+              <ul className="divide-y md:hidden" data-testid="list-decided">{decided.data.map((r) => (
+                <li key={r.id} className="py-3" data-testid={`card-decided-${r.id}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="min-w-0"><Link href={`/admin/users/${r.userId}`} className="block truncate font-semibold hover:underline">{r.userName}</Link><span className="block text-xs text-slate-500">{dateFmt(r.createdAt)} · ref <span className="font-num">{r.reference}</span></span></span>
+                    <span className="shrink-0 text-right"><span className="font-num block font-semibold">{money(r.amount)}</span><StatusBadge status={r.status === 'Completed' ? 'Approved' : r.status} /></span>
+                  </div>
+                  {(r.reviewNote ?? r.note) && <p className="mt-1 text-xs text-slate-600">{r.reviewNote ?? r.note}</p>}
+                  <p className="mt-0.5 text-xs text-slate-500">{r.reviewedAt ? `${dateTime(r.reviewedAt)} · ` : ''}{r.reviewedBy}</p>
+                </li>
+              ))}</ul>
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[640px] text-left text-sm">
                   <thead><tr className="border-b text-xs uppercase tracking-wide text-slate-500"><th className="py-2 pr-3">User</th><th className="text-right">Amount</th><th className="pl-4">Decision</th><th>Reviewed</th><th>Note</th></tr></thead>
                   <tbody>{decided.data.map((r) => (
@@ -72,6 +83,7 @@ function RequestQueuePage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
                   ))}</tbody>
                 </table>
               </div>
+              </>
             )}
         </section>
       </div>
@@ -202,7 +214,25 @@ export function AdminTransactionsPage() {
             : q.data.items.length === 0 ? <Empty title="No matching entries" hint={filtered ? 'Try different filters.' : 'Approved deposits, withdrawals, grant awards and credits appear here.'} />
             : (
               <>
-                <div className="overflow-x-auto">
+                {/* Phones: one card per entry, amount always visible, nothing scrolls sideways (finding AM1). */}
+                <ul className="divide-y md:hidden" data-testid="list-ledger">{q.data.items.map((t) => (
+                  <li key={t.id} className="py-3" data-testid={`card-ledger-${t.id}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="min-w-0">
+                        <Link href={`/admin/users/${t.userId}`} className="block truncate font-semibold hover:underline">{t.userName}</Link>
+                        <span className="block text-xs text-slate-500">{t.kind} · <span className="capitalize">{t.account}</span></span>
+                      </span>
+                      <span className={cx('font-num shrink-0 text-right font-semibold', t.amount < 0 ? 'text-slate-900' : 'text-[#166534]')} data-testid={`text-ledger-card-amount-${t.id}`}>{signed(t.amount)}</span>
+                    </div>
+                    <p className="mt-1 break-words text-sm text-slate-700">{t.reason}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {dateTime(t.createdAt)} · {t.actor}
+                      {t.applicationId ? <> · <Link href={`/admin/users/${t.userId}/applications/${t.applicationId}`} className="font-num hover:underline">{t.applicationId}</Link></>
+                        : t.requestId ? <> · <span className="font-num">Request {t.requestId.slice(0, 8)}</span></> : null}
+                    </p>
+                  </li>
+                ))}</ul>
+                <div className="hidden overflow-x-auto md:block">
                   <table className="w-full min-w-[820px] text-left text-sm" data-testid="table-ledger">
                     <thead><tr className="border-b text-xs uppercase tracking-wide text-slate-500"><th className="py-2 pr-3">Date</th><th>User</th><th>Type</th><th>Account</th><th>Reason</th><th className="text-right">Amount</th><th className="pl-4">Reference</th></tr></thead>
                     <tbody>{q.data.items.map((t) => (
