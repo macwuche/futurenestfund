@@ -972,6 +972,71 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/users/{userId}/eligible-amount:
+    put:
+      operationId: updateUserEligibleAmount
+      tags: [admin]
+      summary: Use the amount for this user's tier, or set a custom eligible amount that replaces it
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserEligibleAmountUpdate"
+      responses:
+        "200":
+          description: The updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserProfile"
+        "400":
+          description: Invalid amount
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: User not found
+  /admin/system/tier-amounts:
+    get:
+      operationId: getTierAmounts
+      tags: [admin]
+      summary: The eligible amount for each tier
+      responses:
+        "200":
+          description: Amounts per tier (null = not set)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TierAmounts"
+    put:
+      operationId: updateTierAmounts
+      tags: [admin]
+      summary: Set the eligible amount for each tier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TierAmounts"
+      responses:
+        "200":
+          description: Updated amounts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TierAmounts"
+        "400":
+          description: Invalid amounts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /admin/files/{fileId}:
     get:
       operationId: getAdminFile
@@ -1654,7 +1719,18 @@ components:
           type: array
           items: { $ref: "#/components/schemas/GrantHighlight" }
         applicationCount: { type: integer }
-      required: [profile, totalBudget, allocatedFunds, remainingFunds, fundingTrend, setupCards, highlights, recommendations, applicationCount]
+        balanceSummary: { $ref: "#/components/schemas/BalanceSummary" }
+      required: [profile, totalBudget, allocatedFunds, remainingFunds, fundingTrend, setupCards, highlights, recommendations, applicationCount, balanceSummary]
+    BalanceSummary:
+      type: object
+      description: The three balance cards on the applicant dashboard
+      properties:
+        tier: { type: integer, minimum: 1, maximum: 3 }
+        eligibleAmount: { type: [number, "null"], description: "The user's custom eligible amount, else the amount for their tier; null = not set" }
+        grantBalance: { type: number }
+        approvedAwards: { type: integer, description: "Applications approved (grants awarded)" }
+        depositBalance: { type: number, description: "Approved deposits minus the charges taken from them" }
+      required: [tier, eligibleAmount, grantBalance, approvedAwards, depositBalance]
     AdminDashboard:
       type: object
       properties:
@@ -1846,10 +1922,11 @@ components:
           items: { $ref: "#/components/schemas/KycDocument" }
         permissions: { $ref: "#/components/schemas/UserPermissions" }
         withdrawalLimits: { $ref: "#/components/schemas/EffectiveWithdrawalLimits" }
+        eligibleAmount: { $ref: "#/components/schemas/EffectiveEligibleAmount" }
         audit:
           type: array
           items: { $ref: "#/components/schemas/AuditEntry" }
-      required: [id, name, email, phone, telegram, organization, maskedId, tier, verificationLevel, status, balances, cards, documents, permissions, withdrawalLimits, audit]
+      required: [id, name, email, phone, telegram, organization, maskedId, tier, verificationLevel, status, balances, cards, documents, permissions, withdrawalLimits, eligibleAmount, audit]
     AdminUserUpdate:
       type: object
       properties:
@@ -1888,6 +1965,26 @@ components:
         dailyTotal: { type: [number, "null"] }
         usedLast24h: { type: number, description: "Withdrawals under review or approved in the last 24 hours" }
       required: [custom, maxPerRequest, dailyTotal, usedLast24h]
+    TierAmounts:
+      type: object
+      properties:
+        tier1: { type: [number, "null"], description: "Eligible amount in USD for Tier 1; null = not set" }
+        tier2: { type: [number, "null"] }
+        tier3: { type: [number, "null"] }
+      required: [tier1, tier2, tier3]
+    UserEligibleAmountUpdate:
+      type: object
+      properties:
+        custom: { type: boolean, description: "false = use the amount for the user's tier; true = the amount below replaces it" }
+        amount: { type: [number, "null"] }
+      required: [custom]
+    EffectiveEligibleAmount:
+      type: object
+      properties:
+        custom: { type: boolean, description: "Whether this is the user's own amount rather than their tier's" }
+        amount: { type: [number, "null"], description: "What the user sees; null = not set" }
+        tierAmount: { type: [number, "null"], description: "The amount for the user's current tier" }
+      required: [custom, amount, tierAmount]
     CardIssueInput:
       type: object
       properties:

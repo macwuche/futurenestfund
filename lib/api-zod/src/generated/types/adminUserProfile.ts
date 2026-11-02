@@ -8,6 +8,7 @@
 import type { AdminUserProfileStatus } from './adminUserProfileStatus';
 import type { AdminUserProfileVerificationLevel } from './adminUserProfileVerificationLevel';
 import type { AuditEntry } from './auditEntry';
+import type { EffectiveEligibleAmount } from './effectiveEligibleAmount';
 import type { EffectiveWithdrawalLimits } from './effectiveWithdrawalLimits';
 import type { KycDocument } from './kycDocument';
 import type { UserBalances } from './userBalances';
@@ -35,5 +36,6 @@ export interface AdminUserProfile {
   documents: KycDocument[];
   permissions: UserPermissions;
   withdrawalLimits: EffectiveWithdrawalLimits;
+  eligibleAmount: EffectiveEligibleAmount;
   audit: AuditEntry[];
 }

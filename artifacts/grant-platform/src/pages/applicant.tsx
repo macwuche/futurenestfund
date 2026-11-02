@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link, useLocation, useParams } from 'wouter';
+import { Link, useLocation, useParams, useSearch } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import {
   useUpdateApplicantProfile, useCreateApplicantRequest, useGetApplicantApplication, getGetApplicantApplicationQueryKey,
   useWithdrawApplicantApplication, useRespondToApplicantApplication, getGetApplicantDashboardQueryKey,
@@ -13,7 +12,7 @@ import {
   type ApplicantDashboard, type ApplicantKyc, type KycDocumentKind, type ApplicantAccount, type ApplicantApplication, type ApplicationDetail,
 } from '@workspace/api-client-react';
 import {
-  Check, ChevronDown, ChevronRight, Layers, CircleCheck, CircleX, Clock, FileText, PenLine, Sparkles,
+  Award, Check, ChevronDown, ChevronRight, Layers, CircleCheck, CircleX, Clock, FileText, PenLine, Sparkles,
   Search, ArrowDownLeft, Undo2, ArrowLeft, ArrowUpRight, Snowflake, Landmark, Wallet,
   CreditCard, BadgeCheck, Lock, Camera, Upload, Download, Trash2, IdCard, House as HouseIcon, Loader2, Nfc, type LucideIcon,
 } from 'lucide-react';
@@ -22,7 +21,7 @@ import { AccountSecurity } from '@/components/security';
 import { useAuth } from '@/lib/auth';
 import { MatchPill, TopMatches, WhyMatch, useMatchmakingDialog } from '@/components/matchmaking';
 import { OwnCardControls } from '@/components/card-self-service';
-import { Avatar, Empty, ErrorState, Field, FILE_RULES, Modal, PageSkeleton, Skel, StatusBadge, checkFile, cx, dateFmt, useAnimateOnce, fileSize, inputCls, money, statusLabel } from '@/components/bits';
+import { Avatar, Empty, ErrorState, Field, FILE_RULES, Modal, PageSkeleton, Skel, StatusBadge, checkFile, cx, dateFmt, fileSize, inputCls, money, statusLabel } from '@/components/bits';
 import { apiError, matchesSearch, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
@@ -46,7 +45,7 @@ export function DashboardPage() {
 function DashboardBody({ d }: { d: ApplicantDashboard }) {
   return (
     <div className="space-y-5 lg:space-y-6">
-      <FundingTracker d={d} />
+      <BalanceCards d={d} />
       <SetupCards d={d} />
       <Highlights d={d} />
     </div>
@@ -64,51 +63,55 @@ export function Legend({ className }: { className?: string }) {
   );
 }
 
-function FundingTracker({ d }: { d: ApplicantDashboard }) {
-  const anim = useAnimateOnce('chart-funding');
-  const pct = d.totalBudget > 0 ? Math.min(100, Math.max(0, (d.allocatedFunds / d.totalBudget) * 100)) : 0;
+/**
+ * The three balance cards at the top of the dashboard (Phase 8): three shades of the brand navy, darkest first.
+ * Muted text is blue-100 on the two dark cards and white on the brighter one, so every line stays ≥ 4.5:1.
+ */
+const balanceTones = [
+  { bg: 'bg-[linear-gradient(135deg,#0B1739_0%,#172554_100%)]', muted: 'text-blue-100' },
+  { bg: 'bg-[linear-gradient(135deg,#1E3A8A_0%,#1E40AF_100%)]', muted: 'text-blue-100' },
+  { bg: 'bg-[linear-gradient(135deg,#1D4ED8_0%,#2563EB_100%)]', muted: 'text-white' },
+] as const;
+
+function BalanceCard({ tone, href, label, icon: Icon, value, valueTestid, wide, testid, children }: {
+  tone: 0 | 1 | 2; href: string; label: string; icon: LucideIcon; value: number | null; valueTestid: string; wide?: boolean; testid: string; children: ReactNode;
+}) {
+  const t = balanceTones[tone];
   return (
-    <section className={cx(card, 'p-5 lg:p-6')} data-testid="card-funding-tracker" aria-labelledby="tracker-heading">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 id="tracker-heading" className="text-lg font-semibold text-slate-900 lg:text-xl">Grant Funding Tracker</h2>
-          <Legend className="mt-1 hidden md:flex" />
-        </div>
-        <dl className="hidden gap-8 md:flex">
-          <div><dt className="text-sm text-slate-500">Total Grant Budget</dt><dd className="text-2xl font-bold tabular-nums text-slate-900" data-testid="text-total-budget">{money(d.totalBudget)}</dd></div>
-          <div className="border-l border-slate-200 pl-8"><dt className="text-sm text-slate-500">Funds Allocated</dt><dd className="text-2xl font-bold tabular-nums text-slate-900" data-testid="text-allocated">{money(d.allocatedFunds)}</dd></div>
-        </dl>
+    <Link href={href} data-testid={testid}
+      className={cx('press group relative isolate flex min-w-0 flex-col overflow-hidden rounded-2xl p-4 text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1E3A8A]/30 sm:p-5', t.bg, wide && 'col-span-2 md:col-span-1')}>
+      {/* Decorative rings, behind the text */}
+      <span aria-hidden="true" className="absolute -right-10 -top-12 -z-10 h-36 w-36 rounded-full border-[18px] border-white/[0.06]" />
+      <span aria-hidden="true" className="absolute -bottom-16 right-10 -z-10 h-28 w-28 rounded-full bg-white/[0.04]" />
+      <div className="flex items-start justify-between gap-2">
+        <p className={cx('text-sm font-medium', t.muted)}>{label}</p>
+        {/* The two half-width cards on phones drop the icon so the label stays on one line and the figures line up. */}
+        <span className={cx('h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/10 ring-1 ring-white/15 transition group-hover:bg-white/15', wide ? 'grid' : 'hidden sm:grid')}><Icon className="h-[18px] w-[18px]" aria-hidden="true" /></span>
       </div>
+      <p className={cx('mt-3 font-bold tracking-tight tabular-nums', wide ? 'text-[28px] leading-9 lg:text-[30px]' : 'text-xl leading-7 sm:text-2xl md:text-[28px] md:leading-9 lg:text-[30px]')} data-testid={valueTestid}>
+        {money(value ?? 0)}
+      </p>
+      <p className={cx('mt-1 text-[13px] leading-snug sm:text-sm', t.muted)}>{children}</p>
+    </Link>
+  );
+}
 
-      {/* Mobile summary: two figures side by side and a progress bar, as in the design */}
-      <div className="md:hidden">
-        <div className="mt-4 grid grid-cols-2 divide-x divide-slate-200">
-          <div className="pr-3">
-            <p className="text-[22px] font-bold tabular-nums text-slate-900" data-testid="text-total-budget-mobile">{money(d.totalBudget)}</p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-600"><i className="h-2 w-2 shrink-0 rounded-full" style={{ background: GREY }} />Total Grant Budget</p>
-          </div>
-          <div className="pl-4">
-            <p className="text-[22px] font-bold tabular-nums text-slate-900" data-testid="text-allocated-mobile">{money(d.allocatedFunds)}</p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-600"><i className="h-2 w-2 shrink-0 rounded-full" style={{ background: NAVY }} />Funds Allocated</p>
-          </div>
-        </div>
-        <div className="mt-4 h-3 overflow-hidden rounded-full" style={{ background: GREY }} role="progressbar" aria-label="Budget allocated" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
-          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: NAVY }} />
-        </div>
-      </div>
-
-      <div className="mt-5 hidden h-64 md:block" data-testid="chart-funding">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={d.fundingTrend} barCategoryGap="28%">
-            <CartesianGrid vertical={false} stroke="#E5E7EB" />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} tick={{ fill: '#475569' }} />
-            <YAxis tickLine={false} axisLine={false} fontSize={12} width={68} tick={{ fill: '#475569' }} tickFormatter={usd0}
-              domain={[0, (max: number) => Math.max(10000, Math.ceil(max / 10000) * 10000)]} />
-            <Tooltip cursor={{ fill: '#EEF4FB' }} formatter={(v: number) => money(v)} contentStyle={{ borderRadius: 12, borderColor: '#E5E7EB', fontSize: 13 }} />
-            <Bar dataKey="submitted" name="Submitted" stackId="a" fill={NAVY} isAnimationActive={anim} />
-            <Bar dataKey="review" name="Review" stackId="a" fill={GREY} radius={[4, 4, 0, 0]} isAnimationActive={anim} />
-          </BarChart>
-        </ResponsiveContainer>
+function BalanceCards({ d }: { d: ApplicantDashboard }) {
+  const b = d.balanceSummary;
+  return (
+    <section aria-labelledby="balances-heading" data-testid="section-balances">
+      <h2 id="balances-heading" className="sr-only">Balances</h2>
+      {/* Phones: Eligible amount full width, the other two side by side; tablet and up: three columns. */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
+        <BalanceCard tone={0} wide href="/grant-search" label="Eligible amount" icon={Award} value={b.eligibleAmount} valueTestid="text-eligible-amount" testid="card-balance-eligible">
+          <span data-testid="text-eligible-tier">Largest open award at Tier {b.tier}</span>
+        </BalanceCard>
+        <BalanceCard tone={1} href="/applications?status=approved" label="Grant balance" icon={Landmark} value={b.grantBalance} valueTestid="text-grant-balance" testid="card-balance-grant">
+          <span data-testid="text-approved-awards"><strong className="font-semibold text-white tabular-nums">{b.approvedAwards}</strong> approved {b.approvedAwards === 1 ? 'award' : 'awards'}</span>
+        </BalanceCard>
+        <BalanceCard tone={2} href="/deposits" label="Successful deposit" icon={Wallet} value={b.depositBalance} valueTestid="text-deposit-balance" testid="card-balance-deposit">
+          Covers card fees and commissions
+        </BalanceCard>
       </div>
     </section>
   );
@@ -312,7 +315,9 @@ const appFilters = ['All', 'Active', 'Changes requested', 'Approved', 'Withdrawn
 function AppsBody() {
   const { search, setSearch, openNewApp } = useDemo();
   const q = useApplications();
-  const [filter, setFilter] = useState<(typeof appFilters)[number]>('All');
+  // Links can open the list filtered, e.g. the dashboard's Grant balance card → /applications?status=approved.
+  const wanted = new URLSearchParams(useSearch()).get('status')?.toLowerCase().replace(/-/g, ' ');
+  const [filter, setFilter] = useState<(typeof appFilters)[number]>(() => appFilters.find((k) => k.toLowerCase() === wanted) ?? 'All');
   if (q.isLoading) return <PageSkeleton />;
   if (q.isError || !q.data) return <ErrorState onRetry={() => q.refetch()} />;
   const keep = (s: string) => filter === 'All' || (filter === 'Active' ? ['Submitted', 'Review', 'Changes requested'].includes(s) : s === filter);
@@ -861,7 +866,7 @@ function SettingsBody({ d }: { d: ApplicantDashboard }) {
               <dl className="divide-y divide-slate-100 text-sm">
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Identity verification</dt><dd><StatusBadge status={a.verificationLevel} dot={false} testid="badge-verification" /></dd></div>
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Account status</dt><dd><StatusBadge status={a.status} dot={false} testid="badge-account-status" /></dd></div>
-                <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Account tier</dt><dd className="font-semibold text-slate-900" data-testid="text-tier">Level {a.tier}</dd></div>
+                <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Account tier</dt><dd className="font-semibold text-slate-900" data-testid="text-tier">Tier {a.tier}</dd></div>
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600" id="label-email-notifications">Email notifications</dt><dd><EmailNotificationsSwitch on={a.permissions.emailOverride ?? a.permissions.emailNotifications} locked={typeof a.permissions.emailOverride === 'boolean'} /></dd></div>
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Verification needed to withdraw</dt><dd className="font-semibold text-slate-900">{a.permissions.withdrawalKycRequired ? 'Yes' : 'No'}</dd></div>
                 <p className="pt-3 text-xs text-slate-500">{signedIn ? 'Email notifications are yours to change; the other settings are managed by your administrator.' : 'These settings are managed by your administrator.'}</p>

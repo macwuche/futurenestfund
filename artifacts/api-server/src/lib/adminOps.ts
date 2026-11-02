@@ -8,6 +8,7 @@ import { applicationSummary } from "./applicantRecords";
 import { KYC_KINDS } from "./kyc";
 import { fileUrl, type DbTx } from "./uploads";
 import { DemoInputError, getUser } from "./demoWorkspace";
+import { describeEligible, describeTierAmounts, effectiveEligible, parseEligible, parseTierAmounts, tierAmountsFrom, tierAmountsOut } from "./eligibleAmount";
 import { describeLimits, effectiveLimits, limitsOut, parseLimits, withdrawnLast24h, type Limits } from "./withdrawalLimits";
 
 /*
@@ -193,6 +194,45 @@ export async function changeUserWithdrawalLimits(id: string, input: { custom: bo
     const effective = effectiveLimits(next, settings);
     await tx.insert(demoAuditTable).values({ profileId: id, actor, action: input.custom ? `Custom withdrawal limits set: ${describeLimits(limits)}` : "Withdrawal limits set to follow the global limits" });
     await notifyUser(id, `Your withdrawal limits have changed: ${describeLimits(effective)}.`, "/withdrawals", tx);
+    return true;
+  });
+  return found ? getUser(id) : undefined;
+}
+
+/* ---------- eligible amounts (per tier, and per user) ---------- */
+
+export async function globalTierAmounts() {
+  const [settings] = await db.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
+  return tierAmountsOut(tierAmountsFrom(settings));
+}
+
+export async function changeTierAmounts(input: { tier1?: number | null; tier2?: number | null; tier3?: number | null }, actor: string) {
+  const amounts = parseTierAmounts(input);
+  if (typeof amounts === "string") throw new DemoInputError(amounts);
+  await db.transaction(async tx => {
+    const [before] = await tx.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform")).for("update");
+    const old = tierAmountsFrom(before);
+    if (old.tier1 === amounts.tier1 && old.tier2 === amounts.tier2 && old.tier3 === amounts.tier3) return;
+    await tx.update(demoSettingsTable).set({ tier1EligibleCents: amounts.tier1, tier2EligibleCents: amounts.tier2, tier3EligibleCents: amounts.tier3 }).where(eq(demoSettingsTable.id, "platform"));
+    await tx.insert(demoAuditTable).values({ actor, action: `Eligible amounts per tier set: ${describeTierAmounts(amounts)}` });
+  });
+  return tierAmountsOut(amounts);
+}
+
+/** custom = false: the user gets their tier's amount. custom = true: the given amount replaces it (null = not set). */
+export async function changeUserEligibleAmount(id: string, input: { custom: boolean; amount?: number | null }, actor: string) {
+  const cents = input.custom ? parseEligible(input.amount) : null;
+  if (typeof cents === "string") throw new DemoInputError(cents);
+  const found = await db.transaction(async tx => {
+    const [settings] = await tx.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
+    const profile = await lockProfile(tx, id);
+    if (!profile) return false;
+    const next = { eligibleCustom: input.custom, eligibleCents: cents };
+    if (profile.eligibleCustom === next.eligibleCustom && profile.eligibleCents === next.eligibleCents) return true;
+    await tx.update(demoProfilesTable).set(next).where(eq(demoProfilesTable.id, id));
+    const before = effectiveEligible(profile, settings), after = effectiveEligible({ ...profile, ...next }, settings);
+    await tx.insert(demoAuditTable).values({ profileId: id, actor, action: input.custom ? `Custom eligible amount set: ${describeEligible(cents)}` : `Eligible amount set to follow Tier ${profile.tier}` });
+    if (after !== before) await notifyUser(id, `Your eligible amount is now ${describeEligible(after)}.`, "/dashboard", tx);
     return true;
   });
   return found ? getUser(id) : undefined;

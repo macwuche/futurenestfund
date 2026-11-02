@@ -8,6 +8,7 @@ import { grantRecommendations, storedAnswers } from "./matchmaking";
 import { APPEND_ONLY_TRIGGERS } from "./demoSeed";
 import { GetAdminUserResponse } from "@workspace/api-zod";
 import { effectiveLimits, limitProblem, limitsOut, withdrawnLast24h } from "./withdrawalLimits";
+import { centsOut, effectiveEligible, tierAmount, tierAmountsFrom } from "./eligibleAmount";
 
 export class DemoInputError extends Error {}
 
@@ -16,6 +17,16 @@ export async function userWithdrawalLimits(profile: DemoProfile) {
   const [settings] = await db.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
   const used = (await withdrawnLast24h([profile.id])).get(profile.id) ?? 0;
   return { custom: profile.withdrawalLimitCustom, ...limitsOut(effectiveLimits(profile, settings)), usedLast24h: used / 100 };
+}
+
+/** A user's eligible amount (custom, or their tier's), plus the tier amount it replaces, in API shape. */
+export async function userEligibleAmount(profile: DemoProfile) {
+  const [settings] = await db.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
+  return {
+    custom: profile.eligibleCustom,
+    amount: centsOut(effectiveEligible(profile, settings)),
+    tierAmount: centsOut(tierAmount(tierAmountsFrom(settings), profile.tier)),
+  };
 }
 
 
@@ -53,6 +64,7 @@ export async function getUser(id: string) {
     balances: { grant: person.grantCents / 100, deposit: person.depositCents / 100, card: person.cardCents / 100 },
     cards,
     withdrawalLimits: await userWithdrawalLimits(person),
+    eligibleAmount: await userEligibleAmount(person),
     audit: audit.map(entry => ({ ...entry, createdAt: entry.createdAt.toISOString() })),
   });
 }
@@ -103,6 +115,9 @@ export async function applicantDashboard(profileId: string, monthly: boolean) {
     .where(and(eq(demoApplicationsTable.profileId, person.id), activeApplicationsFilter)).orderBy(desc(demoApplicationsTable.submittedAt));
   // Any application ever submitted counts, including one withdrawn since.
   const [{ submittedAny }] = await db.select({ submittedAny: sql<boolean>`count(*) > 0` }).from(demoApplicationsTable).where(eq(demoApplicationsTable.profileId, person.id));
+  const [{ approvedAwards }] = await db.select({ approvedAwards: sql<number>`count(*)::int` }).from(demoApplicationsTable)
+    .where(and(eq(demoApplicationsTable.profileId, person.id), eq(demoApplicationsTable.status, "Approved")));
+  const eligible = await userEligibleAmount(person);
   return {
     profile: applicantProfile(person),
     totalBudget: 50000, allocatedFunds: person.grantCents / 100, remainingFunds: 50000 - person.grantCents / 100,
@@ -114,6 +129,10 @@ export async function applicantDashboard(profileId: string, monthly: boolean) {
     highlights: apps.slice(0, 5).map(applicationSummary),
     recommendations: grantRecommendations(storedAnswers(person)),
     applicationCount: apps.length,
+    balanceSummary: {
+      tier: person.tier, eligibleAmount: eligible.amount, grantBalance: person.grantCents / 100,
+      approvedAwards, depositBalance: person.depositCents / 100,
+    },
   };
 }
 
@@ -195,7 +214,7 @@ export async function changeProfile(id: string, changes: ProfileChanges, actor: 
           fields.push(override ? `${override}: ${on === null ? "left to the user" : on ? "always on" : "always off"} (admin override)` : `${perm} ${on ? "on" : "off"}`);
         }
       } else if (current[key] !== value) {
-        fields.push(key === "status" ? `status (${String(value).toLowerCase()})` : key === "tier" ? `tier (Level ${value})` : key);
+        fields.push(key === "status" ? `status (${String(value).toLowerCase()})` : key === "tier" ? `tier (Tier ${value})` : key);
       }
     }
     if (!fields.length) return true;

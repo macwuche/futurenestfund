@@ -13,6 +13,7 @@ import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDow
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
+import { GlobalTierAmounts, UserEligibleAmount } from '@/components/eligible-amount';
 import { MonitoringSettings, VirusScanSettings } from '@/components/monitoring-settings';
 import { EmailSettingsCard } from '@/components/email-settings';
 import { CardControls } from '@/components/card-controls';
@@ -157,7 +158,7 @@ function UserTable({ items, sort, dir, onSort }: { items: AdminUserSummary[]; so
           <span className="min-w-0 flex-1">
             <span className="block truncate font-semibold">{u.name}</span>
             <span className="block truncate text-xs text-slate-500">{u.organization}</span>
-            <span className="block text-xs text-slate-500" data-testid={`text-card-joined-${u.id}`}>L{u.tier} · joined {joinedFmt(u.joinedAt)}</span>
+            <span className="block text-xs text-slate-500" data-testid={`text-card-joined-${u.id}`}>Tier {u.tier} · joined {joinedFmt(u.joinedAt)}</span>
             <span className="mt-1 flex flex-wrap items-center gap-1"><StatusBadge status={u.status} /><StatusBadge status={u.verificationLevel} />{u.pendingKycDocuments > 0 && <span className="text-xs text-slate-500">{u.pendingKycDocuments} to review</span>}</span>
           </span>
           <span className="shrink-0 text-right"><span className="font-num block text-sm font-semibold">{money(u.grantBalance)}</span><span className="block text-[11px] text-slate-500">grant</span></span>
@@ -176,7 +177,7 @@ function UserTable({ items, sort, dir, onSort }: { items: AdminUserSummary[]; so
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#111] text-xs font-bold text-[#C6F432]">{initials(u.name)}</span>
                   <span><span className="block font-semibold">{u.name}</span><span className="block text-xs text-slate-500">{u.email} · {u.organization} · <span className="font-num">{u.id}</span></span></span></Link></td>
                 <td className="whitespace-nowrap text-xs text-slate-600">{joinedFmt(u.joinedAt)}</td>
-                <td className="font-num">L{u.tier}</td>
+                <td className="font-num">Tier {u.tier}</td>
                 <td><span className="flex flex-wrap items-center gap-1"><StatusBadge status={u.verificationLevel} />{u.pendingKycDocuments > 0 && <span className="text-xs text-slate-500" data-testid={`text-pending-docs-${u.id}`}>{u.pendingKycDocuments} to review</span>}</span></td>
                 <td><StatusBadge status={u.status} /></td>
                 <td className="font-num text-right">{money(u.grantBalance)}</td>
@@ -331,7 +332,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
         <div className="min-w-[12rem] flex-1">
           <h2 className="font-display text-2xl font-bold" data-testid="text-user-name">{u.name}</h2>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
-            <StatusBadge status={u.verificationLevel} testid="badge-verification" /><StatusBadge status={u.status} testid="badge-user-status" /><span className="text-slate-500">Level {u.tier}</span>
+            <StatusBadge status={u.verificationLevel} testid="badge-verification" /><StatusBadge status={u.status} testid="badge-user-status" /><span className="text-slate-500">Tier {u.tier}</span>
           </div>
           <div className="mt-1 flex flex-wrap gap-x-2 text-sm text-slate-600">
             <span className="break-all" data-testid="text-user-email">{u.email}</span><span aria-hidden="true" className="text-slate-300">·</span><span>{u.organization}</span>
@@ -364,7 +365,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
           <div role="radiogroup" aria-label="Tier" className="grid grid-cols-3 gap-2" data-testid="group-tier">
             {[1, 2, 3].map((t) => {
               const saving = tier.pending && tier.variables?.data.tier === t;
-              return <button key={t} role="radio" aria-checked={u.tier === t} data-testid={`button-tier-${t}`} disabled={tier.pending} onClick={() => u.tier !== t && tier.run({ tier: t }, `Tier set to Level ${t}`)} className={cx('press inline-flex items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-semibold transition', u.tier === t ? 'border-[#111] bg-[#111] text-[#C6F432]' : 'border-slate-300 hover:border-[#111]')}>{saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Level {t}</button>;
+              return <button key={t} role="radio" aria-checked={u.tier === t} data-testid={`button-tier-${t}`} disabled={tier.pending} onClick={() => u.tier !== t && tier.run({ tier: t }, `Set to Tier ${t}`)} className={cx('press inline-flex items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-semibold transition', u.tier === t ? 'border-[#111] bg-[#111] text-[#C6F432]' : 'border-slate-300 hover:border-[#111]')}>{saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Tier {t}</button>;
             })}
           </div>
           {permList.map(([k, label]) => (
@@ -383,7 +384,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
         </div>
       </div>
 
-      <div id="sec-limits" className="scroll-mt-32"><UserWithdrawalLimits u={u} /></div>
+      <div id="sec-limits" className="grid scroll-mt-32 items-start gap-4 xl:grid-cols-2"><UserWithdrawalLimits u={u} /><UserEligibleAmount u={u} /></div>
 
       <section id="sec-balances" className={cx(card, 'scroll-mt-32 p-5')} data-testid="section-balances">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="font-display font-bold">Balances and cards</h3><span className="text-xs text-slate-500">Sample balances. Credits and debits write a ledger entry; no real transfer.</span></div>
@@ -458,7 +459,7 @@ function UserApplications({ userId }: { userId: string }) {
 const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: Snowflake, hint: 'Global freeze and the rules every approval follows' },
   { id: 'email', label: 'Email', icon: Mail, hint: 'Resend key, sender, signature and health checks' },
-  { id: 'limits', label: 'Withdrawal limits', icon: Gauge, hint: 'Platform-wide limits per request and per day' },
+  { id: 'limits', label: 'Money', icon: Gauge, hint: 'Withdrawal limits and the eligible amount per tier' },
   { id: 'monitoring', label: 'Monitoring', icon: Activity, hint: 'Where errors go, and upload virus scanning' },
   { id: 'audit', label: 'Audit log', icon: ScrollText, hint: 'Every recorded change, searchable' },
   { id: 'account', label: 'Your account', icon: UserRound, hint: 'Your photo, password and sessions' },
@@ -493,7 +494,7 @@ export function AdminSettingsPage() {
           </header>
           {current.id === 'general' && <GeneralSettings />}
           {current.id === 'email' && <EmailSettingsCard />}
-          {current.id === 'limits' && <GlobalWithdrawalLimits />}
+          {current.id === 'limits' && <><GlobalWithdrawalLimits /><GlobalTierAmounts /></>}
           {current.id === 'monitoring' && <><MonitoringSettings /><VirusScanSettings /></>}
           {current.id === 'audit' && <AuditSettings />}
           {current.id === 'account' && <><AdminPhotoSettings /><AccountSecurity tone="admin" /></>}
@@ -529,7 +530,7 @@ function GeneralSettings() {
           <li className="flex items-start justify-between gap-3 py-3"><span>Approvals re-check freezes, balances and each user's KYC requirement at the moment of approval.</span><StatusBadge status="Active" /></li>
           <li className="flex items-start justify-between gap-3 py-3"><span>One finance administrator approves or declines each request, and the applicant is told by email and in the app.</span><StatusBadge status="Active" label="Single approver" dot={false} /></li>
         </ul>
-        <p className="mt-2 flex items-start gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0" />Per-user KYC requirements, tiers, notification overrides and custom withdrawal limits are set on each user's profile.</p>
+        <p className="mt-2 flex items-start gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0" />Per-user KYC requirements, tiers, notification overrides, custom withdrawal limits and custom eligible amounts are set on each user's profile.</p>
       </section>
     </>
   );

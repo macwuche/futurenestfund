@@ -758,6 +758,27 @@ export interface Matchmaking {
   matches: GrantMatch[];
 }
 
+/**
+ * The three balance cards on the applicant dashboard
+ */
+export interface BalanceSummary {
+  /**
+     * @minimum 1
+     * @maximum 3
+     */
+  tier: number;
+  /**
+     * The user's custom eligible amount, else the amount for their tier; null = not set
+     * @nullable
+     */
+  eligibleAmount: number | null;
+  grantBalance: number;
+  /** Applications approved (grants awarded) */
+  approvedAwards: number;
+  /** Approved deposits minus the charges taken from them */
+  depositBalance: number;
+}
+
 export interface ApplicantDashboard {
   profile: ApplicantProfile;
   totalBudget: number;
@@ -768,6 +789,7 @@ export interface ApplicantDashboard {
   highlights: ApplicantApplication[];
   recommendations: GrantHighlight[];
   applicationCount: number;
+  balanceSummary: BalanceSummary;
 }
 
 export interface StatusCount {
@@ -984,6 +1006,21 @@ export const AdminUserProfileStatus = {
   Frozen: 'Frozen',
 } as const;
 
+export interface EffectiveEligibleAmount {
+  /** Whether this is the user's own amount rather than their tier's */
+  custom: boolean;
+  /**
+     * What the user sees; null = not set
+     * @nullable
+     */
+  amount: number | null;
+  /**
+     * The amount for the user's current tier
+     * @nullable
+     */
+  tierAmount: number | null;
+}
+
 export interface AdminUserProfile {
   id: string;
   name: string;
@@ -1005,6 +1042,7 @@ export interface AdminUserProfile {
   documents: KycDocument[];
   permissions: UserPermissions;
   withdrawalLimits: EffectiveWithdrawalLimits;
+  eligibleAmount: EffectiveEligibleAmount;
   audit: AuditEntry[];
 }
 
@@ -1088,6 +1126,25 @@ export interface UserWithdrawalLimitsUpdate {
   maxPerRequest?: number | null;
   /** @nullable */
   dailyTotal?: number | null;
+}
+
+export interface TierAmounts {
+  /**
+     * Eligible amount in USD for Tier 1; null = not set
+     * @nullable
+     */
+  tier1: number | null;
+  /** @nullable */
+  tier2: number | null;
+  /** @nullable */
+  tier3: number | null;
+}
+
+export interface UserEligibleAmountUpdate {
+  /** false = use the amount for the user's tier; true = the amount below replaces it */
+  custom: boolean;
+  /** @nullable */
+  amount?: number | null;
 }
 
 export type CardIssueInputKind = typeof CardIssueInputKind[keyof typeof CardIssueInputKind];

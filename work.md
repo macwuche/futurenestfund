@@ -1949,3 +1949,63 @@ Not in Phase 7: new features beyond email settings; the open go-live items (§12
 **Tests (2026-11-01):** typecheck clean; `pnpm test` 80/80 (7 new in `virusScan.test.ts` with an in-process clamd stand-in: off without settings, 200 KB streamed in chunks, the EICAR string refused (alone and inside a PDF) with its signature name, fail closed when down, fail open with `CLAMAV_FAIL_OPEN=1`, scanner ERROR reply, timeout, status). New `.unlazy/mock-clamd.mjs` (recognises only EICAR) and `.unlazy/phase6-virus.mjs` 6/6 against the test API with `CLAMAV_HOST`: EICAR as `.com`, `.png` and inside a PDF refused with nothing stored; a clean photo accepted; a clean GIF still refused by the type check; Settings shows Scanning (desktop); scanner stopped: 503, nothing stored, Settings shows Not answering (phone, no sideways scroll); scanner back: uploads work without a restart. Regressions with scanning on: phase2-desktop 25/25, phase2-phone 6/6, phase5-avatars 12/12, phase5-avatars-ui 6+6. Not tested against a real ClamAV (not installable here); the EICAR test on the server is in DEPLOY step 11.
 
 **Strings in the repo:** the EICAR string is assembled from two parts in the tests so the source files don't set off antivirus software.
+
+## 14. Phase 8 build plan: user dashboard balance cards (2026-11-02)
+
+**Request (user, 2026-11-02):** three balance cards on the applicant home dashboard, in brand colours with different shades, replacing the current top of the dashboard. Tier logic will be specified later; build the UI now.
+
+| # | Label | Figure | Line under the figure |
+|---|---|---|---|
+| 1 | **Eligible amount** | e.g. `$75,000.00` | "Largest open award at Tier 1" (tier 1–3, the applicant's own) |
+| 2 | **Grant balance** | `$0.00` | `0` approved awards (count of approved applications; "1 approved award" singular) |
+| 3 | **Successful deposit** | `$0.00` | "Covers card fees and commissions" |
+
+### 14a. What exists already (no migration needed)
+- `demo_profiles.tier` (1–3, set by an admin in the user inspector) is already returned by `GET /applicant/account` (`tier`).
+- Grant balance: `balances.grant` (credited by the ledger when an application is approved).
+- Deposits: `balances.deposit` (current balance) and the ledger's approved `Deposit` entries (lifetime total).
+- Open grants and amounts: `api-server/src/lib/grantCatalog.ts` (12 sample grants, $2,500–$75,000, with deadlines).
+
+### 14b. Plan (step 8.1)
+1. **API:** `GET /applicant/dashboard` gains `balanceSummary { tier, eligibleAmount, grantBalance, approvedAwards, depositedTotal }`, computed server-side so the dashboard stays one request. OpenAPI + codegen. Placeholder rule until the tier rules arrive: `eligibleAmount` = largest open (deadline not passed) catalogue award, in one function (`eligibleAmountFor(tier)`) so the real tier logic drops in later.
+2. **UI:** a `BalanceCards` component at the top of the dashboard, replacing the Grant Funding Tracker card (the chart stays on the Funding Tracker page).
+   - Colours: three shades of the brand navy, white text, every pair ≥ 4.5:1 contrast: card 1 `#0F172A → #1E3A8A`, card 2 `#1E3A8A → #1E40AF`, card 3 `#1D4ED8 → #2563EB` (subtle gradient, small icon in a translucent white tile, faint decorative shape).
+   - Desktop / tablet (md+): three equal columns.
+   - Phone (390 px): Eligible amount full width, Grant balance and Successful deposit side by side below it (all three visible without scrolling or swiping).
+   - Amounts in tabular figures; loading skeletons; `$0.00` / `0 approved awards` as the empty state; frozen account shows the existing frozen notice.
+   - Each card links to its page: Eligible amount → Grant Search, Grant balance → My Applications (approved), Successful deposit → Add funds.
+3. **Tests:** typecheck, `pnpm test` (+ unit test for the summary), new `.unlazy/phase8-balances-ui.mjs` (desktop + phone: figures match the API, singular/plural, tier text, links, no overflow at 390 px), phase1 desktop/phone, phase6-matchmaking-ui, smoke, and the `phase6-mobile` audit at 0 problems. Before/after screenshots at 1440 and 390 px.
+
+### 14c. Answers (user, 2026-11-02) and what changes in the plan
+1. **Only the Grant Funding Tracker card** (Total Grant Budget / Funds Allocated / chart) is replaced. Setup cards and Grant Highlights stay. The chart stays on the Funding Tracker page.
+2. **Successful deposit = approved deposits minus the charges taken from them** (card funding fee, withdrawal fee, …). That is the existing **deposit balance** (`demo_profiles.deposit_cents`): approved deposits and deposit top-ups in, debits on the deposit account out, all through the ledger. Today charges are taken as admin debits on the deposit account (5.5); automatic fees aren't built yet.
+3. Cards / Transactions pages keep their tiles for now; revisit once the dashboard cards are approved.
+4. ("Level" vs "Tier" wording on the admin side) re-explained and asked again.
+5. **The Eligible amount is set by the administrator**, the same way as withdrawal limits:
+   - **Global, one amount per tier** (Tier 1, Tier 2, Tier 3) in Admin Settings, in the money section (today "Withdrawal limits", renamed **"Money"** to hold both).
+   - **Per user** in the user inspector: "Use the Tier N amount" or "Custom amount for this user" (replaces the tier amount).
+   - Effective amount = custom amount if set, otherwise the amount for the user's current tier; not set → `$0.00`.
+   - Every change is audited; a per-user change notifies the applicant (like withdrawal limits).
+   - The amount is shown only, for now: it doesn't limit what an applicant can request. The rest of the tier logic comes later.
+
+### 14d. Build (step 8.1, revised)
+- **Migration 0008:** `demo_settings.tier1_eligible_cents`, `tier2_eligible_cents`, `tier3_eligible_cents` (integer, null = not set); `demo_profiles.eligible_custom` (boolean, default false), `eligible_cents` (integer). No new table, so no new RLS policy.
+- **Server:** `lib/eligibleAmount.ts` (effective amount, parsing $0.01–$10,000,000 with two decimals, description for the audit); `GET|PUT /admin/system/tier-amounts`; `PUT /admin/users/{userId}/eligible-amount`; the admin user profile gains `eligibleAmount { custom, amount, tierAmount }`; `GET /applicant/dashboard` gains `balanceSummary { tier, eligibleAmount, grantBalance, approvedAwards, depositBalance }`.
+- **Admin UI:** Settings → Money: "Platform-wide limits" + new "Eligible amount per tier" (three fields). Inspector, Limits section: new "Eligible amount" card next to Withdrawal limits.
+- **Applicant UI:** `BalanceCards` replaces the tracker card, as in 14b.
+- **Tests:** unit tests for `eligibleAmount.ts`; new `.unlazy/phase8-balances.mjs` (API: validation, precedence custom > tier, tier change follows, audit, notification, dashboard summary) and `phase8-balances-ui.mjs` (admin + applicant, desktop + phone); regressions as in 14b plus phase5-limits(-ui) for the renamed Settings section.
+
+### 2026-11-02: Step 8.1 done (dashboard balance cards, eligible amounts)
+
+**Built:**
+- **Dashboard:** three balance cards replace the Grant Funding Tracker card (setup cards and Grant Highlights unchanged; the chart stays on the Funding Tracker page). Shades of the brand navy, darkest first: **Eligible amount** (`#0B1739→#172554`, "Largest open award at Tier N", links to Grant Search), **Grant balance** (`#1E3A8A→#1E40AF`, "N approved award(s)", links to My Applications filtered to Approved), **Successful deposit** (`#1D4ED8→#2563EB`, the deposit balance: approved deposits minus charges, "Covers card fees and commissions", links to Add funds). Muted text is blue-100 on the dark cards and white on the bright one (≥ 4.5:1). Desktop and tablet: three columns. Phone: Eligible amount full width, the other two side by side (their icons hidden so labels stay on one line and figures line up).
+- **My Applications** accepts `?status=approved` (or any filter name) to open filtered.
+- **Admin → Settings → Money** (was "Withdrawal limits", same URL `/admin/settings/limits`): new "Eligible amount per tier" form (Tier 1/2/3, empty = not set, shows $0.00).
+- **User inspector → Limits:** new "Eligible amount" card beside Withdrawal limits: "Use the Tier N amount" or "Custom for this user". A per-user change is audited and notifies the applicant when their amount changes; a tier change moves the amount unless it's custom.
+- **Server:** migration `0008_eligible_amounts` (`demo_settings.tier1/2/3_eligible_cents`, `demo_profiles.eligible_custom`, `eligible_cents`); `lib/eligibleAmount.ts`; `GET|PUT /admin/system/tier-amounts`; `PUT /admin/users/{userId}/eligible-amount`; `AdminUserProfile.eligibleAmount`; `ApplicantDashboard.balanceSummary`.
+
+**Tests (2026-11-02, test API on :8099 via the proxy, demo data restored before each suite):** typecheck clean; `pnpm test` 87/87 (4 new in `eligibleAmount.test.ts`); new `.unlazy/phase8-balances.mjs` 10/10 (API) and `phase8-balances-ui.mjs` 7/7 desktop + 7/7 phone; phase6-mobile 39/39 with 0 problems; smoke 23+23; phase1-desktop 26/26; phase1-phone 10/10; phase6-matchmaking-ui 7+7; phase5-limits-ui 6+6; phase5-users-ui 6+6. Screenshots reviewed at 1440 and 390 px.
+
+**Tier wording (user, 2026-11-02):** "Level" is now "Tier" everywhere: the inspector header and tier buttons ("Tier 1/2/3", toast "Set to Tier 2"), the users directory ("Tier 2" instead of "L2"), the applicant's Settings ("Account tier: Tier 2") and the audit text ("tier (Tier 2)"). Re-run after the change: phase5-users-ui 6+6, phase3-desktop 22/22, phase3-phone 17/17, phase1-desktop 26/26, phase8-balances-ui 7+7, phase6-mobile 39/39 with 0 problems.
+
+**Before it shows:** the Replit API workflow must be restarted (it serves a build); on the VPS, `deploy.sh` applies migration 0008.

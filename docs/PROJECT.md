@@ -17,6 +17,7 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 4 | Real accounts on Supabase: sign-in, API auth, email through Resend, Settings security; then a hardening pass (RLS, `app_api` role, migrations, CSP, rate limits, unit tests) | Done (4.5 two-factor dropped by decision) |
 | 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
 | 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.5 done 2026-10-30/31; **6.5: deployed on the EU VPS at https://access.futurenestfund.org on 2026-10-31** ([`docs/DEPLOY.md`](DEPLOY.md), record in [`server.md`](../server.md)); **6.6 virus scanning of uploads: code done 2026-11-01**, off until ClamAV is installed on the server (DEPLOY step 11, memory decision); 6.7 shared rate limits (only with several servers) |
+| 8 | User dashboard: balance cards, eligible amounts per tier and per user | 8.1 done 2026-11-02 in code (`work.md` §14); not committed or deployed yet |
 | 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin layout, admin tables on phones, applicant fixes (review scored the UI 67/100) | Done: 7.1 on 2026-10-31, 7.2–7.7 on 2026-11-01 ([`work.md`](../work.md) §13 and the log after it) |
 
 What still needs you is listed in §12 (go-live checklist) and §15 (open items).
@@ -49,7 +50,7 @@ What still needs you is listed in §12 (go-live checklist) and §15 (open items)
 Menu in groups: **Overview** (Dashboard, My Applications (+ detail page), Milestones) · **Find funding** (Grant categories, Grant Search) · **Track** (Funding Tracker, Reports) · **Money** (Cards, Transactions, Withdrawals, Add funds) · Settings and Help Centre at the bottom. Phones keep the bottom tab bar and a New Application button on the dashboard.
 
 - **Dashboard:**
-  - funding tracker (stacked chart on desktop, progress bar on phones)
+  - three balance cards (Phase 8.1): **Eligible amount** ("Largest open award at Tier N", set by an admin per tier or per user), **Grant balance** (with the number of approved awards), **Successful deposit** (the deposit balance: approved deposits minus charges)
   - setup cards: grant matchmaking, first proposal (each is marked complete by the server: answers saved / an application submitted)
   - grant highlights
 - **Applications:** create (with an optional PDF/Word proposal), list with filters, detail page.
@@ -91,13 +92,14 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
   - the user's applications and KYC documents
 - **Application review:** Submitted → Review → Approved / Declined / Changes requested, with notes. Approving credits the grant balance through the ledger.
 - **Deposit / Withdrawal queues:** approve or decline (decline needs a reason). Freezes, balances and KYC are re-checked at approval time. A pending withdrawal above the user's current limit is flagged.
+- **Eligible amount:** one amount per tier in Settings → Money, and an optional custom amount per user (inspector → Limits) that replaces it; shown on the applicant's dashboard only (it doesn't limit requests yet). Per-user changes are audited and notify the applicant.
 - **Withdrawal limits:** a global max per request and daily total (last 24 h, under review + approved) in Settings, and optional custom limits per user that replace them. Enforced when the applicant places a request.
 - **Transactions:** the full ledger with filters, search, pagination, totals and **CSV export** (spreadsheet-formula injection neutralised).
 - **KYC:** a document queue with previews; approve or reject (with a reason). The verification level is recomputed.
 - **Settings** (`/admin/settings/<section>`, side menu on desktop, tabs on phones):
   - **General:** global freeze (with a confirmation and a reason) and the security rules
   - **Email:** Resend key, sender, signature, health checks, test email (§7)
-  - **Withdrawal limits:** the platform-wide limits
+  - **Money** (`/admin/settings/limits`): the platform-wide withdrawal limits and the **eligible amount per tier**
   - **Monitoring:** where errors go (server log, plus Sentry when configured), a "Send test errors" button that raises one server and one browser error and shows their references, and **upload virus scanning** status (Scanning / Not answering / Off, with the ClamAV version)
   - **Audit log:** a link to the full log
   - **Your account:** the admin's own profile photo (shown in the sidebar and as the header avatar, which links here) and **Sign-in & security**
@@ -250,6 +252,7 @@ Dashboard settings (see §12): Site URL and Redirect URLs are set to `https://ac
 | `lib/db/migrations/0004_withdrawal_limits.sql` | Global (`demo_settings`) and per-user (`demo_profiles`) withdrawal limits |
 | `lib/db/migrations/0005_admin_profiles.sql` | `demo_admin_profiles` (admins' own photo) |
 | `lib/db/migrations/0006_matchmaking.sql` | `demo_profiles.matchmaking` (the applicant's matchmaking answers) |
+| `lib/db/migrations/0008_eligible_amounts.sql` | `demo_settings.tier1/2/3_eligible_cents`; `demo_profiles.eligible_custom`, `eligible_cents` (eligible amount per tier and per user) |
 | `lib/db/migrations/0007_email_settings.sql` | `demo_settings.email_config`, `email_secrets`, `email_hook_seen_at`, `email_hook_result`; `demo_notifications.email_last_error` |
 | `lib/db/supabase/migrations/0001_user_roles.sql` | `user_roles` (Supabase only) |
 | `lib/db/supabase/migrations/0002_app_api_role.sql` | `app_api` role, grants, `app_api_all` policies, revoked Data API grants |
@@ -479,6 +482,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | 2026-10-29 | **Admins sign in with email + password only (no two-factor)**; step 4.5 dropped |
 | 2026-10-29 | Browser test scripts stay in the git-ignored `.unlazy/` folder; unit tests are committed (Vitest) |
 | 2026-10-30 | **No two-person (4-eyes) approval**: one finance admin approves or declines each withdrawal; the applicant is notified in-app and by email when they request it and when it's decided |
+| 2026-11-02 | The applicant's level is called **Tier** (1–3) everywhere, on both sides; the **eligible amount** is set by an admin per tier, with an optional custom amount per user; Successful deposit = the deposit balance (approved deposits minus charges) |
 
 ---
 
