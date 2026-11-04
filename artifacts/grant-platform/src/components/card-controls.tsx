@@ -52,6 +52,7 @@ export function CardControls({ u, onTopUp }: { u: AdminUserProfile; onTopUp: () 
                   {c.statusReason && <p className="mt-1 break-words text-xs text-white/80" data-testid={`text-card-reason-${c.id}`}>{c.statusReason}</p>}
                   {c.status === 'Frozen' && c.frozenBy === 'user' && <p className="mt-1 text-xs text-white/80" data-testid={`text-card-frozen-by-${c.id}`}>Frozen by the user. Freeze it yourself to lock it.</p>}
                   {c.status === 'Pending' && c.activationRequestedAt && <p className="mt-1 text-xs font-semibold text-[#C6F432]" data-testid={`text-card-activation-requested-${c.id}`}>User says it arrived · activation requested {dateFmt(c.activationRequestedAt)}</p>}
+                  {c.status === 'Pending' && !c.activationRequestedAt && c.activationDeclinedReason && <p className="mt-1 text-xs text-slate-300" data-testid={`text-card-activation-declined-${c.id}`}>Last activation request declined{c.activationDeclinedAt ? ` ${dateFmt(c.activationDeclinedAt)}` : ''}: {c.activationDeclinedReason}</p>}
                 </div>
                 <CreditCard className="h-5 w-5 shrink-0 opacity-60" />
               </div>

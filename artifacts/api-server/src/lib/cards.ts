@@ -1,5 +1,5 @@
 import { randomInt, randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, demoAuditTable, demoProfilesTable } from "@workspace/db";
 import { DemoInputError, getUser } from "./demoWorkspace";
 import { notifyUser } from "./notifications";
@@ -12,6 +12,8 @@ export type StoredCard = {
   frozenBy?: "user" | "admin";
   /** When the user said a pending physical card arrived and asked for it to be activated. */
   activationRequestedAt?: string;
+  /** The last activation request an administrator declined, and why; cleared when the user asks again or the card is activated. */
+  activationDeclinedAt?: string; activationDeclinedReason?: string;
 };
 export type CardAction = "activate" | "freeze" | "unfreeze" | "cancel";
 export type ApplicantCardAction = "freeze" | "unfreeze" | "request-activation";
@@ -71,7 +73,7 @@ export async function changeCard(userId: string, cardId: string, action: CardAct
     const next: StoredCard = { ...card, status: rule.to, ...(action === "cancel" ? { balance: 0 } : {}) };
     if (action === "freeze" || action === "cancel") next.statusReason = why; else delete next.statusReason;
     if (action === "freeze") next.frozenBy = "admin"; else delete next.frozenBy;
-    if (action !== "freeze") delete next.activationRequestedAt;
+    if (action !== "freeze") { delete next.activationRequestedAt; delete next.activationDeclinedAt; delete next.activationDeclinedReason; }
     await tx.update(demoProfilesTable).set({ cards: locked.cards.map(c => (c.id === cardId ? next : c)) }).where(eq(demoProfilesTable.id, userId));
     const done = { activate: "marked as issued", freeze: "frozen", unfreeze: "unfrozen", cancel: "cancelled" }[action];
     await tx.insert(demoAuditTable).values({ profileId: userId, actor, action: `Card •• ${card.lastFour} ${done}${why ? ` · ${why}` : ""}` });
@@ -115,10 +117,61 @@ export async function changeOwnCard(userId: string, cardId: string, action: Appl
       if (card.status !== "Pending" || card.kind !== "Physical") throw new DemoInputError("Only a physical card that's still being issued can be activated.");
       if (card.activationRequestedAt) return true;
       next = { ...card, activationRequestedAt: new Date().toISOString() };
+      delete next.activationDeclinedAt; delete next.activationDeclinedReason;
       audit = `Activation requested for ${label(card)}`;
     }
     await tx.update(demoProfilesTable).set({ cards: locked.cards.map(c => (c.id === cardId ? next : c)) }).where(eq(demoProfilesTable.id, userId));
     await tx.insert(demoAuditTable).values({ profileId: userId, actor, action: audit });
     return true;
   });
+}
+
+/**
+ * The admin's card queue: physical cards still being issued (`Pending`). "requested" = the holder says it arrived and asked
+ * for activation (oldest request first); "awaiting" = issued, no request yet (oldest issue first). Both tab sizes come back.
+ */
+export async function listCardRequests(status: "requested" | "awaiting") {
+  const rows = (await db.execute<{ id: string; name: string; organization: string; status: string; card: StoredCard }>(sql`
+    select p.id, p.name, p.organization, p.status, c as card
+    from ${demoProfilesTable} p
+    cross join lateral jsonb_array_elements(case when jsonb_typeof(p.cards) = 'array' then p.cards else '[]'::jsonb end) c
+    where c->>'kind' = 'Physical' and c->>'status' = 'Pending'`)).rows;
+  const requested = rows.filter(r => r.card.activationRequestedAt);
+  const awaiting = rows.filter(r => !r.card.activationRequestedAt);
+  const at = (r: (typeof rows)[number]) => Date.parse((status === "requested" ? r.card.activationRequestedAt : r.card.issuedAt) ?? "") || 0;
+  const items = (status === "requested" ? requested : awaiting).sort((a, b) => at(a) - at(b) || a.id.localeCompare(b.id)).map(r => ({
+    userId: r.id, userName: r.name, organization: r.organization, userStatus: r.status === "Frozen" ? "Frozen" as const : "Active" as const,
+    card: { ...r.card, balance: Number(r.card.balance ?? 0) },
+  }));
+  return { items, requested: requested.length, awaiting: awaiting.length };
+}
+
+/** How many activation requests are waiting (the dashboard KPI and the menu badge). */
+export async function countCardRequests() {
+  return (await listCardRequests("requested")).requested;
+}
+
+/**
+ * Decline an activation request (e.g. the card the user has isn't the one that was sent). The card stays `Pending`, the
+ * request is cleared so the user can ask again, and they're told why. Allowed while the account is frozen: nothing moves.
+ */
+export async function declineCardActivation(userId: string, cardId: string, reason: string, actor: string) {
+  const why = reason.trim();
+  if (why.length < 5) throw new DemoInputError("Give the user a reason of at least 5 characters.");
+  const found = await db.transaction(async tx => {
+    const locked = await lockCards(tx, userId, "");
+    if (!locked) return false;
+    const card = locked.cards.find(c => c.id === cardId);
+    if (!card) return false;
+    if (card.kind !== "Physical" || card.status !== "Pending" || !card.activationRequestedAt) {
+      throw new DemoInputError(card.status === "Active" ? "This card is already active." : "This card has no activation request waiting. It may already have been decided.");
+    }
+    const next: StoredCard = { ...card, activationDeclinedAt: new Date().toISOString(), activationDeclinedReason: why };
+    delete next.activationRequestedAt;
+    await tx.update(demoProfilesTable).set({ cards: locked.cards.map(c => (c.id === cardId ? next : c)) }).where(eq(demoProfilesTable.id, userId));
+    await tx.insert(demoAuditTable).values({ profileId: userId, actor, action: `Activation declined for ${label(card)} · ${why}` });
+    await notifyUser(userId, `We couldn't activate your ${label(card)}: ${why}`, "/cards", tx);
+    return true;
+  });
+  return found ? getUser(userId) : undefined;
 }

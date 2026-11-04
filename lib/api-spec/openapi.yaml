@@ -940,6 +940,51 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorMessage" }
         "404":
           description: User or card not found
+  /admin/card-requests:
+    get:
+      operationId: listAdminCardRequests
+      tags: [admin]
+      summary: Physical cards still being issued, either with an activation request (the user says it arrived) or awaiting delivery
+      parameters:
+        - name: status
+          in: query
+          required: true
+          schema: { type: string, enum: [requested, awaiting] }
+      responses:
+        "200":
+          description: The cards in that tab, oldest first, plus the size of both tabs
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminCardRequestList" }
+  /admin/card-requests/{userId}/{cardId}/decline:
+    post:
+      operationId: declineAdminCardRequest
+      tags: [admin]
+      summary: Decline an activation request; the card stays pending and the user is told why
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+        - { name: cardId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CardDeclineInput" }
+      responses:
+        "200":
+          description: The updated user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUserProfile" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: User or card not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /admin/users/{userId}/withdrawal-limits:
     put:
       operationId: updateUserWithdrawalLimits
@@ -2111,6 +2156,7 @@ components:
         pendingKyc: { type: integer }
         pendingDeposits: { type: integer }
         pendingWithdrawals: { type: integer }
+        pendingCardActivations: { type: integer, description: "Physical cards whose holder asked for activation" }
         totalGrantBalances: { type: number }
         totalDepositBalances: { type: number }
         applicationsByStatus:
@@ -2125,7 +2171,7 @@ components:
           type: array
           description: Ledger money in and out per month, last six months
           items: { $ref: "#/components/schemas/MoneyPoint" }
-      required: [totalUsers, activeUsers, pendingApplications, pendingKyc, pendingDeposits, pendingWithdrawals, totalGrantBalances, totalDepositBalances, applicationsByStatus, recentActivity, systemHealth, globalFrozen, moneyTrend]
+      required: [totalUsers, activeUsers, pendingApplications, pendingKyc, pendingDeposits, pendingWithdrawals, pendingCardActivations, totalGrantBalances, totalDepositBalances, applicationsByStatus, recentActivity, systemHealth, globalFrozen, moneyTrend]
     MoneyPoint:
       type: object
       properties:
@@ -2199,6 +2245,8 @@ components:
         statusReason: { type: string, description: "Why an administrator froze or cancelled the card" }
         frozenBy: { type: string, enum: [user, admin], description: "Who froze a frozen card; a card frozen by an administrator stays locked to the user" }
         activationRequestedAt: { type: string, format: date-time, description: "When the user said a pending physical card arrived and asked for it to be activated" }
+        activationDeclinedAt: { type: string, format: date-time, description: "When an administrator last declined an activation request" }
+        activationDeclinedReason: { type: string, description: "Why the last activation request was declined; shown to the user until they ask again" }
         issuedAt: { type: string, format: date-time }
       required: [id, network, kind, lastFour, status, balance]
     KycDocument:
@@ -2371,6 +2419,30 @@ components:
         reason: { type: string, maxLength: 240, description: "Required (5+ characters) to freeze or cancel; shown to the user" }
       required: [action]
       additionalProperties: false
+    CardDeclineInput:
+      type: object
+      properties:
+        reason: { type: string, minLength: 5, maxLength: 240, description: "Shown to the user" }
+      required: [reason]
+      additionalProperties: false
+    AdminCardRequest:
+      type: object
+      properties:
+        userId: { type: string }
+        userName: { type: string }
+        organization: { type: string }
+        userStatus: { type: string, enum: [Active, Frozen] }
+        card: { $ref: "#/components/schemas/UserCard" }
+      required: [userId, userName, organization, userStatus, card]
+    AdminCardRequestList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AdminCardRequest" }
+        requested: { type: integer, description: "Cards with an activation request waiting" }
+        awaiting: { type: integer, description: "Physical cards issued, with no request yet" }
+      required: [items, requested, awaiting]
     ApplicantCardActionInput:
       type: object
       properties:

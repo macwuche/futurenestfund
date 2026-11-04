@@ -10,6 +10,7 @@ import { grantRecommendations, storedAnswers } from "./matchmaking";
 import { APPEND_ONLY_TRIGGERS } from "./demoSeed";
 import { GetAdminUserResponse } from "@workspace/api-zod";
 import { effectiveLimits, limitProblem, limitsOut, withdrawnLast24h } from "./withdrawalLimits";
+import { countCardRequests } from "./cards";
 import { centsOut, effectiveEligible, tierAmount, tierAmountsFrom } from "./eligibleAmount";
 
 export class DemoInputError extends Error {}
@@ -155,6 +156,7 @@ export async function adminDashboard() {
     pendingApplications: appsWith("Submitted", "Review"),
     pendingKyc: people.filter(p => p.verificationLevel === "Pending" || pendingKyc.has(p.id)).length,
     pendingDeposits: pendingOf("Deposit"), pendingWithdrawals: pendingOf("Withdrawal"),
+    pendingCardActivations: await countCardRequests(),
     totalGrantBalances: people.reduce((sum, p) => sum + p.grantCents, 0) / 100,
     totalDepositBalances: people.reduce((sum, p) => sum + p.depositCents, 0) / 100,
     applicationsByStatus: ["Submitted", "Review", "Changes requested", "Approved", "Declined"].map(status => ({ status, count: appsWith(status) })),

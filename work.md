@@ -2059,6 +2059,35 @@ Candidates, to be chosen by the user:
 3. Where it's paid from, and what happens when the deposit balance can't cover it.
 4. Which tier rules to build, and for automatic tier changes, the thresholds.
 
+### 2026-11-04: Step 9.1 done (admin queue for card activation requests)
+
+**Built** (plan §15b; no migration: cards stay in `demo_profiles.cards`):
+- **Server** (`lib/cards.ts`):
+  - `listCardRequests(status)`: one `jsonb_array_elements` query over pending physical cards. *Activation requested* = oldest request first; *Awaiting delivery* = oldest issue first. Both tab sizes are returned.
+  - `declineCardActivation()`: reason 5–240 characters; the card stays `Pending`; the request is cleared and `activationDeclinedAt` / `activationDeclinedReason` are stored. Audited ("Activation declined for … · reason") and the user is notified. It's allowed while the account is frozen (nothing moves). With no request waiting it's refused ("may already have been decided"), and an active card gets "already active".
+  - Asking again or activating clears the old decline.
+  - API: `GET /admin/card-requests?status=requested|awaiting`, `POST /admin/card-requests/:userId/:cardId/decline`. Activating reuses `POST /admin/users/:userId/cards/:cardId/actions` `{ action: "activate" }`. `AdminDashboard.pendingCardActivations`, `UserCard.activationDeclinedAt` / `activationDeclinedReason`.
+- **Admin UI:**
+  - new page `/admin/cards` (`pages/admin-cards.tsx`): **Card Requests** in the menu after KYC Page, with a lime badge showing how many requests wait (refreshed every minute and after every decision)
+  - two tabs kept in the address bar (`?tab=awaiting`) with their counts; rows show the user, the card, the issue and request dates and how long it's waited
+  - Activate (with a confirmation) / Decline (with a reason); the awaiting tab offers "Mark as issued"
+  - Activate is disabled with "Account is frozen" when the account is frozen
+  - rows stack on phones with 44 px buttons
+  - dashboard: a ninth KPI, **Card activations** (KPIs now 3 per row), and "Cards waiting to be activated" (oldest 5) under the application review queue
+  - the inspector's card shows the last declined request
+- **Applicant UI:** after a decline the card says "Activation declined: <reason>. Once you have the right card, ask us again." and the "It's arrived: activate" button is back.
+
+**Tests (2026-11-04, test API on :8099 in demo mode, dev DB restored from a snapshot before each suite):**
+- typecheck clean
+- `pnpm test` 101/101
+- new `.unlazy/phase9-cards.mjs` 9/9: tabs and order, dashboard count, reason rules, decline, decided twice, ask again, activate, frozen account, three decisions at once (exactly one wins and one is audited), 404 / 400
+- new `phase9-cards-ui.mjs` 6/6 desktop + 6/6 phone
+- regressions: phase6-cards 7/7, phase5-cards 9/9, phase5-cards-ui 5+5, phase6-cards-ui 6+6, smoke 23+23, phase3-api 24/24, phase6-mobile 41/41 with 0 problems (now covering `/admin/cards` and `?tab=awaiting`)
+
+**Re-run after Phase 10 (2026-11-04):** typecheck clean, `pnpm test` 101/101, `phase9-cards.mjs` 9/9, `phase9-cards-ui.mjs` 6/6 desktop + 6/6 phone; dev DB restored after each.
+
+**Still to do:** deploy (no migration; goes out with the Phase 10 deploy).
+
 ---
 
 ## 16. Phase 10 build plan: payment gateway (deposit and withdrawal methods) (2026-11-04)

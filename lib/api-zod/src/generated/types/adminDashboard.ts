@@ -17,6 +17,8 @@ export interface AdminDashboard {
   pendingKyc: number;
   pendingDeposits: number;
   pendingWithdrawals: number;
+  /** Physical cards whose holder asked for activation */
+  pendingCardActivations: number;
   totalGrantBalances: number;
   totalDepositBalances: number;
   applicationsByStatus: StatusCount[];

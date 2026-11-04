@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-11-01 · branch `user-side-redesign` · Phases 0–5 and 7 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet), 6.7 only with several servers · **live at https://access.futurenestfund.org** (`a82a158` deployed 2026-11-01)._
+_Last updated 2026-11-04 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1 done; Phase 10 built · **live at https://access.futurenestfund.org** (`62ec3aa` deployed; 9.1 and Phase 10 not deployed yet)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -18,8 +18,8 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
 | 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.5 done 2026-10-30/31; **6.5: deployed on the EU VPS at https://access.futurenestfund.org on 2026-10-31** ([`docs/DEPLOY.md`](DEPLOY.md), record in [`server.md`](../server.md)); **6.6 virus scanning of uploads: code done 2026-11-01**, off until ClamAV is installed on the server (DEPLOY step 11, memory decision); 6.7 shared rate limits (only with several servers) |
 | 8 | User dashboard: balance cards, eligible amounts per tier and per user | 8.1 done 2026-11-02, deployed at `62ec3aa` (`work.md` §14) |
-| 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), automatic fees (9.3), tier rules (9.4) | Planned 2026-11-04 (`work.md` §15); 9.3 and 9.4 wait for decisions |
-| 10 | Payment gateway: admin-made deposit and withdrawal methods (logo, amount rule, custom fields, payment proof); withdrawals from the grant and/or deposit balance; optional approval note | Built and tested 2026-11-04 (`work.md` §16); not committed or deployed yet (migration 0009 + Supabase 0004) |
+| 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), automatic fees (9.3), tier rules (9.4) | **9.1 done 2026-11-04**, suites re-run after Phase 10 (not deployed); 9.2 next; 9.3 and 9.4 wait for decisions (`work.md` §15) |
+| 10 | Payment gateway: admin-made deposit and withdrawal methods (logo, amount rule, custom fields, payment proof); withdrawals from the grant and/or deposit balance; optional approval note | Built and tested 2026-11-04 (`work.md` §16), committed `e183fb3`; not deployed yet (migration 0009 + Supabase 0004) |
 | 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin layout, admin tables on phones, applicant fixes (review scored the UI 67/100) | Done: 7.1 on 2026-10-31, 7.2–7.7 on 2026-11-01 ([`work.md`](../work.md) §13 and the log after it) |
 
 What still needs you is listed in §12 (go-live checklist) and §15 (open items).
@@ -64,7 +64,7 @@ Menu in groups: **Overview** (Dashboard, My Applications (+ detail page), Milest
   - checked server-side: the method's rules, 2 decimals, $0.01 to $1M, freezes, KYC rules, withdrawal limits (the stricter of the method and the limits wins), and withdrawals can't exceed the available amount of the chosen balance
   - withdrawals come from the **grant balance**, the **deposit balance**, or either (the applicant chooses), as the admin set for that user; the default is grant only
   - transactions list (real ledger entries plus requests)
-  - balances and sample cards: the applicant can freeze and unfreeze their own card (a card an administrator froze stays locked to them), see card details, and say a physical card has arrived to ask for it to be activated
+  - balances and sample cards: the applicant can freeze and unfreeze their own card (a card an administrator froze stays locked to them), see card details, and say a physical card has arrived to ask for it to be activated (if an admin declines, the card shows why and they can ask again)
 - **Milestones:** add, tick, delete (stored per user).
 - **Notifications:** the bell (polled every 30 s), plus an **email** for each notification when enabled. Deposit and withdrawal requests get dedicated emails when placed, approved and declined (with a reference, and the reason for a decline). An admin can override a user's email and in-app notifications (always on / always off).
 - **Settings:**
@@ -79,13 +79,13 @@ Menu in groups: **Overview** (Dashboard, My Applications (+ detail page), Milest
 - **Grant Search, Funding Tracker, Reports** (with CSV downloads) and a **Help Centre** FAQ.
 
 ### Admin workspace (black / lime "command center")
-Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, Settings (the written admin spec's menu). Application review lives under Users (`/admin/users/:userId/applications/:id`).
+Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, Payment Gateway, KYC Page, Card Requests, Settings (the written admin spec's menu plus later additions). Application review lives under Users (`/admin/users/:userId/applications/:id`).
 
 - **Dashboard:**
-  - KPIs: pending applications, KYC, deposits, withdrawals
+  - KPIs: pending applications, KYC, deposits, withdrawals, card activations
   - six-month money in/out chart
   - real system health: database round trip, audit-log integrity
-  - review queue and recent activity
+  - review queue, cards waiting to be activated, and recent activity
 - **Users / inspector:**
   - directory: search, status filter, sort by name / joined / tier / status / balances, 25 per page (state kept in the address bar; cards on phones)
   - edit profile; tier; account freeze
@@ -101,6 +101,7 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
 - **Eligible amount:** one amount per tier in Settings → Money, and an optional custom amount per user (inspector → Limits) that replaces it; shown on the applicant's dashboard only (it doesn't limit requests yet). Per-user changes are audited and notify the applicant.
 - **Withdrawal limits:** a global max per request and daily total (last 24 h, under review + approved) in Settings, and optional custom limits per user that replace them. Enforced when the applicant places a request.
 - **Transactions:** the full ledger with filters, search, pagination, totals and **CSV export** (spreadsheet-formula injection neutralised).
+- **Card Requests** (`/admin/cards`, 9.1): physical cards still being issued, in two tabs: *Activation requested* (the user says it arrived; oldest first, with how long it's waited) and *Awaiting delivery*. Activate, or decline with a reason the user sees (the card stays pending and they can ask again). The menu item shows how many requests are waiting. Audited; the user is notified.
 - **KYC:** a document queue with previews; approve or reject (with a reason). The verification level is recomputed.
 - **Settings** (`/admin/settings/<section>`, side menu on desktop, tabs on phones):
   - **General:** global freeze (with a confirmation and a reason) and the security rules
@@ -432,6 +433,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 | `phase6-monitoring` (+ `-ui`) | Request ids, 500 references, server and browser errors in the log and in a mock Sentry (envelope shape, nothing personal, scrubbing), signed-out reports, rate limit; test button, uncaught error, rejection, render crash screen (8; 4 + 4) |
 | `phase7-email` (+ `-ui`) | Email settings: validation, secrets never returned / stored plain / logged / audited, precedence, every health state (pending or missing domain, sending-only or refused key, hook calls, outbox failures, undecryptable secret), test email, removal (11; 9 + 9) |
 | `phase10-methods`, `phase10-ui` | Payment Gateway: methods, logos (upload and link), requests through a method (amounts, fields, proof, no orphan files), copies kept, queue details, approval note, withdrawal sources, limits on top, concurrency (18); admin menu, method form, applicant deposit / withdrawal, queue, inspector (11 + 11). Older suites place requests through a plain test method (`.unlazy/methods.mjs`) |
+| `phase9-cards`, `phase9-cards-ui` | Card Requests queue: tabs, order, decline with reason, ask again, activate, frozen account, concurrent decisions (9); dashboard KPI and list, menu badge, applicant view (6 + 6) |
 | `phase6-mobile` | Phone audit at 390 px of every page, menu, panel, main dialogs and the sign-in pages: zoom-out, overflow, boxes sticking out, 44 px targets, bell / menu / search reachable; full-page screenshots with `SHOTS=` (35). Sign-in pages need `AUTH_WEB`: a proxy to a signed-out Supabase-mode API |
 
 Full run on 2026-10-29: all green on the dev frontend, on the **production build with its CSP**, and **on Supabase as `app_api`**.
@@ -566,5 +568,4 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 - The API can't sign anyone in by itself if Supabase is down; requests answer 503 until it's back.
 - Grants, balances and cards are sample data; nothing moves real money.
 - A deposit is still a declaration checked by an admin against the proof: no payment processor is connected.
-- Card activation requests have no admin queue yet: they show in the user inspector and recent activity only.
 - Uploads live on one server's disk (backed up nightly on that same server) and are virus-scanned only once ClamAV is installed (6.6); rate limits are in memory, fine for one server (6.7).

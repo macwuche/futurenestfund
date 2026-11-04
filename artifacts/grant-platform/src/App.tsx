@@ -16,6 +16,7 @@ import { Layout } from '@/components/shell';
 import { AdminOverviewPage, AdminUsersPage, AdminUserPage, AdminSettingsPage } from '@/pages/admin';
 import { AdminAuditPage, AdminTransactionsPage, AdminDepositsPage, AdminWithdrawalsPage, AdminKycPage, AdminApplicationPage } from '@/pages/admin-ops';
 import { AdminDepositMethodsPage, AdminWithdrawalMethodsPage } from '@/pages/admin-gateway';
+import { AdminCardRequestsPage } from '@/pages/admin-cards';
 import {
   Redirect,
   Route,
@@ -58,6 +59,7 @@ function Router() {
         <Route path="/admin/deposits" component={AdminDepositsPage} />
         <Route path="/admin/withdrawals" component={AdminWithdrawalsPage} />
         <Route path="/admin/kyc" component={AdminKycPage} />
+        <Route path="/admin/cards" component={AdminCardRequestsPage} />
         <Route path="/admin/payment-gateway/deposit" component={AdminDepositMethodsPage} />
         <Route path="/admin/payment-gateway/withdrawal" component={AdminWithdrawalMethodsPage} />
         <Route path="/admin/settings" component={AdminSettingsPage} />

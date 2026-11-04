@@ -45,7 +45,9 @@ export function OwnCardControls({ c, accountFrozen }: { c: UserCard; accountFroz
         <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700" data-testid={`text-card-activation-${c.id}`}>
           {c.activationRequestedAt
             ? `You asked for this card to be activated on ${dateFmt(c.activationRequestedAt)}. An administrator will activate it and you’ll get a notification.`
-            : 'Has your card arrived? Ask us to activate it.'}
+            : c.activationDeclinedReason
+              ? <><span className="font-semibold text-slate-900" data-testid={`text-card-declined-${c.id}`}>Activation declined: {sentence(c.activationDeclinedReason)}</span> Once you have the right card, ask us again.</>
+              : 'Has your card arrived? Ask us to activate it.'}
         </p>
       )}
       <div className="mt-3 flex flex-wrap gap-2">

@@ -487,6 +487,10 @@ export interface UserCard {
   frozenBy?: UserCardFrozenBy;
   /** When the user said a pending physical card arrived and asked for it to be activated */
   activationRequestedAt?: string;
+  /** When an administrator last declined an activation request */
+  activationDeclinedAt?: string;
+  /** Why the last activation request was declined; shown to the user until they ask again */
+  activationDeclinedReason?: string;
   issuedAt?: string;
 }
 
@@ -1067,6 +1071,8 @@ export interface AdminDashboard {
   pendingKyc: number;
   pendingDeposits: number;
   pendingWithdrawals: number;
+  /** Physical cards whose holder asked for activation */
+  pendingCardActivations: number;
   totalGrantBalances: number;
   totalDepositBalances: number;
   applicationsByStatus: StatusCount[];
@@ -1403,6 +1409,39 @@ export interface CardActionInput {
      * @maxLength 240
      */
   reason?: string;
+}
+
+export interface CardDeclineInput {
+  /**
+     * Shown to the user
+     * @minLength 5
+     * @maxLength 240
+     */
+  reason: string;
+}
+
+export type AdminCardRequestUserStatus = typeof AdminCardRequestUserStatus[keyof typeof AdminCardRequestUserStatus];
+
+
+export const AdminCardRequestUserStatus = {
+  Active: 'Active',
+  Frozen: 'Frozen',
+} as const;
+
+export interface AdminCardRequest {
+  userId: string;
+  userName: string;
+  organization: string;
+  userStatus: AdminCardRequestUserStatus;
+  card: UserCard;
+}
+
+export interface AdminCardRequestList {
+  items: AdminCardRequest[];
+  /** Cards with an activation request waiting */
+  requested: number;
+  /** Physical cards issued, with no request yet */
+  awaiting: number;
 }
 
 export type ApplicantCardActionInputAction = typeof ApplicantCardActionInputAction[keyof typeof ApplicantCardActionInputAction];
@@ -1753,6 +1792,18 @@ export type ListAdminUsersDir = typeof ListAdminUsersDir[keyof typeof ListAdminU
 export const ListAdminUsersDir = {
   asc: 'asc',
   desc: 'desc',
+} as const;
+
+export type ListAdminCardRequestsParams = {
+status: ListAdminCardRequestsStatus;
+};
+
+export type ListAdminCardRequestsStatus = typeof ListAdminCardRequestsStatus[keyof typeof ListAdminCardRequestsStatus];
+
+
+export const ListAdminCardRequestsStatus = {
+  requested: 'requested',
+  awaiting: 'awaiting',
 } as const;
 
 export type SearchAdminParams = {

@@ -8,6 +8,7 @@ import {
   CreateUserBalanceAdjustmentBody, CreateUserBalanceAdjustmentParams, CreateUserBalanceAdjustmentResponse,
   UpdateGlobalFreezeBody, UpdateGlobalFreezeResponse, GetWithdrawalLimitsResponse, UpdateWithdrawalLimitsBody, UpdateWithdrawalLimitsResponse,
   ListAdminAuditQueryParams, ListAdminAuditResponse, ExportAdminAuditQueryParams,
+  ListAdminCardRequestsQueryParams, ListAdminCardRequestsResponse, DeclineAdminCardRequestParams, DeclineAdminCardRequestBody, DeclineAdminCardRequestResponse,
   IssueUserCardParams, IssueUserCardBody, IssueUserCardResponse, ChangeUserCardParams, ChangeUserCardBody, ChangeUserCardResponse,
   UpdateUserWithdrawalLimitsParams, UpdateUserWithdrawalLimitsBody, UpdateUserWithdrawalLimitsResponse,
   GetTierAmountsResponse, UpdateTierAmountsBody, UpdateTierAmountsResponse, UpdateUserEligibleAmountParams, UpdateUserEligibleAmountBody, UpdateUserEligibleAmountResponse, UpdateApplicantPreferencesBody, UpdateApplicantPreferencesResponse,
@@ -35,7 +36,7 @@ import {
   ExportAdminTransactionsQueryParams, GetAdminKycQueueResponse, ReviewAdminKycDocumentParams, ReviewAdminKycDocumentBody, ReviewAdminKycDocumentResponse,
 } from "@workspace/api-zod";
 import { db, demoProfilesTable } from "@workspace/db";
-import { changeCard, changeOwnCard, issueCard } from "../lib/cards";
+import { changeCard, changeOwnCard, declineCardActivation, issueCard, listCardRequests } from "../lib/cards";
 import {
   adminSearch, listAdminApplications, adminApplicationDetail, decideApplication, listAdminRequests, approveRequest, rejectRequest,
   listLedger, exportLedgerCsv, adminKycQueue, reviewKycDocument,
@@ -319,6 +320,21 @@ router.post("/admin/users/:userId/cards/:cardId/actions", async (req, res): Prom
   const user = await changeCard(params.data.userId, params.data.cardId, input.data.action, currentAdmin(req), input.data.reason);
   if (!user) { res.status(404).json({ error: "User or card not found." }); return; }
   res.json(ChangeUserCardResponse.parse(user));
+});
+
+router.get("/admin/card-requests", async (req, res): Promise<void> => {
+  const query = ListAdminCardRequestsQueryParams.safeParse(req.query);
+  if (!query.success) { res.status(400).json({ error: "Choose the requested or awaiting tab." }); return; }
+  res.json(ListAdminCardRequestsResponse.parse(await listCardRequests(query.data.status)));
+});
+
+router.post("/admin/card-requests/:userId/:cardId/decline", async (req, res): Promise<void> => {
+  const params = DeclineAdminCardRequestParams.safeParse(req.params);
+  const input = DeclineAdminCardRequestBody.safeParse(req.body);
+  if (!params.success || !input.success) { res.status(400).json({ error: "Give the user a reason of 5 to 240 characters." }); return; }
+  const user = await declineCardActivation(params.data.userId, params.data.cardId, input.data.reason, currentAdmin(req));
+  if (!user) { res.status(404).json({ error: "User or card not found." }); return; }
+  res.json(DeclineAdminCardRequestResponse.parse(user));
 });
 
 router.put("/admin/users/:userId/withdrawal-limits", async (req, res): Promise<void> => {

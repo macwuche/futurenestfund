@@ -23,5 +23,9 @@ export interface UserCard {
   frozenBy?: UserCardFrozenBy;
   /** When the user said a pending physical card arrived and asked for it to be activated */
   activationRequestedAt?: Date;
+  /** When an administrator last declined an activation request */
+  activationDeclinedAt?: Date;
+  /** Why the last activation request was declined; shown to the user until they ask again */
+  activationDeclinedReason?: string;
   issuedAt?: Date;
 }

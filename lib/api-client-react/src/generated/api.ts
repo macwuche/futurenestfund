@@ -24,6 +24,7 @@ import type {
   AdminApplication,
   AdminApplicationDetail,
   AdminAuditPage,
+  AdminCardRequestList,
   AdminDashboard,
   AdminKycItem,
   AdminKycQueue,
@@ -51,6 +52,7 @@ import type {
   AuthConfig,
   BalanceAdjustmentInput,
   CardActionInput,
+  CardDeclineInput,
   CardIssueInput,
   ClientErrorReceipt,
   ClientErrorReport,
@@ -71,6 +73,7 @@ import type {
   KycUpload,
   ListAdminApplicationsParams,
   ListAdminAuditParams,
+  ListAdminCardRequestsParams,
   ListAdminPaymentMethodsParams,
   ListAdminRequestsParams,
   ListAdminTransactionsParams,
@@ -4380,6 +4383,181 @@ export const useChangeUserCard = <TError = ErrorType<ErrorMessage | void>,
         TContext
       > => {
       return useMutation(getChangeUserCardMutationOptions(options));
+    }
+
+export const getListAdminCardRequestsUrl = (params: ListAdminCardRequestsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/card-requests?${stringifiedParams}` : `/api/admin/card-requests`
+}
+
+/**
+ * @summary Physical cards still being issued, either with an activation request (the user says it arrived) or awaiting delivery
+ */
+export const listAdminCardRequests = async (params: ListAdminCardRequestsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminCardRequestList> => {
+
+  return customFetch<AdminCardRequestList>(getListAdminCardRequestsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminCardRequestsQueryKey = (params?: ListAdminCardRequestsParams,) => {
+    return [
+    `/api/admin/card-requests`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminCardRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminCardRequests>>, TError = ErrorType<unknown>>(params: ListAdminCardRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminCardRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminCardRequestsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminCardRequests>>> = ({ signal }) => listAdminCardRequests(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminCardRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminCardRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminCardRequests>>>
+export type ListAdminCardRequestsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Physical cards still being issued, either with an activation request (the user says it arrived) or awaiting delivery
+ */
+
+export function useListAdminCardRequests<TData = Awaited<ReturnType<typeof listAdminCardRequests>>, TError = ErrorType<unknown>>(
+ params: ListAdminCardRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminCardRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminCardRequestsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeclineAdminCardRequestUrl = (userId: string,
+    cardId: string,) => {
+
+
+
+
+  return `/api/admin/card-requests/${userId}/${cardId}/decline`
+}
+
+/**
+ * @summary Decline an activation request; the card stays pending and the user is told why
+ */
+export const declineAdminCardRequest = async (userId: string,
+    cardId: string,
+    cardDeclineInput: CardDeclineInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminUserProfile> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminUserProfile>(getDeclineAdminCardRequestUrl(userId,cardId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(cardDeclineInput)
+  }
+);}
+
+
+
+
+
+export const getDeclineAdminCardRequestMutationKey = () => ['declineAdminCardRequest'] as const;
+
+export const getDeclineAdminCardRequestMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineAdminCardRequest>>, TError,DeclineAdminCardRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof declineAdminCardRequest>>, TError,DeclineAdminCardRequestMutationVariables, TContext> => {
+
+const mutationKey = getDeclineAdminCardRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof declineAdminCardRequest>>, DeclineAdminCardRequestMutationVariables> = (props) => {
+          const {userId,cardId,data} = props ?? {};
+
+          return  declineAdminCardRequest(userId,cardId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeclineAdminCardRequestMutationResult = NonNullable<Awaited<ReturnType<typeof declineAdminCardRequest>>>
+    export type DeclineAdminCardRequestMutationBody = BodyType<CardDeclineInput>
+    export type DeclineAdminCardRequestMutationError = ErrorType<ErrorMessage>
+    export type DeclineAdminCardRequestMutationVariables = {userId: string;cardId: string;data: BodyType<CardDeclineInput>}
+
+    /**
+ * @summary Decline an activation request; the card stays pending and the user is told why
+ */
+export const useDeclineAdminCardRequest = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineAdminCardRequest>>, TError,DeclineAdminCardRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof declineAdminCardRequest>>,
+        TError,
+        DeclineAdminCardRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeclineAdminCardRequestMutationOptions(options));
     }
 
 export const getUpdateUserWithdrawalLimitsUrl = (userId: string,) => {

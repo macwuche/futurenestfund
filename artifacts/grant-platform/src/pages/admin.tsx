@@ -18,6 +18,7 @@ import { UserWithdrawalSources } from '@/components/withdrawal-sources';
 import { MonitoringSettings, VirusScanSettings } from '@/components/monitoring-settings';
 import { EmailSettingsCard } from '@/components/email-settings';
 import { CardControls } from '@/components/card-controls';
+import { CardActivationQueue } from '@/pages/admin-cards';
 import { AdminPhotoSettings, UserPhotoControl } from '@/components/admin-photo';
 import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, initials, money, useAnimateOnce } from '@/components/bits';
 import { card, ainput, lime, dark, ghost, danger, Stat, SectionTitle, useAdminRefresh, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
@@ -35,7 +36,7 @@ export const appReviewHref = (a: { id: string; userId: string }) => `/admin/user
 export function AdminOverviewPage() {
   return <DashGate title="Dashboard">{(d) => (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         <Stat id="total-users" label="Total users" value={d.totalUsers} accent hint={`${d.activeUsers} active`} href="/admin/users" />
         <Stat id="grant-balances" label="Grant balances" value={money(d.totalGrantBalances)} />
         <Stat id="deposit-balances" label="Deposit balances" value={money(d.totalDepositBalances)} />
@@ -44,6 +45,7 @@ export function AdminOverviewPage() {
         <Stat id="pending-kyc" label="Pending KYC" value={d.pendingKyc} hint="Users with documents to review" href="/admin/kyc" />
         <Stat id="pending-deposits" label="Pending deposits" value={d.pendingDeposits} href="/admin/deposits" />
         <Stat id="pending-withdrawals" label="Pending withdrawals" value={d.pendingWithdrawals} href="/admin/withdrawals" />
+        <div className="col-span-2 md:col-span-1"><Stat id="pending-card-activations" label="Card activations" value={d.pendingCardActivations} hint="Physical cards the user says arrived" href="/admin/cards" /></div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -64,7 +66,10 @@ export function AdminOverviewPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <ReviewQueue />
+        <div className="min-w-0 space-y-4 lg:col-span-2 lg:self-start">
+          <ReviewQueue />
+          <CardActivationQueue />
+        </div>
         <div className="min-w-0 space-y-4">
           <section className={cx(card, 'p-5')} data-testid="card-status-groups">
             <SectionTitle>Applications by status</SectionTitle>
@@ -114,7 +119,7 @@ function MoneyChart({ data }: { data: AdminDashboard['moneyTrend'] }) {
 function ReviewQueue() {
   const q = useListAdminApplications({ status: 'pending' });
   return (
-    <section id="review-queue" className={cx(card, 'min-w-0 scroll-mt-24 p-5 lg:col-span-2 lg:self-start')} data-testid="card-review-queue">
+    <section id="review-queue" className={cx(card, 'min-w-0 scroll-mt-24 p-5')} data-testid="card-review-queue">
       <SectionTitle>Applications awaiting a decision</SectionTitle>
       {q.isLoading ? <div className="space-y-2">{[1, 2, 3].map((i) => <Skel key={i} className="h-14" />)}</div>
         : q.isError || !q.data ? <ErrorState onRetry={() => q.refetch()} />
