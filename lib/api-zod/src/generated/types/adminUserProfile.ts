@@ -14,6 +14,7 @@ import type { KycDocument } from './kycDocument';
 import type { UserBalances } from './userBalances';
 import type { UserCard } from './userCard';
 import type { UserPermissions } from './userPermissions';
+import type { WithdrawalSources } from './withdrawalSources';
 
 export interface AdminUserProfile {
   id: string;
@@ -37,5 +38,6 @@ export interface AdminUserProfile {
   permissions: UserPermissions;
   withdrawalLimits: EffectiveWithdrawalLimits;
   eligibleAmount: EffectiveEligibleAmount;
+  withdrawalSources: WithdrawalSources;
   audit: AuditEntry[];
 }

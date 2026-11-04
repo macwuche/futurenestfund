@@ -17,7 +17,9 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 4 | Real accounts on Supabase: sign-in, API auth, email through Resend, Settings security; then a hardening pass (RLS, `app_api` role, migrations, CSP, rate limits, unit tests) | Done (4.5 two-factor dropped by decision) |
 | 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
 | 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.5 done 2026-10-30/31; **6.5: deployed on the EU VPS at https://access.futurenestfund.org on 2026-10-31** ([`docs/DEPLOY.md`](DEPLOY.md), record in [`server.md`](../server.md)); **6.6 virus scanning of uploads: code done 2026-11-01**, off until ClamAV is installed on the server (DEPLOY step 11, memory decision); 6.7 shared rate limits (only with several servers) |
-| 8 | User dashboard: balance cards, eligible amounts per tier and per user | 8.1 done 2026-11-02 in code (`work.md` §14); not committed or deployed yet |
+| 8 | User dashboard: balance cards, eligible amounts per tier and per user | 8.1 done 2026-11-02, deployed at `62ec3aa` (`work.md` §14) |
+| 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), automatic fees (9.3), tier rules (9.4) | Planned 2026-11-04 (`work.md` §15); 9.3 and 9.4 wait for decisions |
+| 10 | Payment gateway: admin-made deposit and withdrawal methods (logo, amount rule, custom fields, payment proof); withdrawals from the grant and/or deposit balance; optional approval note | Built and tested 2026-11-04 (`work.md` §16); not committed or deployed yet (migration 0009 + Supabase 0004) |
 | 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin layout, admin tables on phones, applicant fixes (review scored the UI 67/100) | Done: 7.1 on 2026-10-31, 7.2–7.7 on 2026-11-01 ([`work.md`](../work.md) §13 and the log after it) |
 
 What still needs you is listed in §12 (go-live checklist) and §15 (open items).
@@ -58,7 +60,9 @@ Menu in groups: **Overview** (Dashboard, My Applications (+ detail page), Milest
   - When changes are requested, the applicant can reply and resubmit (optionally with a revised amount).
   - Applications can be withdrawn.
 - **Money:**
-  - deposit and withdrawal requests, checked server-side: 2 decimals, $0.01 to $1M, freezes, KYC rules, and withdrawals can't exceed the available balance
+  - deposit and withdrawal requests go through a **payment method** the admin created (Phase 10): the applicant picks a method (logo, name, amount rule), reads its instructions, enters an amount within its minimum/maximum or picks one of its fixed amounts, fills in its fields (e.g. wallet address, network, account number) and, for deposits when the method asks for it, attaches a **payment proof** (image or PDF, virus-scanned, stored with the request in one transaction)
+  - checked server-side: the method's rules, 2 decimals, $0.01 to $1M, freezes, KYC rules, withdrawal limits (the stricter of the method and the limits wins), and withdrawals can't exceed the available amount of the chosen balance
+  - withdrawals come from the **grant balance**, the **deposit balance**, or either (the applicant chooses), as the admin set for that user; the default is grant only
   - transactions list (real ledger entries plus requests)
   - balances and sample cards: the applicant can freeze and unfreeze their own card (a card an administrator froze stays locked to them), see card details, and say a physical card has arrived to ask for it to be activated
 - **Milestones:** add, tick, delete (stored per user).
@@ -91,7 +95,9 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, 
   - **profile photo:** upload or remove the user's photo (same checks and re-encoding as the applicant's own upload; removal asks first). Audited, and the user is notified.
   - the user's applications and KYC documents
 - **Application review:** Submitted → Review → Approved / Declined / Changes requested, with notes. Approving credits the grant balance through the ledger.
-- **Deposit / Withdrawal queues:** approve or decline (decline needs a reason). Freezes, balances and KYC are re-checked at approval time. A pending withdrawal above the user's current limit is flagged.
+- **Deposit / Withdrawal queues:** approve (with an optional note shown to the applicant) or decline (decline needs a reason). Each request shows its method, the applicant's answers, the payment proof (preview / download) and, for withdrawals, the balance it's paid from. Freezes, balances, KYC and the user's open withdrawal balances are re-checked at approval time. A pending withdrawal above the user's current limit is flagged.
+- **Payment Gateway** (menu group → Deposit / Withdrawal, `/admin/payment-gateway/deposit|withdrawal`): create, edit, enable / disable, reorder and delete methods. A method has a logo (uploaded, or downloaded once from an `https://` link with private / internal addresses refused, re-encoded to WebP), a name (unique per kind), an amount rule (minimum and maximum, either optional, or up to 10 fixed amounts), instructions, up to 20 fields (short / long text, number, email, phone, date, dropdown; required or optional; placeholder and help) and, for deposits, payment proof required / optional / off. A live preview shows the applicant's form. Requests keep a copy of the method as it was, so edits never change them; a used method can only be disabled. Every change is audited.
+- **Withdraw from** (inspector → Limits): grant balance / deposit balance / both, per user; audited, the user is notified. A debit can't eat into what pending withdrawals from that balance hold.
 - **Eligible amount:** one amount per tier in Settings → Money, and an optional custom amount per user (inspector → Limits) that replaces it; shown on the applicant's dashboard only (it doesn't limit requests yet). Per-user changes are audited and notify the applicant.
 - **Withdrawal limits:** a global max per request and daily total (last 24 h, under review + approved) in Settings, and optional custom limits per user that replace them. Enforced when the applicant places a request.
 - **Transactions:** the full ledger with filters, search, pagination, totals and **CSV export** (spreadsheet-formula injection neutralised).
@@ -222,7 +228,8 @@ Dashboard settings (see §12): Site URL and Redirect URLs are set to `https://ac
 |---|---|
 | `demo_profiles` | Users (sample profiles + signed-up applicants, `auth_user_id` links to Supabase Auth) |
 | `demo_applications`, `demo_application_events` | Applications and their status history (**append-only**) |
-| `demo_requests` | Deposit / withdrawal requests |
+| `demo_requests` | Deposit / withdrawal requests (method, copy of the method, answers, proof file, balance paid from) |
+| `demo_payment_methods` | Deposit and withdrawal methods (Payment Gateway) |
 | `demo_ledger` | Every money movement, signed cents (**append-only**) |
 | `demo_audit` | Audit trail of every change (**append-only**) |
 | `demo_notifications` | In-app notifications + email outbox state (`emailed_at`, `email_attempts`, `email_claimed_until`) |
@@ -253,10 +260,12 @@ Dashboard settings (see §12): Site URL and Redirect URLs are set to `https://ac
 | `lib/db/migrations/0005_admin_profiles.sql` | `demo_admin_profiles` (admins' own photo) |
 | `lib/db/migrations/0006_matchmaking.sql` | `demo_profiles.matchmaking` (the applicant's matchmaking answers) |
 | `lib/db/migrations/0008_eligible_amounts.sql` | `demo_settings.tier1/2/3_eligible_cents`; `demo_profiles.eligible_custom`, `eligible_cents` (eligible amount per tier and per user) |
+| `lib/db/migrations/0009_payment_methods.sql` | `demo_payment_methods`; `demo_requests.source`, `method_id`, `method_snapshot`, `field_values`, `proof_file_id` (old withdrawals backfilled to `grant`); `demo_profiles.withdrawal_sources` |
 | `lib/db/migrations/0007_email_settings.sql` | `demo_settings.email_config`, `email_secrets`, `email_hook_seen_at`, `email_hook_result`; `demo_notifications.email_last_error` |
 | `lib/db/supabase/migrations/0001_user_roles.sql` | `user_roles` (Supabase only) |
 | `lib/db/supabase/migrations/0002_app_api_role.sql` | `app_api` role, grants, `app_api_all` policies, revoked Data API grants |
 | `lib/db/supabase/migrations/0003_admin_profiles.sql` | `app_api_all` policy for `demo_admin_profiles`; no Data API grants |
+| `lib/db/supabase/migrations/0004_payment_methods.sql` | `app_api_all` policy for `demo_payment_methods`; no Data API grants |
 
 Changing the schema: edit `lib/db/src/schema` → `pnpm --filter @workspace/db run generate` → review the new SQL → `pnpm --filter @workspace/scripts run db:migrate`. A new table also needs an `app_api_all` policy in a new Supabase migration. Both existing databases were "baselined" once on 2026-10-29 (`db:migrate -- --baseline`), because they had been built with `drizzle-kit push`.
 
@@ -381,7 +390,7 @@ No secrets. `PORT` and `BASE_PATH` for Vite; everything else comes from `GET /ap
 | Command | What it does |
 |---|---|
 | `pnpm run typecheck` | Type-check every package |
-| `pnpm test` | Vitest unit tests (83) |
+| `pnpm test` | Vitest unit tests (101) |
 | `pnpm --filter @workspace/api-spec run codegen` | Regenerate API hooks / validators after editing `openapi.yaml` |
 | `pnpm --filter @workspace/db run generate` | Write a new migration from schema changes |
 | `pnpm --filter @workspace/scripts run db:migrate` | Apply pending migrations (`-- --baseline` once for a database built with push) |
@@ -396,7 +405,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 
 ## 11. Testing
 
-**Committed:** `pnpm test`, 83 Vitest tests.
+**Committed:** `pnpm test`, 101 Vitest tests.
 - Token verification: valid, expired, other project, wrong audience, anonymous, forged key, tampered payload, `alg: none`, HS256 algorithm confusion, key server down/timeout → 503.
 - Standard Webhooks signatures.
 - Email link mapping (including the reversed email-change fields) and HTML escaping.
@@ -406,6 +415,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 - Matchmaking rules (scores, reasons, closed and not-eligible grants).
 - Error monitoring: scrubbing (emails, tokens, secrets, long numbers), DSN and stack parsing, the exact fields sent to Sentry, the React component stack.
 - Email settings: secret encryption (round trip, tampering, wrong field or master key; the self-created key file: made once with mode 600, never overwritten, broken or unwritable file reported), signature and support address escaped in every template, From parsing.
+- Payment methods: what a method may contain (names, amounts, fixed amounts, fields, proof), amount rules, answers per field type; logo links (https only, private / loopback / mapped addresses refused before connecting); money emails with method, balance and approval note.
 - Virus scanning: off without settings, chunked INSTREAM, the EICAR test string refused with its signature, fail closed / fail open, scanner errors and timeouts, status for Settings.
 
 **Local browser / end-to-end suites** (git-ignored `.unlazy/`, see `.unlazy/README.md`). They drive headless Chromium against a test copy of the API.
@@ -421,6 +431,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 | `phase6-matchmaking`, `phase6-cards` (+ `-ui`) | Rule-based matchmaking; applicant card controls (8 + 7 + 7; 7 + 6 + 6) |
 | `phase6-monitoring` (+ `-ui`) | Request ids, 500 references, server and browser errors in the log and in a mock Sentry (envelope shape, nothing personal, scrubbing), signed-out reports, rate limit; test button, uncaught error, rejection, render crash screen (8; 4 + 4) |
 | `phase7-email` (+ `-ui`) | Email settings: validation, secrets never returned / stored plain / logged / audited, precedence, every health state (pending or missing domain, sending-only or refused key, hook calls, outbox failures, undecryptable secret), test email, removal (11; 9 + 9) |
+| `phase10-methods`, `phase10-ui` | Payment Gateway: methods, logos (upload and link), requests through a method (amounts, fields, proof, no orphan files), copies kept, queue details, approval note, withdrawal sources, limits on top, concurrency (18); admin menu, method form, applicant deposit / withdrawal, queue, inspector (11 + 11). Older suites place requests through a plain test method (`.unlazy/methods.mjs`) |
 | `phase6-mobile` | Phone audit at 390 px of every page, menu, panel, main dialogs and the sign-in pages: zoom-out, overflow, boxes sticking out, 44 px targets, bell / menu / search reachable; full-page screenshots with `SHOTS=` (35). Sign-in pages need `AUTH_WEB`: a proxy to a signed-out Supabase-mode API |
 
 Full run on 2026-10-29: all green on the dev frontend, on the **production build with its CSP**, and **on Supabase as `app_api`**.
@@ -482,6 +493,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | 2026-10-29 | **Admins sign in with email + password only (no two-factor)**; step 4.5 dropped |
 | 2026-10-29 | Browser test scripts stay in the git-ignored `.unlazy/` folder; unit tests are committed (Vitest) |
 | 2026-10-30 | **No two-person (4-eyes) approval**: one finance admin approves or declines each withdrawal; the applicant is notified in-app and by email when they request it and when it's decided |
+| 2026-11-04 | **Payment Gateway**: admins create the deposit and withdrawal methods; every request uses one (the plain amount-and-note form is gone). Fields ask the applicant for details; fixed-amount methods offer several amounts; payment proof is set per method. Withdrawals can come from the grant balance, the deposit balance or both, set per user by an admin. The method limits and the withdrawal limits both apply. Approvals take an optional note; declines still need a reason |
 | 2026-11-02 | The applicant's level is called **Tier** (1–3) everywhere, on both sides; the **eligible amount** is set by an admin per tier, with an optional custom amount per user; Successful deposit = the deposit balance (approved deposits minus charges) |
 
 ---
@@ -553,5 +565,6 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 **Limits worth knowing:**
 - The API can't sign anyone in by itself if Supabase is down; requests answer 503 until it's back.
 - Grants, balances and cards are sample data; nothing moves real money.
+- A deposit is still a declaration checked by an admin against the proof: no payment processor is connected.
 - Card activation requests have no admin queue yet: they show in the user inspector and recent activity only.
 - Uploads live on one server's disk (backed up nightly on that same server) and are virus-scanned only once ClamAV is installed (6.6); rate limits are in memory, fine for one server (6.7).

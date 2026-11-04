@@ -24,3 +24,4 @@ export * from "./demo-requests";
 export * from "./demo-applications";
 export * from "./demo-files";
 export * from "./demo-admins";
+export * from "./demo-payment-methods";

@@ -98,7 +98,8 @@ export function useDismiss(ref: RefObject<HTMLElement | null>, open: boolean, cl
 }
 
 const focusable = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
-export function Modal({ open, onClose, title, children, testid }: { open: boolean; onClose: () => void; title: string; children: ReactNode; testid: string }) {
+/** `wide`: a larger dialog for forms with a preview (full screen on phones). */
+export function Modal({ open, onClose, title, children, testid, wide = false }: { open: boolean; onClose: () => void; title: string; children: ReactNode; testid: string; wide?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -123,9 +124,10 @@ export function Modal({ open, onClose, title, children, testid }: { open: boolea
   if (!open) return null;
   // Portalled to <body> so no ancestor's stacking context (animations, transforms) can put the bottom nav above it.
   return createPortal(
-    <div className="fixed inset-0 z-[80] grid place-items-center p-4">
+    <div className={cx('fixed inset-0 z-[80] grid place-items-center', wide ? 'p-0 sm:p-4' : 'p-4')}>
       <div className="absolute inset-0 bg-black/50" onClick={onClose} data-testid={`overlay-${testid}`} />
-      <div ref={box} role="dialog" aria-modal="true" aria-label={title} data-testid={testid} className="pop relative max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+      <div ref={box} role="dialog" aria-modal="true" aria-label={title} data-testid={testid}
+        className={cx('pop relative w-full overflow-y-auto bg-white shadow-2xl', wide ? 'h-[100dvh] p-4 sm:h-auto sm:max-h-[92dvh] sm:max-w-5xl sm:rounded-2xl sm:p-6' : 'max-h-[90dvh] max-w-lg rounded-2xl p-6')}>
         <div className="mb-4 flex items-start justify-between gap-4">
           <h2 className="font-display text-xl font-bold">{title}</h2>
           <button aria-label="Close dialog" data-testid={`button-close-${testid}`} onClick={onClose} className="press -mr-2 -mt-2 grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-slate-100"><X className="h-5 w-5" /></button>

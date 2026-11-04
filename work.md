@@ -2009,3 +2009,207 @@ Not in Phase 7: new features beyond email settings; the open go-live items (§12
 **Tier wording (user, 2026-11-02):** "Level" is now "Tier" everywhere: the inspector header and tier buttons ("Tier 1/2/3", toast "Set to Tier 2"), the users directory ("Tier 2" instead of "L2"), the applicant's Settings ("Account tier: Tier 2") and the audit text ("tier (Tier 2)"). Re-run after the change: phase5-users-ui 6+6, phase3-desktop 22/22, phase3-phone 17/17, phase1-desktop 26/26, phase8-balances-ui 7+7, phase6-mobile 39/39 with 0 problems.
 
 **Before it shows:** the Replit API workflow must be restarted (it serves a build); on the VPS, `deploy.sh` applies migration 0008.
+
+---
+
+## 15. Phase 9 build plan: the remaining backlog (2026-11-04)
+
+**Request (user, 2026-11-04):** build the four open items: 6.7 shared rate limits, an admin queue for physical-card activation requests, automatic fees, and tier rules beyond showing the eligible amount. Plan first, then build.
+
+**Order:** 9.1 and 9.2 need no product decisions, so they are built first. 9.3 (fees) and 9.4 (tier rules) wait for the answers in 15f; 9.4 comes after 9.3 because fees may differ per tier.
+
+### 15a. What exists already
+- **Cards** live in `demo_profiles.cards` (JSON list, `lib/cards.ts`). An applicant's "my physical card arrived" sets `activationRequestedAt` on a `Pending` physical card (6.2). The admin can already mark it issued (`changeCard(…, "activate")`, which clears the request), but only from the user inspector; there is no list of who is waiting.
+- **Rate limits** (`lib/rateLimit.ts`): fixed one-minute / ten-minute windows in a `Map` in this process. Five limiters: per IP (600/min), writes per account (60/min), uploads (20/10 min), email hook (120/min), crash reports (20/min). Correct for one server; with two, each server counts separately, so the real limit doubles.
+- **Charges** today are manual admin debits on the deposit balance (5.5, ledger kind `Debit`). The dashboard's "Successful deposit" card already says "Covers card fees and commissions". There is no `Fee` ledger kind and no fee settings.
+- **Tiers** (1–3, `demo_profiles.tier`) are set by hand in the inspector. The only thing a tier drives is the eligible amount (8.1), which is shown, not enforced.
+
+### 15b. Step 9.1: admin queue for card activation requests
+- **API:** `GET /admin/card-requests?status=requested|awaiting` lists physical cards that are `Pending`: *Activation requested* (the user says it arrived; oldest first, with how long they've waited) and *Awaiting delivery* (issued, no request yet). Each row: user, card (network, •• last four), issued at, requested at. `POST /admin/card-requests/:userId/:cardId/decline` `{ reason }`: the card stays `Pending`, the request is cleared, the user is notified with the reason (e.g. "the card you have isn't the one we sent"), audited. Activating reuses the existing `changeCard(…, "activate")` (audit + notification already there). No migration: the list is a `jsonb_array_elements` query over `demo_profiles.cards`.
+- **Dashboard:** a fifth KPI, "Card activations" (requests waiting), and the requests in the review queue.
+- **Admin UI:** new page `/admin/cards` ("Card Requests" in the admin menu after KYC Page, with the waiting count), two tabs, Activate / Decline (decline asks for a reason, ≥ 5 characters, like the deposit and withdrawal queues). Cards on phones, as in 7.5.
+- **Applicant UI:** after a decline the card shows "Activation declined: <reason>" and the "My card arrived" button again.
+- **Tests:** API suite `.unlazy/phase9-cards.mjs` (list, both tabs, activate, decline with reason, already-decided refusal, frozen account, two admins deciding at once → one wins); UI suite desktop + phone; regressions `phase6-cards(-ui)`, `phase5-cards`, `phase6-mobile`.
+
+### 15c. Step 9.2 (was 6.7): shared rate limits
+- **Design:** the limiters get a pluggable counter store. Default stays **in memory** (one server, no change). With `RATE_LIMIT_REDIS_URL` set, counts go to **Redis** with one atomic step per hit (`INCR` + `PEXPIRE` on first hit, in a Lua script), keys `fnf:rl:<limiter>:<who>`, so every API server shares the same counts.
+- **Why Redis and not Postgres:** the per-IP limit runs on every request; a Supabase round trip (VPS → Frankfurt) on each one would add latency and database load. Redis is the standard store for this and uses a few MB.
+- **If Redis is unreachable:** fall back to the in-memory count for that request and log a warning (at most once a minute), rather than refusing traffic; the site keeps working, limits are per server until Redis is back. Admin Settings → Monitoring shows the store: "Memory (one server)" / "Shared (Redis)" / "Redis not answering, using memory".
+- **Not needed today:** there is one API server, so this stays off on the VPS (Redis isn't installed there). `docs/DEPLOY.md` gets an optional step with install and memory notes.
+- **Tests:** Vitest with a fake store (shared counts across two limiter instances, window reset, fallback when the store throws, headers unchanged); against a real Redis if one can run here, otherwise against a stand-in that speaks the Redis protocol.
+
+### 15d. Step 9.3: automatic fees (waits for 15f)
+Proposed shape, to be confirmed:
+- **Admin → Settings → Money → Fees:** one setting per fee type (fixed amount, percentage, or percentage with a minimum), empty = no fee; optional per-tier values; per-user "waive fees" switch in the inspector. Every change audited.
+- **Charging:** a fee is a ledger row of a new kind **`Fee`**, written in the same transaction as the action that causes it (withdrawal approval, card issue, …), with the audit entry and the notification. Paid from the **deposit balance** (matches "Covers card fees and commissions").
+- **Before the user commits:** the Withdrawals / Cards screens show the fee ("Fee $5.00, paid from your deposit balance"); a request the deposit balance can't cover is refused with a clear message (or handled as decided in 15f).
+- **Reporting:** "Fees" filter on both Transactions pages, fees in the CSV export, fee total on the admin dashboard.
+- Migration for the fee settings and the waiver switch; the ledger `kind` is text, so `Fee` needs no schema change.
+
+### 15e. Step 9.4: tier rules (waits for 15f)
+Candidates, to be chosen by the user:
+- Cap a grant application's requested amount at the user's eligible amount.
+- Default withdrawal limits per tier (the user's custom limits still win).
+- Fees per tier (part of 9.3).
+- Automatic tier changes (e.g. Tier 2 once identity is verified, Tier 3 after N approved awards), with the admin able to pin a tier.
+
+### 15f. Decisions needed
+1. Which fees exist (withdrawal, card issue virtual / physical, card top-up, deposit).
+2. How each is worked out (fixed, percentage, percentage with a minimum; per tier or not).
+3. Where it's paid from, and what happens when the deposit balance can't cover it.
+4. Which tier rules to build, and for automatic tier changes, the thresholds.
+
+---
+
+## 16. Phase 10 build plan: payment gateway (deposit and withdrawal methods) (2026-11-04)
+
+**Request (user, 2026-11-04):** admins create the deposit and withdrawal methods the applicant chooses from.
+- Admin menu: a new main item **Payment Gateway** with two sub-items, **Deposit** and **Withdrawal**.
+- Deposit settings page → **Create deposit method** → a form: logo (upload a file or give a link to one), method name, amount rule (**minimum and maximum**, or **one fixed amount**, the admin picks which), then **extra fields** the admin adds to customise the method, and a field for the applicant to **upload payment proof**.
+- Withdrawal methods work the same way, except there is no proof upload.
+Plan first, then build.
+
+### 16a. What exists already
+- Requests are in `demo_requests` (`kind`, `amount_cents`, `note`, `status`, review columns). An applicant's request is just an amount and a note; there's no method, no form fields and no proof file.
+- Placing a request (`createApplicantRequest`) and the admin decision (`approveRequest` / `rejectRequest`) already handle locks, freezes, KYC, the hold on available grant balance, withdrawal limits, ledger, audit and notification emails (§8 Phase 3, 5.1, 5.2). **None of that changes.** Methods add rules and data on top.
+- Uploads (`lib/uploads.ts`): the real file type is read from the bytes, images are re-encoded with sharp, PDFs are checked, there's a 10 MB cap and virus scanning (6.6). Files are served **owner-only** today.
+- The web app's CSP only allows images from the site itself (`img-src 'self' data: blob:`), so a logo hosted on another site won't display.
+- The admin menu (`shell.tsx`) is a flat list: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, Settings. It has no sub-menus yet.
+
+### 16b. Data (migration 0009 + Supabase migration 0004)
+New table **`demo_payment_methods`** (RLS on, `app_api_all` policy, no Data API grants):
+
+| Column | What |
+|---|---|
+| `id` | uuid |
+| `kind` | `Deposit` \| `Withdrawal` |
+| `name` | 2–60 characters, unique per kind |
+| `logo_file_id` | the stored logo (`demo_files`) |
+| `amount_mode` | `range` \| `fixed` |
+| `min_cents`, `max_cents` | range mode; either one can be empty (no minimum / no maximum), min ≤ max, $0.01–$1,000,000 |
+| `fixed_cents` | fixed mode: the applicant can only send exactly this amount |
+| `fields` | jsonb list of the admin's extra fields (16c) |
+| `proof_required` | deposits only (16f, question 3) |
+| `instructions` | optional text shown to the applicant above the form (up to 1,000 characters) |
+| `enabled` | off = hidden from applicants and kept for history |
+| `sort_order`, `created_at`, `updated_at`, `created_by` | |
+
+`demo_requests` gains:
+- `method_id`
+- `method_snapshot` (jsonb: name, amount rule and field labels **as they were when the request was placed**, so editing a method later never changes old requests)
+- `field_values` (jsonb)
+- `proof_file_id`
+
+Old requests have no method and keep showing as today.
+
+### 16c. Extra fields (the admin's form builder)
+Each field has a **label**, **type**, **required** on/off, optional placeholder and help text, and is moved up or down with arrow buttons. Types:
+- **Short text** (e.g. account holder, wallet address, transaction ID)
+- **Long text**
+- **Number**
+- **Email**, **Phone**
+- **Date**
+- **Dropdown** (the admin types the options)
+- **Information** (display only, filled in by the admin: e.g. "Send to IBAN DE89 …, reference = your email"). It shows to the applicant with a copy button and asks for no input. *Depends on 16f question 1.*
+
+Limits: up to 20 fields per method, labels up to 60 characters, answers up to 500 characters. The server checks every answer against its field: required, type, dropdown option, length.
+
+### 16d. Logo
+- **Upload:** PNG, JPEG or WebP, up to 2 MB, re-encoded by sharp to a 256 px WebP (strips metadata), virus-scanned. **SVG is refused** because it can carry scripts.
+- **Link:** the server downloads the image **once** when the method is saved and stores it like an upload. It isn't hot-linked, because the CSP would block it, the image could change or disappear, and every applicant's browser would contact a third-party site. Safeguards: `https://` only, refuses private and internal addresses (stops the server being used to reach internal services), redirects re-checked, 2 MB and 10 s caps, must decode as an image.
+- Logos are the one kind of file shown to **every signed-in user**, from a new `GET /api/payment-methods/:id/logo` route. Other uploads stay owner-only.
+
+### 16e. Screens and API
+**Admin menu:** **Payment Gateway** becomes an expandable group with **Deposit** (`/admin/payment-gateway/deposit`) and **Withdrawal** (`/admin/payment-gateway/withdrawal`). It opens automatically on those pages and works the same in the phone drawer. Deposit Page and Withdrawal Page (the request queues) stay where they are (16f question 4).
+
+**Method settings page (one per kind):**
+- A list of methods with logo, name, amount rule ("$50–$5,000" / "Fixed $250"), number of fields, Enabled switch, number of requests, Edit.
+- **Create deposit method** / **Create withdrawal method** opens the form as a dialog (full screen on phones): logo (Upload / Link tabs, with a preview), name, amount rule (radio: *Minimum and maximum* / *Fixed amount*), instructions, the field builder, and for deposits the **Payment proof** setting. The applicant's form is previewed live beside it on desktop.
+- **Delete** works only for a method that was never used. A used method can only be disabled, so old requests keep their history.
+- Every create, edit, enable, disable and delete is audited.
+
+**API:** `GET|POST /admin/payment-methods?kind=`, `PATCH|DELETE /admin/payment-methods/:id`, `POST /admin/payment-methods/:id/logo` (file) and `{ url }`; `GET /applicant/payment-methods?kind=` (enabled methods only, without admin fields).
+
+**Applicant, Add funds / Withdrawals:**
+1. Choose a method: tiles with logo, name and amount rule.
+2. Amount: fixed methods show the amount, locked; range methods show "Between $50 and $5,000".
+3. The instructions, the admin's fields and, for deposits, **upload payment proof** (JPEG/PNG/WebP/PDF, 10 MB, virus-scanned).
+4. Submit → the existing "request placed" panel with its reference.
+
+If no method is enabled, the page says "No deposit methods are available yet. Contact support." (16f question 5).
+
+**Placing a request (server, same transaction as today):** the method must exist, be enabled and match the kind. The amount must fit the method's rule. The answers are validated and the proof must be present when required. Then every current check still runs: freezes, KYC, and for withdrawals the available grant balance and the withdrawal limits. The proof is uploaded in the same `multipart` request, so no request ever exists without its proof.
+
+**Admin queues (Deposit Page / Withdrawal Page):** each request shows the method's logo and name, the applicant's answers (labelled from the snapshot) and the payment proof, previewed in the existing document viewer with a download link. Admins can view proofs; the applicant can view their own. Approve and decline work as today. CSV export and header search include the method name.
+
+### 16f. Questions for the user
+1. **Extra fields:** do they ask the applicant for information (e.g. their transaction ID, their bank account for a withdrawal), or show the applicant information (e.g. *our* bank details or wallet address to pay to)? Proposed: both (the "Information" type in 16c).
+2. **Fixed amount:** one exact amount per method, or several fixed choices (e.g. $100 / $250 / $500)? Proposed: one.
+3. **Payment proof:** always required for deposits, or a per-method setting (required / optional / off)? Proposed: per method, required by default.
+4. **Menu:** keep Deposit Page and Withdrawal Page (the queues) as their own items, or move them under Payment Gateway too (e.g. Payment Gateway → Deposit methods, Deposit requests, Withdrawal methods, Withdrawal requests)?
+5. **The plain request form:** once methods exist, must every request use a method (the plain amount-and-note form goes away)? Proposed: yes.
+6. **Withdrawals:** still paid from the grant balance, with the global/per-user withdrawal limits applying **on top of** the method's minimum and maximum? Proposed: yes, and the stricter rule wins.
+
+### 16g. Steps
+| Step | What | Done when |
+|---|---|---|
+| 10.1 | Migrations, method CRUD API, logo upload + link download, audit | Vitest (amount rules, field validation, URL safety) + `.unlazy/phase10-methods.mjs` |
+| 10.2 | Admin Payment Gateway menu group + both method settings pages + form builder | `phase10-methods-ui.mjs` desktop + phone |
+| 10.3 | Applicant method picker, dynamic form, proof upload; server-side checks on placing | `phase10-requests.mjs` (incl. method disabled mid-way, fixed amount, proof missing, edits don't change old requests) + UI suite |
+| 10.4 | Admin queues show method, answers and proof; CSV export and search | regressions: phase3-api, phase5-withdrawals, phase5-limits, phase6-virus, phase6-mobile at 0 problems |
+
+Every step: typecheck, `pnpm test` and its suites before its commit. On the VPS, `deploy.sh` applies migration 0009.
+
+### 16h. Answers (user, 2026-11-04) and what changes in the plan
+1. **Extra fields ask the applicant** for what's needed to complete the transaction (wallet address, network name, account number…). The display-only "Information" type is dropped. The platform's own payment details (where to send a deposit) go in the method's **instructions** text.
+2. **Fixed amount = several choices.** `fixed_cents` becomes `fixed_amounts_cents` (an integer list, 1–10 choices, each $0.01–$1,000,000, no duplicates). The applicant picks one as a button. The list shows "Fixed: $100 / $250 / $500".
+3. **Payment proof is a setting per method:** `proof_mode` = `required` (default) / `optional` / `off`, replacing `proof_required`. Deposits only.
+4. **Deposit Page and Withdrawal Page stay where they are** (the request queues: see requests, approve, decline). Payment Gateway holds only the method settings. Change: **approving can carry an optional note** shown to the applicant in the notification and the email. New column `demo_requests.approve_note`, or reuse `review_note`. Declining keeps its required reason, so the applicant always knows why.
+5. Explained again to the user (the plain amount-and-note form on Add funds / Withdrawals).
+6. **New rule: an applicant can withdraw from the grant balance and from the "main balance".** On the admin user profile, the admin chooses which are open to that user: grant only / main only / both. Waiting on: what the "main balance" is, and the limits question explained again.
+7. **Answers, second round (user, 2026-11-04):**
+   - **5:** the old plain form goes away. Every deposit and withdrawal request uses a method. Requests placed before Phase 10 (no method) keep showing as today.
+   - **Main balance = the deposit balance.**
+   - **6 (limits):** no objection to the proposal, so **the stricter rule wins**: the method's minimum/maximum and the user's withdrawal limits (per request, 24 h) both apply.
+
+**Withdrawal sources (added to the plan):**
+- `demo_profiles.withdrawal_sources`: `grant` (default: today's behaviour, so nobody changes until an admin decides) / `deposit` / `both`. Set in the user inspector (Limits section: "Withdraw from: Grant balance / Deposit balance / Both"). Audited, and the applicant is notified.
+- `demo_requests.source` (`grant` | `deposit`, null for deposits; existing withdrawals are backfilled to `grant`).
+- **Placing:** the source must be allowed for the user. The amount must fit the **available amount of that balance** = balance − pending withdrawals from the same balance. Withdrawal limits count both sources together (one daily total per user).
+- **Approval:** re-checks that the source is still allowed and that the balance covers it, then debits that balance. The ledger row is kind `Withdrawal`, account `grant` or `deposit`.
+- **Admin debits (5.5):** the "can't eat into pending withdrawals" protection now applies to the deposit balance too.
+- **Applicant:** with both open, Withdrawals shows a "Withdraw from" choice with each balance's available amount. With one, it shows that balance only. `ApplicantAccount.availableToWithdraw` becomes `{ grant, deposit }` plus `withdrawalSources`.
+- If the admin closes a source while withdrawals from it are pending, those can't be approved: the approval re-check refuses them with "Withdrawals from the deposit balance are closed for this user", and the admin declines them.
+
+Migration 0009 therefore also adds `demo_profiles.withdrawal_sources` and `demo_requests.source`. The optional approval note reuses `review_note` (one column, set by either decision).
+
+### 2026-11-04: Steps 10.1–10.4 built and tested (payment gateway)
+
+**Built** (plan §16, with the answers in §16h):
+- **Database (migration 0009, Supabase 0004):** `demo_payment_methods`; `demo_requests.source`, `method_id`, `method_snapshot`, `field_values`, `proof_file_id` (existing withdrawals backfilled to `grant`); `demo_profiles.withdrawal_sources` (default `grant`). Applied on the Replit DB only.
+- **Server:**
+  - `lib/paymentRules.ts` (pure: method validation, amount rule, answers per field type, sources)
+  - `lib/paymentMethods.ts` (list, create, edit, move, delete-if-unused, logos)
+  - `lib/remoteImage.ts` (logo links: https only, private/internal addresses refused, the checked address is the one connected to, redirects re-checked, 2 MB / 10 s)
+  - `routes/paymentMethods.ts`; `POST /applicant/requests` is now multipart (method, amount, source, answers JSON, optional proof in `file`); `POST /admin/requests/:id/approve` takes an optional `{ note }`; `PUT /admin/users/:id/withdrawal-sources`
+  - upload kinds `logo` (WebP, 256 px, transparency kept) and `proof` (image or PDF)
+  - debits protect pending withdrawals on the deposit balance too; money emails show the method, "Paid from" and the approval note
+- **Admin UI:**
+  - **Payment Gateway** group in the menu (Deposit / Withdrawal; opens by itself on those pages, also in the phone drawer)
+  - method list (enable switch, up/down, edit, delete) and the create/edit dialog (logo Upload / Link, amount radio, fixed-amount chips, instructions, field builder, proof setting, live "What applicants see" preview; full screen with a pinned save bar on phones)
+  - queues show method, answers, proof preview / download, and the balance paid from, plus an approval note
+  - inspector Limits gets "Withdraw from"
+- **Applicant UI:**
+  - Add funds / Withdrawals: method tiles (picked automatically when there's only one), instructions with copy, amount box with the range or fixed-amount buttons, the method's fields, the proof upload, and "Withdraw from" with each balance's available amount when both are open
+  - requests list shows the method, answers, proof link and the approval note
+  - Help Centre answers updated
+
+**Not done as planned:** CSV export and header search don't get a separate method column; the ledger reason already reads "Deposit via <method> approved", so both find it by name.
+
+**Tests (2026-11-04, test API on :8099 in demo mode, dev DB restored from a snapshot before each suite):**
+- typecheck clean; `pnpm test` 101/101 (14 new: `paymentRules.test.ts`, `remoteImage.test.ts`, 2 money-email tests)
+- new `.unlazy/phase10-methods.mjs` 18/18 and `phase10-ui.mjs` 11/11 desktop + 11/11 phone
+- regressions: phase3-api 24/24, phase5-withdrawals 11/11, phase5-limits 10/10, phase5-debits 8/8, phase3-desktop 22/22, phase3-phone 17/17, phase5-ui 4+4, phase5-limits-ui 6+6, phase6-mobile 39/39 (0 problems), smoke 23+23, phase1-desktop 26/26, phase8-balances-ui 7+7
+- The older suites now place requests through a plain test method (`.unlazy/methods.mjs`). Some phase5-withdrawals assertions were updated for the intended changes: available amount per balance, and "released from your grant balance".
+
+**Still to do:** commit; deploy (`deploy.sh` applies 0009 and Supabase 0004); then create the real methods in Payment Gateway. Until a method is enabled, applicants can't place deposit or withdrawal requests.

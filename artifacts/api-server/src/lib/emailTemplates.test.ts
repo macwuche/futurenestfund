@@ -85,3 +85,21 @@ describe("parseFrom", () => {
     expect(parseFrom("not an address")).toBeNull();
   });
 });
+
+describe("money emails with a payment method (Phase 10)", () => {
+  const base = { request: "Withdrawal" as const, amountCents: 20000, reference: "AB12CD34", date: "4 Nov 2026" };
+  it("names the method and the balance paid from, and shows an approval note escaped", () => {
+    const m = moneyEmail("request_approved", "a@b.co", "Jane", { ...base, method: "Bank <transfer>", source: "deposit", reason: "Paid <today>" }, "https://x/withdrawals");
+    expect(m.text).toContain("Method: Bank <transfer>");
+    expect(m.text).toContain("Paid from: Your deposit balance");
+    expect(m.text).toContain("released from your deposit balance");
+    expect(m.text).toContain("Note: Paid <today>");
+    expect(m.html).not.toContain("<transfer>");
+    expect(m.html).not.toContain("<today>");
+  });
+  it("leaves the rows out when there's no method or note", () => {
+    const m = moneyEmail("request_approved", "a@b.co", "Jane", base, "https://x/withdrawals");
+    expect(m.text).not.toContain("Method:");
+    expect(m.text).not.toContain("Note:");
+  });
+});

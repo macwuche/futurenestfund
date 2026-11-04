@@ -349,13 +349,13 @@ paths:
     post:
       operationId: createApplicantRequest
       tags: [applicant]
-      summary: Submit a demo deposit or withdrawal request
+      summary: Place a deposit or withdrawal request through one of the administrator's payment methods
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: "#/components/schemas/ApplicantRequestInput"
+              $ref: "#/components/schemas/ApplicantRequestForm"
       responses:
         "201":
           description: Request recorded as pending
@@ -369,6 +369,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorMessage"
+  /applicant/payment-methods:
+    get:
+      operationId: listApplicantPaymentMethods
+      tags: [applicant]
+      summary: The enabled deposit or withdrawal methods to choose from
+      parameters:
+        - { name: kind, in: query, required: true, schema: { type: string, enum: [Deposit, Withdrawal] } }
+      responses:
+        "200":
+          description: Methods, in the administrator's order
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PaymentMethod" }
+  /applicant/payment-methods/{methodId}/logo:
+    get:
+      operationId: getApplicantPaymentMethodLogo
+      tags: [applicant]
+      summary: A payment method's logo image
+      parameters:
+        - { name: methodId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The image
+          content:
+            image/webp:
+              schema: { type: string, format: binary }
+        "404":
+          description: No logo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /applicant/applications:
     get:
       operationId: listApplicantApplications
@@ -1143,6 +1176,226 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/payment-methods:
+    get:
+      operationId: listAdminPaymentMethods
+      tags: [admin]
+      summary: Deposit or withdrawal methods (Payment Gateway)
+      parameters:
+        - { name: kind, in: query, required: true, schema: { type: string, enum: [Deposit, Withdrawal] } }
+      responses:
+        "200":
+          description: Methods, in order
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PaymentMethod" }
+    post:
+      operationId: createAdminPaymentMethod
+      tags: [admin]
+      summary: Create a deposit or withdrawal method
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PaymentMethodCreate" }
+      responses:
+        "201":
+          description: The new method
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentMethod" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/payment-methods/{methodId}:
+    get:
+      operationId: getAdminPaymentMethod
+      tags: [admin]
+      summary: One payment method
+      parameters:
+        - { name: methodId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The method
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentMethod" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    patch:
+      operationId: updateAdminPaymentMethod
+      tags: [admin]
+      summary: Change a payment method (only the parts sent); requests already placed keep their own copy
+      parameters:
+        - { name: methodId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PaymentMethodUpdate" }
+      responses:
+        "200":
+          description: The changed method
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentMethod" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    delete:
+      operationId: deleteAdminPaymentMethod
+      tags: [admin]
+      summary: Delete a method that was never used (a used method can only be disabled)
+      parameters:
+        - { name: methodId, in: path, required: true, schema: { type: string } }
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/payment-methods/{methodId}/move:
+    post:
+      operationId: moveAdminPaymentMethod
+      tags: [admin]
+      summary: Move a method one place up or down
+      parameters:
+        - { name: methodId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PaymentMethodMove" }
+      responses:
+        "200":
+          description: The list in its new order
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PaymentMethod" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/payment-methods/{methodId}/logo:
+    post:
+      operationId: uploadAdminPaymentMethodLogo
+      tags: [admin]
+      summary: Upload a method's logo (PNG, JPEG or WebP, up to 2 MB)
+      parameters:
+        - { name: methodId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/FileUpload" }
+      responses:
+        "200":
+          description: The method with its new logo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentMethod" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    delete:
+      operationId: deleteAdminPaymentMethodLogo
+      tags: [admin]
+      summary: Remove a method's logo
+      parameters:
+        - { name: methodId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The method without a logo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentMethod" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/payment-methods/{methodId}/logo-url:
+    post:
+      operationId: setAdminPaymentMethodLogoUrl
+      tags: [admin]
+      summary: Take a method's logo from an image link (downloaded once and stored; never hot-linked)
+      parameters:
+        - { name: methodId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LogoUrlInput" }
+      responses:
+        "200":
+          description: The method with its new logo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentMethod" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/users/{userId}/withdrawal-sources:
+    put:
+      operationId: updateUserWithdrawalSources
+      tags: [admin]
+      summary: Choose which balances a user can withdraw from
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WithdrawalSourcesUpdate" }
+      responses:
+        "200":
+          description: The updated user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUserProfile" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /admin/requests:
     get:
       operationId: listAdminRequests
@@ -1163,9 +1416,14 @@ paths:
     post:
       operationId: approveAdminRequest
       tags: [admin]
-      summary: Approve a pending request and move the money
+      summary: Approve a pending request and move the money, with an optional note for the applicant
       parameters:
         - { name: requestId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApproveInput" }
       responses:
         "200":
           description: Approved request
@@ -1492,7 +1750,13 @@ components:
         status: { type: string, enum: [Pending, Completed, Declined] }
         createdAt: { type: string, format: date-time }
         reference: { type: string, description: "Short reference for a deposit or withdrawal request" }
-        reviewNote: { type: string, description: "Why a request was declined" }
+        reviewNote: { type: string, description: "Why a request was declined, or the note added when it was approved" }
+        method: { $ref: "#/components/schemas/RequestMethod" }
+        source: { $ref: "#/components/schemas/BalanceSource" }
+        details:
+          type: array
+          items: { $ref: "#/components/schemas/RequestDetail" }
+        proofUrl: { type: string }
       required: [id, type, account, direction, amount, description, status, createdAt]
     ApplicantAccount:
       type: object
@@ -1503,7 +1767,14 @@ components:
         verificationLevel: { type: string, enum: [Verified, Pending, Rejected, Unsubmitted] }
         permissions: { $ref: "#/components/schemas/UserPermissions" }
         balances: { $ref: "#/components/schemas/UserBalances" }
-        availableToWithdraw: { type: number }
+        availableToWithdraw:
+          type: object
+          description: Each balance minus withdrawals from it still under review
+          properties:
+            grant: { type: number }
+            deposit: { type: number }
+          required: [grant, deposit]
+        withdrawalSources: { $ref: "#/components/schemas/WithdrawalSources" }
         cards:
           type: array
           items: { $ref: "#/components/schemas/UserCard" }
@@ -1511,14 +1782,114 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ApplicantTransaction" }
         withdrawalLimits: { $ref: "#/components/schemas/EffectiveWithdrawalLimits" }
-      required: [status, platformFrozen, tier, verificationLevel, permissions, balances, availableToWithdraw, cards, transactions, withdrawalLimits]
-    ApplicantRequestInput:
+      required: [status, platformFrozen, tier, verificationLevel, permissions, balances, availableToWithdraw, withdrawalSources, cards, transactions, withdrawalLimits]
+    ApplicantRequestForm:
       type: object
       properties:
         kind: { type: string, enum: [Deposit, Withdrawal] }
-        amount: { type: number, minimum: 0.01 }
+        methodId: { type: string }
+        amount: { type: string, description: "USD, e.g. 250.00" }
+        source: { type: string, enum: [grant, deposit], description: "Withdrawals: which balance pays it" }
+        values: { type: string, description: "JSON object of the method's field answers, by field id" }
         note: { type: string, maxLength: 240 }
-      required: [kind, amount]
+        file: { type: string, format: binary, description: "Payment proof (deposits): JPG, PNG, WebP or PDF, up to 10 MB" }
+      required: [kind, methodId, amount]
+    BalanceSource: { type: string, enum: [grant, deposit] }
+    WithdrawalSources: { type: string, enum: [grant, deposit, both], description: "Which balances the user can withdraw from" }
+    WithdrawalSourcesUpdate:
+      type: object
+      properties:
+        sources: { $ref: "#/components/schemas/WithdrawalSources" }
+      required: [sources]
+    RequestMethod:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string, description: "The method's name when the request was placed" }
+        logoUrl: { type: string }
+      required: [id, name]
+    RequestDetail:
+      type: object
+      properties:
+        label: { type: string }
+        value: { type: string }
+      required: [label, value]
+    PaymentField:
+      type: object
+      properties:
+        id: { type: string, description: "Kept across edits; new fields get one from the server" }
+        label: { type: string, maxLength: 60 }
+        type: { type: string, enum: [text, textarea, number, email, phone, date, select] }
+        required: { type: boolean }
+        placeholder: { type: string, maxLength: 80 }
+        help: { type: string, maxLength: 200 }
+        options:
+          type: array
+          items: { type: string }
+      required: [label, type, required]
+    PaymentMethod:
+      type: object
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [Deposit, Withdrawal] }
+        name: { type: string }
+        logoUrl: { type: string }
+        amountMode: { type: string, enum: [range, fixed] }
+        minAmount: { type: [number, "null"] }
+        maxAmount: { type: [number, "null"] }
+        fixedAmounts:
+          type: array
+          items: { type: number }
+        amountRule: { type: string, description: "e.g. \"$50.00 – $5,000.00\" or \"Fixed: $100.00 / $250.00\"" }
+        fields:
+          type: array
+          items: { $ref: "#/components/schemas/PaymentField" }
+        proofMode: { type: string, enum: [required, optional, off] }
+        instructions: { type: string }
+        enabled: { type: boolean, description: "Admin only" }
+        sortOrder: { type: integer, description: "Admin only" }
+        requestCount: { type: integer, description: "Admin only: requests placed with this method" }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, kind, name, amountMode, minAmount, maxAmount, fixedAmounts, amountRule, fields, proofMode, instructions]
+    PaymentMethodUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        amountMode: { type: string, enum: [range, fixed] }
+        minAmount: { type: [number, "null"] }
+        maxAmount: { type: [number, "null"] }
+        fixedAmounts:
+          type: array
+          items: { type: number }
+        fields:
+          type: array
+          items: { $ref: "#/components/schemas/PaymentField" }
+        proofMode: { type: string, enum: [required, optional, off] }
+        instructions: { type: string }
+        enabled: { type: boolean }
+    PaymentMethodCreate:
+      allOf:
+        - $ref: "#/components/schemas/PaymentMethodUpdate"
+        - type: object
+          properties:
+            kind: { type: string, enum: [Deposit, Withdrawal] }
+          required: [kind, name]
+    PaymentMethodMove:
+      type: object
+      properties:
+        direction: { type: string, enum: [up, down] }
+      required: [direction]
+    LogoUrlInput:
+      type: object
+      properties:
+        url: { type: string, maxLength: 2000 }
+      required: [url]
+    ApproveInput:
+      type: object
+      properties:
+        note: { type: string, maxLength: 240, description: "Optional, shown to the applicant" }
     HealthStatus:
       type: object
       properties:
@@ -1923,10 +2294,11 @@ components:
         permissions: { $ref: "#/components/schemas/UserPermissions" }
         withdrawalLimits: { $ref: "#/components/schemas/EffectiveWithdrawalLimits" }
         eligibleAmount: { $ref: "#/components/schemas/EffectiveEligibleAmount" }
+        withdrawalSources: { $ref: "#/components/schemas/WithdrawalSources" }
         audit:
           type: array
           items: { $ref: "#/components/schemas/AuditEntry" }
-      required: [id, name, email, phone, telegram, organization, maskedId, tier, verificationLevel, status, balances, cards, documents, permissions, withdrawalLimits, eligibleAmount, audit]
+      required: [id, name, email, phone, telegram, organization, maskedId, tier, verificationLevel, status, balances, cards, documents, permissions, withdrawalLimits, eligibleAmount, withdrawalSources, audit]
     AdminUserUpdate:
       type: object
       properties:
@@ -2076,7 +2448,14 @@ components:
         reviewNote: { type: string }
         reviewedBy: { type: string }
         reviewedAt: { type: string, format: date-time }
-      required: [id, reference, kind, amount, note, status, createdAt, userId, userName, organization, userStatus, verificationLevel, kycRequired, grantBalance, depositBalance]
+        method: { $ref: "#/components/schemas/RequestMethod" }
+        source: { $ref: "#/components/schemas/BalanceSource" }
+        withdrawalSources: { $ref: "#/components/schemas/WithdrawalSources" }
+        details:
+          type: array
+          items: { $ref: "#/components/schemas/RequestDetail" }
+        proofUrl: { type: string }
+      required: [id, reference, kind, amount, note, status, createdAt, userId, userName, organization, userStatus, verificationLevel, kycRequired, grantBalance, depositBalance, details, withdrawalSources]
     LedgerEntry:
       type: object
       properties:

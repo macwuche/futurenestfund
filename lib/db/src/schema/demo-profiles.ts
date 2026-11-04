@@ -33,6 +33,8 @@ export const demoProfilesTable = pgTable("demo_profiles", {
   eligibleCents: integer("eligible_cents"),
   /** Grant matchmaking answers (org type, focus areas, goals, funding size, timeline); null until the applicant answers. */
   matchmaking: jsonb("matchmaking"),
+  /** Which balances this user can withdraw from: grant | deposit | both (set by an administrator). */
+  withdrawalSources: text("withdrawal_sources").notNull().default("grant"),
 }).enableRLS();
 
 export const insertDemoProfileSchema = createInsertSchema(demoProfilesTable);

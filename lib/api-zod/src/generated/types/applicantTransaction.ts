@@ -9,6 +9,9 @@ import type { ApplicantTransactionAccount } from './applicantTransactionAccount'
 import type { ApplicantTransactionDirection } from './applicantTransactionDirection';
 import type { ApplicantTransactionStatus } from './applicantTransactionStatus';
 import type { ApplicantTransactionType } from './applicantTransactionType';
+import type { BalanceSource } from './balanceSource';
+import type { RequestDetail } from './requestDetail';
+import type { RequestMethod } from './requestMethod';
 
 export interface ApplicantTransaction {
   id: string;
@@ -21,6 +24,10 @@ export interface ApplicantTransaction {
   createdAt: Date;
   /** Short reference for a deposit or withdrawal request */
   reference?: string;
-  /** Why a request was declined */
+  /** Why a request was declined, or the note added when it was approved */
   reviewNote?: string;
+  method?: RequestMethod;
+  source?: BalanceSource;
+  details?: RequestDetail[];
+  proofUrl?: string;
 }

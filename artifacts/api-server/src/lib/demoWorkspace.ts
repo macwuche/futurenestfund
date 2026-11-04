@@ -1,9 +1,11 @@
-import { and, asc, desc, eq, gte, ilike, isNull, ne, or, sql } from "drizzle-orm";
-import { db, demoProfilesTable, demoAuditTable, demoLedgerTable, demoSettingsTable, demoRequestsTable, demoApplicationsTable, type DemoProfile } from "@workspace/db";
+import { and, asc, desc, eq, gte, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { db, demoProfilesTable, demoAuditTable, demoLedgerTable, demoSettingsTable, demoRequestsTable, demoApplicationsTable, demoPaymentMethodsTable, type DemoProfile } from "@workspace/db";
 import { notifyUser, requestEmailData, requestReference } from "./notifications";
 import { activeApplicationsFilter, applicationSummary } from "./applicantRecords";
 import { currentKycDocuments } from "./kyc";
-import { fileUrl } from "./uploads";
+import { fileUrl, storeUpload, type DbTx } from "./uploads";
+import { findMethod, methodLogoUrl, methodRules } from "./paymentMethods";
+import { amountProblem, describeAmountRule, parseAnswers, sourceAllowed, SOURCE_LABEL, SOURCES_LABEL, toCents, type BalanceSource, type WithdrawalSources } from "./paymentRules";
 import { grantRecommendations, storedAnswers } from "./matchmaking";
 import { APPEND_ONLY_TRIGGERS } from "./demoSeed";
 import { GetAdminUserResponse } from "@workspace/api-zod";
@@ -249,7 +251,7 @@ const dollars = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { m
 
 /**
  * Credit or debit a balance: balance, ledger, audit and notification in one transaction (settings → profile locks, like approvals).
- * A debit never takes a balance below $0, and never takes the grant balance below what pending withdrawals hold.
+ * A debit never takes a balance below $0, and never takes the grant or deposit balance below what pending withdrawals from it hold.
  */
 export async function adjustBalance(id: string, account: "grant" | "deposit" | "card", amount: number, reason: string, actor: string, direction: "credit" | "debit" = "credit") {
   const cents = Math.round(amount * 100);
@@ -271,8 +273,8 @@ export async function adjustBalance(id: string, account: "grant" | "deposit" | "
     const next = debit ? current[key] - cents : current[key] + cents;
     if (next > 2000000000) throw new DemoInputError("This would exceed the demo account limit.");
     if (next < 0) throw new DemoInputError(`The ${account} balance is only ${dollars(current[key])}, so ${dollars(cents)} can't be removed.`);
-    if (debit && account === "grant") {
-      const held = current.grantCents - await availableCents(current, tx);
+    if (debit && account !== "card") {
+      const held = current[key] - await availableCents(current, account, tx);
       if (next < held) throw new DemoInputError(`This would leave ${dollars(next)}, less than the ${dollars(held)} held for pending withdrawals. Decline those first or remove less.`);
     }
     await tx.update(demoProfilesTable).set({ [key]: next }).where(eq(demoProfilesTable.id, id));
@@ -296,18 +298,45 @@ export async function changeGlobalFreeze(frozen: boolean, actor: string, reason?
 }
 
 type RequestRow = typeof demoRequestsTable.$inferSelect;
-const requestTransaction = (r: RequestRow) => ({
-  id: r.id, type: r.kind, account: r.kind === "Deposit" ? "deposit" : "grant", direction: r.kind === "Deposit" ? "in" : "out",
+type Snapshot = { name?: string; amountRule?: string; fields?: { id: string; label: string; type: string }[] };
+
+export type LogoMap = Map<string, string | undefined>;
+
+/** Current logo URL per method, for showing a list of requests (methods are never deleted once used). */
+export async function methodLogos(methodIds: (string | null)[], scope: "applicant" | "admin"): Promise<LogoMap> {
+  const ids = [...new Set(methodIds.filter((x): x is string => !!x))];
+  if (!ids.length) return new Map();
+  const rows = await db.select({ id: demoPaymentMethodsTable.id, logoFileId: demoPaymentMethodsTable.logoFileId }).from(demoPaymentMethodsTable).where(inArray(demoPaymentMethodsTable.id, ids));
+  return new Map(rows.map(r => [r.id, methodLogoUrl(r, scope)]));
+}
+
+/** A request's method, balance, answers and proof as both sides show them: labels come from the copy taken when it was placed. */
+export function requestDetails(r: RequestRow, scope: "applicant" | "admin", logos: LogoMap) {
+  const snap = (r.methodSnapshot ?? null) as Snapshot | null;
+  const values = (r.fieldValues ?? {}) as Record<string, string>;
+  const logoUrl = r.methodId ? logos.get(r.methodId) : undefined;
+  return {
+    ...(snap && r.methodId ? { method: { id: r.methodId, name: snap.name ?? "Payment method", ...(logoUrl ? { logoUrl } : {}) } } : {}),
+    ...(r.kind === "Withdrawal" ? { source: (r.source === "deposit" ? "deposit" : "grant") as BalanceSource } : {}),
+    details: (snap?.fields ?? []).filter(f => values[f.id]).map(f => ({ label: f.label, value: values[f.id]! })),
+    ...(r.proofFileId ? { proofUrl: fileUrl(scope, r.proofFileId) } : {}),
+  };
+}
+
+const requestTransaction = (r: RequestRow, logos: LogoMap) => ({
+  id: r.id, type: r.kind, account: r.kind === "Deposit" ? "deposit" : r.source === "deposit" ? "deposit" : "grant", direction: r.kind === "Deposit" ? "in" : "out",
   amount: r.amountCents / 100, status: r.status, createdAt: r.createdAt.toISOString(),
-  description: `${r.note || `${r.kind} request`}${r.status === "Declined" && r.reviewNote ? ` · Declined: ${r.reviewNote}` : ""}`,
-  reference: requestReference(r.id), ...(r.status === "Declined" && r.reviewNote ? { reviewNote: r.reviewNote } : {}),
+  description: `${r.note || ((r.methodSnapshot as Snapshot | null)?.name ? `${r.kind} via ${(r.methodSnapshot as Snapshot).name}` : `${r.kind} request`)}${r.status === "Declined" && r.reviewNote ? ` · Declined: ${r.reviewNote}` : ""}`,
+  reference: requestReference(r.id), ...(r.reviewNote ? { reviewNote: r.reviewNote } : {}),
+  ...requestDetails(r, "applicant", logos),
 });
 
-/** Grant balance minus withdrawals still awaiting review. */
-async function availableCents(profile: DemoProfile, tx: Pick<typeof db, "select"> = db) {
+/** A balance minus withdrawals from it still awaiting review (older withdrawals without a source were all from the grant balance). */
+export async function availableCents(profile: DemoProfile, source: BalanceSource, tx: Pick<typeof db, "select"> = db) {
   const [row] = await tx.select({ sum: sql<number>`coalesce(sum(${demoRequestsTable.amountCents}), 0)::int` }).from(demoRequestsTable)
-    .where(and(eq(demoRequestsTable.profileId, profile.id), eq(demoRequestsTable.kind, "Withdrawal"), eq(demoRequestsTable.status, "Pending")));
-  return Math.max(0, profile.grantCents - (row?.sum ?? 0));
+    .where(and(eq(demoRequestsTable.profileId, profile.id), eq(demoRequestsTable.kind, "Withdrawal"), eq(demoRequestsTable.status, "Pending"),
+      source === "grant" ? or(eq(demoRequestsTable.source, "grant"), isNull(demoRequestsTable.source)) : eq(demoRequestsTable.source, "deposit")));
+  return Math.max(0, (source === "grant" ? profile.grantCents : profile.depositCents) - (row?.sum ?? 0));
 }
 
 export async function applicantAccount(profileId: string) {
@@ -319,24 +348,49 @@ export async function applicantAccount(profileId: string) {
   const ledger = await db.select().from(demoLedgerTable)
     .where(and(eq(demoLedgerTable.profileId, profileId), isNull(demoLedgerTable.requestId))).orderBy(desc(demoLedgerTable.createdAt)).limit(100);
   const requests = await db.select().from(demoRequestsTable).where(eq(demoRequestsTable.profileId, profileId)).orderBy(desc(demoRequestsTable.createdAt)).limit(100);
+  const logos = await methodLogos(requests.map(r => r.methodId), "applicant");
   const transactions = [
     ...ledger.map(l => ({
       id: l.id, type: l.kind, account: l.account, direction: l.amountCents < 0 ? "out" : "in", amount: Math.abs(l.amountCents) / 100,
-      description: l.reason, status: "Completed", createdAt: l.createdAt.toISOString(),
+      description: l.reason, status: "Completed", createdAt: l.createdAt.toISOString(), details: [],
     })),
-    ...requests.map(requestTransaction),
+    ...requests.map(r => requestTransaction(r, logos)),
   ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return {
     status: person.status, platformFrozen: settings?.frozen ?? false, tier: person.tier, verificationLevel: person.verificationLevel,
-    permissions: person.permissions, balances: person.balances, availableToWithdraw: (await availableCents(profile)) / 100,
+    permissions: person.permissions, balances: person.balances,
+    availableToWithdraw: { grant: (await availableCents(profile, "grant")) / 100, deposit: (await availableCents(profile, "deposit")) / 100 },
+    withdrawalSources: profile.withdrawalSources as WithdrawalSources,
     cards: person.cards, transactions, withdrawalLimits: await userWithdrawalLimits(profile),
   };
 }
 
-export async function createApplicantRequest(profileId: string, kind: "Deposit" | "Withdrawal", amount: number, note = "") {
-  const cents = Math.round(amount * 100);
-  if (!Number.isSafeInteger(cents) || cents < 1 || cents > 100000000 || Math.abs(amount * 100 - cents) > 0.00001) throw new DemoInputError("Enter an amount between $0.01 and $1,000,000 with at most two decimals.");
-  return db.transaction(async tx => {
+export type RequestInput = { kind: "Deposit" | "Withdrawal"; methodId: string; amount: number; source?: BalanceSource; values?: unknown; note?: string };
+
+/**
+ * Place a deposit or withdrawal request through one of the administrator's methods.
+ * The method's own rules (amount, fields, proof) are checked first; then, in one transaction with the settings and profile
+ * rows locked, the same checks as always: freezes, KYC, and for withdrawals the chosen balance and the withdrawal limits.
+ * A payment proof is stored in that same transaction, so a refused request never leaves a file behind.
+ */
+export async function createApplicantRequest(profileId: string, input: RequestInput, file?: Express.Multer.File) {
+  const { kind } = input;
+  const cents = toCents(input.amount);
+  if (cents === null) throw new DemoInputError("Enter an amount between $0.01 and $1,000,000 with at most two decimals.");
+  const method = await findMethod(input.methodId);
+  if (!method || method.kind !== kind || !method.enabled) throw new DemoInputError(`This ${kind.toLowerCase()} method isn't available any more. Choose another one.`);
+  const rules = methodRules(method);
+  const amountIssue = amountProblem(rules, cents);
+  if (amountIssue) throw new DemoInputError(amountIssue);
+  const answers = parseAnswers(rules.fields, input.values);
+  if (typeof answers === "string") throw new DemoInputError(answers);
+  const hasFile = !!file && file.size > 0;
+  if (rules.proofMode === "required" && !hasFile) throw new DemoInputError("Upload your payment proof (a photo, screenshot or PDF of the payment).");
+  if (rules.proofMode === "off" && hasFile) throw new DemoInputError(`${method.name} doesn't take a payment proof. Remove the file and try again.`);
+  const note = (input.note ?? "").trim().slice(0, 240);
+  const snapshot: Snapshot = { name: method.name, amountRule: describeAmountRule(rules), fields: rules.fields.map(f => ({ id: f.id, label: f.label, type: f.type })) };
+
+  const place = async (tx: DbTx, proofFileId: string | null) => {
     const [settings] = await tx.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform")).for("update");
     if (settings?.frozen) throw new DemoInputError("Deposits and withdrawals are paused while the platform is frozen.");
     const [profile] = await tx.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, profileId)).for("update");
@@ -345,19 +399,30 @@ export async function createApplicantRequest(profileId: string, kind: "Deposit" 
     const perms = (profile.permissions ?? {}) as { withdrawalKycRequired?: boolean; depositKycRequired?: boolean };
     const kycNeeded = kind === "Withdrawal" ? perms.withdrawalKycRequired : perms.depositKycRequired;
     if (kycNeeded && profile.verificationLevel !== "Verified") throw new DemoInputError(`Identity verification is required before you can submit a ${kind.toLowerCase()}. Upload your documents in Settings.`);
-    if (kind === "Withdrawal" && cents > await availableCents(profile, tx)) throw new DemoInputError("This is more than your available grant balance, after pending withdrawals.");
+    let source: BalanceSource | null = null;
     if (kind === "Withdrawal") {
+      const allowed = profile.withdrawalSources as WithdrawalSources;
+      source = input.source ?? (allowed === "both" ? null : allowed);
+      if (!source) throw new DemoInputError("Choose which balance to withdraw from.");
+      if (!sourceAllowed(allowed, source)) throw new DemoInputError(`Withdrawals from your ${SOURCE_LABEL[source]} aren't available. You can withdraw from your ${SOURCES_LABEL[allowed]}.`);
+      const available = await availableCents(profile, source, tx);
+      if (cents > available) throw new DemoInputError(`This is more than the ${dollars(available)} available in your ${SOURCE_LABEL[source]}, after pending withdrawals.`);
       // The profile row is locked above, so two quick requests can't both fit under the daily total.
       const problem = limitProblem(effectiveLimits(profile, settings), (await withdrawnLast24h([profile.id], tx)).get(profile.id) ?? 0, cents);
       if (problem) throw new DemoInputError(problem);
     }
-    const [row] = await tx.insert(demoRequestsTable).values({ profileId: profile.id, kind, amountCents: cents, note: note.trim().slice(0, 240) }).returning();
-    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor: profile.name, action: `${kind} request submitted +$${(cents / 100).toFixed(2)}` });
+    const [row] = await tx.insert(demoRequestsTable).values({
+      profileId: profile.id, kind, amountCents: cents, note, source, methodId: method.id, methodSnapshot: snapshot, fieldValues: answers, proofFileId,
+    }).returning();
+    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor: profile.name, action: `${kind} request submitted +$${(cents / 100).toFixed(2)} via ${method.name}${source ? ` from the ${SOURCE_LABEL[source]}` : ""}${proofFileId ? ", with payment proof" : ""}` });
     const amount = `$${(cents / 100).toFixed(2)}`;
     await notifyUser(profile.id, kind === "Withdrawal"
-      ? `Withdrawal request of ${amount} received (ref ${requestReference(row!.id)}). Our finance team will review it; your funds are released once it's approved.`
-      : `Deposit request of ${amount} received (ref ${requestReference(row!.id)}). Our finance team will review it; it's added to your balance once approved.`,
+      ? `Withdrawal request of ${amount} via ${method.name} received (ref ${requestReference(row!.id)}). Our finance team will review it; your funds are released once it's approved.`
+      : `Deposit request of ${amount} via ${method.name} received (ref ${requestReference(row!.id)}). Our finance team will review it; it's added to your balance once approved.`,
     kind === "Deposit" ? "/deposits" : "/withdrawals", tx, { kind: "request_received", data: requestEmailData(row!) });
-    return requestTransaction(row!);
-  });
+    return row!;
+  };
+
+  const row = hasFile ? await storeUpload(profileId, "proof", file, (stored, tx) => place(tx, stored.id)) : await db.transaction(tx => place(tx, null));
+  return requestTransaction(row, await methodLogos([row.methodId], "applicant"));
 }

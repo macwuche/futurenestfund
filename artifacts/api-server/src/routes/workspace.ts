@@ -30,7 +30,7 @@ import {
 import {
   SearchAdminQueryParams, SearchAdminResponse, ListAdminApplicationsQueryParams, ListAdminApplicationsResponse,
   GetAdminApplicationParams, GetAdminApplicationResponse, DecideAdminApplicationParams, DecideAdminApplicationBody, DecideAdminApplicationResponse,
-  ListAdminRequestsQueryParams, ListAdminRequestsResponse, ApproveAdminRequestParams, ApproveAdminRequestResponse,
+  ListAdminRequestsQueryParams, ListAdminRequestsResponse, ApproveAdminRequestParams, ApproveAdminRequestBody, ApproveAdminRequestResponse,
   RejectAdminRequestParams, RejectAdminRequestBody, RejectAdminRequestResponse, ListAdminTransactionsQueryParams, ListAdminTransactionsResponse,
   ExportAdminTransactionsQueryParams, GetAdminKycQueueResponse, ReviewAdminKycDocumentParams, ReviewAdminKycDocumentBody, ReviewAdminKycDocumentResponse,
 } from "@workspace/api-zod";
@@ -41,7 +41,7 @@ import {
   listLedger, exportLedgerCsv, adminKycQueue, reviewKycDocument,
   globalWithdrawalLimits, changeGlobalWithdrawalLimits, changeUserWithdrawalLimits, globalTierAmounts, changeTierAmounts, changeUserEligibleAmount, listAudit, exportAuditCsv,
 } from "../lib/adminOps";
-import { receiveFile, findFile, sendFile } from "../lib/uploads";
+import { receiveFile, receiveRequestForm, findFile, sendFile } from "../lib/uploads";
 import { applicantKyc, uploadKycDocument } from "../lib/kyc";
 import { setAvatar, clearAvatar, adminAccount, setAdminAvatar, clearAdminAvatar } from "../lib/avatars";
 import { currentAdmin, currentAdminProfile, currentUserId } from "../lib/currentUser";
@@ -104,10 +104,19 @@ router.post("/applicant/cards/:cardId/actions", async (req, res): Promise<void> 
   res.json(ChangeApplicantCardResponse.parse(await applicantAccount(id)));
 });
 
-router.post("/applicant/requests", async (req, res): Promise<void> => {
-  const input = CreateApplicantRequestBody.safeParse(req.body);
-  if (!input.success) { res.status(400).json({ error: "Enter an amount of at least $0.01 and a note under 240 characters." }); return; }
-  res.status(201).json(CreateApplicantRequestResponse.parse(await createApplicantRequest(currentUserId(req), input.data.kind, input.data.amount, input.data.note)));
+router.post("/applicant/requests", receiveRequestForm, async (req, res): Promise<void> => {
+  const body = { ...(req.body ?? {}) };
+  delete body.file;
+  const input = CreateApplicantRequestBody.omit({ file: true }).safeParse(body);
+  if (!input.success) { res.status(400).json({ error: "Choose a method and enter an amount (note under 240 characters)." }); return; }
+  let values: unknown = {};
+  if (input.data.values) {
+    try { values = JSON.parse(input.data.values); } catch { res.status(400).json({ error: "The method's details couldn't be read. Refresh the page and try again." }); return; }
+  }
+  const amount = Number(input.data.amount);
+  res.status(201).json(CreateApplicantRequestResponse.parse(await createApplicantRequest(currentUserId(req), {
+    kind: input.data.kind, methodId: input.data.methodId, amount, source: input.data.source, values, note: input.data.note,
+  }, req.file)));
 });
 
 /* ---------- applications ---------- */
@@ -374,7 +383,9 @@ router.get("/admin/requests", async (req, res): Promise<void> => {
 });
 router.post("/admin/requests/:requestId/approve", async (req, res): Promise<void> => {
   const params = ApproveAdminRequestParams.safeParse(req.params);
-  const result = params.success ? await approveRequest(params.data.requestId, currentAdmin(req)) : undefined;
+  const input = ApproveAdminRequestBody.safeParse(req.body ?? {});
+  if (!input.success) { res.status(400).json({ error: "Keep the note to 240 characters or fewer." }); return; }
+  const result = params.success ? await approveRequest(params.data.requestId, currentAdmin(req), input.data.note) : undefined;
   if (!result) { res.status(404).json({ error: "Request not found." }); return; }
   res.json(ApproveAdminRequestResponse.parse(result));
 });

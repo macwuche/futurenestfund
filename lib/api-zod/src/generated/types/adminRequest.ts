@@ -9,6 +9,10 @@ import type { AdminRequestKind } from './adminRequestKind';
 import type { AdminRequestStatus } from './adminRequestStatus';
 import type { AdminRequestUserStatus } from './adminRequestUserStatus';
 import type { AdminRequestVerificationLevel } from './adminRequestVerificationLevel';
+import type { BalanceSource } from './balanceSource';
+import type { RequestDetail } from './requestDetail';
+import type { RequestMethod } from './requestMethod';
+import type { WithdrawalSources } from './withdrawalSources';
 
 export interface AdminRequest {
   id: string;
@@ -32,4 +36,9 @@ export interface AdminRequest {
   reviewNote?: string;
   reviewedBy?: string;
   reviewedAt?: Date;
+  method?: RequestMethod;
+  source?: BalanceSource;
+  withdrawalSources: WithdrawalSources;
+  details: RequestDetail[];
+  proofUrl?: string;
 }

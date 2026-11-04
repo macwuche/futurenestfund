@@ -21,11 +21,16 @@ export async function notifyUser(profileId: string, message: string, link?: stri
 export const requestReference = (id: string) => id.replace(/-/g, "").slice(0, 8).toUpperCase();
 
 /** Template values for a deposit / withdrawal request email. */
-export function requestEmailData(r: { id: string; kind: string; amountCents: number; createdAt: Date }, reason?: string): MoneyEmailData {
+export function requestEmailData(
+  r: { id: string; kind: string; amountCents: number; createdAt: Date; source?: string | null; methodSnapshot?: unknown }, reason?: string,
+): MoneyEmailData {
+  const method = (r.methodSnapshot as { name?: unknown } | null | undefined)?.name;
   return {
     request: r.kind === "Deposit" ? "Deposit" : "Withdrawal", amountCents: r.amountCents, reference: requestReference(r.id),
     date: r.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }),
     ...(reason ? { reason } : {}),
+    ...(typeof method === "string" && method ? { method } : {}),
+    ...(r.kind === "Withdrawal" && (r.source === "grant" || r.source === "deposit") ? { source: r.source } : {}),
   };
 }
 

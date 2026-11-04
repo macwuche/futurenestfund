@@ -64,6 +64,13 @@
       "when": 1793639330926,
       "tag": "0008_eligible_amounts",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793778170503,
+      "tag": "0009_payment_methods",
+      "breakpoints": true
     }
   ]
 }

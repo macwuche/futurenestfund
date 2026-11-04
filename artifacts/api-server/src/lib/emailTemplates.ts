@@ -113,7 +113,13 @@ export function notificationEmail(to: string, name: string, message: string, url
 
 /** Dedicated emails for deposit and withdrawal requests; the outbox picks one by `demo_notifications.email_kind`. */
 export type MoneyEmailKind = "request_received" | "request_approved" | "request_declined";
-export type MoneyEmailData = { request: "Deposit" | "Withdrawal"; amountCents: number; reference: string; date: string; reason?: string };
+export type MoneyEmailData = {
+  request: "Deposit" | "Withdrawal"; amountCents: number; reference: string; date: string;
+  /** Decline reason, or the optional note an administrator added when approving. */
+  reason?: string;
+  /** Payment method name (Phase 10) and, for withdrawals, the balance it's paid from. */
+  method?: string; source?: "grant" | "deposit";
+};
 export const isMoneyEmailKind = (k: unknown): k is MoneyEmailKind => k === "request_received" || k === "request_approved" || k === "request_declined";
 
 const usd = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -121,7 +127,9 @@ const usd = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minim
 export function moneyEmail(kind: MoneyEmailKind, to: string, name: string, d: MoneyEmailData, url: string): OutgoingEmail {
   const what = d.request.toLowerCase();
   const withdrawal = d.request === "Withdrawal";
-  const rows: [string, string][] = [["Amount", usd(d.amountCents)], ["Reference", d.reference], ["Requested", d.date]];
+  const balance = d.source === "deposit" ? "deposit balance" : "grant balance";
+  const rows: [string, string][] = [["Amount", usd(d.amountCents)], ...(d.method ? [["Method", d.method] as [string, string]] : []),
+    ...(withdrawal && d.source ? [["Paid from", `Your ${balance}`] as [string, string]] : []), ["Reference", d.reference], ["Requested", d.date]];
   const button = { kind: "button" as const, label: withdrawal ? "View your withdrawals" : "View your deposits", href: url };
   const footer = { kind: "small" as const, text: "Questions? Reply to your administrator or visit the Help Centre in GrantApp. Never share your password with anyone, including our team." };
   switch (kind) {
@@ -135,9 +143,9 @@ export function moneyEmail(kind: MoneyEmailKind, to: string, name: string, d: Mo
     case "request_approved": return render(to, `Your ${what} of ${usd(d.amountCents)} was approved`, `${d.request} approved`, [
       { kind: "p", text: greeting(name) },
       { kind: "p", text: withdrawal
-        ? "Good news: our finance team approved your withdrawal. The funds have been released from your grant balance."
+        ? `Good news: our finance team approved your withdrawal. The funds have been released from your ${balance}.`
         : "Good news: our finance team approved your deposit. The funds are now in your deposit balance." },
-      { kind: "rows", rows: [...rows, ["Status", "Approved"]] }, button, footer]);
+      { kind: "rows", rows: [...rows, ["Status", "Approved"], ...(d.reason ? [["Note", d.reason] as [string, string]] : [])] }, button, footer]);
     case "request_declined": return render(to, `Your ${what} request of ${usd(d.amountCents)} was declined`, `${d.request} declined`, [
       { kind: "p", text: greeting(name) },
       { kind: "p", text: `Our finance team declined your ${what} request. No money has moved${withdrawal ? ", and the held amount is available again" : ""}.` },

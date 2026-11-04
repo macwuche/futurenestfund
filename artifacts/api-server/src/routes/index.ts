@@ -5,6 +5,7 @@ import authRouter from "./auth";
 import workspaceRouter from "./workspace";
 import { clientErrorsRouter, monitoringAdminRouter } from "./monitoring";
 import emailSettingsRouter from "./emailSettings";
+import paymentMethodsRouter from "./paymentMethods";
 import { authenticate, requireAdmin, requireApplicant } from "../lib/auth";
 import { perIp, perUserUploads, perUserWrites } from "../lib/rateLimit";
 
@@ -22,6 +23,7 @@ router.use("/applicant", requireApplicant);
 router.use("/admin", requireAdmin);
 router.use(monitoringAdminRouter);
 router.use(emailSettingsRouter);
+router.use(paymentMethodsRouter);
 router.use(workspaceRouter);
 
 export default router;

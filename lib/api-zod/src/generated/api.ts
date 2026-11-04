@@ -554,7 +554,11 @@ export const GetApplicantAccountResponse = zod.object({
   "deposit": zod.number(),
   "card": zod.number()
 }),
-  "availableToWithdraw": zod.number(),
+  "availableToWithdraw": zod.object({
+  "grant": zod.number(),
+  "deposit": zod.number()
+}).describe('Each balance minus withdrawals from it still under review'),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "cards": zod.array(zod.object({
   "id": zod.string(),
   "network": zod.enum(['Visa', 'Mastercard']),
@@ -577,7 +581,18 @@ export const GetApplicantAccountResponse = zod.object({
   "status": zod.enum(['Pending', 'Completed', 'Declined']),
   "createdAt": zod.coerce.date(),
   "reference": zod.string().optional().describe('Short reference for a deposit or withdrawal request'),
-  "reviewNote": zod.string().optional().describe('Why a request was declined')
+  "reviewNote": zod.string().optional().describe('Why a request was declined, or the note added when it was approved'),
+  "method": zod.object({
+  "id": zod.string(),
+  "name": zod.string().describe('The method\'s name when the request was placed'),
+  "logoUrl": zod.string().optional()
+}).optional(),
+  "source": zod.enum(['grant', 'deposit']).optional(),
+  "details": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string()
+})).optional(),
+  "proofUrl": zod.string().optional()
 })),
   "withdrawalLimits": zod.object({
   "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
@@ -620,7 +635,11 @@ export const ChangeApplicantCardResponse = zod.object({
   "deposit": zod.number(),
   "card": zod.number()
 }),
-  "availableToWithdraw": zod.number(),
+  "availableToWithdraw": zod.object({
+  "grant": zod.number(),
+  "deposit": zod.number()
+}).describe('Each balance minus withdrawals from it still under review'),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "cards": zod.array(zod.object({
   "id": zod.string(),
   "network": zod.enum(['Visa', 'Mastercard']),
@@ -643,7 +662,18 @@ export const ChangeApplicantCardResponse = zod.object({
   "status": zod.enum(['Pending', 'Completed', 'Declined']),
   "createdAt": zod.coerce.date(),
   "reference": zod.string().optional().describe('Short reference for a deposit or withdrawal request'),
-  "reviewNote": zod.string().optional().describe('Why a request was declined')
+  "reviewNote": zod.string().optional().describe('Why a request was declined, or the note added when it was approved'),
+  "method": zod.object({
+  "id": zod.string(),
+  "name": zod.string().describe('The method\'s name when the request was placed'),
+  "logoUrl": zod.string().optional()
+}).optional(),
+  "source": zod.enum(['grant', 'deposit']).optional(),
+  "details": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string()
+})).optional(),
+  "proofUrl": zod.string().optional()
 })),
   "withdrawalLimits": zod.object({
   "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
@@ -655,18 +685,20 @@ export const ChangeApplicantCardResponse = zod.object({
 
 
 /**
- * @summary Submit a demo deposit or withdrawal request
+ * @summary Place a deposit or withdrawal request through one of the administrator's payment methods
  */
-export const createApplicantRequestBodyAmountMin = 0.01;
-
 export const createApplicantRequestBodyNoteMax = 240;
 
 
 
 export const CreateApplicantRequestBody = zod.object({
   "kind": zod.enum(['Deposit', 'Withdrawal']),
-  "amount": zod.number().min(createApplicantRequestBodyAmountMin),
-  "note": zod.string().max(createApplicantRequestBodyNoteMax).optional()
+  "methodId": zod.string(),
+  "amount": zod.string().describe('USD, e.g. 250.00'),
+  "source": zod.enum(['grant', 'deposit']).optional().describe('Withdrawals: which balance pays it'),
+  "values": zod.string().optional().describe('JSON object of the method\'s field answers, by field id'),
+  "note": zod.string().max(createApplicantRequestBodyNoteMax).optional(),
+  "file": zod.instanceof(Blob).optional().describe('Payment proof (deposits): JPG, PNG, WebP or PDF, up to 10 MB')
 })
 
 export const CreateApplicantRequestResponse = zod.object({
@@ -679,8 +711,75 @@ export const CreateApplicantRequestResponse = zod.object({
   "status": zod.enum(['Pending', 'Completed', 'Declined']),
   "createdAt": zod.coerce.date(),
   "reference": zod.string().optional().describe('Short reference for a deposit or withdrawal request'),
-  "reviewNote": zod.string().optional().describe('Why a request was declined')
+  "reviewNote": zod.string().optional().describe('Why a request was declined, or the note added when it was approved'),
+  "method": zod.object({
+  "id": zod.string(),
+  "name": zod.string().describe('The method\'s name when the request was placed'),
+  "logoUrl": zod.string().optional()
+}).optional(),
+  "source": zod.enum(['grant', 'deposit']).optional(),
+  "details": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string()
+})).optional(),
+  "proofUrl": zod.string().optional()
 })
+
+
+/**
+ * @summary The enabled deposit or withdrawal methods to choose from
+ */
+export const ListApplicantPaymentMethodsQueryParams = zod.object({
+  "kind": zod.enum(['Deposit', 'Withdrawal'])
+})
+
+export const listApplicantPaymentMethodsResponseFieldsItemLabelMax = 60;
+
+export const listApplicantPaymentMethodsResponseFieldsItemPlaceholderMax = 80;
+
+export const listApplicantPaymentMethodsResponseFieldsItemHelpMax = 200;
+
+
+
+export const ListApplicantPaymentMethodsResponseItem = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "name": zod.string(),
+  "logoUrl": zod.string().optional(),
+  "amountMode": zod.enum(['range', 'fixed']),
+  "minAmount": zod.number().nullable(),
+  "maxAmount": zod.number().nullable(),
+  "fixedAmounts": zod.array(zod.number()),
+  "amountRule": zod.string().describe('e.g. "$50.00 – $5,000.00" or "Fixed: $100.00 / $250.00"'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(listApplicantPaymentMethodsResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(listApplicantPaymentMethodsResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(listApplicantPaymentMethodsResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+})),
+  "proofMode": zod.enum(['required', 'optional', 'off']),
+  "instructions": zod.string(),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "sortOrder": zod.number().int().optional().describe('Admin only'),
+  "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const ListApplicantPaymentMethodsResponse = zod.array(ListApplicantPaymentMethodsResponseItem)
+
+
+/**
+ * @summary A payment method's logo image
+ */
+export const GetApplicantPaymentMethodLogoParams = zod.object({
+  "methodId": zod.coerce.string()
+})
+
+export const GetApplicantPaymentMethodLogoResponse = zod.unknown()
 
 
 /**
@@ -1304,6 +1403,7 @@ export const GetAdminUserResponse = zod.object({
   "amount": zod.number().nullable().describe('What the user sees; null = not set'),
   "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
 }),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
   "id": zod.string(),
   "action": zod.string(),
@@ -1410,6 +1510,7 @@ export const UpdateAdminUserResponse = zod.object({
   "amount": zod.number().nullable().describe('What the user sees; null = not set'),
   "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
 }),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
   "id": zod.string(),
   "action": zod.string(),
@@ -1556,6 +1657,7 @@ export const UploadAdminUserAvatarResponse = zod.object({
   "amount": zod.number().nullable().describe('What the user sees; null = not set'),
   "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
 }),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
   "id": zod.string(),
   "action": zod.string(),
@@ -1636,6 +1738,7 @@ export const DeleteAdminUserAvatarResponse = zod.object({
   "amount": zod.number().nullable().describe('What the user sees; null = not set'),
   "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
 }),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
   "id": zod.string(),
   "action": zod.string(),
@@ -1721,6 +1824,7 @@ export const IssueUserCardResponse = zod.object({
   "amount": zod.number().nullable().describe('What the user sees; null = not set'),
   "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
 }),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
   "id": zod.string(),
   "action": zod.string(),
@@ -1811,6 +1915,7 @@ export const ChangeUserCardResponse = zod.object({
   "amount": zod.number().nullable().describe('What the user sees; null = not set'),
   "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
 }),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
   "id": zod.string(),
   "action": zod.string(),
@@ -1897,6 +2002,7 @@ export const UpdateUserWithdrawalLimitsResponse = zod.object({
   "amount": zod.number().nullable().describe('What the user sees; null = not set'),
   "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
 }),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
   "id": zod.string(),
   "action": zod.string(),
@@ -2005,6 +2111,7 @@ export const UpdateUserEligibleAmountResponse = zod.object({
   "amount": zod.number().nullable().describe('What the user sees; null = not set'),
   "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
 }),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
   "id": zod.string(),
   "action": zod.string(),
@@ -2238,6 +2345,533 @@ export const DecideAdminApplicationResponse = zod.object({
 
 
 /**
+ * @summary Deposit or withdrawal methods (Payment Gateway)
+ */
+export const ListAdminPaymentMethodsQueryParams = zod.object({
+  "kind": zod.enum(['Deposit', 'Withdrawal'])
+})
+
+export const listAdminPaymentMethodsResponseFieldsItemLabelMax = 60;
+
+export const listAdminPaymentMethodsResponseFieldsItemPlaceholderMax = 80;
+
+export const listAdminPaymentMethodsResponseFieldsItemHelpMax = 200;
+
+
+
+export const ListAdminPaymentMethodsResponseItem = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "name": zod.string(),
+  "logoUrl": zod.string().optional(),
+  "amountMode": zod.enum(['range', 'fixed']),
+  "minAmount": zod.number().nullable(),
+  "maxAmount": zod.number().nullable(),
+  "fixedAmounts": zod.array(zod.number()),
+  "amountRule": zod.string().describe('e.g. "$50.00 – $5,000.00" or "Fixed: $100.00 / $250.00"'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(listAdminPaymentMethodsResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(listAdminPaymentMethodsResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(listAdminPaymentMethodsResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+})),
+  "proofMode": zod.enum(['required', 'optional', 'off']),
+  "instructions": zod.string(),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "sortOrder": zod.number().int().optional().describe('Admin only'),
+  "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const ListAdminPaymentMethodsResponse = zod.array(ListAdminPaymentMethodsResponseItem)
+
+
+/**
+ * @summary Create a deposit or withdrawal method
+ */
+export const createAdminPaymentMethodBodyOneFieldsItemLabelMax = 60;
+
+export const createAdminPaymentMethodBodyOneFieldsItemPlaceholderMax = 80;
+
+export const createAdminPaymentMethodBodyOneFieldsItemHelpMax = 200;
+
+
+
+export const CreateAdminPaymentMethodBody = zod.object({
+  "name": zod.string(),
+  "amountMode": zod.enum(['range', 'fixed']).optional(),
+  "minAmount": zod.number().nullish(),
+  "maxAmount": zod.number().nullish(),
+  "fixedAmounts": zod.array(zod.number()).optional(),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(createAdminPaymentMethodBodyOneFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(createAdminPaymentMethodBodyOneFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(createAdminPaymentMethodBodyOneFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+})).optional(),
+  "proofMode": zod.enum(['required', 'optional', 'off']).optional(),
+  "instructions": zod.string().optional(),
+  "enabled": zod.boolean().optional()
+}).and(zod.object({
+  "kind": zod.enum(['Deposit', 'Withdrawal'])
+}))
+
+export const createAdminPaymentMethodResponseFieldsItemLabelMax = 60;
+
+export const createAdminPaymentMethodResponseFieldsItemPlaceholderMax = 80;
+
+export const createAdminPaymentMethodResponseFieldsItemHelpMax = 200;
+
+
+
+export const CreateAdminPaymentMethodResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "name": zod.string(),
+  "logoUrl": zod.string().optional(),
+  "amountMode": zod.enum(['range', 'fixed']),
+  "minAmount": zod.number().nullable(),
+  "maxAmount": zod.number().nullable(),
+  "fixedAmounts": zod.array(zod.number()),
+  "amountRule": zod.string().describe('e.g. "$50.00 – $5,000.00" or "Fixed: $100.00 / $250.00"'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(createAdminPaymentMethodResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(createAdminPaymentMethodResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(createAdminPaymentMethodResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+})),
+  "proofMode": zod.enum(['required', 'optional', 'off']),
+  "instructions": zod.string(),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "sortOrder": zod.number().int().optional().describe('Admin only'),
+  "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary One payment method
+ */
+export const GetAdminPaymentMethodParams = zod.object({
+  "methodId": zod.coerce.string()
+})
+
+export const getAdminPaymentMethodResponseFieldsItemLabelMax = 60;
+
+export const getAdminPaymentMethodResponseFieldsItemPlaceholderMax = 80;
+
+export const getAdminPaymentMethodResponseFieldsItemHelpMax = 200;
+
+
+
+export const GetAdminPaymentMethodResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "name": zod.string(),
+  "logoUrl": zod.string().optional(),
+  "amountMode": zod.enum(['range', 'fixed']),
+  "minAmount": zod.number().nullable(),
+  "maxAmount": zod.number().nullable(),
+  "fixedAmounts": zod.array(zod.number()),
+  "amountRule": zod.string().describe('e.g. "$50.00 – $5,000.00" or "Fixed: $100.00 / $250.00"'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(getAdminPaymentMethodResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(getAdminPaymentMethodResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(getAdminPaymentMethodResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+})),
+  "proofMode": zod.enum(['required', 'optional', 'off']),
+  "instructions": zod.string(),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "sortOrder": zod.number().int().optional().describe('Admin only'),
+  "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Change a payment method (only the parts sent); requests already placed keep their own copy
+ */
+export const UpdateAdminPaymentMethodParams = zod.object({
+  "methodId": zod.coerce.string()
+})
+
+export const updateAdminPaymentMethodBodyFieldsItemLabelMax = 60;
+
+export const updateAdminPaymentMethodBodyFieldsItemPlaceholderMax = 80;
+
+export const updateAdminPaymentMethodBodyFieldsItemHelpMax = 200;
+
+
+
+export const UpdateAdminPaymentMethodBody = zod.object({
+  "name": zod.string().optional(),
+  "amountMode": zod.enum(['range', 'fixed']).optional(),
+  "minAmount": zod.number().nullish(),
+  "maxAmount": zod.number().nullish(),
+  "fixedAmounts": zod.array(zod.number()).optional(),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(updateAdminPaymentMethodBodyFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(updateAdminPaymentMethodBodyFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(updateAdminPaymentMethodBodyFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+})).optional(),
+  "proofMode": zod.enum(['required', 'optional', 'off']).optional(),
+  "instructions": zod.string().optional(),
+  "enabled": zod.boolean().optional()
+})
+
+export const updateAdminPaymentMethodResponseFieldsItemLabelMax = 60;
+
+export const updateAdminPaymentMethodResponseFieldsItemPlaceholderMax = 80;
+
+export const updateAdminPaymentMethodResponseFieldsItemHelpMax = 200;
+
+
+
+export const UpdateAdminPaymentMethodResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "name": zod.string(),
+  "logoUrl": zod.string().optional(),
+  "amountMode": zod.enum(['range', 'fixed']),
+  "minAmount": zod.number().nullable(),
+  "maxAmount": zod.number().nullable(),
+  "fixedAmounts": zod.array(zod.number()),
+  "amountRule": zod.string().describe('e.g. "$50.00 – $5,000.00" or "Fixed: $100.00 / $250.00"'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(updateAdminPaymentMethodResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(updateAdminPaymentMethodResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(updateAdminPaymentMethodResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+})),
+  "proofMode": zod.enum(['required', 'optional', 'off']),
+  "instructions": zod.string(),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "sortOrder": zod.number().int().optional().describe('Admin only'),
+  "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Delete a method that was never used (a used method can only be disabled)
+ */
+export const DeleteAdminPaymentMethodParams = zod.object({
+  "methodId": zod.coerce.string()
+})
+
+export const DeleteAdminPaymentMethodResponse = zod.void()
+
+
+/**
+ * @summary Move a method one place up or down
+ */
+export const MoveAdminPaymentMethodParams = zod.object({
+  "methodId": zod.coerce.string()
+})
+
+export const MoveAdminPaymentMethodBody = zod.object({
+  "direction": zod.enum(['up', 'down'])
+})
+
+export const moveAdminPaymentMethodResponseFieldsItemLabelMax = 60;
+
+export const moveAdminPaymentMethodResponseFieldsItemPlaceholderMax = 80;
+
+export const moveAdminPaymentMethodResponseFieldsItemHelpMax = 200;
+
+
+
+export const MoveAdminPaymentMethodResponseItem = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "name": zod.string(),
+  "logoUrl": zod.string().optional(),
+  "amountMode": zod.enum(['range', 'fixed']),
+  "minAmount": zod.number().nullable(),
+  "maxAmount": zod.number().nullable(),
+  "fixedAmounts": zod.array(zod.number()),
+  "amountRule": zod.string().describe('e.g. "$50.00 – $5,000.00" or "Fixed: $100.00 / $250.00"'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(moveAdminPaymentMethodResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(moveAdminPaymentMethodResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(moveAdminPaymentMethodResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+})),
+  "proofMode": zod.enum(['required', 'optional', 'off']),
+  "instructions": zod.string(),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "sortOrder": zod.number().int().optional().describe('Admin only'),
+  "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const MoveAdminPaymentMethodResponse = zod.array(MoveAdminPaymentMethodResponseItem)
+
+
+/**
+ * @summary Upload a method's logo (PNG, JPEG or WebP, up to 2 MB)
+ */
+export const UploadAdminPaymentMethodLogoParams = zod.object({
+  "methodId": zod.coerce.string()
+})
+
+export const UploadAdminPaymentMethodLogoBody = zod.object({
+  "file": zod.instanceof(Blob)
+})
+
+export const uploadAdminPaymentMethodLogoResponseFieldsItemLabelMax = 60;
+
+export const uploadAdminPaymentMethodLogoResponseFieldsItemPlaceholderMax = 80;
+
+export const uploadAdminPaymentMethodLogoResponseFieldsItemHelpMax = 200;
+
+
+
+export const UploadAdminPaymentMethodLogoResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "name": zod.string(),
+  "logoUrl": zod.string().optional(),
+  "amountMode": zod.enum(['range', 'fixed']),
+  "minAmount": zod.number().nullable(),
+  "maxAmount": zod.number().nullable(),
+  "fixedAmounts": zod.array(zod.number()),
+  "amountRule": zod.string().describe('e.g. "$50.00 – $5,000.00" or "Fixed: $100.00 / $250.00"'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(uploadAdminPaymentMethodLogoResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(uploadAdminPaymentMethodLogoResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(uploadAdminPaymentMethodLogoResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+})),
+  "proofMode": zod.enum(['required', 'optional', 'off']),
+  "instructions": zod.string(),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "sortOrder": zod.number().int().optional().describe('Admin only'),
+  "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Remove a method's logo
+ */
+export const DeleteAdminPaymentMethodLogoParams = zod.object({
+  "methodId": zod.coerce.string()
+})
+
+export const deleteAdminPaymentMethodLogoResponseFieldsItemLabelMax = 60;
+
+export const deleteAdminPaymentMethodLogoResponseFieldsItemPlaceholderMax = 80;
+
+export const deleteAdminPaymentMethodLogoResponseFieldsItemHelpMax = 200;
+
+
+
+export const DeleteAdminPaymentMethodLogoResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "name": zod.string(),
+  "logoUrl": zod.string().optional(),
+  "amountMode": zod.enum(['range', 'fixed']),
+  "minAmount": zod.number().nullable(),
+  "maxAmount": zod.number().nullable(),
+  "fixedAmounts": zod.array(zod.number()),
+  "amountRule": zod.string().describe('e.g. "$50.00 – $5,000.00" or "Fixed: $100.00 / $250.00"'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(deleteAdminPaymentMethodLogoResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(deleteAdminPaymentMethodLogoResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(deleteAdminPaymentMethodLogoResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+})),
+  "proofMode": zod.enum(['required', 'optional', 'off']),
+  "instructions": zod.string(),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "sortOrder": zod.number().int().optional().describe('Admin only'),
+  "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Take a method's logo from an image link (downloaded once and stored; never hot-linked)
+ */
+export const SetAdminPaymentMethodLogoUrlParams = zod.object({
+  "methodId": zod.coerce.string()
+})
+
+export const setAdminPaymentMethodLogoUrlBodyUrlMax = 2000;
+
+
+
+export const SetAdminPaymentMethodLogoUrlBody = zod.object({
+  "url": zod.string().max(setAdminPaymentMethodLogoUrlBodyUrlMax)
+})
+
+export const setAdminPaymentMethodLogoUrlResponseFieldsItemLabelMax = 60;
+
+export const setAdminPaymentMethodLogoUrlResponseFieldsItemPlaceholderMax = 80;
+
+export const setAdminPaymentMethodLogoUrlResponseFieldsItemHelpMax = 200;
+
+
+
+export const SetAdminPaymentMethodLogoUrlResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "name": zod.string(),
+  "logoUrl": zod.string().optional(),
+  "amountMode": zod.enum(['range', 'fixed']),
+  "minAmount": zod.number().nullable(),
+  "maxAmount": zod.number().nullable(),
+  "fixedAmounts": zod.array(zod.number()),
+  "amountRule": zod.string().describe('e.g. "$50.00 – $5,000.00" or "Fixed: $100.00 / $250.00"'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(setAdminPaymentMethodLogoUrlResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(setAdminPaymentMethodLogoUrlResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(setAdminPaymentMethodLogoUrlResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+})),
+  "proofMode": zod.enum(['required', 'optional', 'off']),
+  "instructions": zod.string(),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "sortOrder": zod.number().int().optional().describe('Admin only'),
+  "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Choose which balances a user can withdraw from
+ */
+export const UpdateUserWithdrawalSourcesParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const UpdateUserWithdrawalSourcesBody = zod.object({
+  "sources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from')
+})
+
+export const updateUserWithdrawalSourcesResponseTierMax = 3;
+
+
+
+export const UpdateUserWithdrawalSourcesResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "phone": zod.string(),
+  "telegram": zod.string(),
+  "organization": zod.string(),
+  "maskedId": zod.string(),
+  "avatarUrl": zod.string().optional(),
+  "tier": zod.number().int().min(1).max(updateUserWithdrawalSourcesResponseTierMax),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "status": zod.enum(['Active', 'Frozen']),
+  "balances": zod.object({
+  "grant": zod.number(),
+  "deposit": zod.number(),
+  "card": zod.number()
+}),
+  "cards": zod.array(zod.object({
+  "id": zod.string(),
+  "network": zod.enum(['Visa', 'Mastercard']),
+  "kind": zod.enum(['Virtual', 'Physical']),
+  "lastFour": zod.string(),
+  "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
+  "balance": zod.number(),
+  "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
+  "frozenBy": zod.enum(['user', 'admin']).optional().describe('Who froze a frozen card; a card frozen by an administrator stays locked to the user'),
+  "activationRequestedAt": zod.coerce.date().optional().describe('When the user said a pending physical card arrived and asked for it to be activated'),
+  "issuedAt": zod.coerce.date().optional()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['Government ID', 'Proof of address']),
+  "status": zod.enum(['Verified', 'Pending', 'Rejected']),
+  "sample": zod.boolean().describe('Seeded sample document with no file'),
+  "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
+  "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
+  "mimeType": zod.string().optional(),
+  "submittedAt": zod.coerce.date(),
+  "reviewNote": zod.string().optional().describe('Reviewer\'s reason, shown when a document is rejected'),
+  "reviewedAt": zod.coerce.date().optional()
+})),
+  "permissions": zod.object({
+  "emailNotifications": zod.boolean(),
+  "withdrawalKycRequired": zod.boolean(),
+  "depositKycRequired": zod.boolean(),
+  "emailOverride": zod.boolean().nullish().describe('Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user'),
+  "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
+}),
+  "withdrawalLimits": zod.object({
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "maxPerRequest": zod.number().nullable(),
+  "dailyTotal": zod.number().nullable(),
+  "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
+}),
+  "eligibleAmount": zod.object({
+  "custom": zod.boolean().describe('Whether this is the user\'s own amount rather than their tier\'s'),
+  "amount": zod.number().nullable().describe('What the user sees; null = not set'),
+  "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
+}),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
+  "audit": zod.array(zod.object({
+  "id": zod.string(),
+  "action": zod.string(),
+  "actor": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
  * @summary List deposit or withdrawal requests
  */
 export const listAdminRequestsQueryStatusDefault = `pending`;
@@ -2266,16 +2900,36 @@ export const ListAdminRequestsResponseItem = zod.object({
   "depositBalance": zod.number(),
   "reviewNote": zod.string().optional(),
   "reviewedBy": zod.string().optional(),
-  "reviewedAt": zod.coerce.date().optional()
+  "reviewedAt": zod.coerce.date().optional(),
+  "method": zod.object({
+  "id": zod.string(),
+  "name": zod.string().describe('The method\'s name when the request was placed'),
+  "logoUrl": zod.string().optional()
+}).optional(),
+  "source": zod.enum(['grant', 'deposit']).optional(),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
+  "details": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string()
+})),
+  "proofUrl": zod.string().optional()
 })
 export const ListAdminRequestsResponse = zod.array(ListAdminRequestsResponseItem)
 
 
 /**
- * @summary Approve a pending request and move the money
+ * @summary Approve a pending request and move the money, with an optional note for the applicant
  */
 export const ApproveAdminRequestParams = zod.object({
   "requestId": zod.coerce.string()
+})
+
+export const approveAdminRequestBodyNoteMax = 240;
+
+
+
+export const ApproveAdminRequestBody = zod.object({
+  "note": zod.string().max(approveAdminRequestBodyNoteMax).optional().describe('Optional, shown to the applicant')
 })
 
 export const ApproveAdminRequestResponse = zod.object({
@@ -2297,7 +2951,19 @@ export const ApproveAdminRequestResponse = zod.object({
   "depositBalance": zod.number(),
   "reviewNote": zod.string().optional(),
   "reviewedBy": zod.string().optional(),
-  "reviewedAt": zod.coerce.date().optional()
+  "reviewedAt": zod.coerce.date().optional(),
+  "method": zod.object({
+  "id": zod.string(),
+  "name": zod.string().describe('The method\'s name when the request was placed'),
+  "logoUrl": zod.string().optional()
+}).optional(),
+  "source": zod.enum(['grant', 'deposit']).optional(),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
+  "details": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string()
+})),
+  "proofUrl": zod.string().optional()
 })
 
 
@@ -2336,7 +3002,19 @@ export const RejectAdminRequestResponse = zod.object({
   "depositBalance": zod.number(),
   "reviewNote": zod.string().optional(),
   "reviewedBy": zod.string().optional(),
-  "reviewedAt": zod.coerce.date().optional()
+  "reviewedAt": zod.coerce.date().optional(),
+  "method": zod.object({
+  "id": zod.string(),
+  "name": zod.string().describe('The method\'s name when the request was placed'),
+  "logoUrl": zod.string().optional()
+}).optional(),
+  "source": zod.enum(['grant', 'deposit']).optional(),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
+  "details": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string()
+})),
+  "proofUrl": zod.string().optional()
 })
 
 

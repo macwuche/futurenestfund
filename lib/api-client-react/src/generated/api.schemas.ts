@@ -338,6 +338,26 @@ export const ApplicantTransactionStatus = {
   Declined: 'Declined',
 } as const;
 
+export interface RequestMethod {
+  id: string;
+  /** The method's name when the request was placed */
+  name: string;
+  logoUrl?: string;
+}
+
+export type BalanceSource = typeof BalanceSource[keyof typeof BalanceSource];
+
+
+export const BalanceSource = {
+  grant: 'grant',
+  deposit: 'deposit',
+} as const;
+
+export interface RequestDetail {
+  label: string;
+  value: string;
+}
+
 export interface ApplicantTransaction {
   id: string;
   type: ApplicantTransactionType;
@@ -349,8 +369,12 @@ export interface ApplicantTransaction {
   createdAt: string;
   /** Short reference for a deposit or withdrawal request */
   reference?: string;
-  /** Why a request was declined */
+  /** Why a request was declined, or the note added when it was approved */
   reviewNote?: string;
+  method?: RequestMethod;
+  source?: BalanceSource;
+  details?: RequestDetail[];
+  proofUrl?: string;
 }
 
 export type ApplicantAccountStatus = typeof ApplicantAccountStatus[keyof typeof ApplicantAccountStatus];
@@ -370,6 +394,14 @@ export const ApplicantAccountVerificationLevel = {
   Rejected: 'Rejected',
   Unsubmitted: 'Unsubmitted',
 } as const;
+
+/**
+ * Each balance minus withdrawals from it still under review
+ */
+export type ApplicantAccountAvailableToWithdraw = {
+  grant: number;
+  deposit: number;
+};
 
 export interface UserPermissions {
   emailNotifications: boolean;
@@ -392,6 +424,18 @@ export interface UserBalances {
   deposit: number;
   card: number;
 }
+
+/**
+ * Which balances the user can withdraw from
+ */
+export type WithdrawalSources = typeof WithdrawalSources[keyof typeof WithdrawalSources];
+
+
+export const WithdrawalSources = {
+  grant: 'grant',
+  deposit: 'deposit',
+  both: 'both',
+} as const;
 
 export type UserCardNetwork = typeof UserCardNetwork[keyof typeof UserCardNetwork];
 
@@ -468,25 +512,198 @@ export interface ApplicantAccount {
   verificationLevel: ApplicantAccountVerificationLevel;
   permissions: UserPermissions;
   balances: UserBalances;
-  availableToWithdraw: number;
+  /** Each balance minus withdrawals from it still under review */
+  availableToWithdraw: ApplicantAccountAvailableToWithdraw;
+  withdrawalSources: WithdrawalSources;
   cards: UserCard[];
   transactions: ApplicantTransaction[];
   withdrawalLimits: EffectiveWithdrawalLimits;
 }
 
-export type ApplicantRequestInputKind = typeof ApplicantRequestInputKind[keyof typeof ApplicantRequestInputKind];
+export type ApplicantRequestFormKind = typeof ApplicantRequestFormKind[keyof typeof ApplicantRequestFormKind];
 
 
-export const ApplicantRequestInputKind = {
+export const ApplicantRequestFormKind = {
   Deposit: 'Deposit',
   Withdrawal: 'Withdrawal',
 } as const;
 
-export interface ApplicantRequestInput {
-  kind: ApplicantRequestInputKind;
-  /** @minimum 0.01 */
-  amount: number;
+/**
+ * Withdrawals: which balance pays it
+ */
+export type ApplicantRequestFormSource = typeof ApplicantRequestFormSource[keyof typeof ApplicantRequestFormSource];
+
+
+export const ApplicantRequestFormSource = {
+  grant: 'grant',
+  deposit: 'deposit',
+} as const;
+
+export interface ApplicantRequestForm {
+  kind: ApplicantRequestFormKind;
+  methodId: string;
+  /** USD, e.g. 250.00 */
+  amount: string;
+  /** Withdrawals: which balance pays it */
+  source?: ApplicantRequestFormSource;
+  /** JSON object of the method's field answers, by field id */
+  values?: string;
   /** @maxLength 240 */
+  note?: string;
+  /** Payment proof (deposits): JPG, PNG, WebP or PDF, up to 10 MB */
+  file?: Blob;
+}
+
+export interface WithdrawalSourcesUpdate {
+  sources: WithdrawalSources;
+}
+
+export type PaymentFieldType = typeof PaymentFieldType[keyof typeof PaymentFieldType];
+
+
+export const PaymentFieldType = {
+  text: 'text',
+  textarea: 'textarea',
+  number: 'number',
+  email: 'email',
+  phone: 'phone',
+  date: 'date',
+  select: 'select',
+} as const;
+
+export interface PaymentField {
+  /** Kept across edits; new fields get one from the server */
+  id?: string;
+  /** @maxLength 60 */
+  label: string;
+  type: PaymentFieldType;
+  required: boolean;
+  /** @maxLength 80 */
+  placeholder?: string;
+  /** @maxLength 200 */
+  help?: string;
+  options?: string[];
+}
+
+export type PaymentMethodKind = typeof PaymentMethodKind[keyof typeof PaymentMethodKind];
+
+
+export const PaymentMethodKind = {
+  Deposit: 'Deposit',
+  Withdrawal: 'Withdrawal',
+} as const;
+
+export type PaymentMethodAmountMode = typeof PaymentMethodAmountMode[keyof typeof PaymentMethodAmountMode];
+
+
+export const PaymentMethodAmountMode = {
+  range: 'range',
+  fixed: 'fixed',
+} as const;
+
+export type PaymentMethodProofMode = typeof PaymentMethodProofMode[keyof typeof PaymentMethodProofMode];
+
+
+export const PaymentMethodProofMode = {
+  required: 'required',
+  optional: 'optional',
+  off: 'off',
+} as const;
+
+export interface PaymentMethod {
+  id: string;
+  kind: PaymentMethodKind;
+  name: string;
+  logoUrl?: string;
+  amountMode: PaymentMethodAmountMode;
+  /** @nullable */
+  minAmount: number | null;
+  /** @nullable */
+  maxAmount: number | null;
+  fixedAmounts: number[];
+  /** e.g. "$50.00 – $5,000.00" or "Fixed: $100.00 / $250.00" */
+  amountRule: string;
+  fields: PaymentField[];
+  proofMode: PaymentMethodProofMode;
+  instructions: string;
+  /** Admin only */
+  enabled?: boolean;
+  /** Admin only */
+  sortOrder?: number;
+  /** Admin only: requests placed with this method */
+  requestCount?: number;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type PaymentMethodUpdateAmountMode = typeof PaymentMethodUpdateAmountMode[keyof typeof PaymentMethodUpdateAmountMode];
+
+
+export const PaymentMethodUpdateAmountMode = {
+  range: 'range',
+  fixed: 'fixed',
+} as const;
+
+export type PaymentMethodUpdateProofMode = typeof PaymentMethodUpdateProofMode[keyof typeof PaymentMethodUpdateProofMode];
+
+
+export const PaymentMethodUpdateProofMode = {
+  required: 'required',
+  optional: 'optional',
+  off: 'off',
+} as const;
+
+export interface PaymentMethodUpdate {
+  name?: string;
+  amountMode?: PaymentMethodUpdateAmountMode;
+  /** @nullable */
+  minAmount?: number | null;
+  /** @nullable */
+  maxAmount?: number | null;
+  fixedAmounts?: number[];
+  fields?: PaymentField[];
+  proofMode?: PaymentMethodUpdateProofMode;
+  instructions?: string;
+  enabled?: boolean;
+}
+
+export type PaymentMethodCreateKind = typeof PaymentMethodCreateKind[keyof typeof PaymentMethodCreateKind];
+
+
+export const PaymentMethodCreateKind = {
+  Deposit: 'Deposit',
+  Withdrawal: 'Withdrawal',
+} as const;
+
+export type PaymentMethodCreate = PaymentMethodUpdate & {
+  kind: PaymentMethodCreateKind;
+} & Required<Pick<PaymentMethodUpdate & {
+  kind: PaymentMethodCreateKind;
+}, 'name'>>;
+
+export type PaymentMethodMoveDirection = typeof PaymentMethodMoveDirection[keyof typeof PaymentMethodMoveDirection];
+
+
+export const PaymentMethodMoveDirection = {
+  up: 'up',
+  down: 'down',
+} as const;
+
+export interface PaymentMethodMove {
+  direction: PaymentMethodMoveDirection;
+}
+
+export interface LogoUrlInput {
+  /** @maxLength 2000 */
+  url: string;
+}
+
+export interface ApproveInput {
+  /**
+     * Optional, shown to the applicant
+     * @maxLength 240
+     */
   note?: string;
 }
 
@@ -1043,6 +1260,7 @@ export interface AdminUserProfile {
   permissions: UserPermissions;
   withdrawalLimits: EffectiveWithdrawalLimits;
   eligibleAmount: EffectiveEligibleAmount;
+  withdrawalSources: WithdrawalSources;
   audit: AuditEntry[];
 }
 
@@ -1324,6 +1542,11 @@ export interface AdminRequest {
   reviewNote?: string;
   reviewedBy?: string;
   reviewedAt?: string;
+  method?: RequestMethod;
+  source?: BalanceSource;
+  withdrawalSources: WithdrawalSources;
+  details: RequestDetail[];
+  proofUrl?: string;
 }
 
 export type LedgerEntryKind = typeof LedgerEntryKind[keyof typeof LedgerEntryKind];
@@ -1469,6 +1692,18 @@ export const GetApplicantDashboardPeriod = {
   monthly: 'monthly',
 } as const;
 
+export type ListApplicantPaymentMethodsParams = {
+kind: ListApplicantPaymentMethodsKind;
+};
+
+export type ListApplicantPaymentMethodsKind = typeof ListApplicantPaymentMethodsKind[keyof typeof ListApplicantPaymentMethodsKind];
+
+
+export const ListApplicantPaymentMethodsKind = {
+  Deposit: 'Deposit',
+  Withdrawal: 'Withdrawal',
+} as const;
+
 export type ListAdminUsersParams = {
 /**
  * @maxLength 100
@@ -1539,6 +1774,18 @@ export type ListAdminApplicationsStatus = typeof ListAdminApplicationsStatus[key
 export const ListAdminApplicationsStatus = {
   pending: 'pending',
   all: 'all',
+} as const;
+
+export type ListAdminPaymentMethodsParams = {
+kind: ListAdminPaymentMethodsKind;
+};
+
+export type ListAdminPaymentMethodsKind = typeof ListAdminPaymentMethodsKind[keyof typeof ListAdminPaymentMethodsKind];
+
+
+export const ListAdminPaymentMethodsKind = {
+  Deposit: 'Deposit',
+  Withdrawal: 'Withdrawal',
 } as const;
 
 export type ListAdminRequestsParams = {

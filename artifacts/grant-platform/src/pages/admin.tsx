@@ -14,6 +14,7 @@ import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
 import { GlobalTierAmounts, UserEligibleAmount } from '@/components/eligible-amount';
+import { UserWithdrawalSources } from '@/components/withdrawal-sources';
 import { MonitoringSettings, VirusScanSettings } from '@/components/monitoring-settings';
 import { EmailSettingsCard } from '@/components/email-settings';
 import { CardControls } from '@/components/card-controls';
@@ -384,7 +385,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
         </div>
       </div>
 
-      <div id="sec-limits" className="grid scroll-mt-32 items-start gap-4 xl:grid-cols-2"><UserWithdrawalLimits u={u} /><UserEligibleAmount u={u} /></div>
+      <div id="sec-limits" className="grid scroll-mt-32 items-start gap-4 xl:grid-cols-2"><UserWithdrawalLimits u={u} /><UserEligibleAmount u={u} /><UserWithdrawalSources u={u} /></div>
 
       <section id="sec-balances" className={cx(card, 'scroll-mt-32 p-5')} data-testid="section-balances">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="font-display font-bold">Balances and cards</h3><span className="text-xs text-slate-500">Sample balances. Credits and debits write a ledger entry; no real transfer.</span></div>

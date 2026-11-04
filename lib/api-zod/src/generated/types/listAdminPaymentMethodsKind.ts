@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ApplicantRequestInputKind = typeof ApplicantRequestInputKind[keyof typeof ApplicantRequestInputKind];
+export type ListAdminPaymentMethodsKind = typeof ListAdminPaymentMethodsKind[keyof typeof ListAdminPaymentMethodsKind];
 
 
-export const ApplicantRequestInputKind = {
+export const ListAdminPaymentMethodsKind = {
   Deposit: 'Deposit',
   Withdrawal: 'Withdrawal',
 } as const;

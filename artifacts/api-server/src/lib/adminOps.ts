@@ -7,7 +7,8 @@ import { notifyUser, requestEmailData, requestReference } from "./notifications"
 import { applicationSummary } from "./applicantRecords";
 import { KYC_KINDS } from "./kyc";
 import { fileUrl, type DbTx } from "./uploads";
-import { DemoInputError, getUser } from "./demoWorkspace";
+import { DemoInputError, getUser, methodLogos, requestDetails, type LogoMap } from "./demoWorkspace";
+import { sourceAllowed, SOURCE_LABEL, SOURCES_LABEL, type BalanceSource, type WithdrawalSources } from "./paymentRules";
 import { describeEligible, describeTierAmounts, effectiveEligible, parseEligible, parseTierAmounts, tierAmountsFrom, tierAmountsOut } from "./eligibleAmount";
 import { describeLimits, effectiveLimits, limitsOut, parseLimits, withdrawnLast24h, type Limits } from "./withdrawalLimits";
 
@@ -125,9 +126,11 @@ export async function decideApplication(id: string, decision: Decision, note: st
 /* ---------- deposit and withdrawal requests ---------- */
 
 type RequestRow = typeof demoRequestsTable.$inferSelect;
-const adminRequest = (r: RequestRow, p: DemoProfile) => {
+const adminRequest = (r: RequestRow, p: DemoProfile, logos: LogoMap = new Map()) => {
   const perms = (p.permissions ?? {}) as Perms;
   return {
+    ...requestDetails(r, "admin", logos),
+    withdrawalSources: p.withdrawalSources as WithdrawalSources,
     id: r.id, reference: requestReference(r.id), kind: r.kind as "Deposit" | "Withdrawal", amount: r.amountCents / 100, note: r.note, status: r.status as "Pending" | "Completed" | "Declined",
     createdAt: r.createdAt.toISOString(),
     userId: p.id, userName: p.name, organization: p.organization, userStatus: p.status, verificationLevel: p.verificationLevel,
@@ -145,13 +148,14 @@ export async function listAdminRequests(kind: "Deposit" | "Withdrawal", status: 
     .from(demoRequestsTable).innerJoin(demoProfilesTable, eq(demoProfilesTable.id, demoRequestsTable.profileId))
     .where(and(eq(demoRequestsTable.kind, kind), pending ? eq(demoRequestsTable.status, "Pending") : ne(demoRequestsTable.status, "Pending")))
     .orderBy(pending ? asc(demoRequestsTable.createdAt) : desc(demoRequestsTable.reviewedAt)).limit(pending ? 200 : 30);
-  if (!pending || kind !== "Withdrawal") return rows.map(({ r, p }) => adminRequest(r, p));
+  const logos = await methodLogos(rows.map(({ r }) => r.methodId), "admin");
+  if (!pending || kind !== "Withdrawal") return rows.map(({ r, p }) => adminRequest(r, p, logos));
   // Limits are checked when a request is placed; flag any that the user's *current* limits wouldn't allow (e.g. lowered since).
   const [settings] = await db.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
   const used = await withdrawnLast24h([...new Set(rows.map(({ p }) => p.id))]);
   return rows.map(({ r, p }) => {
     const warning = limitWarning(effectiveLimits(p, settings), used.get(p.id) ?? 0, r.amountCents);
-    return { ...adminRequest(r, p), ...(warning ? { limitWarning: warning } : {}) };
+    return { ...adminRequest(r, p, logos), ...(warning ? { limitWarning: warning } : {}) };
   });
 }
 
@@ -194,6 +198,20 @@ export async function changeUserWithdrawalLimits(id: string, input: { custom: bo
     const effective = effectiveLimits(next, settings);
     await tx.insert(demoAuditTable).values({ profileId: id, actor, action: input.custom ? `Custom withdrawal limits set: ${describeLimits(limits)}` : "Withdrawal limits set to follow the global limits" });
     await notifyUser(id, `Your withdrawal limits have changed: ${describeLimits(effective)}.`, "/withdrawals", tx);
+    return true;
+  });
+  return found ? getUser(id) : undefined;
+}
+
+/** Which balances a user can withdraw from (grant / deposit / both). Pending withdrawals from a balance closed here can't be approved. */
+export async function changeUserWithdrawalSources(id: string, sources: WithdrawalSources, actor: string) {
+  const found = await db.transaction(async tx => {
+    const profile = await lockProfile(tx, id);
+    if (!profile) return false;
+    if (profile.withdrawalSources === sources) return true;
+    await tx.update(demoProfilesTable).set({ withdrawalSources: sources }).where(eq(demoProfilesTable.id, id));
+    await tx.insert(demoAuditTable).values({ profileId: id, actor, action: `Withdrawals allowed from: ${SOURCES_LABEL[sources]}` });
+    await notifyUser(id, `You can now withdraw from your ${SOURCES_LABEL[sources]}.`, "/withdrawals", tx);
     return true;
   });
   return found ? getUser(id) : undefined;
@@ -251,8 +269,13 @@ async function lockRequest(tx: DbTx, id: string) {
   return { frozen, profile, request };
 }
 
-/** A deposit credits the deposit balance; a withdrawal is paid out of the grant balance. */
-export async function approveRequest(id: string, actor: string) {
+/**
+ * A deposit credits the deposit balance; a withdrawal is paid out of the balance the applicant chose (grant or deposit),
+ * which must still be open to them. `note` (optional, up to 240 characters) is shown to the applicant.
+ */
+export async function approveRequest(id: string, actor: string, note?: string) {
+  const message = (note ?? "").trim();
+  if (message.length > 240) throw new DemoInputError("Keep the note to 240 characters or fewer.");
   return db.transaction(async tx => {
     const locked = await lockRequest(tx, id);
     if (!locked) return undefined;
@@ -265,28 +288,35 @@ export async function approveRequest(id: string, actor: string) {
       throw new DemoInputError(`This user's settings require identity verification for ${r.kind.toLowerCase()}s, and they aren't verified.`);
     }
     const deposit = r.kind === "Deposit";
+    const source: BalanceSource = deposit ? "deposit" : r.source === "deposit" ? "deposit" : "grant";
     let change: Partial<DemoProfile>;
     if (deposit) {
       const next = profile.depositCents + r.amountCents;
       if (next > MAX_BALANCE_CENTS) throw new DemoInputError("This would exceed the demo account limit.");
       change = { depositCents: next };
     } else {
-      if (profile.grantCents < r.amountCents) throw new DemoInputError(`The grant balance (${usd(profile.grantCents)}) is less than this withdrawal.`);
-      change = { grantCents: profile.grantCents - r.amountCents };
+      if (!sourceAllowed(profile.withdrawalSources, source)) {
+        throw new DemoInputError(`Withdrawals from the ${SOURCE_LABEL[source]} are closed for this user. Open them in the user's profile, or decline this request.`);
+      }
+      const balance = source === "grant" ? profile.grantCents : profile.depositCents;
+      if (balance < r.amountCents) throw new DemoInputError(`The ${SOURCE_LABEL[source]} (${usd(balance)}) is less than this withdrawal.`);
+      change = source === "grant" ? { grantCents: balance - r.amountCents } : { depositCents: balance - r.amountCents };
     }
     const reviewedAt = new Date();
+    const methodName = (r.methodSnapshot as { name?: string } | null)?.name;
     await tx.update(demoProfilesTable).set(change).where(eq(demoProfilesTable.id, profile.id));
-    await tx.update(demoRequestsTable).set({ status: "Completed", reviewedAt, reviewedBy: actor }).where(eq(demoRequestsTable.id, r.id));
+    await tx.update(demoRequestsTable).set({ status: "Completed", reviewedAt, reviewedBy: actor, reviewNote: message || null }).where(eq(demoRequestsTable.id, r.id));
     await tx.insert(demoLedgerTable).values({
-      profileId: profile.id, kind: r.kind, account: deposit ? "deposit" : "grant", amountCents: deposit ? r.amountCents : -r.amountCents,
-      reason: r.note || `${r.kind} request approved`, requestId: r.id, actor,
+      profileId: profile.id, kind: r.kind, account: source, amountCents: deposit ? r.amountCents : -r.amountCents,
+      reason: r.note || `${r.kind}${methodName ? ` via ${methodName}` : " request"} approved`, requestId: r.id, actor,
     });
-    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor, action: `${r.kind} request ${r.id.slice(0, 8)} approved ${deposit ? "+" : "−"}${usd(r.amountCents)}` });
+    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor, action: `${r.kind} request ${r.id.slice(0, 8)} approved ${deposit ? "+" : "−"}${usd(r.amountCents)}${deposit ? "" : ` from the ${SOURCE_LABEL[source]}`}${message ? ` · ${message}` : ""}` });
     await notifyUser(profile.id, deposit
-      ? `Your deposit of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was approved and added to your deposit balance`
-      : `Your withdrawal of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was approved. Your funds have been released.`,
-    deposit ? "/deposits" : "/withdrawals", tx, { kind: "request_approved", data: requestEmailData(r) });
-    return adminRequest({ ...r, status: "Completed", reviewedAt, reviewedBy: actor }, { ...profile, ...change });
+      ? `Your deposit of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was approved and added to your deposit balance${message ? `. Note: ${message}` : ""}`
+      : `Your withdrawal of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was approved. Your funds have been released from your ${SOURCE_LABEL[source]}${message ? `. Note: ${message}` : "."}`,
+    deposit ? "/deposits" : "/withdrawals", tx, { kind: "request_approved", data: requestEmailData(r, message || undefined) });
+    const logos = await methodLogos([r.methodId], "admin");
+    return adminRequest({ ...r, status: "Completed", reviewedAt, reviewedBy: actor, reviewNote: message || null }, { ...profile, ...change }, logos);
   });
 }
 
@@ -303,7 +333,7 @@ export async function rejectRequest(id: string, reason: string, actor: string) {
     await tx.insert(demoAuditTable).values({ profileId: profile.id, actor, action: `${r.kind} request ${r.id.slice(0, 8)} declined · ${note}` });
     await notifyUser(profile.id, `Your ${r.kind.toLowerCase()} request of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was declined: ${note}`,
       r.kind === "Deposit" ? "/deposits" : "/withdrawals", tx, { kind: "request_declined", data: requestEmailData(r, note) });
-    return adminRequest({ ...r, status: "Declined", reviewNote: note, reviewedAt, reviewedBy: actor }, profile);
+    return adminRequest({ ...r, status: "Declined", reviewNote: note, reviewedAt, reviewedBy: actor }, profile, await methodLogos([r.methodId], "admin"));
   });
 }
 

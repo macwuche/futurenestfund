@@ -19,7 +19,7 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_FILES_PER_USER = 200;
 const MAX_INPUT_PIXELS = 50_000_000; // guards against decompression bombs
 
-export type Purpose = "avatar" | "kyc" | "proposal";
+export type Purpose = "avatar" | "kyc" | "proposal" | "logo" | "proof";
 const IMAGE = ["image/jpeg", "image/png", "image/webp"] as const;
 const PDF = "application/pdf";
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -27,6 +27,8 @@ const ACCEPTS: Record<Purpose, { types: readonly string[]; label: string }> = {
   avatar: { types: IMAGE, label: "a JPG, PNG or WebP image" },
   kyc: { types: [...IMAGE, PDF], label: "a JPG, PNG or WebP image, or a PDF" },
   proposal: { types: [PDF, DOCX], label: "a PDF or Word (.docx) document" },
+  logo: { types: IMAGE, label: "a JPG, PNG or WebP image" },
+  proof: { types: [...IMAGE, PDF], label: "a JPG, PNG or WebP image, or a PDF" },
 };
 
 await mkdir(UPLOAD_DIR, { recursive: true, mode: 0o700 });
@@ -44,6 +46,26 @@ export const receiveFile: RequestHandler = (req, res, next) => {
       const msg = err.code === "LIMIT_FILE_SIZE" ? "Files must be 10 MB or smaller."
         : err.code === "LIMIT_UNEXPECTED_FILE" || err.code === "LIMIT_FILE_COUNT" ? "Send one file in a field named \"file\"."
         : "The upload could not be read.";
+      return next(new UploadError(msg));
+    }
+    next(err);
+  });
+};
+
+/** A deposit / withdrawal request: the form fields plus an optional payment proof in "file". */
+const requestParser = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_BYTES, files: 1, fields: 10, fieldSize: 16_000, parts: 11 },
+}).single("file");
+
+export const receiveRequestForm: RequestHandler = (req, res, next) => {
+  if (!req.is("multipart/form-data")) return next();
+  requestParser(req, res, (err: unknown) => {
+    if (!err) return next();
+    if (err instanceof multer.MulterError) {
+      const msg = err.code === "LIMIT_FILE_SIZE" ? "Payment proof must be 10 MB or smaller."
+        : err.code === "LIMIT_UNEXPECTED_FILE" || err.code === "LIMIT_FILE_COUNT" ? "Attach one payment proof file."
+        : "The request form could not be read.";
       return next(new UploadError(msg));
     }
     next(err);
@@ -88,6 +110,8 @@ async function reencode(buf: Buffer, purpose: Purpose) {
   try {
     const img = sharp(buf, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "error" }).rotate();
     if (purpose === "avatar") return { data: await img.resize(256, 256, { fit: "cover" }).webp({ quality: 82 }).toBuffer(), type: "image/webp" };
+    // Logos keep their shape and transparency.
+    if (purpose === "logo") return { data: await img.resize(256, 256, { fit: "inside", withoutEnlargement: true }).webp({ quality: 90 }).toBuffer(), type: "image/webp" };
     return { data: await img.resize(2400, 2400, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 85, mozjpeg: true }).toBuffer(), type: "image/jpeg" };
   } catch (err) {
     logger.info({ err }, "Image rejected");

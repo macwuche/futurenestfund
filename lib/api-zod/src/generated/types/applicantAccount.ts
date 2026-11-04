@@ -5,6 +5,7 @@
  * Grant applicant and administration dashboard API
  * OpenAPI spec version: 0.1.0
  */
+import type { ApplicantAccountAvailableToWithdraw } from './applicantAccountAvailableToWithdraw';
 import type { ApplicantAccountStatus } from './applicantAccountStatus';
 import type { ApplicantAccountVerificationLevel } from './applicantAccountVerificationLevel';
 import type { ApplicantTransaction } from './applicantTransaction';
@@ -12,6 +13,7 @@ import type { EffectiveWithdrawalLimits } from './effectiveWithdrawalLimits';
 import type { UserBalances } from './userBalances';
 import type { UserCard } from './userCard';
 import type { UserPermissions } from './userPermissions';
+import type { WithdrawalSources } from './withdrawalSources';
 
 export interface ApplicantAccount {
   status: ApplicantAccountStatus;
@@ -24,7 +26,9 @@ export interface ApplicantAccount {
   verificationLevel: ApplicantAccountVerificationLevel;
   permissions: UserPermissions;
   balances: UserBalances;
-  availableToWithdraw: number;
+  /** Each balance minus withdrawals from it still under review */
+  availableToWithdraw: ApplicantAccountAvailableToWithdraw;
+  withdrawalSources: WithdrawalSources;
   cards: UserCard[];
   transactions: ApplicantTransaction[];
   withdrawalLimits: EffectiveWithdrawalLimits;

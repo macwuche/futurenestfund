@@ -41,12 +41,13 @@ import type {
   ApplicantPreferences,
   ApplicantProfile,
   ApplicantProfileUpdate,
-  ApplicantRequestInput,
+  ApplicantRequestForm,
   ApplicantTransaction,
   ApplicationDecisionInput,
   ApplicationDetail,
   ApplicationInput,
   ApplicationResponseInput,
+  ApproveInput,
   AuthConfig,
   BalanceAdjustmentInput,
   CardActionInput,
@@ -70,9 +71,12 @@ import type {
   KycUpload,
   ListAdminApplicationsParams,
   ListAdminAuditParams,
+  ListAdminPaymentMethodsParams,
   ListAdminRequestsParams,
   ListAdminTransactionsParams,
   ListAdminUsersParams,
+  ListApplicantPaymentMethodsParams,
+  LogoUrlInput,
   Matchmaking,
   MatchmakingAnswers,
   Me,
@@ -81,6 +85,10 @@ import type {
   MilestoneUpdate,
   MonitoringStatus,
   NotificationList,
+  PaymentMethod,
+  PaymentMethodCreate,
+  PaymentMethodMove,
+  PaymentMethodUpdate,
   ReasonInput,
   SearchAdminParams,
   Session,
@@ -88,7 +96,8 @@ import type {
   UserBalances,
   UserEligibleAmountUpdate,
   UserWithdrawalLimitsUpdate,
-  WithdrawalLimits
+  WithdrawalLimits,
+  WithdrawalSourcesUpdate
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1739,30 +1748,32 @@ export const getCreateApplicantRequestUrl = () => {
 }
 
 /**
- * @summary Submit a demo deposit or withdrawal request
+ * @summary Place a deposit or withdrawal request through one of the administrator's payment methods
  */
-export const createApplicantRequest = async (applicantRequestInput: ApplicantRequestInput, options?: Parameters<typeof customFetch>[1]): Promise<ApplicantTransaction> => {
+export const createApplicantRequest = async (applicantRequestForm: ApplicantRequestForm, options?: Parameters<typeof customFetch>[1]): Promise<ApplicantTransaction> => {
+    const formData = new FormData();
+formData.append(`kind`, applicantRequestForm.kind);
+formData.append(`methodId`, applicantRequestForm.methodId);
+formData.append(`amount`, applicantRequestForm.amount);
+if(applicantRequestForm.source !== undefined) {
+ formData.append(`source`, applicantRequestForm.source);
+ }
+if(applicantRequestForm.values !== undefined) {
+ formData.append(`values`, applicantRequestForm.values);
+ }
+if(applicantRequestForm.note !== undefined) {
+ formData.append(`note`, applicantRequestForm.note);
+ }
+if(applicantRequestForm.file !== undefined) {
+ formData.append(`file`, applicantRequestForm.file);
+ }
 
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return customFetch<ApplicantTransaction>(getCreateApplicantRequestUrl(),
+  return customFetch<ApplicantTransaction>(getCreateApplicantRequestUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(applicantRequestInput)
+    method: 'POST'
+    ,
+    body: formData
   }
 );}
 
@@ -1800,12 +1811,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateApplicantRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createApplicantRequest>>>
-    export type CreateApplicantRequestMutationBody = BodyType<ApplicantRequestInput>
+    export type CreateApplicantRequestMutationBody = BodyType<ApplicantRequestForm>
     export type CreateApplicantRequestMutationError = ErrorType<ErrorMessage>
-    export type CreateApplicantRequestMutationVariables = {data: BodyType<ApplicantRequestInput>}
+    export type CreateApplicantRequestMutationVariables = {data: BodyType<ApplicantRequestForm>}
 
     /**
- * @summary Submit a demo deposit or withdrawal request
+ * @summary Place a deposit or withdrawal request through one of the administrator's payment methods
  */
 export const useCreateApplicantRequest = <TError = ErrorType<ErrorMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApplicantRequest>>, TError,CreateApplicantRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1817,6 +1828,167 @@ export const useCreateApplicantRequest = <TError = ErrorType<ErrorMessage>,
       > => {
       return useMutation(getCreateApplicantRequestMutationOptions(options));
     }
+
+export const getListApplicantPaymentMethodsUrl = (params: ListApplicantPaymentMethodsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/applicant/payment-methods?${stringifiedParams}` : `/api/applicant/payment-methods`
+}
+
+/**
+ * @summary The enabled deposit or withdrawal methods to choose from
+ */
+export const listApplicantPaymentMethods = async (params: ListApplicantPaymentMethodsParams, options?: Parameters<typeof customFetch>[1]): Promise<PaymentMethod[]> => {
+
+  return customFetch<PaymentMethod[]>(getListApplicantPaymentMethodsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListApplicantPaymentMethodsQueryKey = (params?: ListApplicantPaymentMethodsParams,) => {
+    return [
+    `/api/applicant/payment-methods`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListApplicantPaymentMethodsQueryOptions = <TData = Awaited<ReturnType<typeof listApplicantPaymentMethods>>, TError = ErrorType<unknown>>(params: ListApplicantPaymentMethodsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicantPaymentMethods>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListApplicantPaymentMethodsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listApplicantPaymentMethods>>> = ({ signal }) => listApplicantPaymentMethods(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listApplicantPaymentMethods>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListApplicantPaymentMethodsQueryResult = NonNullable<Awaited<ReturnType<typeof listApplicantPaymentMethods>>>
+export type ListApplicantPaymentMethodsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary The enabled deposit or withdrawal methods to choose from
+ */
+
+export function useListApplicantPaymentMethods<TData = Awaited<ReturnType<typeof listApplicantPaymentMethods>>, TError = ErrorType<unknown>>(
+ params: ListApplicantPaymentMethodsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicantPaymentMethods>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListApplicantPaymentMethodsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetApplicantPaymentMethodLogoUrl = (methodId: string,) => {
+
+
+
+
+  return `/api/applicant/payment-methods/${methodId}/logo`
+}
+
+/**
+ * @summary A payment method's logo image
+ */
+export const getApplicantPaymentMethodLogo = async (methodId: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetApplicantPaymentMethodLogoUrl(methodId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetApplicantPaymentMethodLogoQueryKey = (methodId: string,) => {
+    return [
+    `/api/applicant/payment-methods/${methodId}/logo`
+    ] as const;
+    }
+
+
+export const getGetApplicantPaymentMethodLogoQueryOptions = <TData = Awaited<ReturnType<typeof getApplicantPaymentMethodLogo>>, TError = ErrorType<ErrorMessage>>(methodId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantPaymentMethodLogo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApplicantPaymentMethodLogoQueryKey(methodId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApplicantPaymentMethodLogo>>> = ({ signal }) => getApplicantPaymentMethodLogo(methodId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: methodId !== null && methodId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApplicantPaymentMethodLogo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetApplicantPaymentMethodLogoQueryResult = NonNullable<Awaited<ReturnType<typeof getApplicantPaymentMethodLogo>>>
+export type GetApplicantPaymentMethodLogoQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary A payment method's logo image
+ */
+
+export function useGetApplicantPaymentMethodLogo<TData = Awaited<ReturnType<typeof getApplicantPaymentMethodLogo>>, TError = ErrorType<ErrorMessage>>(
+ methodId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantPaymentMethodLogo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetApplicantPaymentMethodLogoQueryOptions(methodId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListApplicantApplicationsUrl = () => {
 
@@ -5217,6 +5389,836 @@ export const useDecideAdminApplication = <TError = ErrorType<ErrorMessage>,
       return useMutation(getDecideAdminApplicationMutationOptions(options));
     }
 
+export const getListAdminPaymentMethodsUrl = (params: ListAdminPaymentMethodsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/payment-methods?${stringifiedParams}` : `/api/admin/payment-methods`
+}
+
+/**
+ * @summary Deposit or withdrawal methods (Payment Gateway)
+ */
+export const listAdminPaymentMethods = async (params: ListAdminPaymentMethodsParams, options?: Parameters<typeof customFetch>[1]): Promise<PaymentMethod[]> => {
+
+  return customFetch<PaymentMethod[]>(getListAdminPaymentMethodsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminPaymentMethodsQueryKey = (params?: ListAdminPaymentMethodsParams,) => {
+    return [
+    `/api/admin/payment-methods`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminPaymentMethodsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminPaymentMethods>>, TError = ErrorType<unknown>>(params: ListAdminPaymentMethodsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminPaymentMethods>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminPaymentMethodsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminPaymentMethods>>> = ({ signal }) => listAdminPaymentMethods(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminPaymentMethods>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminPaymentMethodsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminPaymentMethods>>>
+export type ListAdminPaymentMethodsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Deposit or withdrawal methods (Payment Gateway)
+ */
+
+export function useListAdminPaymentMethods<TData = Awaited<ReturnType<typeof listAdminPaymentMethods>>, TError = ErrorType<unknown>>(
+ params: ListAdminPaymentMethodsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminPaymentMethods>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminPaymentMethodsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAdminPaymentMethodUrl = () => {
+
+
+
+
+  return `/api/admin/payment-methods`
+}
+
+/**
+ * @summary Create a deposit or withdrawal method
+ */
+export const createAdminPaymentMethod = async (paymentMethodCreate: PaymentMethodCreate, options?: Parameters<typeof customFetch>[1]): Promise<PaymentMethod> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PaymentMethod>(getCreateAdminPaymentMethodUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(paymentMethodCreate)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminPaymentMethodMutationKey = () => ['createAdminPaymentMethod'] as const;
+
+export const getCreateAdminPaymentMethodMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminPaymentMethod>>, TError,CreateAdminPaymentMethodMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminPaymentMethod>>, TError,CreateAdminPaymentMethodMutationVariables, TContext> => {
+
+const mutationKey = getCreateAdminPaymentMethodMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminPaymentMethod>>, CreateAdminPaymentMethodMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminPaymentMethod(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminPaymentMethodMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminPaymentMethod>>>
+    export type CreateAdminPaymentMethodMutationBody = BodyType<PaymentMethodCreate>
+    export type CreateAdminPaymentMethodMutationError = ErrorType<ErrorMessage>
+    export type CreateAdminPaymentMethodMutationVariables = {data: BodyType<PaymentMethodCreate>}
+
+    /**
+ * @summary Create a deposit or withdrawal method
+ */
+export const useCreateAdminPaymentMethod = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminPaymentMethod>>, TError,CreateAdminPaymentMethodMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminPaymentMethod>>,
+        TError,
+        CreateAdminPaymentMethodMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAdminPaymentMethodMutationOptions(options));
+    }
+
+export const getGetAdminPaymentMethodUrl = (methodId: string,) => {
+
+
+
+
+  return `/api/admin/payment-methods/${methodId}`
+}
+
+/**
+ * @summary One payment method
+ */
+export const getAdminPaymentMethod = async (methodId: string, options?: Parameters<typeof customFetch>[1]): Promise<PaymentMethod> => {
+
+  return customFetch<PaymentMethod>(getGetAdminPaymentMethodUrl(methodId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminPaymentMethodQueryKey = (methodId: string,) => {
+    return [
+    `/api/admin/payment-methods/${methodId}`
+    ] as const;
+    }
+
+
+export const getGetAdminPaymentMethodQueryOptions = <TData = Awaited<ReturnType<typeof getAdminPaymentMethod>>, TError = ErrorType<ErrorMessage>>(methodId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminPaymentMethod>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminPaymentMethodQueryKey(methodId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminPaymentMethod>>> = ({ signal }) => getAdminPaymentMethod(methodId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: methodId !== null && methodId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminPaymentMethod>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminPaymentMethodQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminPaymentMethod>>>
+export type GetAdminPaymentMethodQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary One payment method
+ */
+
+export function useGetAdminPaymentMethod<TData = Awaited<ReturnType<typeof getAdminPaymentMethod>>, TError = ErrorType<ErrorMessage>>(
+ methodId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminPaymentMethod>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminPaymentMethodQueryOptions(methodId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAdminPaymentMethodUrl = (methodId: string,) => {
+
+
+
+
+  return `/api/admin/payment-methods/${methodId}`
+}
+
+/**
+ * @summary Change a payment method (only the parts sent); requests already placed keep their own copy
+ */
+export const updateAdminPaymentMethod = async (methodId: string,
+    paymentMethodUpdate: PaymentMethodUpdate, options?: Parameters<typeof customFetch>[1]): Promise<PaymentMethod> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PaymentMethod>(getUpdateAdminPaymentMethodUrl(methodId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(paymentMethodUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminPaymentMethodMutationKey = () => ['updateAdminPaymentMethod'] as const;
+
+export const getUpdateAdminPaymentMethodMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminPaymentMethod>>, TError,UpdateAdminPaymentMethodMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminPaymentMethod>>, TError,UpdateAdminPaymentMethodMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminPaymentMethodMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminPaymentMethod>>, UpdateAdminPaymentMethodMutationVariables> = (props) => {
+          const {methodId,data} = props ?? {};
+
+          return  updateAdminPaymentMethod(methodId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminPaymentMethodMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminPaymentMethod>>>
+    export type UpdateAdminPaymentMethodMutationBody = BodyType<PaymentMethodUpdate>
+    export type UpdateAdminPaymentMethodMutationError = ErrorType<ErrorMessage>
+    export type UpdateAdminPaymentMethodMutationVariables = {methodId: string;data: BodyType<PaymentMethodUpdate>}
+
+    /**
+ * @summary Change a payment method (only the parts sent); requests already placed keep their own copy
+ */
+export const useUpdateAdminPaymentMethod = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminPaymentMethod>>, TError,UpdateAdminPaymentMethodMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminPaymentMethod>>,
+        TError,
+        UpdateAdminPaymentMethodMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminPaymentMethodMutationOptions(options));
+    }
+
+export const getDeleteAdminPaymentMethodUrl = (methodId: string,) => {
+
+
+
+
+  return `/api/admin/payment-methods/${methodId}`
+}
+
+/**
+ * @summary Delete a method that was never used (a used method can only be disabled)
+ */
+export const deleteAdminPaymentMethod = async (methodId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteAdminPaymentMethodUrl(methodId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAdminPaymentMethodMutationKey = () => ['deleteAdminPaymentMethod'] as const;
+
+export const getDeleteAdminPaymentMethodMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminPaymentMethod>>, TError,DeleteAdminPaymentMethodMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminPaymentMethod>>, TError,DeleteAdminPaymentMethodMutationVariables, TContext> => {
+
+const mutationKey = getDeleteAdminPaymentMethodMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminPaymentMethod>>, DeleteAdminPaymentMethodMutationVariables> = (props) => {
+          const {methodId} = props ?? {};
+
+          return  deleteAdminPaymentMethod(methodId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminPaymentMethodMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminPaymentMethod>>>
+
+    export type DeleteAdminPaymentMethodMutationError = ErrorType<ErrorMessage>
+    export type DeleteAdminPaymentMethodMutationVariables = {methodId: string}
+
+    /**
+ * @summary Delete a method that was never used (a used method can only be disabled)
+ */
+export const useDeleteAdminPaymentMethod = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminPaymentMethod>>, TError,DeleteAdminPaymentMethodMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminPaymentMethod>>,
+        TError,
+        DeleteAdminPaymentMethodMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteAdminPaymentMethodMutationOptions(options));
+    }
+
+export const getMoveAdminPaymentMethodUrl = (methodId: string,) => {
+
+
+
+
+  return `/api/admin/payment-methods/${methodId}/move`
+}
+
+/**
+ * @summary Move a method one place up or down
+ */
+export const moveAdminPaymentMethod = async (methodId: string,
+    paymentMethodMove: PaymentMethodMove, options?: Parameters<typeof customFetch>[1]): Promise<PaymentMethod[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PaymentMethod[]>(getMoveAdminPaymentMethodUrl(methodId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(paymentMethodMove)
+  }
+);}
+
+
+
+
+
+export const getMoveAdminPaymentMethodMutationKey = () => ['moveAdminPaymentMethod'] as const;
+
+export const getMoveAdminPaymentMethodMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveAdminPaymentMethod>>, TError,MoveAdminPaymentMethodMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof moveAdminPaymentMethod>>, TError,MoveAdminPaymentMethodMutationVariables, TContext> => {
+
+const mutationKey = getMoveAdminPaymentMethodMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof moveAdminPaymentMethod>>, MoveAdminPaymentMethodMutationVariables> = (props) => {
+          const {methodId,data} = props ?? {};
+
+          return  moveAdminPaymentMethod(methodId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MoveAdminPaymentMethodMutationResult = NonNullable<Awaited<ReturnType<typeof moveAdminPaymentMethod>>>
+    export type MoveAdminPaymentMethodMutationBody = BodyType<PaymentMethodMove>
+    export type MoveAdminPaymentMethodMutationError = ErrorType<ErrorMessage>
+    export type MoveAdminPaymentMethodMutationVariables = {methodId: string;data: BodyType<PaymentMethodMove>}
+
+    /**
+ * @summary Move a method one place up or down
+ */
+export const useMoveAdminPaymentMethod = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveAdminPaymentMethod>>, TError,MoveAdminPaymentMethodMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof moveAdminPaymentMethod>>,
+        TError,
+        MoveAdminPaymentMethodMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMoveAdminPaymentMethodMutationOptions(options));
+    }
+
+export const getUploadAdminPaymentMethodLogoUrl = (methodId: string,) => {
+
+
+
+
+  return `/api/admin/payment-methods/${methodId}/logo`
+}
+
+/**
+ * @summary Upload a method's logo (PNG, JPEG or WebP, up to 2 MB)
+ */
+export const uploadAdminPaymentMethodLogo = async (methodId: string,
+    fileUpload: FileUpload, options?: Parameters<typeof customFetch>[1]): Promise<PaymentMethod> => {
+    const formData = new FormData();
+formData.append(`file`, fileUpload.file);
+
+  return customFetch<PaymentMethod>(getUploadAdminPaymentMethodLogoUrl(methodId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadAdminPaymentMethodLogoMutationKey = () => ['uploadAdminPaymentMethodLogo'] as const;
+
+export const getUploadAdminPaymentMethodLogoMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAdminPaymentMethodLogo>>, TError,UploadAdminPaymentMethodLogoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadAdminPaymentMethodLogo>>, TError,UploadAdminPaymentMethodLogoMutationVariables, TContext> => {
+
+const mutationKey = getUploadAdminPaymentMethodLogoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadAdminPaymentMethodLogo>>, UploadAdminPaymentMethodLogoMutationVariables> = (props) => {
+          const {methodId,data} = props ?? {};
+
+          return  uploadAdminPaymentMethodLogo(methodId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadAdminPaymentMethodLogoMutationResult = NonNullable<Awaited<ReturnType<typeof uploadAdminPaymentMethodLogo>>>
+    export type UploadAdminPaymentMethodLogoMutationBody = BodyType<FileUpload>
+    export type UploadAdminPaymentMethodLogoMutationError = ErrorType<ErrorMessage>
+    export type UploadAdminPaymentMethodLogoMutationVariables = {methodId: string;data: BodyType<FileUpload>}
+
+    /**
+ * @summary Upload a method's logo (PNG, JPEG or WebP, up to 2 MB)
+ */
+export const useUploadAdminPaymentMethodLogo = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAdminPaymentMethodLogo>>, TError,UploadAdminPaymentMethodLogoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadAdminPaymentMethodLogo>>,
+        TError,
+        UploadAdminPaymentMethodLogoMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadAdminPaymentMethodLogoMutationOptions(options));
+    }
+
+export const getDeleteAdminPaymentMethodLogoUrl = (methodId: string,) => {
+
+
+
+
+  return `/api/admin/payment-methods/${methodId}/logo`
+}
+
+/**
+ * @summary Remove a method's logo
+ */
+export const deleteAdminPaymentMethodLogo = async (methodId: string, options?: Parameters<typeof customFetch>[1]): Promise<PaymentMethod> => {
+
+  return customFetch<PaymentMethod>(getDeleteAdminPaymentMethodLogoUrl(methodId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAdminPaymentMethodLogoMutationKey = () => ['deleteAdminPaymentMethodLogo'] as const;
+
+export const getDeleteAdminPaymentMethodLogoMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminPaymentMethodLogo>>, TError,DeleteAdminPaymentMethodLogoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminPaymentMethodLogo>>, TError,DeleteAdminPaymentMethodLogoMutationVariables, TContext> => {
+
+const mutationKey = getDeleteAdminPaymentMethodLogoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminPaymentMethodLogo>>, DeleteAdminPaymentMethodLogoMutationVariables> = (props) => {
+          const {methodId} = props ?? {};
+
+          return  deleteAdminPaymentMethodLogo(methodId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminPaymentMethodLogoMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminPaymentMethodLogo>>>
+
+    export type DeleteAdminPaymentMethodLogoMutationError = ErrorType<ErrorMessage>
+    export type DeleteAdminPaymentMethodLogoMutationVariables = {methodId: string}
+
+    /**
+ * @summary Remove a method's logo
+ */
+export const useDeleteAdminPaymentMethodLogo = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminPaymentMethodLogo>>, TError,DeleteAdminPaymentMethodLogoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminPaymentMethodLogo>>,
+        TError,
+        DeleteAdminPaymentMethodLogoMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteAdminPaymentMethodLogoMutationOptions(options));
+    }
+
+export const getSetAdminPaymentMethodLogoUrlUrl = (methodId: string,) => {
+
+
+
+
+  return `/api/admin/payment-methods/${methodId}/logo-url`
+}
+
+/**
+ * @summary Take a method's logo from an image link (downloaded once and stored; never hot-linked)
+ */
+export const setAdminPaymentMethodLogoUrl = async (methodId: string,
+    logoUrlInput: LogoUrlInput, options?: Parameters<typeof customFetch>[1]): Promise<PaymentMethod> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PaymentMethod>(getSetAdminPaymentMethodLogoUrlUrl(methodId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(logoUrlInput)
+  }
+);}
+
+
+
+
+
+export const getSetAdminPaymentMethodLogoUrlMutationKey = () => ['setAdminPaymentMethodLogoUrl'] as const;
+
+export const getSetAdminPaymentMethodLogoUrlMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAdminPaymentMethodLogoUrl>>, TError,SetAdminPaymentMethodLogoUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setAdminPaymentMethodLogoUrl>>, TError,SetAdminPaymentMethodLogoUrlMutationVariables, TContext> => {
+
+const mutationKey = getSetAdminPaymentMethodLogoUrlMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setAdminPaymentMethodLogoUrl>>, SetAdminPaymentMethodLogoUrlMutationVariables> = (props) => {
+          const {methodId,data} = props ?? {};
+
+          return  setAdminPaymentMethodLogoUrl(methodId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetAdminPaymentMethodLogoUrlMutationResult = NonNullable<Awaited<ReturnType<typeof setAdminPaymentMethodLogoUrl>>>
+    export type SetAdminPaymentMethodLogoUrlMutationBody = BodyType<LogoUrlInput>
+    export type SetAdminPaymentMethodLogoUrlMutationError = ErrorType<ErrorMessage>
+    export type SetAdminPaymentMethodLogoUrlMutationVariables = {methodId: string;data: BodyType<LogoUrlInput>}
+
+    /**
+ * @summary Take a method's logo from an image link (downloaded once and stored; never hot-linked)
+ */
+export const useSetAdminPaymentMethodLogoUrl = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAdminPaymentMethodLogoUrl>>, TError,SetAdminPaymentMethodLogoUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setAdminPaymentMethodLogoUrl>>,
+        TError,
+        SetAdminPaymentMethodLogoUrlMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetAdminPaymentMethodLogoUrlMutationOptions(options));
+    }
+
+export const getUpdateUserWithdrawalSourcesUrl = (userId: string,) => {
+
+
+
+
+  return `/api/admin/users/${userId}/withdrawal-sources`
+}
+
+/**
+ * @summary Choose which balances a user can withdraw from
+ */
+export const updateUserWithdrawalSources = async (userId: string,
+    withdrawalSourcesUpdate: WithdrawalSourcesUpdate, options?: Parameters<typeof customFetch>[1]): Promise<AdminUserProfile> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminUserProfile>(getUpdateUserWithdrawalSourcesUrl(userId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(withdrawalSourcesUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateUserWithdrawalSourcesMutationKey = () => ['updateUserWithdrawalSources'] as const;
+
+export const getUpdateUserWithdrawalSourcesMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserWithdrawalSources>>, TError,UpdateUserWithdrawalSourcesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateUserWithdrawalSources>>, TError,UpdateUserWithdrawalSourcesMutationVariables, TContext> => {
+
+const mutationKey = getUpdateUserWithdrawalSourcesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateUserWithdrawalSources>>, UpdateUserWithdrawalSourcesMutationVariables> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  updateUserWithdrawalSources(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateUserWithdrawalSourcesMutationResult = NonNullable<Awaited<ReturnType<typeof updateUserWithdrawalSources>>>
+    export type UpdateUserWithdrawalSourcesMutationBody = BodyType<WithdrawalSourcesUpdate>
+    export type UpdateUserWithdrawalSourcesMutationError = ErrorType<ErrorMessage>
+    export type UpdateUserWithdrawalSourcesMutationVariables = {userId: string;data: BodyType<WithdrawalSourcesUpdate>}
+
+    /**
+ * @summary Choose which balances a user can withdraw from
+ */
+export const useUpdateUserWithdrawalSources = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserWithdrawalSources>>, TError,UpdateUserWithdrawalSourcesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateUserWithdrawalSources>>,
+        TError,
+        UpdateUserWithdrawalSourcesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateUserWithdrawalSourcesMutationOptions(options));
+    }
+
 export const getListAdminRequestsUrl = (params: ListAdminRequestsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -5310,16 +6312,31 @@ export const getApproveAdminRequestUrl = (requestId: string,) => {
 }
 
 /**
- * @summary Approve a pending request and move the money
+ * @summary Approve a pending request and move the money, with an optional note for the applicant
  */
-export const approveAdminRequest = async (requestId: string, options?: Parameters<typeof customFetch>[1]): Promise<AdminRequest> => {
+export const approveAdminRequest = async (requestId: string,
+    approveInput?: ApproveInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminRequest> => {
 
-  return customFetch<AdminRequest>(getApproveAdminRequestUrl(requestId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminRequest>(getApproveAdminRequestUrl(requestId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(approveInput)
   }
 );}
 
@@ -5344,9 +6361,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveAdminRequest>>, ApproveAdminRequestMutationVariables> = (props) => {
-          const {requestId} = props ?? {};
+          const {requestId,data} = props ?? {};
 
-          return  approveAdminRequest(requestId,requestOptions)
+          return  approveAdminRequest(requestId,data,requestOptions)
         }
 
 
@@ -5357,12 +6374,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type ApproveAdminRequestMutationResult = NonNullable<Awaited<ReturnType<typeof approveAdminRequest>>>
-
+    export type ApproveAdminRequestMutationBody = BodyType<ApproveInput> | undefined
     export type ApproveAdminRequestMutationError = ErrorType<ErrorMessage>
-    export type ApproveAdminRequestMutationVariables = {requestId: string}
+    export type ApproveAdminRequestMutationVariables = {requestId: string;data?: BodyType<ApproveInput>}
 
     /**
- * @summary Approve a pending request and move the money
+ * @summary Approve a pending request and move the money, with an optional note for the applicant
  */
 export const useApproveAdminRequest = <TError = ErrorType<ErrorMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveAdminRequest>>, TError,ApproveAdminRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

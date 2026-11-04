@@ -11,7 +11,7 @@ import {
 import {
   LayoutDashboard, Layers, FileText, CreditCard, ArrowLeftRight, ArrowUpFromLine, PlusCircle, Settings, Bell, Search, Plus, Menu, X,
   Users, ArrowDownToLine, Snowflake, Building2, ScanLine, House, ClipboardList, ChartPie, Milestone,
-  MessageCircleQuestion, Ellipsis, BadgeCheck, Upload, ArrowLeftRight as SwitchIcon, LogOut,
+  MessageCircleQuestion, Ellipsis, BadgeCheck, Upload, ArrowLeftRight as SwitchIcon, LogOut, Wallet, ChevronDown,
 } from 'lucide-react';
 import { Avatar, checkFile, cx, Field, FILE_RULES, fileSize, inputCls, Modal, money, Skel, useDismiss } from '@/components/bits';
 import { CATEGORIES, apiError, useApplicantDashboard, useDemo, useNotifications, useRefreshApplicant } from '@/lib/demo-state';
@@ -53,8 +53,14 @@ const adminNav: NavItem[] = [
   { href: '/admin/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { href: '/admin/deposits', label: 'Deposit Page', icon: ArrowDownToLine },
   { href: '/admin/withdrawals', label: 'Withdrawal Page', icon: ArrowUpFromLine },
+  { href: '/admin/payment-gateway', label: 'Payment Gateway', icon: Wallet },
   { href: '/admin/kyc', label: 'KYC Page', icon: ScanLine },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
+];
+/** Payment Gateway is a group: its pages are the method settings for each kind (the request queues stay on their own pages). */
+const gatewayNav: NavItem[] = [
+  { href: '/admin/payment-gateway/deposit', label: 'Deposit', icon: ArrowDownToLine },
+  { href: '/admin/payment-gateway/withdrawal', label: 'Withdrawal', icon: ArrowUpFromLine },
 ];
 const bottomNav: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: House },
@@ -498,14 +504,41 @@ function WorkspaceSwitch() {
 
 function AdminNavList({ onNav }: { onNav?: () => void }) {
   const [loc] = useLocation();
+  const inGateway = loc.startsWith('/admin/payment-gateway');
+  const [open, setOpen] = useState(inGateway);
+  useEffect(() => { if (inGateway) setOpen(true); }, [inGateway]);
+  const row = (active: boolean) => cx('group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+    active ? 'bg-[#C6F432] text-[#111] font-semibold' : 'text-slate-300 hover:bg-white/10 hover:text-white hover:translate-x-0.5');
   return (
     <nav aria-label="Admin navigation" className="flex flex-col gap-1">
       {adminNav.map((i) => {
+        if (i.href === '/admin/payment-gateway') {
+          return (
+            <div key={i.href}>
+              <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="nav-payment-gateway" data-testid="button-nav-payment-gateway"
+                className={cx(row(false), 'w-full', inGateway && !open && 'bg-white/10 text-white')}>
+                <i.icon className="h-[18px] w-[18px]" />
+                <span className="flex-1 text-left">{i.label}</span>
+                <ChevronDown className={cx('h-4 w-4 transition-transform', open && 'rotate-180')} aria-hidden />
+              </button>
+              {open && (
+                <div id="nav-payment-gateway" className="ml-5 mt-1 flex flex-col gap-1 border-l border-white/10 pl-3">
+                  {gatewayNav.map((c) => {
+                    const active = loc === c.href;
+                    return (
+                      <Link key={c.href} href={c.href} onClick={onNav} aria-current={active ? 'page' : undefined} data-testid={testId(c.href)} className={row(active)}>
+                        <c.icon className="h-4 w-4" /><span className="flex-1">{c.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        }
         const active = isActive(loc, i.href);
         return (
-          <Link key={i.href} href={i.href} onClick={onNav} aria-current={active ? 'page' : undefined} data-testid={testId(i.href)}
-            className={cx('group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
-              active ? 'bg-[#C6F432] text-[#111] font-semibold' : 'text-slate-300 hover:bg-white/10 hover:text-white hover:translate-x-0.5')}>
+          <Link key={i.href} href={i.href} onClick={onNav} aria-current={active ? 'page' : undefined} data-testid={testId(i.href)} className={row(active)}>
             <i.icon className="h-[18px] w-[18px]" />
             <span className="flex-1">{i.label}</span>
           </Link>

@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
-  useUpdateApplicantProfile, useCreateApplicantRequest, useGetApplicantApplication, getGetApplicantApplicationQueryKey,
+  useUpdateApplicantProfile, useCreateApplicantRequest, useListApplicantPaymentMethods, useGetApplicantApplication, getGetApplicantApplicationQueryKey,
   useWithdrawApplicantApplication, useRespondToApplicantApplication, getGetApplicantDashboardQueryKey,
   useUploadApplicantApplicationDocument, useDeleteApplicantApplicationDocument, useUploadApplicantAvatar, useDeleteApplicantAvatar,
   useGetApplicantKyc, useUploadApplicantKycDocument, getGetApplicantKycQueryKey, useUpdateApplicantPreferences, getGetApplicantAccountQueryKey,
@@ -24,6 +24,7 @@ import { OwnCardControls } from '@/components/card-self-service';
 import { Avatar, Empty, ErrorState, Field, FILE_RULES, Modal, PageSkeleton, Skel, StatusBadge, checkFile, cx, dateFmt, fileSize, inputCls, money, statusLabel } from '@/components/bits';
 import { apiError, matchesSearch, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
+import { FixedAmountChoices, MethodFieldInputs, MethodInstructions, MethodLogo, ProofInput, RequestDetails, checkFieldValues, type FieldValues } from '@/components/payment-method';
 
 export const card = 'rounded-2xl border border-[#E5E7EB] bg-white shadow-sm';
 export const NAVY = '#1E3A8A';
@@ -637,11 +638,12 @@ const accountLabel: Record<string, string> = { grant: 'Grant', deposit: 'Deposit
 
 /** Deposit and withdrawal requests are reviewed by the finance team, so their statuses read as review outcomes. */
 const requestStatusLabel: Record<string, string> = { Pending: 'Under review', Completed: 'Approved', Declined: 'Declined' };
-export function TxRow({ t }: { t: Tx }) {
+export function TxRow({ t, showDetails = false }: { t: Tx; showDetails?: boolean }) {
   const incoming = t.direction === 'in';
   const Icon = incoming ? ArrowDownLeft : ArrowUpRight;
   return (
-    <li data-testid={`row-transaction-${t.id}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 sm:px-4">
+    <li data-testid={`row-transaction-${t.id}`} className="rounded-xl border border-slate-200 p-3 sm:px-4">
+    <div className="flex items-center gap-3">
       <span className={cx('grid h-10 w-10 shrink-0 place-items-center rounded-lg', incoming ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#EEF4FB] text-[#1E3A8A]')}><Icon className="h-5 w-5" /></span>
       <span className="min-w-0 flex-1">
         <span className="line-clamp-2 block font-semibold text-slate-900">{t.description}</span>
@@ -651,6 +653,9 @@ export function TxRow({ t }: { t: Tx }) {
         <span className={cx('font-semibold tabular-nums', t.status === 'Declined' ? 'text-slate-400 line-through' : incoming ? 'text-[#166534]' : 'text-slate-900')} data-testid={`text-transaction-amount-${t.id}`}>{incoming ? '+' : '−'}{money(t.amount)}</span>
         <StatusBadge status={t.status} dot={false} label={t.reference ? requestStatusLabel[t.status] : undefined} />
       </span>
+    </div>
+    {showDetails && <RequestDetails method={t.method} details={t.details} proofUrl={t.proofUrl} source={t.type === 'Withdrawal' ? t.source : undefined} testid={`details-transaction-${t.id}`} />}
+    {showDetails && t.status === 'Completed' && t.reviewNote && <p className="mt-2 text-xs text-slate-600" data-testid={`text-approve-note-${t.id}`}><span className="font-semibold">Note from our team:</span> {t.reviewNote}</p>}
     </li>
   );
 }
@@ -683,53 +688,105 @@ function TxBody({ a }: { a: Account }) {
 function MoneyPage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
   return <AccountGate title={kind === 'Deposit' ? 'Add funds' : 'Withdrawals'}>{(a) => <MoneyBody kind={kind} a={a} />}</AccountGate>;
 }
-const quickAmounts = [100, 500, 1000];
+type Source = 'grant' | 'deposit';
+const sourceName: Record<Source, string> = { grant: 'Grant balance', deposit: 'Deposit balance' };
+
 function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) {
   const refresh = useRefreshApplicant();
   const { toast } = useToast();
   const m = useCreateApplicantRequest();
+  const methods = useListApplicantPaymentMethods({ kind });
+  const isDeposit = kind === 'Deposit';
+  const sources: Source[] = a.withdrawalSources === 'both' ? ['grant', 'deposit'] : [a.withdrawalSources];
+  const [methodId, setMethodId] = useState('');
+  const [source, setSource] = useState<Source | ''>(sources.length === 1 ? sources[0]! : '');
   const [amt, setAmt] = useState('');
+  const [values, setValues] = useState<FieldValues>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [proof, setProof] = useState<File | null>(null);
+  const [proofErr, setProofErr] = useState('');
   const [note, setNote] = useState('');
   const [err, setErr] = useState('');
   const [placed, setPlaced] = useState<Tx | null>(null);
-  const isDeposit = kind === 'Deposit';
   const paused = a.status === 'Frozen' || a.platformFrozen;
-  const available = isDeposit ? a.balances.deposit : a.availableToWithdraw;
+  const method = methods.data?.find((x) => x.id === methodId);
+  const available = isDeposit ? a.balances.deposit : source ? a.availableToWithdraw[source] : null;
   const mine = a.transactions.filter((t) => t.type === kind);
   const lim = a.withdrawalLimits;
   const leftToday = lim.dailyTotal === null ? null : Math.max(0, Math.round((lim.dailyTotal - lim.usedLast24h) * 100) / 100);
+  const emailed = !!(a.permissions.emailOverride ?? a.permissions.emailNotifications);
+  useEffect(() => { if (sources.length === 1) setSource(sources[0]!); }, [a.withdrawalSources]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A single method is chosen for the applicant; the choice resets if the admin disables it meanwhile.
+  useEffect(() => {
+    if (!methods.data) return;
+    if (methods.data.length === 1 && !methodId) setMethodId(methods.data[0]!.id);
+    if (methodId && !methods.data.some((x) => x.id === methodId)) setMethodId('');
+  }, [methods.data, methodId]);
+  const choose = (id: string) => { setMethodId(id); setAmt(''); setValues({}); setFieldErrors({}); setProof(null); setProofErr(''); setErr(''); };
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!method) return setErr(`Choose a ${kind.toLowerCase()} method.`);
+    if (!isDeposit && !source) return setErr('Choose which balance to withdraw from.');
     const n = Number(amt);
-    if (!amt || !(n >= 0.01)) return setErr('Enter an amount of at least $0.01.');
+    if (!amt || !(n >= 0.01)) return setErr(method.amountMode === 'fixed' ? 'Choose an amount.' : 'Enter an amount of at least $0.01.');
     if (Math.round(n * 100) !== Math.round(n * 100 * 1000) / 1000) return setErr('Use at most two decimal places.');
-    if (!isDeposit && n > a.availableToWithdraw) return setErr(`You can withdraw up to ${money(a.availableToWithdraw)}.`);
+    if (method.amountMode === 'range') {
+      if (method.minAmount !== null && n < method.minAmount) return setErr(`The minimum for ${method.name} is ${money(method.minAmount)}.`);
+      if (method.maxAmount !== null && n > method.maxAmount) return setErr(`The maximum for ${method.name} is ${money(method.maxAmount)}.`);
+    }
+    if (!isDeposit && available !== null && n > available) return setErr(`You can withdraw up to ${money(available)} from your ${sourceName[source as Source].toLowerCase()}.`);
     if (!isDeposit && lim.maxPerRequest !== null && n > lim.maxPerRequest) return setErr(`You can withdraw up to ${money(lim.maxPerRequest)} per request.`);
     if (!isDeposit && leftToday !== null && n > leftToday) return setErr(leftToday <= 0 ? `You've reached your ${money(lim.dailyTotal!)} daily withdrawal limit.` : `You have ${money(leftToday)} left of your ${money(lim.dailyTotal!)} daily withdrawal limit.`);
-    setErr('');
-    m.mutate({ data: { kind, amount: n, note: note.trim() || undefined } }, {
+    const fe = checkFieldValues(method.fields, values);
+    setFieldErrors(fe);
+    if (method.proofMode === 'required' && !proof) setProofErr('Attach your payment proof.');
+    if (Object.keys(fe).length || (method.proofMode === 'required' && !proof)) return setErr('Check the highlighted details.');
+    setErr(''); setProofErr('');
+    m.mutate({ data: {
+      kind, methodId: method.id, amount: n.toFixed(2), values: JSON.stringify(values), ...(note.trim() ? { note: note.trim() } : {}),
+      ...(!isDeposit && source ? { source } : {}), ...(proof ? { file: proof } : {}),
+    } }, {
       onSuccess: (r) => {
         refresh();
-        setAmt(''); setNote('');
+        setAmt(''); setNote(''); setValues({}); setProof(null);
         setPlaced(r as Tx);
-        toast({ title: `${kind} request placed`, description: `Reference ${r.reference}. We've sent you a notification${a.permissions.emailOverride ?? a.permissions.emailNotifications ? ' and an email' : ''}.` });
+        toast({ title: `${kind} request placed`, description: `Reference ${r.reference}. We've sent you a notification${emailed ? ' and an email' : ''}.` });
       },
       onError: (e2) => setErr(apiError(e2, 'The request could not be submitted. Please try again.')),
     });
   };
+
+  const noMethods = methods.data?.length === 0;
   return (
     <div className="space-y-5">
       <FrozenNotice a={a} />
-      {placed && <RequestPlaced t={placed} emailed={!!(a.permissions.emailOverride ?? a.permissions.emailNotifications)} onClose={() => setPlaced(null)} />}
+      {placed && <RequestPlaced t={placed} emailed={emailed} onClose={() => setPlaced(null)} />}
       <div className="grid gap-5 lg:grid-cols-5">
-        <form noValidate onSubmit={submit} className={cx(card, 'space-y-4 p-5 lg:col-span-2 lg:self-start')} data-testid="form-money">
-          <div className="rounded-xl bg-[#EEF4FB] p-4">
-            <p className="text-sm text-slate-600">{isDeposit ? 'Deposit balance' : 'Available to withdraw'}</p>
-            <p className="text-2xl font-bold tabular-nums text-slate-900" data-testid="text-source-balance">{money(available)}</p>
-            {!isDeposit && a.availableToWithdraw < a.balances.grant && (
-              <p className="mt-1 text-xs text-slate-500">Grant balance {money(a.balances.grant)}, minus pending withdrawals.</p>
-            )}
-          </div>
+        <form noValidate onSubmit={submit} className={cx(card, 'min-w-0 space-y-4 p-5 lg:col-span-2 lg:self-start')} data-testid="form-money">
+          {isDeposit || sources.length === 1 ? (
+            <div className="rounded-xl bg-[#EEF4FB] p-4">
+              <p className="text-sm text-slate-600">{isDeposit ? 'Deposit balance' : `Available to withdraw · ${sourceName[sources[0]!].toLowerCase()}`}</p>
+              <p className="text-2xl font-bold tabular-nums text-slate-900" data-testid="text-source-balance">{money(isDeposit ? a.balances.deposit : a.availableToWithdraw[sources[0]!])}</p>
+              {!isDeposit && a.availableToWithdraw[sources[0]!] < a.balances[sources[0]!] && (
+                <p className="mt-1 text-xs text-slate-500">{sourceName[sources[0]!]} {money(a.balances[sources[0]!])}, minus pending withdrawals.</p>
+              )}
+            </div>
+          ) : (
+            <fieldset>
+              <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Withdraw from</legend>
+              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Withdraw from">
+                {sources.map((s) => (
+                  <button key={s} type="button" role="radio" aria-checked={source === s} disabled={paused} data-testid={`button-source-${s}`} onClick={() => { setSource(s); setErr(''); }}
+                    className={cx('press min-h-11 rounded-xl border p-3 text-left', source === s ? 'border-[#1E3A8A] bg-[#EEF4FB] ring-2 ring-[#1E3A8A]/20' : 'border-slate-300 bg-white hover:border-[#1E3A8A]')}>
+                    <span className="block text-sm text-slate-600">{sourceName[s]}</span>
+                    <span className="block text-lg font-bold tabular-nums text-slate-900" data-testid={`text-available-${s}`}>{money(a.availableToWithdraw[s])}</span>
+                    <span className="block text-xs text-slate-500">available</span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          )}
           {!isDeposit && (lim.maxPerRequest !== null || lim.dailyTotal !== null) && (
             <p className="rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-600" data-testid="text-withdrawal-limits">
               <span className="font-semibold text-slate-900">Your limits: </span>
@@ -737,41 +794,71 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
                 lim.dailyTotal !== null && `${money(lim.dailyTotal)} per 24 hours (${money(leftToday!)} left)`].filter(Boolean).join(' · ')}
             </p>
           )}
-          <Field label="Amount (USD)" error={err}>
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-500">$</span>
-              <input data-testid="input-money-amount" type="number" inputMode="decimal" min="0.01" step="0.01" value={amt} disabled={paused}
-                onChange={(e) => { setAmt(e.target.value); setErr(''); }} placeholder="0.00" aria-invalid={!!err} className={cx(inputCls, 'pl-7 tabular-nums')} />
-            </div>
-          </Field>
-          {isDeposit && (
-            <div className="flex flex-wrap gap-2">
-              {quickAmounts.map((q) => (
-                <button key={q} type="button" disabled={paused} data-testid={`button-quick-${q}`} onClick={() => { setAmt(String(q)); setErr(''); }}
-                  className="press rounded-full border border-slate-300 px-3.5 py-1.5 text-sm font-semibold text-slate-700 hover:border-[#1E3A8A] disabled:opacity-50">{money(q).replace('.00', '')}</button>
-              ))}
+
+          <fieldset>
+            <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{isDeposit ? 'How will you pay?' : 'How do you want to be paid?'}</legend>
+            {methods.isLoading ? <div className="space-y-2"><Skel className="h-16" /><Skel className="h-16" /></div>
+              : methods.isError ? <ErrorState onRetry={() => methods.refetch()} />
+              : noMethods ? <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600" data-testid="text-no-methods">No {kind.toLowerCase()} methods are available yet. Contact support.</p>
+              : (
+                <div className="grid gap-2" role="radiogroup" aria-label={`${kind} method`} data-testid="list-methods">
+                  {methods.data!.map((x) => (
+                    <button key={x.id} type="button" role="radio" aria-checked={methodId === x.id} disabled={paused} onClick={() => choose(x.id)} data-testid={`button-method-${x.id}`}
+                      className={cx('press flex min-h-11 items-center gap-3 rounded-xl border p-3 text-left', methodId === x.id ? 'border-[#1E3A8A] bg-[#EEF4FB] ring-2 ring-[#1E3A8A]/20' : 'border-slate-300 bg-white hover:border-[#1E3A8A]')}>
+                      <MethodLogo url={x.logoUrl} name={x.name} />
+                      <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-slate-900">{x.name}</span><span className="block text-xs tabular-nums text-slate-500">{x.amountRule}</span></span>
+                      {methodId === x.id && <CircleCheck className="h-5 w-5 shrink-0 text-[#1E3A8A]" aria-hidden />}
+                    </button>
+                  ))}
+                </div>
+              )}
+          </fieldset>
+
+          {method && (
+            <div className="space-y-4" data-testid="panel-method-form">
+              <MethodInstructions text={method.instructions} />
+              {method.amountMode === 'fixed' ? (
+                <div>
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Amount</span>
+                  <FixedAmountChoices amounts={method.fixedAmounts} value={amt} disabled={paused} onChange={(v) => { setAmt(v); setErr(''); }} activeClass="border-[#1E3A8A] bg-[#1E3A8A] text-white" />
+                </div>
+              ) : (
+                <Field label={`Amount (USD)${method.amountRule !== 'Any amount' ? ` · ${method.amountRule}` : ''}`}>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-500">$</span>
+                    <input data-testid="input-money-amount" type="number" inputMode="decimal" min={method.minAmount ?? 0.01} max={method.maxAmount ?? undefined} step="0.01" value={amt} disabled={paused}
+                      onChange={(e) => { setAmt(e.target.value); setErr(''); }} placeholder="0.00" className={cx(inputCls, 'min-h-11 pl-7 tabular-nums')} />
+                  </div>
+                </Field>
+              )}
+              <MethodFieldInputs fields={method.fields} values={values} errors={fieldErrors} disabled={paused} inputClass={inputCls} idPrefix="method"
+                onChange={(v) => { setValues(v); setFieldErrors({}); }} />
+              {isDeposit && <ProofInput mode={method.proofMode} file={proof} disabled={paused} error={proofErr} onChange={(f) => {
+                if (f) { const bad = checkFile(f, 'identity'); if (bad) { setProofErr(bad); return; } }
+                setProofErr(''); setProof(f);
+              }} />}
+              <Field label="Note (optional)"><input data-testid="input-money-note" maxLength={240} value={note} disabled={paused} onChange={(e) => setNote(e.target.value)} placeholder={isDeposit ? 'e.g. Paid from operating account' : 'e.g. Equipment purchase'} className={cx(inputCls, 'min-h-11')} /></Field>
             </div>
           )}
-          <Field label="Note (optional)"><input data-testid="input-money-note" maxLength={240} value={note} disabled={paused} onChange={(e) => setNote(e.target.value)} placeholder={isDeposit ? 'e.g. Wire from operating account' : 'e.g. Equipment purchase'} className={inputCls} /></Field>
-          <button data-testid="button-submit-money" type="submit" disabled={paused || m.isPending} className="press w-full rounded-full bg-[#1E3A8A] py-2.5 text-[15px] font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60">
+          {err && <p role="alert" className="rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-money-error">{err}</p>}
+          <button data-testid="button-submit-money" type="submit" disabled={paused || m.isPending || !method} className="press min-h-11 w-full rounded-full bg-[#1E3A8A] py-2.5 text-[15px] font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60">
             {m.isPending ? 'Submitting…' : isDeposit ? 'Request deposit' : 'Request withdrawal'}
           </button>
-          {/* What happens after "Request" (finding U8). No payment processor is connected, so no timings or bank details are promised. */}
+          {/* What happens after "Request" (finding U8). No payment processor is connected, so no timings are promised. */}
           <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600" data-testid="text-money-steps">
             <p className="mb-2 font-semibold text-slate-900">What happens next</p>
             <ol className="list-decimal space-y-1 pl-5">
-              <li>You get a reference number{isDeposit ? '' : ', and the amount is held from your grant balance'}.</li>
-              <li>A finance administrator approves or declines it. You're told in the app{a.permissions.emailOverride ?? a.permissions.emailNotifications ? ' and by email' : ''}, with the reason if it's declined.</li>
-              <li>{isDeposit ? 'Once approved, the amount is added to your deposit balance.' : 'Once approved, the amount leaves your grant balance. A declined request releases the hold.'}</li>
+              <li>You get a reference number{isDeposit ? '' : ', and the amount is held from the balance you chose'}.</li>
+              <li>A finance administrator {isDeposit ? 'checks your payment and ' : ''}approves or declines it. You're told in the app{emailed ? ' and by email' : ''}, with the reason if it's declined.</li>
+              <li>{isDeposit ? 'Once approved, the amount is added to your deposit balance.' : 'Once approved, the amount leaves that balance. A declined request releases the hold.'}</li>
             </ol>
-            <p className="mt-2 text-xs text-slate-500">Sample balances: no real money moves, and no bank details are needed here.</p>
           </div>
         </form>
-        <section className={cx(card, 'p-4 sm:p-5 lg:col-span-3')} aria-labelledby="requests-heading">
+        <section className={cx(card, 'min-w-0 p-4 sm:p-5 lg:col-span-3')} aria-labelledby="requests-heading">
           <h2 id="requests-heading" className="mb-4 text-lg font-semibold text-slate-900">Your {kind.toLowerCase()} requests</h2>
           {mine.length === 0
-            ? <Empty title={`No ${kind.toLowerCase()} requests yet`} hint="Submit the form and your request appears here." />
-            : <ul className="space-y-3" data-testid="list-requests">{mine.map((t) => <TxRow key={t.id} t={t} />)}</ul>}
+            ? <Empty title={`No ${kind.toLowerCase()} requests yet`} hint="Choose a method, fill in the form, and your request appears here." />
+            : <ul className="space-y-3" data-testid="list-requests">{mine.map((t) => <TxRow key={t.id} t={t} showDetails />)}</ul>}
         </section>
       </div>
     </div>
