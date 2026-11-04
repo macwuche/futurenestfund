@@ -65,4 +65,4 @@ The preserved brief files are under `.local/conversation-workspace/files/attache
 - `Pasted--User-Dashboard-Profile-UI-Specification-user-dashboard_1792092005165.txt`
 - `Pasted--Admin-Dashboard-User-Profile-UI-Specification-admin-da_1792095537728.txt`
 
-Applicant navigation is Dashboard, Grant categories, Applications, Cards, Transactions, Withdrawals, Add funds, Settings. Admin navigation is Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, KYC Page, Settings (the written admin spec is the admin design source; application review lives under Users at `/admin/users/:userId/applications/:id`, reached from the inspector and the dashboard queue).
+Applicant navigation is Dashboard, Grant categories, Applications, Cards, Transactions, Withdrawals, Add funds, Settings. Admin navigation is Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, Payment Gateway (Deposit / Withdrawal method settings), KYC Page, Card Requests, Settings (the written admin spec is the admin design source; application review lives under Users at `/admin/users/:userId/applications/:id`, reached from the inspector and the dashboard queue).

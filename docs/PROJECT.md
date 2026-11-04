@@ -536,12 +536,20 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | `cb909d4` | Admin ledger and decisions as cards on phones (7.5) |
 | `02bdf27` | Applicant fixes: grouped menu, category overview, rows, cards, money steps (7.6) |
 | `2bf48ad` | Applicant phone: New Application, compact grant cards, folding filters (7.7) |
+| `a82a158` | Virus scanning of uploads through ClamAV, off until configured; status in Settings (6.6) |
+| `d9f2edc` | The API creates its own encryption key file, so the Resend key can be saved in Admin Settings with no server change |
+| `62ec3aa` | Dashboard balance cards; eligible amount per tier and per user; "Level" renamed "Tier" (8.1) |
+| `e183fb3` | Payment Gateway: admin-made deposit and withdrawal methods; withdrawals from the grant and/or deposit balance (Phase 10) |
+| `4300a48` | Admin queue for physical-card activation requests (9.1) |
+| `a5b7ac2`, `c65cf9d`, `5b2d5c9` | `server.md` deployment records for `a82a158`, `d9f2edc`, `62ec3aa` |
 
 ---
 
 ## 15. Open items and next steps
 
-**Needs you** (Phase 7 + 6.6 deployed 2026-11-01 at `a82a158`): the open §12 items: rotate the secrets pasted in chat, email through Resend (step 10 in `docs/DEPLOY.md`), minimum password length 8, off-server backup copies; and the ClamAV memory decision (step 11). Shared-server housekeeping (firewall, fail2ban, 29 package updates) is listed in `server.md` §7.
+**Deploy next:** `e183fb3` (Phase 10) and `4300a48` (9.1) are committed but not live (`62ec3aa` is). Push, then `deploy.sh` on the VPS applies app migration **0009** and Supabase **0004**. Then create and enable at least one method in Admin → Payment Gateway (Deposit and Withdrawal): until then applicants can't place deposit or withdrawal requests.
+
+**Needs you** (unchanged since `a82a158`): the open §12 items: rotate the secrets pasted in chat, email through Resend (step 10 in `docs/DEPLOY.md`), minimum password length 8, off-server backup copies; and the ClamAV memory decision (step 11). Shared-server housekeeping (firewall, fail2ban, 29 package updates) is listed in `server.md` §7.
 
 **Phase 5 (admin controls)**, full plan in `work.md` §11:
 - ~~5.1 withdrawal notifications~~ and ~~5.2 withdrawal limits~~: done 2026-10-30
@@ -563,6 +571,18 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 **Phase 7 (UI overhaul)**, full review and plan in `work.md` §13:
 - ~~7.1 email settings and health checks in Admin Settings~~: done 2026-10-31 (since 2026-11-01 the API creates its own encryption key, so keys can be saved there with no server change)
 - ~~7.2 Settings in sections · 7.3 design system · 7.4 admin layout · 7.5 admin tables on phones · 7.6 applicant fixes · 7.7 applicant phone~~: done 2026-11-01. Not done as planned: no new shared `Button`/`Card` React components (the shared class tokens stayed the single source), and Grant Search on phones is 38% shorter rather than half.
+
+**Phase 8 (dashboard balances)**, plan in `work.md` §14:
+- ~~8.1 balance cards, eligible amount per tier and per user~~: done 2026-11-02, deployed at `62ec3aa`. **Needs you:** set the tier amounts in Admin → Settings → Money (until then every dashboard shows $0.00).
+
+**Phase 9 (remaining backlog)**, plan in `work.md` §15:
+- ~~9.1 admin queue for card activation requests~~: done 2026-11-04 (`4300a48`), not deployed yet
+- 9.2 shared rate limits (Redis, was 6.7): next to build; only matters with more than one API server, so it stays off on the VPS
+- 9.3 automatic fees: **waits for your answers** to `work.md` §15f questions 1–3 (which fees, how each is worked out, which balance pays)
+- 9.4 tier rules: **waits for your answer** to §15f question 4 (which rules, and thresholds for automatic tier changes); after 9.3
+
+**Phase 10 (payment gateway)**, plan in `work.md` §16:
+- ~~10.1–10.4 methods, admin pages, applicant forms, queues~~: done 2026-11-04 (`e183fb3`), not deployed yet. Not done as planned: no separate method column in CSV export / search (the ledger reason names the method).
 
 **Limits worth knowing:**
 - The API can't sign anyone in by itself if Supabase is down; requests answer 503 until it's back.
