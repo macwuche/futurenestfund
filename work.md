@@ -2353,4 +2353,4 @@ Every step: typecheck and `pnpm test`; one commit when 9.3 is green. Deploy appl
 - Found and fixed while testing: on phones the card fee boxes were 26 px wide (price and fee now stack), and the method list said "No fee" on every row (now shown only when there is a fee).
 - The suites were run back to back, so the test API ran with `RATE_LIMIT_*` raised. With the default 60 writes a minute they trip the limit (429).
 
-**Deployed 2026-11-05** at `dc386f9` (0010 applied). **Still to do:**; then set the card types and prices in Admin → Settings → Cards, and fees on the methods. Until a card type is on sale, applicants see "No cards are on sale right now". The provisional choices in §17h are waiting for the user's answers.
+**Deployed 2026-11-05** at `dc386f9` (0010 applied). **Still to do:** set the card types and prices in Admin → Settings → Cards, and fees on the methods. Until a card type is on sale, applicants see "No cards are on sale right now". The provisional choices in §17h are waiting for the user's answers.
