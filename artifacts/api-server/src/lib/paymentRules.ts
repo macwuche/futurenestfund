@@ -3,6 +3,7 @@
  * request must satisfy for that method. No database access here, so it's unit-tested directly.
  */
 import { randomBytes } from "node:crypto";
+import { parseFee, type FeeRule } from "./fees";
 
 export const FIELD_TYPES = ["text", "textarea", "number", "email", "phone", "date", "select"] as const;
 export type FieldType = (typeof FIELD_TYPES)[number];
@@ -15,6 +16,8 @@ export type MethodKind = "Deposit" | "Withdrawal";
 export type MethodRules = {
   kind: MethodKind; amountMode: AmountMode; minCents: number | null; maxCents: number | null;
   fixedAmountsCents: number[]; fields: MethodField[]; proofMode: ProofMode;
+  /** Step 9.3: withdrawals: paid from the deposit (main) balance on top of the amount; deposits: taken out of the amount. */
+  fee: FeeRule;
 };
 
 export const LIMITS = { name: [2, 60], label: 60, placeholder: 80, help: 200, instructions: 1000, fields: 20, options: 20, option: 60, fixed: 10, answer: 500 } as const;
@@ -36,7 +39,7 @@ const clean = (v: unknown, multiline = false) =>
 
 export type MethodInput = {
   kind?: unknown; name?: unknown; amountMode?: unknown; minAmount?: unknown; maxAmount?: unknown; fixedAmounts?: unknown;
-  fields?: unknown; proofMode?: unknown; instructions?: unknown; enabled?: unknown;
+  fields?: unknown; proofMode?: unknown; instructions?: unknown; enabled?: unknown; fee?: unknown;
 };
 export type ParsedMethod = MethodRules & { name: string; instructions: string; enabled: boolean };
 
@@ -112,7 +115,9 @@ export function parseMethod(input: MethodInput, kind: MethodKind): ParsedMethod 
   }
   const instructions = clean(input.instructions, true);
   if (instructions.length > LIMITS.instructions) return `Keep the instructions under ${LIMITS.instructions} characters.`;
-  return { kind, name, amountMode, minCents, maxCents, fixedAmountsCents, fields, proofMode, instructions, enabled: input.enabled !== false };
+  const fee = parseFee(input.fee);
+  if (typeof fee === "string") return fee;
+  return { kind, name, amountMode, minCents, maxCents, fixedAmountsCents, fields, proofMode, instructions, enabled: input.enabled !== false, fee };
 }
 
 /** "$50.00 – $5,000.00", "From $50.00", "Fixed: $100.00 / $250.00", "Any amount". */

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AdminActivity } from './adminActivity';
+import type { AdminDashboardFeesCollected } from './adminDashboardFeesCollected';
 import type { MoneyPoint } from './moneyPoint';
 import type { StatusCount } from './statusCount';
 import type { SystemHealth } from './systemHealth';
@@ -19,6 +20,8 @@ export interface AdminDashboard {
   pendingWithdrawals: number;
   /** Physical cards whose holder asked for activation */
   pendingCardActivations: number;
+  /** Fees charged (withdrawal, deposit and card fees) */
+  feesCollected: AdminDashboardFeesCollected;
   totalGrantBalances: number;
   totalDepositBalances: number;
   applicationsByStatus: StatusCount[];

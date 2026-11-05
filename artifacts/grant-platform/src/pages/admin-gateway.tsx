@@ -9,6 +9,7 @@ import { Shell } from '@/components/shell';
 import { Empty, ErrorState, Field, Modal, Skel, checkFile, cx, money } from '@/components/bits';
 import { card, ainput, lime, dark, ghost, danger, SectionTitle, useAdminRefresh } from '@/components/admin-bits';
 import { FixedAmountChoices, MethodFieldInputs, MethodInstructions, MethodLogo, ProofInput, type FieldValues } from '@/components/payment-method';
+import { FeeInput, feeDraft, feeFromDraft, type FeeDraft } from '@/components/fee-input';
 import { apiError } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
@@ -74,7 +75,7 @@ function MethodRow({ m, first, last, onEdit, onDelete }: { m: PaymentMethod; fir
   const refresh = useAdminRefresh();
   const { toast } = useToast();
   const fail = (e: unknown) => toast({ title: 'Not saved', description: apiError(e, 'Try again.'), variant: 'destructive' });
-  const meta = [m.amountRule, `${m.fields.length} field${m.fields.length === 1 ? '' : 's'}`, proofText(m)].filter(Boolean).join(' · ');
+  const meta = [m.amountRule, m.feeText !== 'No fee' ? m.feeText : '', `${m.fields.length} field${m.fields.length === 1 ? '' : 's'}`, proofText(m)].filter(Boolean).join(' · ');
   return (
     <li className={cx('rounded-xl border p-4', m.enabled ? 'border-[#E2E8F0]' : 'border-dashed border-slate-300 bg-slate-50')} data-testid={`row-method-${m.id}`}>
       <div className="flex flex-wrap items-center gap-3">
@@ -135,7 +136,7 @@ function DeleteMethod({ method, onClose }: { method: PaymentMethod | null; onClo
 type DraftField = PaymentField & { key: string; optionsText: string };
 type Draft = {
   name: string; amountMode: 'range' | 'fixed'; min: string; max: string; fixed: string[]; fixedInput: string;
-  fields: DraftField[]; proofMode: PaymentMethod['proofMode']; instructions: string; enabled: boolean;
+  fields: DraftField[]; proofMode: PaymentMethod['proofMode']; instructions: string; enabled: boolean; fee: FeeDraft;
   logoTab: 'upload' | 'url'; logoFile: File | null; logoUrlInput: string; removeLogo: boolean;
 };
 let keySeq = 0;
@@ -146,6 +147,7 @@ const toDraft = (m: PaymentMethod | undefined, kind: Kind): Draft => ({
   fixed: (m?.fixedAmounts ?? []).map((a) => a.toFixed(2)), fixedInput: '',
   fields: (m?.fields ?? []).map((f) => ({ ...f, key: newKey(), optionsText: (f.options ?? []).join('\n') })),
   proofMode: m?.proofMode ?? (kind === 'Deposit' ? 'required' : 'off'), instructions: m?.instructions ?? '', enabled: m?.enabled ?? true,
+  fee: feeDraft(m?.fee),
   logoTab: 'upload', logoFile: null, logoUrlInput: '', removeLogo: false,
 });
 const parseAmount = (s: string) => { const t = s.trim().replace(/[$,\s]/g, ''); return t === '' ? null : Number(t); };
@@ -164,6 +166,8 @@ function checkDraft(d: Draft, kind: Kind): string {
     if (d.max.trim() && !validAmount(max)) return 'The maximum must be between $0.01 and $1,000,000.';
     if (min !== null && max !== null && min > max) return "The minimum can't be higher than the maximum.";
   } else if (!d.fixed.length) return 'Add at least one fixed amount.';
+  const fee = feeFromDraft(d.fee);
+  if (typeof fee === 'string') return fee;
   for (const [i, f] of d.fields.entries()) {
     if (!f.label.trim()) return `Field ${i + 1} needs a label.`;
     if (f.type === 'select' && !f.optionsText.split('\n').some((o) => o.trim())) return `"${f.label}" needs at least one option.`;
@@ -216,6 +220,7 @@ function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentM
       name: d.name.trim(), amountMode: d.amountMode,
       ...(d.amountMode === 'range' ? { minAmount: parseAmount(d.min), maxAmount: parseAmount(d.max) } : { fixedAmounts: d.fixed.map(Number) }),
       fields: fieldsOut(d.fields), instructions: d.instructions, enabled: d.enabled, ...(kind === 'Deposit' ? { proofMode: d.proofMode } : {}),
+      fee: feeFromDraft(d.fee) as { mode: 'fixed' | 'percent'; amount: number },
     };
     let saved = current;
     try {
@@ -314,6 +319,16 @@ function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentM
             )}
           </fieldset>
 
+          <fieldset>
+            <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Fee</legend>
+            <p className="mb-2 text-xs text-slate-500" data-testid="text-fee-help">
+              {kind === 'Deposit'
+                ? 'Taken out of the amount deposited: a $100 deposit with a $3 fee adds $97 to the deposit balance. A fixed amount or a percentage of the deposit; empty = no fee.'
+                : 'Paid from the applicant\'s deposit balance, on top of the amount withdrawn. A fixed amount or a percentage of the withdrawal; empty = no fee.'}
+            </p>
+            <div className="max-w-xs"><FeeInput value={d.fee} onChange={(fee) => set({ fee })} label={`${kind} fee`} testid="input-method-fee" /></div>
+          </fieldset>
+
           <Field label={kind === 'Deposit' ? 'Instructions for applicants (e.g. where to send the money)' : 'Instructions for applicants (optional)'}>
             <textarea value={d.instructions} onChange={(e) => set({ instructions: e.target.value })} maxLength={1000} rows={4} className={cx(ainput, 'min-h-[6rem]')} data-testid="input-method-instructions"
               placeholder={kind === 'Deposit' ? 'e.g. Send to IBAN DE89 3704 0044 0532 0130 00 (Future Nest Fund). Use your email as the reference.' : 'e.g. Payouts reach your account in 1–3 business days.'} />
@@ -396,7 +411,7 @@ function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentM
             <div className="space-y-3 rounded-xl bg-white p-4 shadow-sm">
               <div className="flex items-center gap-3">
                 <MethodLogo url={shownLogo} name={d.name || 'Method'} />
-                <div className="min-w-0"><p className="truncate font-semibold">{d.name.trim() || 'Method name'}</p><p className="font-num text-xs text-slate-500">{previewRule(d)}</p></div>
+                <div className="min-w-0"><p className="truncate font-semibold">{d.name.trim() || 'Method name'}</p><p className="font-num text-xs text-slate-500">{previewRule(d)}{previewFee(d) ? ` · ${previewFee(d)}` : ''}</p></div>
               </div>
               <MethodInstructions text={d.instructions} testid="text-preview-instructions" />
               {d.amountMode === 'fixed'
@@ -410,6 +425,12 @@ function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentM
       </div>
     </Modal>
   );
+}
+
+function previewFee(d: Draft) {
+  const f = feeFromDraft(d.fee);
+  if (typeof f === 'string' || !(f.amount > 0)) return '';
+  return f.mode === 'fixed' ? `Fee ${money(f.amount)}` : `Fee ${f.amount}%`;
 }
 
 function previewRule(d: Draft) {

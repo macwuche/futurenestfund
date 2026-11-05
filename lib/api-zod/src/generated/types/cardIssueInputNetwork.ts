@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Older clients: the debit card of that network
+ */
 export type CardIssueInputNetwork = typeof CardIssueInputNetwork[keyof typeof CardIssueInputNetwork];
 
 

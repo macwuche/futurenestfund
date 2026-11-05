@@ -7,6 +7,7 @@ import { db, demoAuditTable, demoPaymentMethodsTable, demoRequestsTable, type De
 import { DemoInputError } from "./demoWorkspace";
 import { fetchRemoteImage, MAX_LOGO_BYTES, RemoteImageError } from "./remoteImage";
 import { findFile, removeFile, storeUpload, UploadError } from "./uploads";
+import { describeFee, feeOut, storedFee } from "./fees";
 import { describeAmountRule, parseMethod, type MethodField, type MethodInput, type MethodKind, type MethodRules } from "./paymentRules";
 
 /** Logos belong to the platform, not to a user. */
@@ -15,6 +16,7 @@ const LOGO_OWNER = "platform";
 export const methodRules = (m: DemoPaymentMethod): MethodRules => ({
   kind: m.kind as MethodKind, amountMode: m.amountMode === "fixed" ? "fixed" : "range", minCents: m.minCents, maxCents: m.maxCents,
   fixedAmountsCents: (m.fixedAmountsCents as number[]) ?? [], fields: (m.fields as MethodField[]) ?? [], proofMode: (m.proofMode as MethodRules["proofMode"]) ?? "off",
+  fee: storedFee(m.feeMode, m.feeValue),
 });
 
 /** The logo address for each side: admins read any file; applicants get it through their own route. */
@@ -30,6 +32,7 @@ function methodOut(m: DemoPaymentMethod, scope: "admin" | "applicant", requestCo
     id: m.id, kind: r.kind, name: m.name, ...(logoUrl ? { logoUrl } : {}),
     amountMode: r.amountMode, minAmount: dollars(r.minCents), maxAmount: dollars(r.maxCents), fixedAmounts: r.fixedAmountsCents.map(c => c / 100),
     amountRule: describeAmountRule(r), fields: r.fields, proofMode: r.proofMode, instructions: m.instructions,
+    fee: feeOut(r.fee), feeText: describeFee(r.fee),
     ...(scope === "admin" ? { enabled: m.enabled, sortOrder: m.sortOrder, requestCount, createdBy: m.createdBy, createdAt: m.createdAt.toISOString(), updatedAt: m.updatedAt.toISOString() } : {}),
   };
 }
@@ -75,7 +78,7 @@ const asInput = (m: DemoPaymentMethod): MethodInput => {
   const r = methodRules(m);
   return {
     name: m.name, amountMode: r.amountMode, minAmount: dollars(r.minCents), maxAmount: dollars(r.maxCents), fixedAmounts: r.fixedAmountsCents.map(c => c / 100),
-    fields: r.fields, proofMode: r.proofMode, instructions: m.instructions, enabled: m.enabled,
+    fields: r.fields, proofMode: r.proofMode, instructions: m.instructions, enabled: m.enabled, fee: feeOut(r.fee),
   };
 };
 
@@ -96,9 +99,9 @@ export async function createMethod(kind: MethodKind, input: MethodInput, actor: 
     const [row] = await tx.insert(demoPaymentMethodsTable).values({
       kind, name: parsed.name, amountMode: parsed.amountMode, minCents: parsed.minCents, maxCents: parsed.maxCents,
       fixedAmountsCents: parsed.fixedAmountsCents, fields: parsed.fields, proofMode: parsed.proofMode, instructions: parsed.instructions,
-      enabled: parsed.enabled, sortOrder: n, createdBy: actor,
+      feeMode: parsed.fee.mode, feeValue: parsed.fee.value, enabled: parsed.enabled, sortOrder: n, createdBy: actor,
     }).returning();
-    await audit(actor, `${kind} method "${parsed.name}" created (${describeAmountRule(parsed)}, ${parsed.fields.length} field${parsed.fields.length === 1 ? "" : "s"}${kind === "Deposit" ? `, proof ${parsed.proofMode}` : ""}${parsed.enabled ? "" : ", disabled"})`, tx);
+    await audit(actor, `${kind} method "${parsed.name}" created (${describeAmountRule(parsed)}, ${describeFee(parsed.fee).toLowerCase()}, ${parsed.fields.length} field${parsed.fields.length === 1 ? "" : "s"}${kind === "Deposit" ? `, proof ${parsed.proofMode}` : ""}${parsed.enabled ? "" : ", disabled"})`, tx);
     return row!;
   });
   return methodOut(m, "admin");
@@ -127,6 +130,7 @@ export async function updateMethod(id: string, input: MethodInput & { sortOrder?
   if (describeAmountRule(parsed) !== describeAmountRule(before)) changes.push(`amount ${describeAmountRule(parsed)}`);
   if (JSON.stringify(parsed.fields) !== JSON.stringify(before.fields)) changes.push(`fields (${parsed.fields.length})`);
   if (parsed.proofMode !== before.proofMode) changes.push(`proof ${parsed.proofMode}`);
+  if (describeFee(parsed.fee) !== describeFee(before.fee)) changes.push(describeFee(parsed.fee).toLowerCase());
   if (parsed.instructions !== current.instructions) changes.push("instructions");
   if (parsed.enabled !== current.enabled) changes.push(parsed.enabled ? "enabled" : "disabled");
   if (sortOrder !== current.sortOrder) changes.push("order");
@@ -135,7 +139,8 @@ export async function updateMethod(id: string, input: MethodInput & { sortOrder?
   await db.transaction(async tx => {
     await tx.update(demoPaymentMethodsTable).set({
       name: parsed.name, amountMode: parsed.amountMode, minCents: parsed.minCents, maxCents: parsed.maxCents, fixedAmountsCents: parsed.fixedAmountsCents,
-      fields: parsed.fields, proofMode: parsed.proofMode, instructions: parsed.instructions, enabled: parsed.enabled, sortOrder, updatedAt: new Date(),
+      fields: parsed.fields, proofMode: parsed.proofMode, instructions: parsed.instructions, feeMode: parsed.fee.mode, feeValue: parsed.fee.value,
+      enabled: parsed.enabled, sortOrder, updatedAt: new Date(),
     }).where(eq(demoPaymentMethodsTable.id, id));
     await audit(actor, `${kind} method "${current.name}" changed: ${changes.join(", ")}`, tx);
   });

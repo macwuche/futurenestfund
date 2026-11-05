@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-11-04 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1 done; Phase 10 built · **live at https://access.futurenestfund.org** (`62ec3aa` deployed; 9.1 and Phase 10 not deployed yet)._
+_Last updated 2026-11-05 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1 done, 9.3 built; Phase 10 built · **live at https://access.futurenestfund.org** (`62ec3aa` deployed; 9.1, 9.3 and Phase 10 not deployed yet)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -18,7 +18,7 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
 | 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.5 done 2026-10-30/31; **6.5: deployed on the EU VPS at https://access.futurenestfund.org on 2026-10-31** ([`docs/DEPLOY.md`](DEPLOY.md), record in [`server.md`](../server.md)); **6.6 virus scanning of uploads: code done 2026-11-01**, off until ClamAV is installed on the server (DEPLOY step 11, memory decision); 6.7 shared rate limits (only with several servers) |
 | 8 | User dashboard: balance cards, eligible amounts per tier and per user | 8.1 done 2026-11-02, deployed at `62ec3aa` (`work.md` §14) |
-| 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), automatic fees (9.3), tier rules (9.4) | **9.1 done 2026-11-04**, suites re-run after Phase 10 (not deployed); 9.2 next; 9.3 and 9.4 wait for decisions (`work.md` §15) |
+| 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), fees and card sales (9.3), tier rules (9.4) | **9.1 done 2026-11-04** (`4300a48`); **9.3 built and tested 2026-11-05** (`work.md` §17, migration 0010, committed); neither deployed; 9.2 not started; 9.4 waits for decisions |
 | 10 | Payment gateway: admin-made deposit and withdrawal methods (logo, amount rule, custom fields, payment proof); withdrawals from the grant and/or deposit balance; optional approval note | Built and tested 2026-11-04 (`work.md` §16), committed `e183fb3`; not deployed yet (migration 0009 + Supabase 0004) |
 | 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin layout, admin tables on phones, applicant fixes (review scored the UI 67/100) | Done: 7.1 on 2026-10-31, 7.2–7.7 on 2026-11-01 ([`work.md`](../work.md) §13 and the log after it) |
 
@@ -63,7 +63,9 @@ Menu in groups: **Overview** (Dashboard, My Applications (+ detail page), Milest
   - deposit and withdrawal requests go through a **payment method** the admin created (Phase 10): the applicant picks a method (logo, name, amount rule), reads its instructions, enters an amount within its minimum/maximum or picks one of its fixed amounts, fills in its fields (e.g. wallet address, network, account number) and, for deposits when the method asks for it, attaches a **payment proof** (image or PDF, virus-scanned, stored with the request in one transaction)
   - checked server-side: the method's rules, 2 decimals, $0.01 to $1M, freezes, KYC rules, withdrawal limits (the stricter of the method and the limits wins), and withdrawals can't exceed the available amount of the chosen balance
   - withdrawals come from the **grant balance**, the **deposit balance**, or either (the applicant chooses), as the admin set for that user; the default is grant only
-  - transactions list (real ledger entries plus requests)
+  - **fees (9.3):** a method can have a fee (fixed or a percentage). A withdrawal fee is paid from the deposit balance on top of the amount (held while the request waits, taken on approval, released on decline); a deposit fee comes out of the amount (deposit $100 with a $3 fee → $97 credited). The form shows the fee and the total or what they'll receive as they type
+  - **buying cards (9.3):** Cards → *Get a card* lists the card types the admin put on sale, with each kind's total (price + fee, e.g. $10 + 1% = $10.10), paid from the deposit balance. One virtual and one physical card at a time. **Top up** an active card from the deposit balance, no fee
+  - transactions list (real ledger entries plus requests; filters include fees, card purchases and card top-ups)
   - balances and sample cards: the applicant can freeze and unfreeze their own card (a card an administrator froze stays locked to them), see card details, and say a physical card has arrived to ask for it to be activated (if an admin declines, the card shows why and they can ask again)
 - **Milestones:** add, tick, delete (stored per user).
 - **Notifications:** the bell (polled every 30 s), plus an **email** for each notification when enabled. Deposit and withdrawal requests get dedicated emails when placed, approved and declined (with a reference, and the reason for a decline). An admin can override a user's email and in-app notifications (always on / always off).
@@ -82,7 +84,7 @@ Menu in groups: **Overview** (Dashboard, My Applications (+ detail page), Milest
 Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, Payment Gateway, KYC Page, Card Requests, Settings (the written admin spec's menu plus later additions). Application review lives under Users (`/admin/users/:userId/applications/:id`).
 
 - **Dashboard:**
-  - KPIs: pending applications, KYC, deposits, withdrawals, card activations
+  - KPIs: pending applications, KYC, deposits, withdrawals, card activations, **fees this month** (and all time; links to the ledger filtered to fees)
   - six-month money in/out chart
   - real system health: database round trip, audit-log integrity
   - review queue, cards waiting to be activated, and recent activity
@@ -91,12 +93,12 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, Payment Ga
   - edit profile; tier; account freeze
   - per-user rules: KYC for deposits / withdrawals; email and in-app notification overrides (user's choice / always on / always off)
   - credit and **debit** balances (a debit needs a reason shown to the user, never goes below $0 or below what pending withdrawals hold, and asks for confirmation)
-  - **cards:** issue a sample card (virtual active at once, physical pending until marked issued), freeze / unfreeze with a reason shown to the user (also locks a card the user froze themselves), cancel (permanent); shows who froze a card and when a user asked for a physical card to be activated
+  - **cards:** issue a sample card of any type (virtual active at once, physical pending until marked issued), charged at the type's price + fee from the deposit balance unless **Free of charge** is ticked; **Top up** moves money from the deposit balance to the card account (the card account has no plain Credit any more); freeze / unfreeze with a reason shown to the user (also locks a card the user froze themselves), cancel (permanent); shows who froze a card and when a user asked for a physical card to be activated
   - **profile photo:** upload or remove the user's photo (same checks and re-encoding as the applicant's own upload; removal asks first). Audited, and the user is notified.
   - the user's applications and KYC documents
 - **Application review:** Submitted → Review → Approved / Declined / Changes requested, with notes. Approving credits the grant balance through the ledger.
 - **Deposit / Withdrawal queues:** approve (with an optional note shown to the applicant) or decline (decline needs a reason). Each request shows its method, the applicant's answers, the payment proof (preview / download) and, for withdrawals, the balance it's paid from. Freezes, balances, KYC and the user's open withdrawal balances are re-checked at approval time. A pending withdrawal above the user's current limit is flagged.
-- **Payment Gateway** (menu group → Deposit / Withdrawal, `/admin/payment-gateway/deposit|withdrawal`): create, edit, enable / disable, reorder and delete methods. A method has a logo (uploaded, or downloaded once from an `https://` link with private / internal addresses refused, re-encoded to WebP), a name (unique per kind), an amount rule (minimum and maximum, either optional, or up to 10 fixed amounts), instructions, up to 20 fields (short / long text, number, email, phone, date, dropdown; required or optional; placeholder and help) and, for deposits, payment proof required / optional / off. A live preview shows the applicant's form. Requests keep a copy of the method as it was, so edits never change them; a used method can only be disabled. Every change is audited.
+- **Payment Gateway** (menu group → Deposit / Withdrawal, `/admin/payment-gateway/deposit|withdrawal`): create, edit, enable / disable, reorder and delete methods. A method has a logo (uploaded, or downloaded once from an `https://` link with private / internal addresses refused, re-encoded to WebP), a name (unique per kind), an amount rule (minimum and maximum, either optional, or up to 10 fixed amounts), instructions, up to 20 fields (short / long text, number, email, phone, date, dropdown; required or optional; placeholder and help) and, for deposits, payment proof required / optional / off, and a **fee** (fixed or %, never negative; 9.3). A live preview shows the applicant's form. Requests keep a copy of the method as it was, so edits never change them; a used method can only be disabled. Every change is audited.
 - **Withdraw from** (inspector → Limits): grant balance / deposit balance / both, per user; audited, the user is notified. A debit can't eat into what pending withdrawals from that balance hold.
 - **Eligible amount:** one amount per tier in Settings → Money, and an optional custom amount per user (inspector → Limits) that replaces it; shown on the applicant's dashboard only (it doesn't limit requests yet). Per-user changes are audited and notify the applicant.
 - **Withdrawal limits:** a global max per request and daily total (last 24 h, under review + approved) in Settings, and optional custom limits per user that replace them. Enforced when the applicant places a request.
@@ -107,6 +109,7 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, Payment Ga
   - **General:** global freeze (with a confirmation and a reason) and the security rules
   - **Email:** Resend key, sender, signature, health checks, test email (§7)
   - **Money** (`/admin/settings/limits`): the platform-wide withdrawal limits and the **eligible amount per tier**
+  - **Cards** (`/admin/settings/cards`, 9.3): switch each card type on or off (Visa Debit, Visa Credit, Mastercard Debit, Mastercard Credit, Amex Platinum) and set its virtual and physical price and fee (fixed or %), with the total the user pays. Empty price = that kind isn't sold; 0 = free. Audited. Credit cards are a name only: no credit line, they spend what's topped up
   - **Monitoring:** where errors go (server log, plus Sentry when configured), a "Send test errors" button that raises one server and one browser error and shows their references, and **upload virus scanning** status (Scanning / Not answering / Off, with the ClamAV version)
   - **Audit log:** a link to the full log
   - **Your account:** the admin's own profile photo (shown in the sidebar and as the header avatar, which links here) and **Sign-in & security**
@@ -261,6 +264,7 @@ Dashboard settings (see §12): Site URL and Redirect URLs are set to `https://ac
 | `lib/db/migrations/0005_admin_profiles.sql` | `demo_admin_profiles` (admins' own photo) |
 | `lib/db/migrations/0006_matchmaking.sql` | `demo_profiles.matchmaking` (the applicant's matchmaking answers) |
 | `lib/db/migrations/0008_eligible_amounts.sql` | `demo_settings.tier1/2/3_eligible_cents`; `demo_profiles.eligible_custom`, `eligible_cents` (eligible amount per tier and per user) |
+| `lib/db/migrations/0010_fees_and_card_types.sql` | `demo_payment_methods.fee_mode`, `fee_value`; `demo_requests.fee_cents`; `demo_settings.card_types` (no new tables, so no Supabase migration) |
 | `lib/db/migrations/0009_payment_methods.sql` | `demo_payment_methods`; `demo_requests.source`, `method_id`, `method_snapshot`, `field_values`, `proof_file_id` (old withdrawals backfilled to `grant`); `demo_profiles.withdrawal_sources` |
 | `lib/db/migrations/0007_email_settings.sql` | `demo_settings.email_config`, `email_secrets`, `email_hook_seen_at`, `email_hook_result`; `demo_notifications.email_last_error` |
 | `lib/db/supabase/migrations/0001_user_roles.sql` | `user_roles` (Supabase only) |
@@ -433,6 +437,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 | `phase6-monitoring` (+ `-ui`) | Request ids, 500 references, server and browser errors in the log and in a mock Sentry (envelope shape, nothing personal, scrubbing), signed-out reports, rate limit; test button, uncaught error, rejection, render crash screen (8; 4 + 4) |
 | `phase7-email` (+ `-ui`) | Email settings: validation, secrets never returned / stored plain / logged / audited, precedence, every health state (pending or missing domain, sending-only or refused key, hook calls, outbox failures, undecryptable secret), test email, removal (11; 9 + 9) |
 | `phase10-methods`, `phase10-ui` | Payment Gateway: methods, logos (upload and link), requests through a method (amounts, fields, proof, no orphan files), copies kept, queue details, approval note, withdrawal sources, limits on top, concurrency (18); admin menu, method form, applicant deposit / withdrawal, queue, inspector (11 + 11). Older suites place requests through a plain test method (`.unlazy/methods.mjs`) |
+| `phase93-fees`, `phase93-cards`, `phase93-ui` | Fees on methods, holds, approval, decline, deposit net, placed requests keep their fee, concurrency (8); card types, buying, one per kind, can't afford, free cards, admin issue / free of charge, old cards, top-ups both sides, freezes, concurrency (12); method fee, applicant fee summary, queue, Settings → Cards, buy, top-ups, issue dialog, dashboard (8 + 8) |
 | `phase9-cards`, `phase9-cards-ui` | Card Requests queue: tabs, order, decline with reason, ask again, activate, frozen account, concurrent decisions (9); dashboard KPI and list, menu badge, applicant view (6 + 6) |
 | `phase6-mobile` | Phone audit at 390 px of every page, menu, panel, main dialogs and the sign-in pages: zoom-out, overflow, boxes sticking out, 44 px targets, bell / menu / search reachable; full-page screenshots with `SHOTS=` (35). Sign-in pages need `AUTH_WEB`: a proxy to a signed-out Supabase-mode API |
 
@@ -541,6 +546,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | `62ec3aa` | Dashboard balance cards; eligible amount per tier and per user; "Level" renamed "Tier" (8.1) |
 | `e183fb3` | Payment Gateway: admin-made deposit and withdrawal methods; withdrawals from the grant and/or deposit balance (Phase 10) |
 | `4300a48` | Admin queue for physical-card activation requests (9.1) |
+| (next) | Fees on payment methods, card types sold for price + fee, card top-ups from the deposit balance (9.3) |
 | `a5b7ac2`, `c65cf9d`, `5b2d5c9` | `server.md` deployment records for `a82a158`, `d9f2edc`, `62ec3aa` |
 
 ---
@@ -578,8 +584,8 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 **Phase 9 (remaining backlog)**, plan in `work.md` §15:
 - ~~9.1 admin queue for card activation requests~~: done 2026-11-04 (`4300a48`), not deployed yet
 - 9.2 shared rate limits (Redis, was 6.7): next to build; only matters with more than one API server, so it stays off on the VPS
-- 9.3 automatic fees: **waits for your answers** to `work.md` §15f questions 1–3 (which fees, how each is worked out, which balance pays)
-- 9.4 tier rules: **waits for your answer** to §15f question 4 (which rules, and thresholds for automatic tier changes); after 9.3
+- ~~9.3 fees, card types and card purchases~~: built and tested 2026-11-05 (plan and log in `work.md` §17), committed, not deployed. Provisional choices still to confirm are in `work.md` §17h
+- 9.4 tier rules: **waits for your answer** to §15f question 4 (which rules, and thresholds for automatic tier changes)
 
 **Phase 10 (payment gateway)**, plan in `work.md` §16:
 - ~~10.1–10.4 methods, admin pages, applicant forms, queues~~: done 2026-11-04 (`e183fb3`), not deployed yet. Not done as planned: no separate method column in CSV export / search (the ledger reason names the method).

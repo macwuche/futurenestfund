@@ -20,6 +20,9 @@ export const demoPaymentMethodsTable = pgTable("demo_payment_methods", {
   /** Deposits only: required | optional | off. Withdrawals are always off. */
   proofMode: text("proof_mode").notNull().default("off"),
   instructions: text("instructions").notNull().default(""),
+  /** Step 9.3: the method's fee. fixed: fee_value in cents; percent: fee_value in hundredths of a percent (1% = 100). */
+  feeMode: text("fee_mode").notNull().default("fixed"),
+  feeValue: integer("fee_value").notNull().default(0),
   enabled: boolean("enabled").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
   createdBy: text("created_by").notNull(),

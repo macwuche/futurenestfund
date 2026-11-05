@@ -103,3 +103,20 @@ describe("money emails with a payment method (Phase 10)", () => {
     expect(m.text).not.toContain("Note:");
   });
 });
+
+describe("money emails with a fee (9.3)", () => {
+  it("withdrawal: fee from the deposit balance and the total", () => {
+    const m = moneyEmail("request_received", "a@b.co", "Jane", { request: "Withdrawal", amountCents: 20000, reference: "R1", date: "4 Nov 2026", source: "grant", feeCents: 200 }, "https://x/withdrawals");
+    expect(m.text).toContain("Fee: $2.00, from your deposit balance");
+    expect(m.text).toContain("Total: $202.00");
+  });
+  it("deposit: what the user receives after the fee", () => {
+    const m = moneyEmail("request_approved", "a@b.co", "Jane", { request: "Deposit", amountCents: 10000, reference: "R2", date: "4 Nov 2026", feeCents: 300 }, "https://x/deposits");
+    expect(m.text).toContain("Fee: $3.00");
+    expect(m.text).toContain("You receive: $97.00");
+  });
+  it("no fee rows without a fee", () => {
+    const m = moneyEmail("request_approved", "a@b.co", "Jane", { request: "Deposit", amountCents: 10000, reference: "R3", date: "4 Nov 2026" }, "https://x/deposits");
+    expect(m.text).not.toContain("Fee:");
+  });
+});

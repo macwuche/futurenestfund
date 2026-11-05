@@ -136,6 +136,7 @@ const adminRequest = (r: RequestRow, p: DemoProfile, logos: LogoMap = new Map())
     userId: p.id, userName: p.name, organization: p.organization, userStatus: p.status, verificationLevel: p.verificationLevel,
     kycRequired: !!(r.kind === "Withdrawal" ? perms.withdrawalKycRequired : perms.depositKycRequired),
     grantBalance: p.grantCents / 100, depositBalance: p.depositCents / 100,
+    fee: r.feeCents / 100, net: (r.kind === "Deposit" ? r.amountCents - r.feeCents : r.amountCents + r.feeCents) / 100,
     ...(r.reviewNote ? { reviewNote: r.reviewNote } : {}),
     ...(r.reviewedBy ? { reviewedBy: r.reviewedBy } : {}),
     ...(r.reviewedAt ? { reviewedAt: r.reviewedAt.toISOString() } : {}),
@@ -289,18 +290,27 @@ export async function approveRequest(id: string, actor: string, note?: string) {
     }
     const deposit = r.kind === "Deposit";
     const source: BalanceSource = deposit ? "deposit" : r.source === "deposit" ? "deposit" : "grant";
+    // The fee was worked out when the request was placed (9.3): deposits lose it from the amount, withdrawals pay it from the deposit balance.
+    const fee = r.feeCents;
     let change: Partial<DemoProfile>;
     if (deposit) {
-      const next = profile.depositCents + r.amountCents;
+      const next = profile.depositCents + r.amountCents - fee;
       if (next > MAX_BALANCE_CENTS) throw new DemoInputError("This would exceed the demo account limit.");
       change = { depositCents: next };
     } else {
       if (!sourceAllowed(profile.withdrawalSources, source)) {
         throw new DemoInputError(`Withdrawals from the ${SOURCE_LABEL[source]} are closed for this user. Open them in the user's profile, or decline this request.`);
       }
-      const balance = source === "grant" ? profile.grantCents : profile.depositCents;
-      if (balance < r.amountCents) throw new DemoInputError(`The ${SOURCE_LABEL[source]} (${usd(balance)}) is less than this withdrawal.`);
-      change = source === "grant" ? { grantCents: balance - r.amountCents } : { depositCents: balance - r.amountCents };
+      if (source === "deposit") {
+        if (profile.depositCents < r.amountCents + fee) {
+          throw new DemoInputError(`The deposit balance (${usd(profile.depositCents)}) is less than this withdrawal${fee ? ` and its ${usd(fee)} fee (${usd(r.amountCents + fee)})` : ""}.`);
+        }
+        change = { depositCents: profile.depositCents - r.amountCents - fee };
+      } else {
+        if (profile.grantCents < r.amountCents) throw new DemoInputError(`The grant balance (${usd(profile.grantCents)}) is less than this withdrawal.`);
+        if (profile.depositCents < fee) throw new DemoInputError(`The ${usd(fee)} fee is paid from the deposit balance, which has only ${usd(profile.depositCents)}.`);
+        change = { grantCents: profile.grantCents - r.amountCents, ...(fee ? { depositCents: profile.depositCents - fee } : {}) };
+      }
     }
     const reviewedAt = new Date();
     const methodName = (r.methodSnapshot as { name?: string } | null)?.name;
@@ -310,10 +320,15 @@ export async function approveRequest(id: string, actor: string, note?: string) {
       profileId: profile.id, kind: r.kind, account: source, amountCents: deposit ? r.amountCents : -r.amountCents,
       reason: r.note || `${r.kind}${methodName ? ` via ${methodName}` : " request"} approved`, requestId: r.id, actor,
     });
-    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor, action: `${r.kind} request ${r.id.slice(0, 8)} approved ${deposit ? "+" : "−"}${usd(r.amountCents)}${deposit ? "" : ` from the ${SOURCE_LABEL[source]}`}${message ? ` · ${message}` : ""}` });
+    if (fee > 0) {
+      await tx.insert(demoLedgerTable).values({
+        profileId: profile.id, kind: "Fee", account: "deposit", amountCents: -fee, reason: `${r.kind} fee${methodName ? ` · ${methodName}` : ""}`, requestId: r.id, actor,
+      });
+    }
+    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor, action: `${r.kind} request ${r.id.slice(0, 8)} approved ${deposit ? "+" : "−"}${usd(r.amountCents)}${deposit ? "" : ` from the ${SOURCE_LABEL[source]}`}${fee ? `, fee ${usd(fee)}` : ""}${message ? ` · ${message}` : ""}` });
     await notifyUser(profile.id, deposit
-      ? `Your deposit of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was approved and added to your deposit balance${message ? `. Note: ${message}` : ""}`
-      : `Your withdrawal of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was approved. Your funds have been released from your ${SOURCE_LABEL[source]}${message ? `. Note: ${message}` : "."}`,
+      ? `Your deposit of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was approved${fee ? `: ${usd(r.amountCents - fee)} was added to your deposit balance after the ${usd(fee)} fee` : " and added to your deposit balance"}${message ? `. Note: ${message}` : ""}`
+      : `Your withdrawal of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was approved. Your funds have been released from your ${SOURCE_LABEL[source]}${fee ? `; the ${usd(fee)} fee was paid from your deposit balance` : ""}${message ? `. Note: ${message}` : "."}`,
     deposit ? "/deposits" : "/withdrawals", tx, { kind: "request_approved", data: requestEmailData(r, message || undefined) });
     const logos = await methodLogos([r.methodId], "admin");
     return adminRequest({ ...r, status: "Completed", reviewedAt, reviewedBy: actor, reviewNote: message || null }, { ...profile, ...change }, logos);
@@ -345,7 +360,7 @@ type LedgerRow = typeof demoLedgerTable.$inferSelect;
 
 const ledgerEntry = (l: LedgerRow, userName: string) => ({
   id: l.id, createdAt: l.createdAt.toISOString(), userId: l.profileId, userName,
-  kind: l.kind as "Top-up" | "Debit" | "Deposit" | "Withdrawal" | "Grant award" | "Opening balance",
+  kind: l.kind as "Top-up" | "Debit" | "Deposit" | "Withdrawal" | "Grant award" | "Opening balance" | "Fee" | "Card purchase" | "Card top-up",
   account: l.account as "grant" | "deposit" | "card", amount: l.amountCents / 100, reason: l.reason, actor: l.actor,
   ...(l.requestId ? { requestId: l.requestId } : {}),
   ...(l.applicationId ? { applicationId: l.applicationId } : {}),

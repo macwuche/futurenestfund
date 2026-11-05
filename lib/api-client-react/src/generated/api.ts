@@ -25,6 +25,7 @@ import type {
   AdminApplicationDetail,
   AdminAuditPage,
   AdminCardRequestList,
+  AdminCardType,
   AdminDashboard,
   AdminKycItem,
   AdminKycQueue,
@@ -37,6 +38,7 @@ import type {
   ApplicantAccount,
   ApplicantApplication,
   ApplicantCardActionInput,
+  ApplicantCardType,
   ApplicantDashboard,
   ApplicantKyc,
   ApplicantPreferences,
@@ -52,8 +54,11 @@ import type {
   AuthConfig,
   BalanceAdjustmentInput,
   CardActionInput,
+  CardBuyInput,
   CardDeclineInput,
   CardIssueInput,
+  CardTopUpInput,
+  CardTypesUpdate,
   ClientErrorReceipt,
   ClientErrorReport,
   EmailHealth,
@@ -1652,6 +1657,260 @@ export function useGetApplicantAccount<TData = Awaited<ReturnType<typeof getAppl
 
 
 
+
+export const getListApplicantCardTypesUrl = () => {
+
+
+
+
+  return `/api/applicant/card-types`
+}
+
+/**
+ * @summary Card types on sale, with the price and fee of each kind
+ */
+export const listApplicantCardTypes = async ( options?: Parameters<typeof customFetch>[1]): Promise<ApplicantCardType[]> => {
+
+  return customFetch<ApplicantCardType[]>(getListApplicantCardTypesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListApplicantCardTypesQueryKey = () => {
+    return [
+    `/api/applicant/card-types`
+    ] as const;
+    }
+
+
+export const getListApplicantCardTypesQueryOptions = <TData = Awaited<ReturnType<typeof listApplicantCardTypes>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicantCardTypes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListApplicantCardTypesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listApplicantCardTypes>>> = ({ signal }) => listApplicantCardTypes({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listApplicantCardTypes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListApplicantCardTypesQueryResult = NonNullable<Awaited<ReturnType<typeof listApplicantCardTypes>>>
+export type ListApplicantCardTypesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Card types on sale, with the price and fee of each kind
+ */
+
+export function useListApplicantCardTypes<TData = Awaited<ReturnType<typeof listApplicantCardTypes>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicantCardTypes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListApplicantCardTypesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getBuyApplicantCardUrl = () => {
+
+
+
+
+  return `/api/applicant/cards`
+}
+
+/**
+ * @summary Buy a card; the price and fee are paid from the deposit balance
+ */
+export const buyApplicantCard = async (cardBuyInput: CardBuyInput, options?: Parameters<typeof customFetch>[1]): Promise<ApplicantAccount> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ApplicantAccount>(getBuyApplicantCardUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(cardBuyInput)
+  }
+);}
+
+
+
+
+
+export const getBuyApplicantCardMutationKey = () => ['buyApplicantCard'] as const;
+
+export const getBuyApplicantCardMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof buyApplicantCard>>, TError,BuyApplicantCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof buyApplicantCard>>, TError,BuyApplicantCardMutationVariables, TContext> => {
+
+const mutationKey = getBuyApplicantCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof buyApplicantCard>>, BuyApplicantCardMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  buyApplicantCard(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BuyApplicantCardMutationResult = NonNullable<Awaited<ReturnType<typeof buyApplicantCard>>>
+    export type BuyApplicantCardMutationBody = BodyType<CardBuyInput>
+    export type BuyApplicantCardMutationError = ErrorType<ErrorMessage>
+    export type BuyApplicantCardMutationVariables = {data: BodyType<CardBuyInput>}
+
+    /**
+ * @summary Buy a card; the price and fee are paid from the deposit balance
+ */
+export const useBuyApplicantCard = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof buyApplicantCard>>, TError,BuyApplicantCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof buyApplicantCard>>,
+        TError,
+        BuyApplicantCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBuyApplicantCardMutationOptions(options));
+    }
+
+export const getTopUpApplicantCardUrl = (cardId: string,) => {
+
+
+
+
+  return `/api/applicant/cards/${cardId}/top-up`
+}
+
+/**
+ * @summary Move money from the deposit balance to the card account (no fee)
+ */
+export const topUpApplicantCard = async (cardId: string,
+    cardTopUpInput: CardTopUpInput, options?: Parameters<typeof customFetch>[1]): Promise<ApplicantAccount> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ApplicantAccount>(getTopUpApplicantCardUrl(cardId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(cardTopUpInput)
+  }
+);}
+
+
+
+
+
+export const getTopUpApplicantCardMutationKey = () => ['topUpApplicantCard'] as const;
+
+export const getTopUpApplicantCardMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof topUpApplicantCard>>, TError,TopUpApplicantCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof topUpApplicantCard>>, TError,TopUpApplicantCardMutationVariables, TContext> => {
+
+const mutationKey = getTopUpApplicantCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof topUpApplicantCard>>, TopUpApplicantCardMutationVariables> = (props) => {
+          const {cardId,data} = props ?? {};
+
+          return  topUpApplicantCard(cardId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TopUpApplicantCardMutationResult = NonNullable<Awaited<ReturnType<typeof topUpApplicantCard>>>
+    export type TopUpApplicantCardMutationBody = BodyType<CardTopUpInput>
+    export type TopUpApplicantCardMutationError = ErrorType<ErrorMessage>
+    export type TopUpApplicantCardMutationVariables = {cardId: string;data: BodyType<CardTopUpInput>}
+
+    /**
+ * @summary Move money from the deposit balance to the card account (no fee)
+ */
+export const useTopUpApplicantCard = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof topUpApplicantCard>>, TError,TopUpApplicantCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof topUpApplicantCard>>,
+        TError,
+        TopUpApplicantCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTopUpApplicantCardMutationOptions(options));
+    }
 
 export const getChangeApplicantCardUrl = (cardId: string,) => {
 
@@ -4203,6 +4462,262 @@ export const useDeleteAdminUserAvatar = <TError = ErrorType<ErrorMessage>,
         TContext
       > => {
       return useMutation(getDeleteAdminUserAvatarMutationOptions(options));
+    }
+
+export const getListAdminCardTypesUrl = () => {
+
+
+
+
+  return `/api/admin/card-types`
+}
+
+/**
+ * @summary Every card type with its on/off switch and the price and fee of each kind
+ */
+export const listAdminCardTypes = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminCardType[]> => {
+
+  return customFetch<AdminCardType[]>(getListAdminCardTypesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminCardTypesQueryKey = () => {
+    return [
+    `/api/admin/card-types`
+    ] as const;
+    }
+
+
+export const getListAdminCardTypesQueryOptions = <TData = Awaited<ReturnType<typeof listAdminCardTypes>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminCardTypes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminCardTypesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminCardTypes>>> = ({ signal }) => listAdminCardTypes({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminCardTypes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminCardTypesQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminCardTypes>>>
+export type ListAdminCardTypesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Every card type with its on/off switch and the price and fee of each kind
+ */
+
+export function useListAdminCardTypes<TData = Awaited<ReturnType<typeof listAdminCardTypes>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminCardTypes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminCardTypesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAdminCardTypesUrl = () => {
+
+
+
+
+  return `/api/admin/card-types`
+}
+
+/**
+ * @summary Switch card types on or off and set their prices and fees (audited)
+ */
+export const updateAdminCardTypes = async (cardTypesUpdate: CardTypesUpdate, options?: Parameters<typeof customFetch>[1]): Promise<AdminCardType[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminCardType[]>(getUpdateAdminCardTypesUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(cardTypesUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminCardTypesMutationKey = () => ['updateAdminCardTypes'] as const;
+
+export const getUpdateAdminCardTypesMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminCardTypes>>, TError,UpdateAdminCardTypesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminCardTypes>>, TError,UpdateAdminCardTypesMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminCardTypesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminCardTypes>>, UpdateAdminCardTypesMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAdminCardTypes(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminCardTypesMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminCardTypes>>>
+    export type UpdateAdminCardTypesMutationBody = BodyType<CardTypesUpdate>
+    export type UpdateAdminCardTypesMutationError = ErrorType<ErrorMessage>
+    export type UpdateAdminCardTypesMutationVariables = {data: BodyType<CardTypesUpdate>}
+
+    /**
+ * @summary Switch card types on or off and set their prices and fees (audited)
+ */
+export const useUpdateAdminCardTypes = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminCardTypes>>, TError,UpdateAdminCardTypesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminCardTypes>>,
+        TError,
+        UpdateAdminCardTypesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminCardTypesMutationOptions(options));
+    }
+
+export const getTopUpUserCardUrl = (userId: string,
+    cardId: string,) => {
+
+
+
+
+  return `/api/admin/users/${userId}/cards/${cardId}/top-up`
+}
+
+/**
+ * @summary Move money from the user's deposit balance to their card account (no fee)
+ */
+export const topUpUserCard = async (userId: string,
+    cardId: string,
+    cardTopUpInput: CardTopUpInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminUserProfile> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminUserProfile>(getTopUpUserCardUrl(userId,cardId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(cardTopUpInput)
+  }
+);}
+
+
+
+
+
+export const getTopUpUserCardMutationKey = () => ['topUpUserCard'] as const;
+
+export const getTopUpUserCardMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof topUpUserCard>>, TError,TopUpUserCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof topUpUserCard>>, TError,TopUpUserCardMutationVariables, TContext> => {
+
+const mutationKey = getTopUpUserCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof topUpUserCard>>, TopUpUserCardMutationVariables> = (props) => {
+          const {userId,cardId,data} = props ?? {};
+
+          return  topUpUserCard(userId,cardId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TopUpUserCardMutationResult = NonNullable<Awaited<ReturnType<typeof topUpUserCard>>>
+    export type TopUpUserCardMutationBody = BodyType<CardTopUpInput>
+    export type TopUpUserCardMutationError = ErrorType<ErrorMessage>
+    export type TopUpUserCardMutationVariables = {userId: string;cardId: string;data: BodyType<CardTopUpInput>}
+
+    /**
+ * @summary Move money from the user's deposit balance to their card account (no fee)
+ */
+export const useTopUpUserCard = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof topUpUserCard>>, TError,TopUpUserCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof topUpUserCard>>,
+        TError,
+        TopUpUserCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTopUpUserCardMutationOptions(options));
     }
 
 export const getIssueUserCardUrl = (userId: string,) => {

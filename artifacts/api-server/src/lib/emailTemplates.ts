@@ -119,6 +119,8 @@ export type MoneyEmailData = {
   reason?: string;
   /** Payment method name (Phase 10) and, for withdrawals, the balance it's paid from. */
   method?: string; source?: "grant" | "deposit";
+  /** The method's fee (9.3): deposits lose it from the amount; withdrawals pay it from the deposit balance. */
+  feeCents?: number;
 };
 export const isMoneyEmailKind = (k: unknown): k is MoneyEmailKind => k === "request_received" || k === "request_approved" || k === "request_declined";
 
@@ -129,7 +131,10 @@ export function moneyEmail(kind: MoneyEmailKind, to: string, name: string, d: Mo
   const withdrawal = d.request === "Withdrawal";
   const balance = d.source === "deposit" ? "deposit balance" : "grant balance";
   const rows: [string, string][] = [["Amount", usd(d.amountCents)], ...(d.method ? [["Method", d.method] as [string, string]] : []),
-    ...(withdrawal && d.source ? [["Paid from", `Your ${balance}`] as [string, string]] : []), ["Reference", d.reference], ["Requested", d.date]];
+    ...(withdrawal && d.source ? [["Paid from", `Your ${balance}`] as [string, string]] : []),
+    ...(d.feeCents ? [["Fee", withdrawal ? `${usd(d.feeCents)}, from your deposit balance` : usd(d.feeCents)] as [string, string],
+      [withdrawal ? "Total" : "You receive", usd(withdrawal ? d.amountCents + d.feeCents : d.amountCents - d.feeCents)] as [string, string]] : []),
+    ["Reference", d.reference], ["Requested", d.date]];
   const button = { kind: "button" as const, label: withdrawal ? "View your withdrawals" : "View your deposits", href: url };
   const footer = { kind: "small" as const, text: "Questions? Reply to your administrator or visit the Help Centre in GrantApp. Never share your password with anyone, including our team." };
   switch (kind) {

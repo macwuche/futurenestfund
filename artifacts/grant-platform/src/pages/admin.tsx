@@ -9,7 +9,7 @@ import {
   getGetAdminUserQueryKey, getListAdminUsersQueryKey, type ListAdminUsersSort, type ListAdminUsersDir, type AdminDashboard, type AdminUserProfile, type AdminUserSummary,
 } from '@workspace/api-client-react';
 import { keepPreviousData } from '@tanstack/react-query';
-import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck, Mail, Gauge, Activity, ScrollText, UserRound } from 'lucide-react';
+import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck, Mail, Gauge, Activity, ScrollText, UserRound, CreditCard } from 'lucide-react';
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
@@ -18,6 +18,7 @@ import { UserWithdrawalSources } from '@/components/withdrawal-sources';
 import { MonitoringSettings, VirusScanSettings } from '@/components/monitoring-settings';
 import { EmailSettingsCard } from '@/components/email-settings';
 import { CardControls } from '@/components/card-controls';
+import { CardTypeSettings } from '@/components/card-type-settings';
 import { CardActivationQueue } from '@/pages/admin-cards';
 import { AdminPhotoSettings, UserPhotoControl } from '@/components/admin-photo';
 import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, initials, money, useAnimateOnce } from '@/components/bits';
@@ -36,7 +37,7 @@ export const appReviewHref = (a: { id: string; userId: string }) => `/admin/user
 export function AdminOverviewPage() {
   return <DashGate title="Dashboard">{(d) => (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         <Stat id="total-users" label="Total users" value={d.totalUsers} accent hint={`${d.activeUsers} active`} href="/admin/users" />
         <Stat id="grant-balances" label="Grant balances" value={money(d.totalGrantBalances)} />
         <Stat id="deposit-balances" label="Deposit balances" value={money(d.totalDepositBalances)} />
@@ -45,7 +46,8 @@ export function AdminOverviewPage() {
         <Stat id="pending-kyc" label="Pending KYC" value={d.pendingKyc} hint="Users with documents to review" href="/admin/kyc" />
         <Stat id="pending-deposits" label="Pending deposits" value={d.pendingDeposits} href="/admin/deposits" />
         <Stat id="pending-withdrawals" label="Pending withdrawals" value={d.pendingWithdrawals} href="/admin/withdrawals" />
-        <div className="col-span-2 md:col-span-1"><Stat id="pending-card-activations" label="Card activations" value={d.pendingCardActivations} hint="Physical cards the user says arrived" href="/admin/cards" /></div>
+        <Stat id="pending-card-activations" label="Card activations" value={d.pendingCardActivations} hint="Physical cards the user says arrived" href="/admin/cards" />
+        <div className="md:col-span-3 xl:col-span-1"><Stat id="fees-collected" label="Fees this month" value={money(d.feesCollected.thisMonth)} hint={`${money(d.feesCollected.allTime)} all time`} href="/admin/transactions?type=Fee" /></div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -400,13 +402,14 @@ function Inspector({ u }: { u: AdminUserProfile }) {
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{a} account</p>
               <p className="font-num my-1 text-xl font-semibold" data-testid={`text-balance-${a}`}>{money(u.balances[a])}</p>
               <div className="flex flex-wrap gap-2">
-                <button data-testid={`button-adjust-${a}`} onClick={() => setCredit(a)} className={cx(dark, 'inline-flex min-h-11 items-center gap-1 text-xs md:min-h-0 md:!py-1.5')}><Plus className="h-3.5 w-3.5" />Credit</button>
+                {a !== 'card' && <button data-testid={`button-adjust-${a}`} onClick={() => setCredit(a)} className={cx(dark, 'inline-flex min-h-11 items-center gap-1 text-xs md:min-h-0 md:!py-1.5')}><Plus className="h-3.5 w-3.5" />Credit</button>}
                 <button data-testid={`button-debit-${a}`} disabled={u.balances[a] <= 0} title={u.balances[a] <= 0 ? 'Nothing to remove' : undefined} onClick={() => setDebit(a)} className={cx(ghost, 'inline-flex min-h-11 items-center gap-1 text-xs md:min-h-0 md:!py-1.5')}><Minus className="h-3.5 w-3.5" />Debit</button>
               </div>
             </div>
           ))}
         </div>
-        <CardControls u={u} onTopUp={() => setCredit('card')} />
+        {/* Card top-ups move money from the deposit balance (9.3), so the card account has no Credit button: use Top up on a card. */}
+        <CardControls u={u} />
       </section>
 
       <UserApplications userId={u.id} />
@@ -466,6 +469,7 @@ const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: Snowflake, hint: 'Global freeze and the rules every approval follows' },
   { id: 'email', label: 'Email', icon: Mail, hint: 'Resend key, sender, signature and health checks' },
   { id: 'limits', label: 'Money', icon: Gauge, hint: 'Withdrawal limits and the eligible amount per tier' },
+  { id: 'cards', label: 'Cards', icon: CreditCard, hint: 'The card types applicants can buy, with their prices and fees' },
   { id: 'monitoring', label: 'Monitoring', icon: Activity, hint: 'Where errors go, and upload virus scanning' },
   { id: 'audit', label: 'Audit log', icon: ScrollText, hint: 'Every recorded change, searchable' },
   { id: 'account', label: 'Your account', icon: UserRound, hint: 'Your photo, password and sessions' },
@@ -501,6 +505,7 @@ export function AdminSettingsPage() {
           {current.id === 'general' && <GeneralSettings />}
           {current.id === 'email' && <EmailSettingsCard />}
           {current.id === 'limits' && <><GlobalWithdrawalLimits /><GlobalTierAmounts /></>}
+          {current.id === 'cards' && <CardTypeSettings />}
           {current.id === 'monitoring' && <><MonitoringSettings /><VirusScanSettings /></>}
           {current.id === 'audit' && <AuditSettings />}
           {current.id === 'account' && <><AdminPhotoSettings /><AccountSecurity tone="admin" /></>}

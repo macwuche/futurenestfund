@@ -310,6 +310,9 @@ export const ApplicantTransactionType = {
   Debit: 'Debit',
   Grant_award: 'Grant award',
   Opening_balance: 'Opening balance',
+  Fee: 'Fee',
+  Card_purchase: 'Card purchase',
+  'Card_top-up': 'Card top-up',
 } as const;
 
 export type ApplicantTransactionAccount = typeof ApplicantTransactionAccount[keyof typeof ApplicantTransactionAccount];
@@ -375,6 +378,8 @@ export interface ApplicantTransaction {
   source?: BalanceSource;
   details?: RequestDetail[];
   proofUrl?: string;
+  /** Deposit and withdrawal requests: the method's fee (withdrawals: from the deposit balance; deposits: out of the amount) */
+  fee?: number;
 }
 
 export type ApplicantAccountStatus = typeof ApplicantAccountStatus[keyof typeof ApplicantAccountStatus];
@@ -443,6 +448,18 @@ export type UserCardNetwork = typeof UserCardNetwork[keyof typeof UserCardNetwor
 export const UserCardNetwork = {
   Visa: 'Visa',
   Mastercard: 'Mastercard',
+  Amex: 'Amex',
+} as const;
+
+export type CardTypeKey = typeof CardTypeKey[keyof typeof CardTypeKey];
+
+
+export const CardTypeKey = {
+  'visa-debit': 'visa-debit',
+  'visa-credit': 'visa-credit',
+  'mastercard-debit': 'mastercard-debit',
+  'mastercard-credit': 'mastercard-credit',
+  'amex-platinum': 'amex-platinum',
 } as const;
 
 export type UserCardKind = typeof UserCardKind[keyof typeof UserCardKind];
@@ -477,6 +494,12 @@ export const UserCardFrozenBy = {
 export interface UserCard {
   id: string;
   network: UserCardNetwork;
+  type: CardTypeKey;
+  /** e.g. Visa Debit */
+  typeName: string;
+  /** What the user paid for the card (without the fee) */
+  pricePaid?: number;
+  feePaid?: number;
   kind: UserCardKind;
   lastFour: string;
   status: UserCardStatus;
@@ -589,6 +612,26 @@ export interface PaymentField {
   options?: string[];
 }
 
+export type FeeRuleMode = typeof FeeRuleMode[keyof typeof FeeRuleMode];
+
+
+export const FeeRuleMode = {
+  fixed: 'fixed',
+  percent: 'percent',
+} as const;
+
+/**
+ * A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.
+ */
+export interface FeeRule {
+  mode: FeeRuleMode;
+  /**
+     * USD for fixed, percent for percent (1 = 1%)
+     * @minimum 0
+     */
+  amount: number;
+}
+
 export type PaymentMethodKind = typeof PaymentMethodKind[keyof typeof PaymentMethodKind];
 
 
@@ -630,6 +673,9 @@ export interface PaymentMethod {
   fields: PaymentField[];
   proofMode: PaymentMethodProofMode;
   instructions: string;
+  fee: FeeRule;
+  /** e.g. "Fee $1.00", "Fee 1%" or "No fee" */
+  feeText: string;
   /** Admin only */
   enabled?: boolean;
   /** Admin only */
@@ -669,6 +715,7 @@ export interface PaymentMethodUpdate {
   fields?: PaymentField[];
   proofMode?: PaymentMethodUpdateProofMode;
   instructions?: string;
+  fee?: FeeRule;
   enabled?: boolean;
 }
 
@@ -1013,6 +1060,15 @@ export interface ApplicantDashboard {
   balanceSummary: BalanceSummary;
 }
 
+/**
+ * Fees charged (withdrawal, deposit and card fees)
+ */
+export type AdminDashboardFeesCollected = {
+  /** This calendar month, UTC */
+  thisMonth: number;
+  allTime: number;
+};
+
 export interface StatusCount {
   status: string;
   count: number;
@@ -1073,6 +1129,8 @@ export interface AdminDashboard {
   pendingWithdrawals: number;
   /** Physical cards whose holder asked for activation */
   pendingCardActivations: number;
+  /** Fees charged (withdrawal, deposit and card fees) */
+  feesCollected: AdminDashboardFeesCollected;
   totalGrantBalances: number;
   totalDepositBalances: number;
   applicationsByStatus: StatusCount[];
@@ -1379,6 +1437,9 @@ export const CardIssueInputKind = {
   Physical: 'Physical',
 } as const;
 
+/**
+ * Older clients: the debit card of that network
+ */
 export type CardIssueInputNetwork = typeof CardIssueInputNetwork[keyof typeof CardIssueInputNetwork];
 
 
@@ -1389,7 +1450,103 @@ export const CardIssueInputNetwork = {
 
 export interface CardIssueInput {
   kind: CardIssueInputKind;
-  network: CardIssueInputNetwork;
+  type?: CardTypeKey;
+  /** Older clients: the debit card of that network */
+  network?: CardIssueInputNetwork;
+  /** Issue without charging the price and fee */
+  freeOfCharge?: boolean;
+}
+
+export interface CardKindPrice {
+  /**
+     * null = this kind isn't sold
+     * @nullable
+     */
+  price: number | null;
+  fee: FeeRule;
+  feeText: string;
+  /**
+     * Price + fee, what the user pays
+     * @nullable
+     */
+  total: number | null;
+}
+
+export type AdminCardTypeNetwork = typeof AdminCardTypeNetwork[keyof typeof AdminCardTypeNetwork];
+
+
+export const AdminCardTypeNetwork = {
+  Visa: 'Visa',
+  Mastercard: 'Mastercard',
+  Amex: 'Amex',
+} as const;
+
+export interface AdminCardType {
+  key: CardTypeKey;
+  name: string;
+  network: AdminCardTypeNetwork;
+  enabled: boolean;
+  virtual: CardKindPrice;
+  physical: CardKindPrice;
+}
+
+export type ApplicantCardTypeNetwork = typeof ApplicantCardTypeNetwork[keyof typeof ApplicantCardTypeNetwork];
+
+
+export const ApplicantCardTypeNetwork = {
+  Visa: 'Visa',
+  Mastercard: 'Mastercard',
+  Amex: 'Amex',
+} as const;
+
+export interface ApplicantCardType {
+  key: CardTypeKey;
+  name: string;
+  network: ApplicantCardTypeNetwork;
+  virtual?: CardKindPrice;
+  physical?: CardKindPrice;
+}
+
+export interface CardKindPriceInput {
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  price?: number | null;
+  fee?: FeeRule;
+}
+
+export type CardTypesUpdateTypesItem = {
+  key: CardTypeKey;
+  enabled: boolean;
+  virtual?: CardKindPriceInput;
+  physical?: CardKindPriceInput;
+};
+
+export interface CardTypesUpdate {
+  /** @maxItems 10 */
+  types: CardTypesUpdateTypesItem[];
+}
+
+export type CardBuyInputKind = typeof CardBuyInputKind[keyof typeof CardBuyInputKind];
+
+
+export const CardBuyInputKind = {
+  Virtual: 'Virtual',
+  Physical: 'Physical',
+} as const;
+
+export interface CardBuyInput {
+  type: CardTypeKey;
+  kind: CardBuyInputKind;
+}
+
+export interface CardTopUpInput {
+  /**
+     * @minimum 0.01
+     * @maximum 1000000
+     */
+  amount: number;
 }
 
 export type CardActionInputAction = typeof CardActionInputAction[keyof typeof CardActionInputAction];
@@ -1586,6 +1743,10 @@ export interface AdminRequest {
   withdrawalSources: WithdrawalSources;
   details: RequestDetail[];
   proofUrl?: string;
+  /** The method's fee worked out when the request was placed */
+  fee: number;
+  /** Deposits: what the deposit balance gets (amount − fee). Withdrawals: what leaves the user's balances in all (amount + fee) */
+  net: number;
 }
 
 export type LedgerEntryKind = typeof LedgerEntryKind[keyof typeof LedgerEntryKind];
@@ -1598,6 +1759,9 @@ export const LedgerEntryKind = {
   Withdrawal: 'Withdrawal',
   Grant_award: 'Grant award',
   Opening_balance: 'Opening balance',
+  Fee: 'Fee',
+  Card_purchase: 'Card purchase',
+  'Card_top-up': 'Card top-up',
 } as const;
 
 export type LedgerEntryAccount = typeof LedgerEntryAccount[keyof typeof LedgerEntryAccount];
@@ -1892,6 +2056,9 @@ export const ListAdminTransactionsType = {
   Withdrawal: 'Withdrawal',
   Grant_award: 'Grant award',
   Opening_balance: 'Opening balance',
+  Fee: 'Fee',
+  Card_purchase: 'Card purchase',
+  'Card_top-up': 'Card top-up',
 } as const;
 
 export type ExportAdminTransactionsParams = {
@@ -1926,6 +2093,9 @@ export const ExportAdminTransactionsType = {
   Withdrawal: 'Withdrawal',
   Grant_award: 'Grant award',
   Opening_balance: 'Opening balance',
+  Fee: 'Fee',
+  Card_purchase: 'Card purchase',
+  'Card_top-up': 'Card top-up',
 } as const;
 
 export type ListAdminAuditParams = {

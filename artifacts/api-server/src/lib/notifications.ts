@@ -22,7 +22,7 @@ export const requestReference = (id: string) => id.replace(/-/g, "").slice(0, 8)
 
 /** Template values for a deposit / withdrawal request email. */
 export function requestEmailData(
-  r: { id: string; kind: string; amountCents: number; createdAt: Date; source?: string | null; methodSnapshot?: unknown }, reason?: string,
+  r: { id: string; kind: string; amountCents: number; createdAt: Date; source?: string | null; methodSnapshot?: unknown; feeCents?: number }, reason?: string,
 ): MoneyEmailData {
   const method = (r.methodSnapshot as { name?: unknown } | null | undefined)?.name;
   return {
@@ -31,6 +31,7 @@ export function requestEmailData(
     ...(reason ? { reason } : {}),
     ...(typeof method === "string" && method ? { method } : {}),
     ...(r.kind === "Withdrawal" && (r.source === "grant" || r.source === "deposit") ? { source: r.source } : {}),
+    ...(r.feeCents ? { feeCents: r.feeCents } : {}),
   };
 }
 

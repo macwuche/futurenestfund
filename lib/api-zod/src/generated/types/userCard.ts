@@ -5,6 +5,7 @@
  * Grant applicant and administration dashboard API
  * OpenAPI spec version: 0.1.0
  */
+import type { CardTypeKey } from './cardTypeKey';
 import type { UserCardFrozenBy } from './userCardFrozenBy';
 import type { UserCardKind } from './userCardKind';
 import type { UserCardNetwork } from './userCardNetwork';
@@ -13,6 +14,12 @@ import type { UserCardStatus } from './userCardStatus';
 export interface UserCard {
   id: string;
   network: UserCardNetwork;
+  type: CardTypeKey;
+  /** e.g. Visa Debit */
+  typeName: string;
+  /** What the user paid for the card (without the fee) */
+  pricePaid?: number;
+  feePaid?: number;
   kind: UserCardKind;
   lastFour: string;
   status: UserCardStatus;

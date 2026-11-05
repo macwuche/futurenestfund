@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { feeOn } from '@/components/fee-input';
 import { Link, useLocation, useParams, useSearch } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -21,6 +22,7 @@ import { AccountSecurity } from '@/components/security';
 import { useAuth } from '@/lib/auth';
 import { MatchPill, TopMatches, WhyMatch, useMatchmakingDialog } from '@/components/matchmaking';
 import { OwnCardControls } from '@/components/card-self-service';
+import { CardShop, CardTopUp } from '@/components/card-shop';
 import { Avatar, Empty, ErrorState, Field, FILE_RULES, Modal, PageSkeleton, Skel, StatusBadge, checkFile, cx, dateFmt, fileSize, inputCls, money, statusLabel } from '@/components/bits';
 import { apiError, matchesSearch, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
@@ -568,6 +570,7 @@ function NetworkMark({ network }: { network: string }) {
   if (network === 'Mastercard') {
     return <span aria-label="Mastercard" className="flex"><i className="h-7 w-7 rounded-full bg-[#EB001B]/90" /><i className="-ml-3 h-7 w-7 rounded-full bg-[#F79E1B]/90" /></span>;
   }
+  if (network === 'Amex') return <span aria-label="American Express" className="rounded bg-white/90 px-1.5 py-0.5 text-xs font-extrabold tracking-wider text-[#016FD0]">AMEX</span>;
   return <span className="text-xl font-extrabold italic tracking-wide">VISA</span>;
 }
 function CardsBody({ a }: { a: Account }) {
@@ -580,7 +583,7 @@ function CardsBody({ a }: { a: Account }) {
       <Balances a={a} />
       <section aria-labelledby="cards-heading" className="space-y-3">
         <h2 id="cards-heading" className="text-lg font-semibold text-slate-900">Your cards</h2>
-        {live.length === 0 ? <Empty title="No cards on this account" hint="An administrator can issue you a card." /> : (
+        {live.length === 0 ? <Empty title="No cards on this account" hint="Buy one below, paid from your deposit balance." /> : (
           <div className="grid gap-4 md:grid-cols-2" data-testid="list-cards">
             {live.map((c) => (
               <div key={c.id} className={cx(card, 'p-4')} data-testid={`card-payment-${c.id}`}>
@@ -591,7 +594,7 @@ function CardsBody({ a }: { a: Account }) {
                   <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-white/10" />
                   <div className="flex items-center justify-between">
                     <span className="text-base font-bold tracking-tight">GrantApp</span>
-                    <span className="text-xs font-semibold uppercase tracking-widest text-white/80">{c.kind}</span>
+                    <span className="text-xs font-semibold uppercase tracking-widest text-white/80">{c.typeName.replace(/^(Visa|Mastercard|Amex) /, '')} · {c.kind}</span>
                   </div>
                   <span className="mt-4 flex items-center gap-2" aria-hidden="true">
                     <span className="relative h-8 w-11 overflow-hidden rounded-md bg-gradient-to-br from-amber-200 to-amber-400"><i className="absolute inset-x-0 top-1/2 h-px bg-amber-600/40" /><i className="absolute inset-y-0 left-1/2 w-px bg-amber-600/40" /></span>
@@ -605,12 +608,13 @@ function CardsBody({ a }: { a: Account }) {
                 </div>
                 <div className="mt-4 flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm text-slate-500">{c.kind} {c.network}</p>
+                    <p className="text-sm text-slate-500" data-testid={`text-card-type-${c.id}`}>{c.kind} {c.typeName}</p>
                     <p className="text-lg font-bold tabular-nums text-slate-900" data-testid={`text-card-balance-${c.id}`}>{c.status === 'Pending' ? 'Being issued' : money(c.balance)}</p>
                   </div>
                   <StatusBadge status={c.status} dot={false} testid={`badge-card-${c.id}`} />
                 </div>
                 <OwnCardControls c={c} accountFrozen={a.status === 'Frozen'} />
+                <div className="mt-2"><CardTopUp c={c} a={a} /></div>
               </div>
             ))}
           </div>
@@ -620,20 +624,21 @@ function CardsBody({ a }: { a: Account }) {
             <h3 className="text-sm font-semibold text-slate-900">Cancelled cards</h3>
             <ul className="mt-2 space-y-2">{cancelled.map((c) => (
               <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500" data-testid={`row-cancelled-card-${c.id}`}>
-                <span>{c.kind} {c.network} •••• {c.lastFour}{c.statusReason ? ` · ${c.statusReason}` : ''}</span><StatusBadge status="Cancelled" dot={false} />
+                <span>{c.kind} {c.typeName} •••• {c.lastFour}{c.statusReason ? ` · ${c.statusReason}` : ''}</span><StatusBadge status="Cancelled" dot={false} />
               </li>
             ))}</ul>
           </div>
         )}
         <p className="text-xs text-slate-500">Sample card designs. No real card network is connected.</p>
       </section>
+      <CardShop a={a} />
     </div>
   );
 }
 
 /* Transactions */
-const txTypes = ['All', 'Deposit', 'Withdrawal', 'Grant award', 'Top-up', 'Debit'] as const;
-const txFilterLabel: Record<(typeof txTypes)[number], string> = { All: 'All', Deposit: 'Deposits', Withdrawal: 'Withdrawals', 'Grant award': 'Grant awards', 'Top-up': 'Top-ups', Debit: 'Debits' };
+const txTypes = ['All', 'Deposit', 'Withdrawal', 'Grant award', 'Top-up', 'Debit', 'Fee', 'Card purchase', 'Card top-up'] as const;
+const txFilterLabel: Record<(typeof txTypes)[number], string> = { All: 'All', Deposit: 'Deposits', Withdrawal: 'Withdrawals', 'Grant award': 'Grant awards', 'Top-up': 'Top-ups', Debit: 'Debits', Fee: 'Fees', 'Card purchase': 'Card purchases', 'Card top-up': 'Card top-ups' };
 const accountLabel: Record<string, string> = { grant: 'Grant', deposit: 'Deposit', card: 'Card' };
 
 /** Deposit and withdrawal requests are reviewed by the finance team, so their statuses read as review outcomes. */
@@ -655,6 +660,7 @@ export function TxRow({ t, showDetails = false }: { t: Tx; showDetails?: boolean
       </span>
     </div>
     {showDetails && <RequestDetails method={t.method} details={t.details} proofUrl={t.proofUrl} source={t.type === 'Withdrawal' ? t.source : undefined} testid={`details-transaction-${t.id}`} />}
+    {showDetails && t.fee ? <p className="mt-2 text-xs tabular-nums text-slate-600" data-testid={`text-fee-${t.id}`}>{t.type === 'Deposit' ? `Fee ${money(t.fee)} · ${t.status === 'Completed' ? 'credited' : 'you receive'} ${money(Math.round((t.amount - t.fee) * 100) / 100)}` : `Fee ${money(t.fee)}, from your deposit balance`}</p> : null}
     {showDetails && t.status === 'Completed' && t.reviewNote && <p className="mt-2 text-xs text-slate-600" data-testid={`text-approve-note-${t.id}`}><span className="font-semibold">Note from our team:</span> {t.reviewNote}</p>}
     </li>
   );
@@ -735,6 +741,10 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
       if (method.minAmount !== null && n < method.minAmount) return setErr(`The minimum for ${method.name} is ${money(method.minAmount)}.`);
       if (method.maxAmount !== null && n > method.maxAmount) return setErr(`The maximum for ${method.name} is ${money(method.maxAmount)}.`);
     }
+    const fee = feeOn(method.fee, n);
+    if (isDeposit && fee > 0 && fee >= n) return setErr(`The ${money(fee)} fee is more than this deposit. Deposit a larger amount.`);
+    if (!isDeposit && source === 'deposit' && fee > 0 && n + fee > a.availableToWithdraw.deposit) return setErr(`This withdrawal and its ${money(fee)} fee come to ${money(n + fee)}, more than the ${money(a.availableToWithdraw.deposit)} available in your deposit balance.`);
+    if (!isDeposit && source === 'grant' && fee > a.availableToWithdraw.deposit) return setErr(`The ${money(fee)} fee is paid from your deposit balance, which has ${money(a.availableToWithdraw.deposit)} available. Add funds first.`);
     if (!isDeposit && available !== null && n > available) return setErr(`You can withdraw up to ${money(available)} from your ${sourceName[source as Source].toLowerCase()}.`);
     if (!isDeposit && lim.maxPerRequest !== null && n > lim.maxPerRequest) return setErr(`You can withdraw up to ${money(lim.maxPerRequest)} per request.`);
     if (!isDeposit && leftToday !== null && n > leftToday) return setErr(leftToday <= 0 ? `You've reached your ${money(lim.dailyTotal!)} daily withdrawal limit.` : `You have ${money(leftToday)} left of your ${money(lim.dailyTotal!)} daily withdrawal limit.`);
@@ -806,7 +816,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
                     <button key={x.id} type="button" role="radio" aria-checked={methodId === x.id} disabled={paused} onClick={() => choose(x.id)} data-testid={`button-method-${x.id}`}
                       className={cx('press flex min-h-11 items-center gap-3 rounded-xl border p-3 text-left', methodId === x.id ? 'border-[#1E3A8A] bg-[#EEF4FB] ring-2 ring-[#1E3A8A]/20' : 'border-slate-300 bg-white hover:border-[#1E3A8A]')}>
                       <MethodLogo url={x.logoUrl} name={x.name} />
-                      <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-slate-900">{x.name}</span><span className="block text-xs tabular-nums text-slate-500">{x.amountRule}</span></span>
+                      <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-slate-900">{x.name}</span><span className="block text-xs tabular-nums text-slate-500">{x.amountRule}{x.feeText !== 'No fee' ? ` · ${x.feeText}` : ''}</span></span>
                       {methodId === x.id && <CircleCheck className="h-5 w-5 shrink-0 text-[#1E3A8A]" aria-hidden />}
                     </button>
                   ))}
@@ -831,6 +841,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
                   </div>
                 </Field>
               )}
+              <FeeSummary isDeposit={isDeposit} feeText={method.feeText} fee={method.fee.amount > 0 && Number(amt) > 0 ? feeOn(method.fee, Number(amt)) : null} amount={Number(amt) || 0} />
               <MethodFieldInputs fields={method.fields} values={values} errors={fieldErrors} disabled={paused} inputClass={inputCls} idPrefix="method"
                 onChange={(v) => { setValues(v); setFieldErrors({}); }} />
               {isDeposit && <ProofInput mode={method.proofMode} file={proof} disabled={paused} error={proofErr} onChange={(f) => {
@@ -864,6 +875,20 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
     </div>
   );
 }
+/** The method's fee as the applicant types an amount (9.3): withdrawals pay it from the deposit balance, deposits lose it from the amount. */
+function FeeSummary({ isDeposit, feeText, fee, amount }: { isDeposit: boolean; feeText: string; fee: number | null; amount: number }) {
+  if (feeText === 'No fee') return null;
+  return (
+    <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700" data-testid="text-method-fee" aria-live="polite">
+      {fee === null
+        ? <>{feeText}{isDeposit ? ', taken out of the amount you deposit.' : ', paid from your deposit balance.'}</>
+        : isDeposit
+          ? <>Fee <span className="font-semibold tabular-nums">{money(fee)}</span> · you'll receive <span className="font-semibold tabular-nums" data-testid="text-fee-net">{money(Math.max(0, Math.round((amount - fee) * 100) / 100))}</span></>
+          : <>Fee <span className="font-semibold tabular-nums">{money(fee)}</span>, paid from your deposit balance · total <span className="font-semibold tabular-nums" data-testid="text-fee-net">{money(Math.round((amount + fee) * 100) / 100)}</span></>}
+    </p>
+  );
+}
+
 /** Shown after a request is placed: its reference and what happens next. */
 function RequestPlaced({ t, emailed, onClose }: { t: Tx; emailed: boolean; onClose: () => void }) {
   const withdrawal = t.type === 'Withdrawal';

@@ -68,11 +68,12 @@ export function OwnCardControls({ c, accountFrozen }: { c: UserCard; accountFroz
         )}
         <button data-testid={`button-card-details-${c.id}`} onClick={() => setDetails(true)} className={outline}><Info className="h-4 w-4" />Card details</button>
       </div>
-      <Modal open={details} onClose={() => setDetails(false)} title={`${c.kind} ${c.network} card`} testid="dialog-card-details">
+      <Modal open={details} onClose={() => setDetails(false)} title={`${c.kind} ${c.typeName} card`} testid="dialog-card-details">
         <dl className="divide-y divide-slate-100 text-sm" data-testid={`list-card-details-${c.id}`}>
           {[
             ['Card number', `•••• •••• •••• ${c.lastFour}`],
             ['Type', c.kind],
+            ['Card', c.typeName],
             ['Network', c.network],
             ['Status', c.status === 'Pending' ? 'Being issued' : c.status === 'Frozen' ? `Frozen by ${byAdmin ? 'an administrator' : 'you'}` : statusLabel(c.status)],
             ...(c.issuedAt ? [['Issued', dateFmt(c.issuedAt)]] : []),

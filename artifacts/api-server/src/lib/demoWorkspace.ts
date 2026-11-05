@@ -12,6 +12,8 @@ import { GetAdminUserResponse } from "@workspace/api-zod";
 import { effectiveLimits, limitProblem, limitsOut, withdrawnLast24h } from "./withdrawalLimits";
 import { countCardRequests } from "./cards";
 import { centsOut, effectiveEligible, tierAmount, tierAmountsFrom } from "./eligibleAmount";
+import { describeFee, feeCents } from "./fees";
+import { cardTypeInfo, typeOfCard } from "./cardTypes";
 
 export class DemoInputError extends Error {}
 
@@ -55,10 +57,17 @@ export async function getUser(id: string) {
   const [person] = await db.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, id));
   if (!person) return undefined;
   const audit = await db.select().from(demoAuditTable).where(eq(demoAuditTable.profileId, id)).orderBy(desc(demoAuditTable.createdAt)).limit(30);
-  const cards = Array.isArray(person.cards) ? person.cards.map((card: Record<string, unknown>) => ({
-    // The card account's balance shows on the user's live virtual card; a cancelled card shows what it held then (0).
-    ...card, balance: card.kind === "Virtual" && card.status !== "Cancelled" ? person.cardCents / 100 : Number(card.balance ?? 0),
-  })) : [];
+  // The card account is shared by the user's cards. Its balance shows on the live virtual card, or, without one, on the active
+  // or frozen physical card; other cards show what they held (0).
+  const stored = (Array.isArray(person.cards) ? person.cards : []) as Record<string, unknown>[];
+  const holder = stored.find(c => c.kind === "Virtual" && c.status !== "Cancelled") ?? stored.find(c => c.kind === "Physical" && (c.status === "Active" || c.status === "Frozen"));
+  const cards = stored.map(({ pricePaidCents, feePaidCents, ...card }) => {
+    const type = typeOfCard(card);
+    return {
+      ...card, type, typeName: cardTypeInfo(type).name, balance: card === holder || (holder && card.id === holder.id) ? person.cardCents / 100 : Number(card.balance ?? 0),
+      ...(typeof pricePaidCents === "number" ? { pricePaid: pricePaidCents / 100 } : {}), ...(typeof feePaidCents === "number" ? { feePaid: feePaidCents / 100 } : {}),
+    };
+  });
   const documents = (await currentKycDocuments([id], "admin")).map(({ profileId: _p, ...d }) => d);
   return GetAdminUserResponse.parse({
     ...person,
@@ -157,6 +166,7 @@ export async function adminDashboard() {
     pendingKyc: people.filter(p => p.verificationLevel === "Pending" || pendingKyc.has(p.id)).length,
     pendingDeposits: pendingOf("Deposit"), pendingWithdrawals: pendingOf("Withdrawal"),
     pendingCardActivations: await countCardRequests(),
+    feesCollected: await feesCollected(),
     totalGrantBalances: people.reduce((sum, p) => sum + p.grantCents, 0) / 100,
     totalDepositBalances: people.reduce((sum, p) => sum + p.depositCents, 0) / 100,
     applicationsByStatus: ["Submitted", "Review", "Changes requested", "Approved", "Declined"].map(status => ({ status, count: appsWith(status) })),
@@ -179,7 +189,18 @@ async function systemHealth() {
   };
 }
 
-/** Ledger money in and out per calendar month (UTC), last six months. Opening balances are not movements. */
+/** Fees charged (9.3: withdrawal, deposit and card fees), this calendar month (UTC) and all time. */
+async function feesCollected() {
+  const now = new Date();
+  const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const [row] = await db.select({
+    all: sql<number>`coalesce(-sum(${demoLedgerTable.amountCents}), 0)::bigint`,
+    month: sql<number>`coalesce(-sum(${demoLedgerTable.amountCents}) filter (where ${demoLedgerTable.createdAt} >= ${month.toISOString()}), 0)::bigint`,
+  }).from(demoLedgerTable).where(eq(demoLedgerTable.kind, "Fee"));
+  return { thisMonth: Number(row?.month ?? 0) / 100, allTime: Number(row?.all ?? 0) / 100 };
+}
+
+/** Ledger money in and out per calendar month (UTC), last six months. Opening balances and card top-ups (a move between the user's own balances) are not movements. */
 async function moneyTrend() {
   const now = new Date();
   const months = Array.from({ length: 6 }, (_, i) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5 + i, 1)));
@@ -188,7 +209,7 @@ async function moneyTrend() {
     inflow: sql<number>`coalesce(sum(${demoLedgerTable.amountCents}) filter (where ${demoLedgerTable.amountCents} > 0), 0)::bigint`,
     outflow: sql<number>`coalesce(-sum(${demoLedgerTable.amountCents}) filter (where ${demoLedgerTable.amountCents} < 0), 0)::bigint`,
   }).from(demoLedgerTable)
-    .where(and(gte(demoLedgerTable.createdAt, months[0]!), ne(demoLedgerTable.kind, "Opening balance")))
+    .where(and(gte(demoLedgerTable.createdAt, months[0]!), ne(demoLedgerTable.kind, "Opening balance"), ne(demoLedgerTable.kind, "Card top-up")))
     .groupBy(sql`1`);
   return months.map(m => {
     const key = m.toISOString().slice(0, 7);
@@ -267,10 +288,8 @@ export async function adjustBalance(id: string, account: "grant" | "deposit" | "
     const [current] = await tx.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, id)).for("update");
     if (!current) return undefined;
     if (current.status === "Frozen") throw new DemoInputError("Unfreeze the demo account before adjusting its balance.");
-    // Top-ups go onto a card, so one must be active; debits can still empty the card account whatever the cards' state.
-    if (account === "card" && !debit && !(Array.isArray(current.cards) && current.cards.some((c: { status?: string }) => c.status === "Active"))) {
-      throw new DemoInputError("This user has no active card to top up. Issue a card or unfreeze one first.");
-    }
+    // Every card top-up comes from the deposit (main) balance (9.3), through the card's own Top up; debits can still empty the card account.
+    if (account === "card" && !debit) throw new DemoInputError("Card top-ups come from the user's deposit balance. Use Top up on one of their active cards.");
     const key = account === "grant" ? "grantCents" : account === "deposit" ? "depositCents" : "cardCents";
     const next = debit ? current[key] - cents : current[key] + cents;
     if (next > 2000000000) throw new DemoInputError("This would exceed the demo account limit.");
@@ -300,7 +319,7 @@ export async function changeGlobalFreeze(frozen: boolean, actor: string, reason?
 }
 
 type RequestRow = typeof demoRequestsTable.$inferSelect;
-type Snapshot = { name?: string; amountRule?: string; fields?: { id: string; label: string; type: string }[] };
+type Snapshot = { name?: string; amountRule?: string; feeText?: string; fields?: { id: string; label: string; type: string }[] };
 
 export type LogoMap = Map<string, string | undefined>;
 
@@ -322,6 +341,7 @@ export function requestDetails(r: RequestRow, scope: "applicant" | "admin", logo
     ...(r.kind === "Withdrawal" ? { source: (r.source === "deposit" ? "deposit" : "grant") as BalanceSource } : {}),
     details: (snap?.fields ?? []).filter(f => values[f.id]).map(f => ({ label: f.label, value: values[f.id]! })),
     ...(r.proofFileId ? { proofUrl: fileUrl(scope, r.proofFileId) } : {}),
+    ...(r.feeCents > 0 ? { fee: r.feeCents / 100 } : {}),
   };
 }
 
@@ -333,11 +353,17 @@ const requestTransaction = (r: RequestRow, logos: LogoMap) => ({
   ...requestDetails(r, "applicant", logos),
 });
 
-/** A balance minus withdrawals from it still awaiting review (older withdrawals without a source were all from the grant balance). */
+/**
+ * A balance minus what pending withdrawals hold on it (older withdrawals without a source were all from the grant balance).
+ * The deposit (main) balance also holds the fee of every pending withdrawal, whichever balance the amount comes from (9.3).
+ */
 export async function availableCents(profile: DemoProfile, source: BalanceSource, tx: Pick<typeof db, "select"> = db) {
-  const [row] = await tx.select({ sum: sql<number>`coalesce(sum(${demoRequestsTable.amountCents}), 0)::int` }).from(demoRequestsTable)
-    .where(and(eq(demoRequestsTable.profileId, profile.id), eq(demoRequestsTable.kind, "Withdrawal"), eq(demoRequestsTable.status, "Pending"),
-      source === "grant" ? or(eq(demoRequestsTable.source, "grant"), isNull(demoRequestsTable.source)) : eq(demoRequestsTable.source, "deposit")));
+  const fromThis = source === "grant" ? or(eq(demoRequestsTable.source, "grant"), isNull(demoRequestsTable.source)) : eq(demoRequestsTable.source, "deposit");
+  const held = source === "grant"
+    ? sql<number>`coalesce(sum(case when ${fromThis} then ${demoRequestsTable.amountCents} else 0 end), 0)::int`
+    : sql<number>`coalesce(sum(case when ${fromThis} then ${demoRequestsTable.amountCents} else 0 end) + sum(${demoRequestsTable.feeCents}), 0)::int`;
+  const [row] = await tx.select({ sum: held }).from(demoRequestsTable)
+    .where(and(eq(demoRequestsTable.profileId, profile.id), eq(demoRequestsTable.kind, "Withdrawal"), eq(demoRequestsTable.status, "Pending")));
   return Math.max(0, (source === "grant" ? profile.grantCents : profile.depositCents) - (row?.sum ?? 0));
 }
 
@@ -390,7 +416,9 @@ export async function createApplicantRequest(profileId: string, input: RequestIn
   if (rules.proofMode === "required" && !hasFile) throw new DemoInputError("Upload your payment proof (a photo, screenshot or PDF of the payment).");
   if (rules.proofMode === "off" && hasFile) throw new DemoInputError(`${method.name} doesn't take a payment proof. Remove the file and try again.`);
   const note = (input.note ?? "").trim().slice(0, 240);
-  const snapshot: Snapshot = { name: method.name, amountRule: describeAmountRule(rules), fields: rules.fields.map(f => ({ id: f.id, label: f.label, type: f.type })) };
+  const fee = feeCents(rules.fee, cents);
+  if (kind === "Deposit" && fee > 0 && fee >= cents) throw new DemoInputError(`The ${dollars(fee)} fee for ${method.name} is more than this deposit. Deposit a larger amount.`);
+  const snapshot: Snapshot = { name: method.name, amountRule: describeAmountRule(rules), feeText: describeFee(rules.fee), fields: rules.fields.map(f => ({ id: f.id, label: f.label, type: f.type })) };
 
   const place = async (tx: DbTx, proofFileId: string | null) => {
     const [settings] = await tx.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform")).for("update");
@@ -408,15 +436,24 @@ export async function createApplicantRequest(profileId: string, input: RequestIn
       if (!source) throw new DemoInputError("Choose which balance to withdraw from.");
       if (!sourceAllowed(allowed, source)) throw new DemoInputError(`Withdrawals from your ${SOURCE_LABEL[source]} aren't available. You can withdraw from your ${SOURCES_LABEL[allowed]}.`);
       const available = await availableCents(profile, source, tx);
-      if (cents > available) throw new DemoInputError(`This is more than the ${dollars(available)} available in your ${SOURCE_LABEL[source]}, after pending withdrawals.`);
+      if (source === "deposit" && cents + fee > available) {
+        throw new DemoInputError(fee > 0
+          ? `This withdrawal and its ${dollars(fee)} fee come to ${dollars(cents + fee)}, more than the ${dollars(available)} available in your deposit balance, after pending withdrawals.`
+          : `This is more than the ${dollars(available)} available in your deposit balance, after pending withdrawals.`);
+      }
+      if (source === "grant") {
+        if (cents > available) throw new DemoInputError(`This is more than the ${dollars(available)} available in your grant balance, after pending withdrawals.`);
+        const main = fee > 0 ? await availableCents(profile, "deposit", tx) : 0;
+        if (fee > main) throw new DemoInputError(`The ${dollars(fee)} fee is paid from your deposit balance, which has ${dollars(main)} available. Add funds first.`);
+      }
       // The profile row is locked above, so two quick requests can't both fit under the daily total.
       const problem = limitProblem(effectiveLimits(profile, settings), (await withdrawnLast24h([profile.id], tx)).get(profile.id) ?? 0, cents);
       if (problem) throw new DemoInputError(problem);
     }
     const [row] = await tx.insert(demoRequestsTable).values({
-      profileId: profile.id, kind, amountCents: cents, note, source, methodId: method.id, methodSnapshot: snapshot, fieldValues: answers, proofFileId,
+      profileId: profile.id, kind, amountCents: cents, note, source, methodId: method.id, methodSnapshot: snapshot, fieldValues: answers, proofFileId, feeCents: fee,
     }).returning();
-    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor: profile.name, action: `${kind} request submitted +$${(cents / 100).toFixed(2)} via ${method.name}${source ? ` from the ${SOURCE_LABEL[source]}` : ""}${proofFileId ? ", with payment proof" : ""}` });
+    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor: profile.name, action: `${kind} request submitted +$${(cents / 100).toFixed(2)} via ${method.name}${source ? ` from the ${SOURCE_LABEL[source]}` : ""}${fee ? `, fee ${dollars(fee)}` : ""}${proofFileId ? ", with payment proof" : ""}` });
     const amount = `$${(cents / 100).toFixed(2)}`;
     await notifyUser(profile.id, kind === "Withdrawal"
       ? `Withdrawal request of ${amount} via ${method.name} received (ref ${requestReference(row!.id)}). Our finance team will review it; your funds are released once it's approved.`

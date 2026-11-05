@@ -23,6 +23,8 @@ export const demoRequestsTable = pgTable("demo_requests", {
   fieldValues: jsonb("field_values"),
   /** Payment proof (deposits), in demo_files. */
   proofFileId: uuid("proof_file_id"),
+  /** Step 9.3: the method's fee as worked out when the request was placed. Withdrawals: paid from the deposit (main) balance; deposits: taken out of the amount. */
+  feeCents: integer("fee_cents").notNull().default(0),
 }).enableRLS();
 
 export const insertDemoRequestSchema = createInsertSchema(demoRequestsTable).omit({ id: true, createdAt: true, status: true });

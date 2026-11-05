@@ -8,6 +8,8 @@ import {
   CreateUserBalanceAdjustmentBody, CreateUserBalanceAdjustmentParams, CreateUserBalanceAdjustmentResponse,
   UpdateGlobalFreezeBody, UpdateGlobalFreezeResponse, GetWithdrawalLimitsResponse, UpdateWithdrawalLimitsBody, UpdateWithdrawalLimitsResponse,
   ListAdminAuditQueryParams, ListAdminAuditResponse, ExportAdminAuditQueryParams,
+  ListApplicantCardTypesResponse, BuyApplicantCardBody, BuyApplicantCardResponse, TopUpApplicantCardParams, TopUpApplicantCardBody, TopUpApplicantCardResponse,
+  ListAdminCardTypesResponse, UpdateAdminCardTypesBody, UpdateAdminCardTypesResponse, TopUpUserCardParams, TopUpUserCardBody, TopUpUserCardResponse,
   ListAdminCardRequestsQueryParams, ListAdminCardRequestsResponse, DeclineAdminCardRequestParams, DeclineAdminCardRequestBody, DeclineAdminCardRequestResponse,
   IssueUserCardParams, IssueUserCardBody, IssueUserCardResponse, ChangeUserCardParams, ChangeUserCardBody, ChangeUserCardResponse,
   UpdateUserWithdrawalLimitsParams, UpdateUserWithdrawalLimitsBody, UpdateUserWithdrawalLimitsResponse,
@@ -36,7 +38,8 @@ import {
   ExportAdminTransactionsQueryParams, GetAdminKycQueueResponse, ReviewAdminKycDocumentParams, ReviewAdminKycDocumentBody, ReviewAdminKycDocumentResponse,
 } from "@workspace/api-zod";
 import { db, demoProfilesTable } from "@workspace/db";
-import { changeCard, changeOwnCard, declineCardActivation, issueCard, listCardRequests } from "../lib/cards";
+import { changeCard, changeOwnCard, declineCardActivation, issueCard, listCardRequests, topUpCard } from "../lib/cards";
+import { adminCardTypes, applicantCardTypes, changeCardTypes } from "../lib/cardTypes";
 import {
   adminSearch, listAdminApplications, adminApplicationDetail, decideApplication, listAdminRequests, approveRequest, rejectRequest,
   listLedger, exportLedgerCsv, adminKycQueue, reviewKycDocument,
@@ -94,6 +97,27 @@ router.put("/applicant/matchmaking", async (req, res): Promise<void> => {
 
 router.get("/applicant/account", async (req, res): Promise<void> => {
   res.json(GetApplicantAccountResponse.parse(await applicantAccount(currentUserId(req))));
+});
+
+router.get("/applicant/card-types", async (_req, res): Promise<void> => {
+  res.json(ListApplicantCardTypesResponse.parse(await applicantCardTypes()));
+});
+
+router.post("/applicant/cards", async (req, res): Promise<void> => {
+  const input = BuyApplicantCardBody.safeParse(req.body);
+  if (!input.success) { res.status(400).json({ error: "Choose a card type and a virtual or physical card." }); return; }
+  const id = currentUserId(req);
+  await issueCard(id, { kind: input.data.kind, type: input.data.type, actor: req.identity!.name, by: "applicant" });
+  res.json(BuyApplicantCardResponse.parse(await applicantAccount(id)));
+});
+
+router.post("/applicant/cards/:cardId/top-up", async (req, res): Promise<void> => {
+  const params = TopUpApplicantCardParams.safeParse(req.params);
+  const input = TopUpApplicantCardBody.safeParse(req.body);
+  if (!params.success || !input.success) { res.status(400).json({ error: "Enter an amount between $0.01 and $1,000,000." }); return; }
+  const id = currentUserId(req);
+  if (!await topUpCard(id, params.data.cardId, input.data.amount, req.identity!.name, "applicant")) { res.status(404).json({ error: "Card not found." }); return; }
+  res.json(TopUpApplicantCardResponse.parse(await applicantAccount(id)));
 });
 
 router.post("/applicant/cards/:cardId/actions", async (req, res): Promise<void> => {
@@ -307,10 +331,31 @@ router.put("/admin/system/withdrawal-limits", async (req, res): Promise<void> =>
 router.post("/admin/users/:userId/cards", async (req, res): Promise<void> => {
   const params = IssueUserCardParams.safeParse(req.params);
   const input = IssueUserCardBody.safeParse(req.body);
-  if (!params.success || !input.success) { res.status(400).json({ error: "Choose a virtual or physical card and its network." }); return; }
-  const user = await issueCard(params.data.userId, input.data.kind, input.data.network, currentAdmin(req));
+  if (!params.success || !input.success) { res.status(400).json({ error: "Choose a virtual or physical card and its type." }); return; }
+  const type = input.data.type ?? (input.data.network === "Mastercard" ? "mastercard-debit" : input.data.network === "Visa" ? "visa-debit" : undefined);
+  if (!type) { res.status(400).json({ error: "Choose a card type." }); return; }
+  const user = await issueCard(params.data.userId, { kind: input.data.kind, type, actor: currentAdmin(req), by: "admin", freeOfCharge: input.data.freeOfCharge === true });
   if (!user) { res.status(404).json({ error: "User not found." }); return; }
   res.json(IssueUserCardResponse.parse(user));
+});
+
+router.get("/admin/card-types", async (_req, res): Promise<void> => {
+  res.json(ListAdminCardTypesResponse.parse(await adminCardTypes()));
+});
+
+router.put("/admin/card-types", async (req, res): Promise<void> => {
+  const input = UpdateAdminCardTypesBody.safeParse(req.body);
+  if (!input.success) { res.status(400).json({ error: "Each price and fee must be 0 or more (fees up to 100%)." }); return; }
+  res.json(UpdateAdminCardTypesResponse.parse(await changeCardTypes(input.data, currentAdmin(req))));
+});
+
+router.post("/admin/users/:userId/cards/:cardId/top-up", async (req, res): Promise<void> => {
+  const params = TopUpUserCardParams.safeParse(req.params);
+  const input = TopUpUserCardBody.safeParse(req.body);
+  if (!params.success || !input.success) { res.status(400).json({ error: "Enter an amount between $0.01 and $1,000,000." }); return; }
+  const user = await topUpCard(params.data.userId, params.data.cardId, input.data.amount, currentAdmin(req), "admin");
+  if (!user) { res.status(404).json({ error: "User or card not found." }); return; }
+  res.json(TopUpUserCardResponse.parse(user));
 });
 
 router.post("/admin/users/:userId/cards/:cardId/actions", async (req, res): Promise<void> => {

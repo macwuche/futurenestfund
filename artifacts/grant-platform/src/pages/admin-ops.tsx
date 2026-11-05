@@ -100,7 +100,9 @@ function blocker(r: AdminRequest) {
   if (r.kind === 'Withdrawal') {
     const src = r.source ?? 'grant';
     if (r.withdrawalSources !== 'both' && r.withdrawalSources !== src) return `Withdrawals from the ${src} balance are closed for this user`;
-    if (r.amount > (src === 'deposit' ? r.depositBalance : r.grantBalance)) return `More than the ${src} balance`;
+    if (src === 'deposit' && r.amount + r.fee > r.depositBalance) return r.fee ? 'Amount + fee more than the deposit balance' : 'More than the deposit balance';
+    if (src === 'grant' && r.amount > r.grantBalance) return 'More than the grant balance';
+    if (src === 'grant' && r.fee > r.depositBalance) return 'Fee more than the deposit balance';
   }
   return '';
 }
@@ -150,6 +152,7 @@ function RequestRow({ r }: { r: AdminRequest }) {
         </div>
         <div className="flex flex-col items-end gap-2">
           <span className="font-num text-xl font-semibold" data-testid={`text-request-amount-${r.id}`}>{money(r.amount)}</span>
+          {r.fee > 0 && <span className="font-num text-right text-xs text-slate-600" data-testid={`text-request-fee-${r.id}`}>{deposit ? `Fee ${money(r.fee)} · credits ${money(r.net)}` : `Fee ${money(r.fee)} from deposit balance`}</span>}
           <div className="flex gap-2">
             <button data-testid={`button-reject-${r.id}`} onClick={() => { setError(''); setDeclining(true); }} className={cx(ghost, 'inline-flex items-center gap-1 !py-1.5 text-xs')}><X className="h-3.5 w-3.5" />Decline</button>
             <button data-testid={`button-approve-${r.id}`} disabled={!!why} title={why || undefined} onClick={() => { setError(''); setNote(''); setConfirm(true); }} className={cx(lime, 'inline-flex items-center gap-1 !py-1.5 text-xs disabled:cursor-not-allowed')}><Check className="h-3.5 w-3.5" />Approve</button>
@@ -159,8 +162,10 @@ function RequestRow({ r }: { r: AdminRequest }) {
       </div>
       <Modal open={confirm} onClose={() => setConfirm(false)} title={`Approve ${money(r.amount)} ${deposit ? 'deposit' : 'withdrawal'}?`} testid="dialog-approve-request">
         <p className="text-sm text-slate-600">
-          {deposit ? `${r.userName}'s deposit balance goes from ${money(r.depositBalance)} to ${money(r.depositBalance + r.amount)}.`
-            : `${money(r.amount)} is paid out of ${r.userName}'s ${src} balance, leaving ${money(srcBalance - r.amount)}.`} A ledger entry and an audit record are written, and the applicant is notified in the app and by email (if their email notifications are on).
+          {deposit ? `${r.userName}'s deposit balance goes from ${money(r.depositBalance)} to ${money(Math.round((r.depositBalance + r.net) * 100) / 100)}${r.fee ? ` (${money(r.amount)} less the ${money(r.fee)} fee)` : ''}.`
+            : src === 'deposit'
+              ? `${money(r.amount)}${r.fee ? ` and the ${money(r.fee)} fee` : ''} ${r.fee ? 'are' : 'is'} paid out of ${r.userName}'s deposit balance, leaving ${money(Math.round((srcBalance - r.amount - r.fee) * 100) / 100)}.`
+              : `${money(r.amount)} is paid out of ${r.userName}'s grant balance, leaving ${money(Math.round((srcBalance - r.amount) * 100) / 100)}.${r.fee ? ` The ${money(r.fee)} fee comes from the deposit balance, leaving ${money(Math.round((r.depositBalance - r.fee) * 100) / 100)}.` : ''}`} A ledger entry and an audit record are written, and the applicant is notified in the app and by email (if their email notifications are on).
         </p>
         <Field label="Note for the applicant (optional)">
           <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={240} rows={2} className={cx(ainput, 'mt-1')} data-testid="input-approve-note" placeholder="e.g. Received, thank you." />
@@ -194,11 +199,15 @@ export const AdminWithdrawalsPage = () => <RequestQueuePage kind="Withdrawal" />
 const LEDGER_TYPES: { value: ListAdminTransactionsType; label: string }[] = [
   { value: 'all', label: 'All types' }, { value: 'Deposit', label: 'Deposits' }, { value: 'Withdrawal', label: 'Withdrawals' },
   { value: 'Grant award', label: 'Grant awards' }, { value: 'Top-up', label: 'Top-ups' }, { value: 'Debit', label: 'Debits' }, { value: 'Opening balance', label: 'Opening balances' },
+  { value: 'Fee', label: 'Fees' }, { value: 'Card purchase', label: 'Card purchases' }, { value: 'Card top-up', label: 'Card top-ups' },
 ];
 
 export function AdminTransactionsPage() {
-  const initial = new URLSearchParams(useSearch()).get('q') ?? '';
-  const [type, setType] = useState<ListAdminTransactionsType>('all');
+  const urlParams = new URLSearchParams(useSearch());
+  const initial = urlParams.get('q') ?? '';
+  const typeParam = urlParams.get('type');
+  const initialType = LEDGER_TYPES.some((t) => t.value === typeParam) ? (typeParam as ListAdminTransactionsType) : 'all';
+  const [type, setType] = useState<ListAdminTransactionsType>(initialType);
   const [userId, setUserId] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');

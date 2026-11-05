@@ -11,7 +11,7 @@ import { card, dark, ghost, lime, Stat, SectionTitle, ReasonModal, useAdminRefre
 import { apiError } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
-const cardLabel = (r: AdminCardRequest) => `Physical ${r.card.network} •• ${r.card.lastFour}`;
+const cardLabel = (r: AdminCardRequest) => `Physical ${r.card.typeName} •• ${r.card.lastFour}`;
 
 /** "3 days", "5 hours", "a few minutes": how long a request has been waiting. */
 export function waited(iso: string, now = Date.now()) {
@@ -126,7 +126,7 @@ function CardRequestRow({ r }: { r: AdminCardRequest }) {
         </div>
       </div>
       <Modal open={confirm} onClose={() => setConfirm(false)} title={`Activate card •• ${r.card.lastFour}?`} testid="dialog-activate-card">
-        <p className="text-sm text-slate-600">{r.userName}’s physical {r.card.network} card •• {r.card.lastFour} becomes active and usable. They’re notified in the app (and by email, if their email notifications are on), and an audit record is written.</p>
+        <p className="text-sm text-slate-600">{r.userName}’s physical {r.card.typeName} card •• {r.card.lastFour} becomes active and usable. They’re notified in the app (and by email, if their email notifications are on), and an audit record is written.</p>
         {error && <p role="alert" className="mt-3 rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-activate-error">{error}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <button data-testid="button-activate-cancel" onClick={() => setConfirm(false)} className="press rounded-lg px-4 py-2 text-sm font-semibold hover:bg-slate-100">Cancel</button>

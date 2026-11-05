@@ -75,3 +75,15 @@ describe("payment methods: what a request must satisfy", () => {
     expect(sourceAllowed("both", "deposit")).toBe(true);
   });
 });
+
+describe("payment methods: fees (9.3)", () => {
+  it("keeps a fixed or percentage fee, defaulting to none", () => {
+    const a = parseMethod({ name: "Bank", fee: { mode: "percent", amount: 1.5 } }, "Withdrawal");
+    expect(typeof a !== "string" && a.fee).toEqual({ mode: "percent", value: 150 });
+    const b = parseMethod({ name: "Bank" }, "Deposit");
+    expect(typeof b !== "string" && b.fee).toEqual({ mode: "fixed", value: 0 });
+  });
+  it("refuses a negative fee", () => {
+    expect(parseMethod({ name: "Bank", fee: { mode: "fixed", amount: -2 } }, "Withdrawal")).toMatch(/negative/);
+  });
+});

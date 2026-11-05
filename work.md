@@ -2038,7 +2038,7 @@ Not in Phase 7: new features beyond email settings; the open go-live items (§12
 - **Not needed today:** there is one API server, so this stays off on the VPS (Redis isn't installed there). `docs/DEPLOY.md` gets an optional step with install and memory notes.
 - **Tests:** Vitest with a fake store (shared counts across two limiter instances, window reset, fallback when the store throws, headers unchanged); against a real Redis if one can run here, otherwise against a stand-in that speaks the Redis protocol.
 
-### 15d. Step 9.3: automatic fees (waits for 15f)
+### 15d. Step 9.3: automatic fees (superseded by §17, the user's answers of 2026-11-04)
 Proposed shape, to be confirmed:
 - **Admin → Settings → Money → Fees:** one setting per fee type (fixed amount, percentage, or percentage with a minimum), empty = no fee; optional per-tier values; per-user "waive fees" switch in the inspector. Every change audited.
 - **Charging:** a fee is a ledger row of a new kind **`Fee`**, written in the same transaction as the action that causes it (withdrawal approval, card issue, …), with the audit entry and the notification. Paid from the **deposit balance** (matches "Covers card fees and commissions").
@@ -2242,3 +2242,115 @@ Migration 0009 therefore also adds `demo_profiles.withdrawal_sources` and `demo_
 - The older suites now place requests through a plain test method (`.unlazy/methods.mjs`). Some phase5-withdrawals assertions were updated for the intended changes: available amount per balance, and "released from your grant balance".
 
 **Still to do:** commit; deploy (`deploy.sh` applies 0009 and Supabase 0004); then create the real methods in Payment Gateway. Until a method is enabled, applicants can't place deposit or withdrawal requests.
+
+---
+
+## 17. Step 9.3 build plan: fees, card types and card purchases (2026-11-04)
+
+**Request (user, 2026-11-04), replacing the proposal in §15d:**
+- **Withdrawal fee:** set on each **withdrawal method** when the admin creates or edits it. Never negative. Paid from the **main balance** (= the deposit balance, §16h).
+- **Deposit fee:** set on each **deposit method**. Taken **out of the amount being deposited** (deposit $100 with a $3 fee → $97 is credited).
+- **Card types:** in Admin Settings the admin chooses which card types users can get (on/off): **Visa Debit, Visa Credit, Mastercard Debit, Mastercard Credit, Amex Platinum**. Each type has its own **virtual** and **physical** settings.
+- **Cards are bought.** For each type and kind the admin sets a **price** and a **fee** (fixed or a percentage of the price). The user pays **price + fee** from the main balance: $10 + 1% = **$10.10**; $10 + $1 = **$11.00**.
+- **Who gets a card:** both. The applicant sees the enabled types with their prices and clicks to buy, **and** the admin can still issue one from the user's profile.
+- **Card top-ups:** no fee. **Every top-up comes from the main balance.** Both the applicant and the admin can top up.
+- **Fee rule for everything:** a fee is either a **fixed amount** or a **percentage**, never negative; 0 / empty = no fee. Withdrawal, card and top-up money comes from the main balance; the deposit fee comes out of the deposit itself.
+
+**"Credit" cards (suggested, user to confirm):** no card network or credit line is connected, so a Credit card behaves like every other card here: it spends only what was topped up from the main balance. It stays a type name the admin can sell (and price differently). Admin Settings says so under the card list: "No credit line is connected: every card spends what's topped up from the main balance."
+
+### 17a. What exists already
+- Methods (`demo_payment_methods`, §16) have an amount rule but no fee. Placing (`createApplicantRequest`) and approval (`approveRequest`) lock settings and profile and hold pending withdrawals against the balance they come from (`availableCents`).
+- Cards (`lib/cards.ts`, JSON in `demo_profiles.cards`) are issued **only by an admin**, free, network `Visa | Mastercard`, at most one non-cancelled card per kind.
+- Card top-up is admin-only (`adjustBalance(…, "card")`): it **creates** money on `card_cents`; nothing pays for it.
+- Ledger kinds: Top-up, Debit, Deposit, Withdrawal, Grant award, Opening balance.
+
+### 17b. Fee rule (one shape everywhere, `lib/fees.ts`, pure + unit-tested)
+- `{ mode: "fixed" | "percent", value }`: fixed $0–$1,000,000 (2 decimals); percent 0–100 (up to 2 decimals). Negative or malformed values are refused.
+- `feeCents(rule, baseCents)`: fixed → the value; percent → `round(base × value / 100)` to the cent (half up). $10 at 1% → $0.10.
+- Text: "Fee $1.00" / "Fee 1% ($0.10)".
+
+### 17c. Data (migration 0010; no new tables, so no Supabase migration)
+- `demo_payment_methods`: `fee_mode` (`fixed` | `percent`, default `fixed`), `fee_value` (integer, default 0: cents, or hundredths of a percent).
+- `demo_requests`: `fee_cents` (integer, default 0): the fee **as worked out when the request was placed**, so editing a method never changes a placed request. The method snapshot also keeps the fee rule.
+- `demo_settings.card_types` (jsonb): the fixed list of 5 types, each `{ key, enabled, virtual: { priceCents | null, fee }, physical: { priceCents | null, fee } }`. A kind with no price isn't sold. Price $0–$1,000,000 (a $0 card is free).
+- Cards in `demo_profiles.cards` gain `type` (e.g. `visa-debit`), `pricePaidCents`, `feePaidCents`; `network` gains `Amex`. Old cards with no `type` read as Visa → Visa Debit, Mastercard → Mastercard Debit (worked out on read, no data rewrite).
+
+### 17d. Withdrawals and deposits
+- **Withdrawal, placing:** fee = method rule on the amount. The amount comes from the chosen balance, the fee from the main balance. Available main balance = deposit balance − pending withdrawals from it − **fees of all pending withdrawals**. Withdrawing from the main balance: amount + fee must fit. Refused with the numbers if it doesn't fit (provisional, see 17h).
+- **Withdrawal, approval:** re-checks both balances, debits the amount (as today) and the stored fee from the main balance. Ledger: `Withdrawal −amount` + `Fee −fee` (account deposit). Declining charges nothing (the hold is released).
+- **Deposit:** fee = method rule on the amount; it must be less than the amount. On approval the deposit balance gets amount − fee. Ledger: `Deposit +amount` + `Fee −fee`.
+- **Applicant forms:** the method tile shows its fee; the amount box shows "Fee $2.00, paid from your main balance" (withdrawal) or "Fee $3.00 · you'll receive $97.00" (deposit) as they type.
+- **Admin queues and emails:** show the fee and the net amount.
+- Withdrawal limits still apply to the amount only (not the fee).
+
+### 17e. Card types and purchases
+- **Admin → Settings → Cards** (new section): a row per type with an on/off switch and, for Virtual and Physical, price + fee (fixed / %) + "Total the user pays". Saved together, audited ("Card types updated: …").
+- **Applicant → Cards → Get a card:** the enabled types with their kinds and total price (e.g. "Visa Debit · Virtual $10.10 · Physical $25.00"). Buy → confirmation ("$10.00 + fee $0.10 = $10.10 from your main balance") → the card is issued (virtual: active now; physical: pending delivery, then the 9.1 activation flow).
+- **Server (`buyCard`), one transaction with settings and profile locked:** type enabled and kind priced; platform and account not frozen; the existing one-card-per-kind rule; available main balance ≥ price + fee. Ledger `Card purchase −price` + `Fee −fee` (account deposit), card stored with what was paid, audited, user notified.
+- **Admin issue (inspector):** the admin picks one of the enabled types. It charges the user the same price + fee from the main balance; a **"Free of charge"** tick-box issues it without charging (audited as such).
+
+### 17f. Card top-ups (from the main balance, no fee)
+- **Applicant:** "Top up" on an active card: amount → moves from the main balance (available amount) to the card balance. Ledger `Card top-up −x` (deposit) + `Card top-up +x` (card). Not on frozen or pending cards; not while the account or platform is frozen.
+- **Admin:** the inspector's card "Top up" now does the same move from the user's main balance (it no longer creates money); refused if the main balance can't cover it.
+
+### 17g. Reporting
+- Ledger kinds `Fee`, `Card purchase`, `Card top-up`: filters on both Transactions pages, CSV export, the applicant's transaction list.
+- Admin dashboard: **fees collected** (this month / all time).
+- Help Centre answers: fees, buying a card, top-ups.
+
+### 17h. Still open (user will answer later; provisional choices used meanwhile)
+1. When the main balance can't cover a fee or a purchase: **refused** with a clear message (provisional).
+2. Withdrawal fee: **held** when the request is placed, **taken** on approval, released on decline (provisional).
+3. Card fee once per purchase; buying again after cancelling charges again (provisional, follows from "buy").
+4. Can a user hold more than one card of a kind (e.g. a Visa Debit virtual and an Amex Platinum virtual)? Provisional: keep today's rule (one per kind).
+5. Fees per tier (9.4), and whether "Credit" needs anything beyond a name.
+
+### 17i. Steps
+| Step | What | Done when |
+|---|---|---|
+| 9.3.1 | `lib/fees.ts`, migration 0010, method fee fields (API + Payment Gateway form + preview) | Vitest for fees; method API tests |
+| 9.3.2 | Fees on placing and approving deposits / withdrawals; applicant forms, queues, emails | `.unlazy/phase93-fees.mjs` (holds, approval, decline, deposit net, edits don't change placed requests, concurrency) |
+| 9.3.3 | Settings → Cards (types, on/off, prices, fees) | API + UI tests |
+| 9.3.4 | Buying a card; admin issue with a type and "Free of charge" | `phase93-cards.mjs` + UI desktop / phone |
+| 9.3.5 | Top-ups from the main balance (applicant + admin) | in `phase93-cards.mjs` |
+| 9.3.6 | Ledger kinds, filters, CSV, dashboard fee total, Help Centre; regressions (phase10, phase9, phase5-cards, phase6-cards, phase5-withdrawals, phase5-limits, phase6-mobile) | all green |
+
+Every step: typecheck and `pnpm test`; one commit when 9.3 is green. Deploy applies 0010 with `deploy.sh`.
+
+### 2026-11-05: Step 9.3 built and tested (fees, card types, card purchases, top-ups)
+
+**Built** (plan §17; migration **0010**, no Supabase migration):
+- **Fee rule** (`lib/fees.ts`, pure): fixed or percentage, stored as whole numbers (cents; hundredths of a percent, 1% = 100). Never negative, at most two decimals, at most 100% / $1,000,000. A percentage is rounded to the cent, half up.
+- **Method fees:**
+  - admin: a Fee box ($ / %) on every deposit and withdrawal method, with help text saying who pays. Shown in the method list and the live preview; audited
+  - applicant: the method tile shows the fee, and the form shows "Fee $2.00, paid from your deposit balance · total $102.00" or "Fee $3.00 · you'll receive $97.00" as they type
+- **Withdrawals:** the fee is worked out when the request is placed and stored on it (`demo_requests.fee_cents`), so editing the method never changes it.
+  - The deposit balance's available amount holds the fee of every pending withdrawal. From the grant balance: the grant must cover the amount and the deposit balance the fee. From the deposit balance: amount + fee must fit.
+  - Approval re-checks both and writes `Withdrawal` + `Fee` ledger rows. Declining charges nothing.
+- **Deposits:** the fee must be less than the amount. Approval credits amount − fee (ledger `Deposit +amount`, `Fee −fee`).
+- **Queues, notifications and emails** show the fee and the net or total amount. The approval dialog says where each part comes from.
+- **Card types** (`lib/cardTypes.ts`, `demo_settings.card_types`): the five types, each with on/off and a price and fee for virtual and physical. **Admin → Settings → Cards** shows the total the user pays and a note that credit cards have no credit line. Saving is audited.
+- **Buying a card:** Cards → *Get a card* (applicant). One shared routine with the admin's Issue card (`issueCard`): settings and profile locked; price + fee from the deposit balance's available amount; ledger `Card purchase` + `Fee`; the card stores its type and what was paid; audited ("Bought …" / "Issued … · paid $26.00" / "· free of charge") and notified.
+- **Admin issue:** any type (types that aren't on sale are marked), charged at its price unless **Free of charge** is ticked. A kind with no price is issued free. Older clients that send only `network` get that network's debit card.
+- **Top-ups** (`topUpCard`): applicant and admin move money deposit → card account (ledger `Card top-up` on both accounts, no fee). Active cards only; not while the account or the platform is frozen.
+  - The card account's plain Credit is gone: the server refuses it and the button is hidden.
+  - The card account shows on the live virtual card, or on the active physical card when there's no virtual one.
+- **Cards everywhere** now read by type ("physical Visa Debit card •• 1234"). Cards from before 9.3 read as that network's debit card.
+- **Reporting:**
+  - ledger kinds `Fee`, `Card purchase`, `Card top-up` in both Transactions filters and the CSV export
+  - admin dashboard **Fees this month** (all time in the hint), linking to `/admin/transactions?type=Fee`
+  - card top-ups are left out of the money in/out chart (a move between the user's own balances)
+  - Help Centre: getting a card, top-ups, fees
+
+**Tests (2026-11-05, test API on :8099 in demo mode, dev DB restored from a snapshot after each suite):**
+- typecheck clean; `pnpm test` 114/114 (13 new: `fees.test.ts`, method fees in `paymentRules.test.ts`, fee rows in money emails)
+- new `.unlazy/phase93-fees.mjs` 8/8, `phase93-cards.mjs` 12/12, `phase93-ui.mjs` 8/8 desktop + 8/8 phone
+- regressions: phase10-methods 18/18, phase10-ui 11+11, phase9-cards 9/9, phase9-cards-ui 6+6, phase6-cards 7/7, phase6-cards-ui 6+6, phase5-cards 9/9, phase5-cards-ui 5+5, phase5-withdrawals 11/11, phase5-limits 10/10, phase5-limits-ui 6+6, phase5-debits 8/8, phase5-ui 4+4, phase3-api 24/24, phase3-desktop 22/22, phase3-phone 17/17, phase8-balances 10/10, phase8-balances-ui 7+7, smoke 23+23, phase6-mobile 42/42 with 0 problems (now covering `/admin/settings/cards`)
+- Updated for intended changes:
+  - card wording now names the type in phase5-cards, phase6-cards, phase9-cards and phase9-cards-ui
+  - phase5-cards top-ups go through the card's Top up from the deposit balance
+  - phase3-phone now counts 8 admin menu links. It was still 7: 9.1 added Card Requests, and 9.1's regression run didn't include this suite
+- Found and fixed while testing: on phones the card fee boxes were 26 px wide (price and fee now stack), and the method list said "No fee" on every row (now shown only when there is a fee).
+- The suites were run back to back, so the test API ran with `RATE_LIMIT_*` raised. With the default 60 writes a minute they trip the limit (429).
+
+**Still to do:** deploy (`deploy.sh` applies 0010; committed 2026-11-05); then set the card types and prices in Admin → Settings → Cards, and fees on the methods. Until a card type is on sale, applicants see "No cards are on sale right now". The provisional choices in §17h are waiting for the user's answers.

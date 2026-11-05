@@ -561,7 +561,11 @@ export const GetApplicantAccountResponse = zod.object({
   "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "cards": zod.array(zod.object({
   "id": zod.string(),
-  "network": zod.enum(['Visa', 'Mastercard']),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
   "kind": zod.enum(['Virtual', 'Physical']),
   "lastFour": zod.string(),
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
@@ -575,7 +579,7 @@ export const GetApplicantAccountResponse = zod.object({
 })),
   "transactions": zod.array(zod.object({
   "id": zod.string(),
-  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance']),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "direction": zod.enum(['in', 'out']),
   "amount": zod.number(),
@@ -594,7 +598,221 @@ export const GetApplicantAccountResponse = zod.object({
   "label": zod.string(),
   "value": zod.string()
 })).optional(),
-  "proofUrl": zod.string().optional()
+  "proofUrl": zod.string().optional(),
+  "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the deposit balance; deposits: out of the amount)')
+})),
+  "withdrawalLimits": zod.object({
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "maxPerRequest": zod.number().nullable(),
+  "dailyTotal": zod.number().nullable(),
+  "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
+})
+})
+
+
+/**
+ * @summary Card types on sale, with the price and fee of each kind
+ */
+export const listApplicantCardTypesResponseVirtualFeeAmountMin = 0;
+
+export const listApplicantCardTypesResponsePhysicalFeeAmountMin = 0;
+
+
+
+export const ListApplicantCardTypesResponseItem = zod.object({
+  "key": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "name": zod.string(),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "virtual": zod.object({
+  "price": zod.number().nullable().describe('null = this kind isn\'t sold'),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(listApplicantCardTypesResponseVirtualFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeText": zod.string(),
+  "total": zod.number().nullable().describe('Price + fee, what the user pays')
+}).optional(),
+  "physical": zod.object({
+  "price": zod.number().nullable().describe('null = this kind isn\'t sold'),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(listApplicantCardTypesResponsePhysicalFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeText": zod.string(),
+  "total": zod.number().nullable().describe('Price + fee, what the user pays')
+}).optional()
+})
+export const ListApplicantCardTypesResponse = zod.array(ListApplicantCardTypesResponseItem)
+
+
+/**
+ * @summary Buy a card; the price and fee are paid from the deposit balance
+ */
+export const BuyApplicantCardBody = zod.object({
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "kind": zod.enum(['Virtual', 'Physical'])
+})
+
+export const buyApplicantCardResponseTierMax = 3;
+
+
+
+export const BuyApplicantCardResponse = zod.object({
+  "status": zod.enum(['Active', 'Frozen']),
+  "platformFrozen": zod.boolean(),
+  "tier": zod.number().int().min(1).max(buyApplicantCardResponseTierMax),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "permissions": zod.object({
+  "emailNotifications": zod.boolean(),
+  "withdrawalKycRequired": zod.boolean(),
+  "depositKycRequired": zod.boolean(),
+  "emailOverride": zod.boolean().nullish().describe('Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user'),
+  "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
+}),
+  "balances": zod.object({
+  "grant": zod.number(),
+  "deposit": zod.number(),
+  "card": zod.number()
+}),
+  "availableToWithdraw": zod.object({
+  "grant": zod.number(),
+  "deposit": zod.number()
+}).describe('Each balance minus withdrawals from it still under review'),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
+  "cards": zod.array(zod.object({
+  "id": zod.string(),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
+  "kind": zod.enum(['Virtual', 'Physical']),
+  "lastFour": zod.string(),
+  "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
+  "balance": zod.number(),
+  "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
+  "frozenBy": zod.enum(['user', 'admin']).optional().describe('Who froze a frozen card; a card frozen by an administrator stays locked to the user'),
+  "activationRequestedAt": zod.coerce.date().optional().describe('When the user said a pending physical card arrived and asked for it to be activated'),
+  "activationDeclinedAt": zod.coerce.date().optional().describe('When an administrator last declined an activation request'),
+  "activationDeclinedReason": zod.string().optional().describe('Why the last activation request was declined; shown to the user until they ask again'),
+  "issuedAt": zod.coerce.date().optional()
+})),
+  "transactions": zod.array(zod.object({
+  "id": zod.string(),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']),
+  "account": zod.enum(['grant', 'deposit', 'card']),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "description": zod.string(),
+  "status": zod.enum(['Pending', 'Completed', 'Declined']),
+  "createdAt": zod.coerce.date(),
+  "reference": zod.string().optional().describe('Short reference for a deposit or withdrawal request'),
+  "reviewNote": zod.string().optional().describe('Why a request was declined, or the note added when it was approved'),
+  "method": zod.object({
+  "id": zod.string(),
+  "name": zod.string().describe('The method\'s name when the request was placed'),
+  "logoUrl": zod.string().optional()
+}).optional(),
+  "source": zod.enum(['grant', 'deposit']).optional(),
+  "details": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string()
+})).optional(),
+  "proofUrl": zod.string().optional(),
+  "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the deposit balance; deposits: out of the amount)')
+})),
+  "withdrawalLimits": zod.object({
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "maxPerRequest": zod.number().nullable(),
+  "dailyTotal": zod.number().nullable(),
+  "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
+})
+})
+
+
+/**
+ * @summary Move money from the deposit balance to the card account (no fee)
+ */
+export const TopUpApplicantCardParams = zod.object({
+  "cardId": zod.coerce.string()
+})
+
+export const topUpApplicantCardBodyAmountMin = 0.01;
+export const topUpApplicantCardBodyAmountMax = 1000000;
+
+
+
+export const TopUpApplicantCardBody = zod.object({
+  "amount": zod.number().min(topUpApplicantCardBodyAmountMin).max(topUpApplicantCardBodyAmountMax)
+})
+
+export const topUpApplicantCardResponseTierMax = 3;
+
+
+
+export const TopUpApplicantCardResponse = zod.object({
+  "status": zod.enum(['Active', 'Frozen']),
+  "platformFrozen": zod.boolean(),
+  "tier": zod.number().int().min(1).max(topUpApplicantCardResponseTierMax),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "permissions": zod.object({
+  "emailNotifications": zod.boolean(),
+  "withdrawalKycRequired": zod.boolean(),
+  "depositKycRequired": zod.boolean(),
+  "emailOverride": zod.boolean().nullish().describe('Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user'),
+  "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
+}),
+  "balances": zod.object({
+  "grant": zod.number(),
+  "deposit": zod.number(),
+  "card": zod.number()
+}),
+  "availableToWithdraw": zod.object({
+  "grant": zod.number(),
+  "deposit": zod.number()
+}).describe('Each balance minus withdrawals from it still under review'),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
+  "cards": zod.array(zod.object({
+  "id": zod.string(),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
+  "kind": zod.enum(['Virtual', 'Physical']),
+  "lastFour": zod.string(),
+  "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
+  "balance": zod.number(),
+  "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
+  "frozenBy": zod.enum(['user', 'admin']).optional().describe('Who froze a frozen card; a card frozen by an administrator stays locked to the user'),
+  "activationRequestedAt": zod.coerce.date().optional().describe('When the user said a pending physical card arrived and asked for it to be activated'),
+  "activationDeclinedAt": zod.coerce.date().optional().describe('When an administrator last declined an activation request'),
+  "activationDeclinedReason": zod.string().optional().describe('Why the last activation request was declined; shown to the user until they ask again'),
+  "issuedAt": zod.coerce.date().optional()
+})),
+  "transactions": zod.array(zod.object({
+  "id": zod.string(),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']),
+  "account": zod.enum(['grant', 'deposit', 'card']),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "description": zod.string(),
+  "status": zod.enum(['Pending', 'Completed', 'Declined']),
+  "createdAt": zod.coerce.date(),
+  "reference": zod.string().optional().describe('Short reference for a deposit or withdrawal request'),
+  "reviewNote": zod.string().optional().describe('Why a request was declined, or the note added when it was approved'),
+  "method": zod.object({
+  "id": zod.string(),
+  "name": zod.string().describe('The method\'s name when the request was placed'),
+  "logoUrl": zod.string().optional()
+}).optional(),
+  "source": zod.enum(['grant', 'deposit']).optional(),
+  "details": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string()
+})).optional(),
+  "proofUrl": zod.string().optional(),
+  "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the deposit balance; deposits: out of the amount)')
 })),
   "withdrawalLimits": zod.object({
   "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
@@ -644,7 +862,11 @@ export const ChangeApplicantCardResponse = zod.object({
   "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "cards": zod.array(zod.object({
   "id": zod.string(),
-  "network": zod.enum(['Visa', 'Mastercard']),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
   "kind": zod.enum(['Virtual', 'Physical']),
   "lastFour": zod.string(),
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
@@ -658,7 +880,7 @@ export const ChangeApplicantCardResponse = zod.object({
 })),
   "transactions": zod.array(zod.object({
   "id": zod.string(),
-  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance']),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "direction": zod.enum(['in', 'out']),
   "amount": zod.number(),
@@ -677,7 +899,8 @@ export const ChangeApplicantCardResponse = zod.object({
   "label": zod.string(),
   "value": zod.string()
 })).optional(),
-  "proofUrl": zod.string().optional()
+  "proofUrl": zod.string().optional(),
+  "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the deposit balance; deposits: out of the amount)')
 })),
   "withdrawalLimits": zod.object({
   "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
@@ -707,7 +930,7 @@ export const CreateApplicantRequestBody = zod.object({
 
 export const CreateApplicantRequestResponse = zod.object({
   "id": zod.string(),
-  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance']),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "direction": zod.enum(['in', 'out']),
   "amount": zod.number(),
@@ -726,7 +949,8 @@ export const CreateApplicantRequestResponse = zod.object({
   "label": zod.string(),
   "value": zod.string()
 })).optional(),
-  "proofUrl": zod.string().optional()
+  "proofUrl": zod.string().optional(),
+  "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the deposit balance; deposits: out of the amount)')
 })
 
 
@@ -742,6 +966,8 @@ export const listApplicantPaymentMethodsResponseFieldsItemLabelMax = 60;
 export const listApplicantPaymentMethodsResponseFieldsItemPlaceholderMax = 80;
 
 export const listApplicantPaymentMethodsResponseFieldsItemHelpMax = 200;
+
+export const listApplicantPaymentMethodsResponseFeeAmountMin = 0;
 
 
 
@@ -766,6 +992,11 @@ export const ListApplicantPaymentMethodsResponseItem = zod.object({
 })),
   "proofMode": zod.enum(['required', 'optional', 'off']),
   "instructions": zod.string(),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(listApplicantPaymentMethodsResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeText": zod.string().describe('e.g. "Fee $1.00", "Fee 1%" or "No fee"'),
   "enabled": zod.boolean().optional().describe('Admin only'),
   "sortOrder": zod.number().int().optional().describe('Admin only'),
   "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
@@ -1262,6 +1493,10 @@ export const GetAdminDashboardResponse = zod.object({
   "pendingDeposits": zod.number().int(),
   "pendingWithdrawals": zod.number().int(),
   "pendingCardActivations": zod.number().int().describe('Physical cards whose holder asked for activation'),
+  "feesCollected": zod.object({
+  "thisMonth": zod.number().describe('This calendar month, UTC'),
+  "allTime": zod.number()
+}).describe('Fees charged (withdrawal, deposit and card fees)'),
   "totalGrantBalances": zod.number(),
   "totalDepositBalances": zod.number(),
   "applicationsByStatus": zod.array(zod.object({
@@ -1367,7 +1602,11 @@ export const GetAdminUserResponse = zod.object({
 }),
   "cards": zod.array(zod.object({
   "id": zod.string(),
-  "network": zod.enum(['Visa', 'Mastercard']),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
   "kind": zod.enum(['Virtual', 'Physical']),
   "lastFour": zod.string(),
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
@@ -1476,7 +1715,11 @@ export const UpdateAdminUserResponse = zod.object({
 }),
   "cards": zod.array(zod.object({
   "id": zod.string(),
-  "network": zod.enum(['Visa', 'Mastercard']),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
   "kind": zod.enum(['Virtual', 'Physical']),
   "lastFour": zod.string(),
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
@@ -1625,7 +1868,11 @@ export const UploadAdminUserAvatarResponse = zod.object({
 }),
   "cards": zod.array(zod.object({
   "id": zod.string(),
-  "network": zod.enum(['Visa', 'Mastercard']),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
   "kind": zod.enum(['Virtual', 'Physical']),
   "lastFour": zod.string(),
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
@@ -1708,7 +1955,213 @@ export const DeleteAdminUserAvatarResponse = zod.object({
 }),
   "cards": zod.array(zod.object({
   "id": zod.string(),
-  "network": zod.enum(['Visa', 'Mastercard']),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
+  "kind": zod.enum(['Virtual', 'Physical']),
+  "lastFour": zod.string(),
+  "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
+  "balance": zod.number(),
+  "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
+  "frozenBy": zod.enum(['user', 'admin']).optional().describe('Who froze a frozen card; a card frozen by an administrator stays locked to the user'),
+  "activationRequestedAt": zod.coerce.date().optional().describe('When the user said a pending physical card arrived and asked for it to be activated'),
+  "activationDeclinedAt": zod.coerce.date().optional().describe('When an administrator last declined an activation request'),
+  "activationDeclinedReason": zod.string().optional().describe('Why the last activation request was declined; shown to the user until they ask again'),
+  "issuedAt": zod.coerce.date().optional()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['Government ID', 'Proof of address']),
+  "status": zod.enum(['Verified', 'Pending', 'Rejected']),
+  "sample": zod.boolean().describe('Seeded sample document with no file'),
+  "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
+  "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
+  "mimeType": zod.string().optional(),
+  "submittedAt": zod.coerce.date(),
+  "reviewNote": zod.string().optional().describe('Reviewer\'s reason, shown when a document is rejected'),
+  "reviewedAt": zod.coerce.date().optional()
+})),
+  "permissions": zod.object({
+  "emailNotifications": zod.boolean(),
+  "withdrawalKycRequired": zod.boolean(),
+  "depositKycRequired": zod.boolean(),
+  "emailOverride": zod.boolean().nullish().describe('Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user'),
+  "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
+}),
+  "withdrawalLimits": zod.object({
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "maxPerRequest": zod.number().nullable(),
+  "dailyTotal": zod.number().nullable(),
+  "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
+}),
+  "eligibleAmount": zod.object({
+  "custom": zod.boolean().describe('Whether this is the user\'s own amount rather than their tier\'s'),
+  "amount": zod.number().nullable().describe('What the user sees; null = not set'),
+  "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
+}),
+  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
+  "audit": zod.array(zod.object({
+  "id": zod.string(),
+  "action": zod.string(),
+  "actor": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Every card type with its on/off switch and the price and fee of each kind
+ */
+export const listAdminCardTypesResponseVirtualFeeAmountMin = 0;
+
+export const listAdminCardTypesResponsePhysicalFeeAmountMin = 0;
+
+
+
+export const ListAdminCardTypesResponseItem = zod.object({
+  "key": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "name": zod.string(),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "enabled": zod.boolean(),
+  "virtual": zod.object({
+  "price": zod.number().nullable().describe('null = this kind isn\'t sold'),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(listAdminCardTypesResponseVirtualFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeText": zod.string(),
+  "total": zod.number().nullable().describe('Price + fee, what the user pays')
+}),
+  "physical": zod.object({
+  "price": zod.number().nullable().describe('null = this kind isn\'t sold'),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(listAdminCardTypesResponsePhysicalFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeText": zod.string(),
+  "total": zod.number().nullable().describe('Price + fee, what the user pays')
+})
+})
+export const ListAdminCardTypesResponse = zod.array(ListAdminCardTypesResponseItem)
+
+
+/**
+ * @summary Switch card types on or off and set their prices and fees (audited)
+ */
+export const updateAdminCardTypesBodyTypesItemVirtualPriceMin = 0;
+
+export const updateAdminCardTypesBodyTypesItemVirtualFeeAmountMin = 0;
+
+export const updateAdminCardTypesBodyTypesItemPhysicalPriceMin = 0;
+
+export const updateAdminCardTypesBodyTypesItemPhysicalFeeAmountMin = 0;
+
+export const updateAdminCardTypesBodyTypesMax = 10;
+
+
+
+export const UpdateAdminCardTypesBody = zod.object({
+  "types": zod.array(zod.object({
+  "key": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "enabled": zod.boolean(),
+  "virtual": zod.object({
+  "price": zod.number().min(updateAdminCardTypesBodyTypesItemVirtualPriceMin).nullish(),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(updateAdminCardTypesBodyTypesItemVirtualFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.')
+}).optional(),
+  "physical": zod.object({
+  "price": zod.number().min(updateAdminCardTypesBodyTypesItemPhysicalPriceMin).nullish(),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(updateAdminCardTypesBodyTypesItemPhysicalFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.')
+}).optional()
+})).max(updateAdminCardTypesBodyTypesMax)
+})
+
+export const updateAdminCardTypesResponseVirtualFeeAmountMin = 0;
+
+export const updateAdminCardTypesResponsePhysicalFeeAmountMin = 0;
+
+
+
+export const UpdateAdminCardTypesResponseItem = zod.object({
+  "key": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "name": zod.string(),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "enabled": zod.boolean(),
+  "virtual": zod.object({
+  "price": zod.number().nullable().describe('null = this kind isn\'t sold'),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(updateAdminCardTypesResponseVirtualFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeText": zod.string(),
+  "total": zod.number().nullable().describe('Price + fee, what the user pays')
+}),
+  "physical": zod.object({
+  "price": zod.number().nullable().describe('null = this kind isn\'t sold'),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(updateAdminCardTypesResponsePhysicalFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeText": zod.string(),
+  "total": zod.number().nullable().describe('Price + fee, what the user pays')
+})
+})
+export const UpdateAdminCardTypesResponse = zod.array(UpdateAdminCardTypesResponseItem)
+
+
+/**
+ * @summary Move money from the user's deposit balance to their card account (no fee)
+ */
+export const TopUpUserCardParams = zod.object({
+  "userId": zod.coerce.string(),
+  "cardId": zod.coerce.string()
+})
+
+export const topUpUserCardBodyAmountMin = 0.01;
+export const topUpUserCardBodyAmountMax = 1000000;
+
+
+
+export const TopUpUserCardBody = zod.object({
+  "amount": zod.number().min(topUpUserCardBodyAmountMin).max(topUpUserCardBodyAmountMax)
+})
+
+export const topUpUserCardResponseTierMax = 3;
+
+
+
+export const TopUpUserCardResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "phone": zod.string(),
+  "telegram": zod.string(),
+  "organization": zod.string(),
+  "maskedId": zod.string(),
+  "avatarUrl": zod.string().optional(),
+  "tier": zod.number().int().min(1).max(topUpUserCardResponseTierMax),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "status": zod.enum(['Active', 'Frozen']),
+  "balances": zod.object({
+  "grant": zod.number(),
+  "deposit": zod.number(),
+  "card": zod.number()
+}),
+  "cards": zod.array(zod.object({
+  "id": zod.string(),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
   "kind": zod.enum(['Virtual', 'Physical']),
   "lastFour": zod.string(),
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
@@ -1770,7 +2223,9 @@ export const IssueUserCardParams = zod.object({
 
 export const IssueUserCardBody = zod.object({
   "kind": zod.enum(['Virtual', 'Physical']),
-  "network": zod.enum(['Visa', 'Mastercard'])
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']).optional(),
+  "network": zod.enum(['Visa', 'Mastercard']).optional().describe('Older clients: the debit card of that network'),
+  "freeOfCharge": zod.boolean().optional().describe('Issue without charging the price and fee')
 })
 
 export const issueUserCardResponseTierMax = 3;
@@ -1796,7 +2251,11 @@ export const IssueUserCardResponse = zod.object({
 }),
   "cards": zod.array(zod.object({
   "id": zod.string(),
-  "network": zod.enum(['Visa', 'Mastercard']),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
   "kind": zod.enum(['Virtual', 'Physical']),
   "lastFour": zod.string(),
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
@@ -1889,7 +2348,11 @@ export const ChangeUserCardResponse = zod.object({
 }),
   "cards": zod.array(zod.object({
   "id": zod.string(),
-  "network": zod.enum(['Visa', 'Mastercard']),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
   "kind": zod.enum(['Virtual', 'Physical']),
   "lastFour": zod.string(),
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
@@ -1957,7 +2420,11 @@ export const ListAdminCardRequestsResponse = zod.object({
   "userStatus": zod.enum(['Active', 'Frozen']),
   "card": zod.object({
   "id": zod.string(),
-  "network": zod.enum(['Visa', 'Mastercard']),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
   "kind": zod.enum(['Virtual', 'Physical']),
   "lastFour": zod.string(),
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
@@ -2015,7 +2482,11 @@ export const DeclineAdminCardRequestResponse = zod.object({
 }),
   "cards": zod.array(zod.object({
   "id": zod.string(),
-  "network": zod.enum(['Visa', 'Mastercard']),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
   "kind": zod.enum(['Virtual', 'Physical']),
   "lastFour": zod.string(),
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
@@ -2104,7 +2575,11 @@ export const UpdateUserWithdrawalLimitsResponse = zod.object({
 }),
   "cards": zod.array(zod.object({
   "id": zod.string(),
-  "network": zod.enum(['Visa', 'Mastercard']),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
   "kind": zod.enum(['Virtual', 'Physical']),
   "lastFour": zod.string(),
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
@@ -2215,7 +2690,11 @@ export const UpdateUserEligibleAmountResponse = zod.object({
 }),
   "cards": zod.array(zod.object({
   "id": zod.string(),
-  "network": zod.enum(['Visa', 'Mastercard']),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
   "kind": zod.enum(['Virtual', 'Physical']),
   "lastFour": zod.string(),
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
@@ -2356,7 +2835,7 @@ export const SearchAdminResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "userId": zod.string(),
   "userName": zod.string(),
-  "kind": zod.enum(['Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']),
+  "kind": zod.enum(['Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "amount": zod.number().describe('Signed: negative amounts left the account'),
   "reason": zod.string(),
@@ -2504,6 +2983,8 @@ export const listAdminPaymentMethodsResponseFieldsItemPlaceholderMax = 80;
 
 export const listAdminPaymentMethodsResponseFieldsItemHelpMax = 200;
 
+export const listAdminPaymentMethodsResponseFeeAmountMin = 0;
+
 
 
 export const ListAdminPaymentMethodsResponseItem = zod.object({
@@ -2527,6 +3008,11 @@ export const ListAdminPaymentMethodsResponseItem = zod.object({
 })),
   "proofMode": zod.enum(['required', 'optional', 'off']),
   "instructions": zod.string(),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(listAdminPaymentMethodsResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeText": zod.string().describe('e.g. "Fee $1.00", "Fee 1%" or "No fee"'),
   "enabled": zod.boolean().optional().describe('Admin only'),
   "sortOrder": zod.number().int().optional().describe('Admin only'),
   "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
@@ -2545,6 +3031,8 @@ export const createAdminPaymentMethodBodyOneFieldsItemLabelMax = 60;
 export const createAdminPaymentMethodBodyOneFieldsItemPlaceholderMax = 80;
 
 export const createAdminPaymentMethodBodyOneFieldsItemHelpMax = 200;
+
+export const createAdminPaymentMethodBodyOneFeeAmountMin = 0;
 
 
 
@@ -2565,6 +3053,10 @@ export const CreateAdminPaymentMethodBody = zod.object({
 })).optional(),
   "proofMode": zod.enum(['required', 'optional', 'off']).optional(),
   "instructions": zod.string().optional(),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(createAdminPaymentMethodBodyOneFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
   "enabled": zod.boolean().optional()
 }).and(zod.object({
   "kind": zod.enum(['Deposit', 'Withdrawal'])
@@ -2575,6 +3067,8 @@ export const createAdminPaymentMethodResponseFieldsItemLabelMax = 60;
 export const createAdminPaymentMethodResponseFieldsItemPlaceholderMax = 80;
 
 export const createAdminPaymentMethodResponseFieldsItemHelpMax = 200;
+
+export const createAdminPaymentMethodResponseFeeAmountMin = 0;
 
 
 
@@ -2599,6 +3093,11 @@ export const CreateAdminPaymentMethodResponse = zod.object({
 })),
   "proofMode": zod.enum(['required', 'optional', 'off']),
   "instructions": zod.string(),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(createAdminPaymentMethodResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeText": zod.string().describe('e.g. "Fee $1.00", "Fee 1%" or "No fee"'),
   "enabled": zod.boolean().optional().describe('Admin only'),
   "sortOrder": zod.number().int().optional().describe('Admin only'),
   "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
@@ -2620,6 +3119,8 @@ export const getAdminPaymentMethodResponseFieldsItemLabelMax = 60;
 export const getAdminPaymentMethodResponseFieldsItemPlaceholderMax = 80;
 
 export const getAdminPaymentMethodResponseFieldsItemHelpMax = 200;
+
+export const getAdminPaymentMethodResponseFeeAmountMin = 0;
 
 
 
@@ -2644,6 +3145,11 @@ export const GetAdminPaymentMethodResponse = zod.object({
 })),
   "proofMode": zod.enum(['required', 'optional', 'off']),
   "instructions": zod.string(),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(getAdminPaymentMethodResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeText": zod.string().describe('e.g. "Fee $1.00", "Fee 1%" or "No fee"'),
   "enabled": zod.boolean().optional().describe('Admin only'),
   "sortOrder": zod.number().int().optional().describe('Admin only'),
   "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
@@ -2666,6 +3172,8 @@ export const updateAdminPaymentMethodBodyFieldsItemPlaceholderMax = 80;
 
 export const updateAdminPaymentMethodBodyFieldsItemHelpMax = 200;
 
+export const updateAdminPaymentMethodBodyFeeAmountMin = 0;
+
 
 
 export const UpdateAdminPaymentMethodBody = zod.object({
@@ -2685,6 +3193,10 @@ export const UpdateAdminPaymentMethodBody = zod.object({
 })).optional(),
   "proofMode": zod.enum(['required', 'optional', 'off']).optional(),
   "instructions": zod.string().optional(),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(updateAdminPaymentMethodBodyFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
   "enabled": zod.boolean().optional()
 })
 
@@ -2693,6 +3205,8 @@ export const updateAdminPaymentMethodResponseFieldsItemLabelMax = 60;
 export const updateAdminPaymentMethodResponseFieldsItemPlaceholderMax = 80;
 
 export const updateAdminPaymentMethodResponseFieldsItemHelpMax = 200;
+
+export const updateAdminPaymentMethodResponseFeeAmountMin = 0;
 
 
 
@@ -2717,6 +3231,11 @@ export const UpdateAdminPaymentMethodResponse = zod.object({
 })),
   "proofMode": zod.enum(['required', 'optional', 'off']),
   "instructions": zod.string(),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(updateAdminPaymentMethodResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeText": zod.string().describe('e.g. "Fee $1.00", "Fee 1%" or "No fee"'),
   "enabled": zod.boolean().optional().describe('Admin only'),
   "sortOrder": zod.number().int().optional().describe('Admin only'),
   "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
@@ -2753,6 +3272,8 @@ export const moveAdminPaymentMethodResponseFieldsItemPlaceholderMax = 80;
 
 export const moveAdminPaymentMethodResponseFieldsItemHelpMax = 200;
 
+export const moveAdminPaymentMethodResponseFeeAmountMin = 0;
+
 
 
 export const MoveAdminPaymentMethodResponseItem = zod.object({
@@ -2776,6 +3297,11 @@ export const MoveAdminPaymentMethodResponseItem = zod.object({
 })),
   "proofMode": zod.enum(['required', 'optional', 'off']),
   "instructions": zod.string(),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(moveAdminPaymentMethodResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeText": zod.string().describe('e.g. "Fee $1.00", "Fee 1%" or "No fee"'),
   "enabled": zod.boolean().optional().describe('Admin only'),
   "sortOrder": zod.number().int().optional().describe('Admin only'),
   "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
@@ -2803,6 +3329,8 @@ export const uploadAdminPaymentMethodLogoResponseFieldsItemPlaceholderMax = 80;
 
 export const uploadAdminPaymentMethodLogoResponseFieldsItemHelpMax = 200;
 
+export const uploadAdminPaymentMethodLogoResponseFeeAmountMin = 0;
+
 
 
 export const UploadAdminPaymentMethodLogoResponse = zod.object({
@@ -2826,6 +3354,11 @@ export const UploadAdminPaymentMethodLogoResponse = zod.object({
 })),
   "proofMode": zod.enum(['required', 'optional', 'off']),
   "instructions": zod.string(),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(uploadAdminPaymentMethodLogoResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeText": zod.string().describe('e.g. "Fee $1.00", "Fee 1%" or "No fee"'),
   "enabled": zod.boolean().optional().describe('Admin only'),
   "sortOrder": zod.number().int().optional().describe('Admin only'),
   "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
@@ -2847,6 +3380,8 @@ export const deleteAdminPaymentMethodLogoResponseFieldsItemLabelMax = 60;
 export const deleteAdminPaymentMethodLogoResponseFieldsItemPlaceholderMax = 80;
 
 export const deleteAdminPaymentMethodLogoResponseFieldsItemHelpMax = 200;
+
+export const deleteAdminPaymentMethodLogoResponseFeeAmountMin = 0;
 
 
 
@@ -2871,6 +3406,11 @@ export const DeleteAdminPaymentMethodLogoResponse = zod.object({
 })),
   "proofMode": zod.enum(['required', 'optional', 'off']),
   "instructions": zod.string(),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(deleteAdminPaymentMethodLogoResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeText": zod.string().describe('e.g. "Fee $1.00", "Fee 1%" or "No fee"'),
   "enabled": zod.boolean().optional().describe('Admin only'),
   "sortOrder": zod.number().int().optional().describe('Admin only'),
   "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
@@ -2901,6 +3441,8 @@ export const setAdminPaymentMethodLogoUrlResponseFieldsItemPlaceholderMax = 80;
 
 export const setAdminPaymentMethodLogoUrlResponseFieldsItemHelpMax = 200;
 
+export const setAdminPaymentMethodLogoUrlResponseFeeAmountMin = 0;
+
 
 
 export const SetAdminPaymentMethodLogoUrlResponse = zod.object({
@@ -2924,6 +3466,11 @@ export const SetAdminPaymentMethodLogoUrlResponse = zod.object({
 })),
   "proofMode": zod.enum(['required', 'optional', 'off']),
   "instructions": zod.string(),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(setAdminPaymentMethodLogoUrlResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeText": zod.string().describe('e.g. "Fee $1.00", "Fee 1%" or "No fee"'),
   "enabled": zod.boolean().optional().describe('Admin only'),
   "sortOrder": zod.number().int().optional().describe('Admin only'),
   "requestCount": zod.number().int().optional().describe('Admin only: requests placed with this method'),
@@ -2967,7 +3514,11 @@ export const UpdateUserWithdrawalSourcesResponse = zod.object({
 }),
   "cards": zod.array(zod.object({
   "id": zod.string(),
-  "network": zod.enum(['Visa', 'Mastercard']),
+  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
+  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "typeName": zod.string().describe('e.g. Visa Debit'),
+  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
+  "feePaid": zod.number().optional(),
   "kind": zod.enum(['Virtual', 'Physical']),
   "lastFour": zod.string(),
   "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
@@ -3061,7 +3612,9 @@ export const ListAdminRequestsResponseItem = zod.object({
   "label": zod.string(),
   "value": zod.string()
 })),
-  "proofUrl": zod.string().optional()
+  "proofUrl": zod.string().optional(),
+  "fee": zod.number().describe('The method\'s fee worked out when the request was placed'),
+  "net": zod.number().describe('Deposits: what the deposit balance gets (amount − fee). Withdrawals: what leaves the user\'s balances in all (amount + fee)')
 })
 export const ListAdminRequestsResponse = zod.array(ListAdminRequestsResponseItem)
 
@@ -3112,7 +3665,9 @@ export const ApproveAdminRequestResponse = zod.object({
   "label": zod.string(),
   "value": zod.string()
 })),
-  "proofUrl": zod.string().optional()
+  "proofUrl": zod.string().optional(),
+  "fee": zod.number().describe('The method\'s fee worked out when the request was placed'),
+  "net": zod.number().describe('Deposits: what the deposit balance gets (amount − fee). Withdrawals: what leaves the user\'s balances in all (amount + fee)')
 })
 
 
@@ -3163,7 +3718,9 @@ export const RejectAdminRequestResponse = zod.object({
   "label": zod.string(),
   "value": zod.string()
 })),
-  "proofUrl": zod.string().optional()
+  "proofUrl": zod.string().optional(),
+  "fee": zod.number().describe('The method\'s fee worked out when the request was placed'),
+  "net": zod.number().describe('Deposits: what the deposit balance gets (amount − fee). Withdrawals: what leaves the user\'s balances in all (amount + fee)')
 })
 
 
@@ -3180,7 +3737,7 @@ export const listAdminTransactionsQueryPageDefault = 1;
 
 
 export const ListAdminTransactionsQueryParams = zod.object({
-  "type": zod.enum(['all', 'Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']).default(listAdminTransactionsQueryTypeDefault),
+  "type": zod.enum(['all', 'Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']).default(listAdminTransactionsQueryTypeDefault),
   "userId": zod.coerce.string().optional(),
   "from": zod.coerce.string().regex(listAdminTransactionsQueryFromRegExp).optional(),
   "to": zod.coerce.string().regex(listAdminTransactionsQueryToRegExp).optional(),
@@ -3194,7 +3751,7 @@ export const ListAdminTransactionsResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "userId": zod.string(),
   "userName": zod.string(),
-  "kind": zod.enum(['Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']),
+  "kind": zod.enum(['Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "amount": zod.number().describe('Signed: negative amounts left the account'),
   "reason": zod.string(),
@@ -3223,7 +3780,7 @@ export const exportAdminTransactionsQueryPageDefault = 1;
 
 
 export const ExportAdminTransactionsQueryParams = zod.object({
-  "type": zod.enum(['all', 'Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance']).default(exportAdminTransactionsQueryTypeDefault),
+  "type": zod.enum(['all', 'Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']).default(exportAdminTransactionsQueryTypeDefault),
   "userId": zod.coerce.string().optional(),
   "from": zod.coerce.string().regex(exportAdminTransactionsQueryFromRegExp).optional(),
   "to": zod.coerce.string().regex(exportAdminTransactionsQueryToRegExp).optional(),

@@ -17,4 +17,7 @@ export const ExportAdminTransactionsType = {
   Withdrawal: 'Withdrawal',
   Grant_award: 'Grant award',
   Opening_balance: 'Opening balance',
+  Fee: 'Fee',
+  Card_purchase: 'Card purchase',
+  'Card_top-up': 'Card top-up',
 } as const;

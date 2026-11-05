@@ -12,4 +12,5 @@ export type UserCardNetwork = typeof UserCardNetwork[keyof typeof UserCardNetwor
 export const UserCardNetwork = {
   Visa: 'Visa',
   Mastercard: 'Mastercard',
+  Amex: 'Amex',
 } as const;

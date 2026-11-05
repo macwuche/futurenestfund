@@ -7,8 +7,13 @@
  */
 import type { CardIssueInputKind } from './cardIssueInputKind';
 import type { CardIssueInputNetwork } from './cardIssueInputNetwork';
+import type { CardTypeKey } from './cardTypeKey';
 
 export interface CardIssueInput {
   kind: CardIssueInputKind;
-  network: CardIssueInputNetwork;
+  type?: CardTypeKey;
+  /** Older clients: the debit card of that network */
+  network?: CardIssueInputNetwork;
+  /** Issue without charging the price and fee */
+  freeOfCharge?: boolean;
 }

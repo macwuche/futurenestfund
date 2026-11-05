@@ -11,6 +11,8 @@ export const demoSettingsTable = pgTable("demo_settings", {
   tier1EligibleCents: integer("tier1_eligible_cents"),
   tier2EligibleCents: integer("tier2_eligible_cents"),
   tier3EligibleCents: integer("tier3_eligible_cents"),
+  /** Step 9.3: the card types users can buy, with a price and a fee per kind (see api-server lib/cardTypes.ts); null = none set up. */
+  cardTypes: jsonb("card_types"),
   /** Email settings made in Admin Settings (sender, reply-to, signature, support address); they win over the env vars. */
   emailConfig: jsonb("email_config"),
   /** Email secrets (Resend API key, Send Email Hook secret), each AES-256-GCM encrypted with SETTINGS_ENCRYPTION_KEY. */

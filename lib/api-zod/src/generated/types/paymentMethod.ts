@@ -5,6 +5,7 @@
  * Grant applicant and administration dashboard API
  * OpenAPI spec version: 0.1.0
  */
+import type { FeeRule } from './feeRule';
 import type { PaymentField } from './paymentField';
 import type { PaymentMethodAmountMode } from './paymentMethodAmountMode';
 import type { PaymentMethodKind } from './paymentMethodKind';
@@ -26,6 +27,9 @@ export interface PaymentMethod {
   fields: PaymentField[];
   proofMode: PaymentMethodProofMode;
   instructions: string;
+  fee: FeeRule;
+  /** e.g. "Fee $1.00", "Fee 1%" or "No fee" */
+  feeText: string;
   /** Admin only */
   enabled?: boolean;
   /** Admin only */

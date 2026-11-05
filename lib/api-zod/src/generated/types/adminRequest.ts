@@ -41,4 +41,8 @@ export interface AdminRequest {
   withdrawalSources: WithdrawalSources;
   details: RequestDetail[];
   proofUrl?: string;
+  /** The method's fee worked out when the request was placed */
+  fee: number;
+  /** Deposits: what the deposit balance gets (amount − fee). Withdrawals: what leaves the user's balances in all (amount + fee) */
+  net: number;
 }
