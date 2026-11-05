@@ -8,13 +8,23 @@
 import type { AdminApplication } from './adminApplication';
 import type { AdminApplicationDetailAllowedDecisionsItem } from './adminApplicationDetailAllowedDecisionsItem';
 import type { AdminApplicationDetailUserStatus } from './adminApplicationDetailUserStatus';
+import type { ApplicationAnswer } from './applicationAnswer';
 import type { ApplicationEvent } from './applicationEvent';
+import type { ApplicationPlan } from './applicationPlan';
 import type { StoredDocument } from './storedDocument';
 
 export type AdminApplicationDetail = AdminApplication & {
   updatedAt: Date;
   userStatus: AdminApplicationDetailUserStatus;
   platformFrozen: boolean;
+  /** The applicant's account balance now (the application fee is taken from it on approval) */
+  accountBalance: number;
+  plan?: ApplicationPlan;
+  /** Plan applications: the application fee, charged from the account balance on approval */
+  fee?: number;
+  /** Whether the fee has been charged (the application was approved) */
+  feeCharged?: boolean;
+  answers?: ApplicationAnswer[];
   allowedDecisions: AdminApplicationDetailAllowedDecisionsItem[];
   documents: StoredDocument[];
   events: ApplicationEvent[];

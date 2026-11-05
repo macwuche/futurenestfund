@@ -17,7 +17,7 @@ import { Shell } from '@/components/shell';
 import { Empty, ErrorState, Field, Modal, Skel, StatusBadge, cx, dateFmt, inputCls, useAnimateOnce, money, statusLabel } from '@/components/bits';
 import { apiError, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useMilestones, useRefreshApplicant, type Milestone } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
-import { Gate, GrantCard, GREY, Legend, NAVY, card, usd0 } from '@/pages/applicant';
+import { Gate, GREY, Legend, NAVY, card, usd0 } from '@/pages/applicant';
 
 /* ---------- shared helpers ---------- */
 const STATUSES = ['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined'] as const;
@@ -66,96 +66,6 @@ function BarRow({ label, value, max, color, right }: { label: string; value: num
 
 /* ================================================================== */
 /* Grant Search                                                        */
-/* ================================================================== */
-export function GrantSearchPage() {
-  return <Gate title="Grant Search">{(d) => <GrantSearchBody d={d} />}</Gate>;
-}
-const amountBands = [
-  { k: 'any', label: 'Any amount', test: () => true },
-  { k: 'lt10', label: 'Under $10,000', test: (n: number) => n < 10000 },
-  { k: '10to30', label: '$10,000 – $30,000', test: (n: number) => n >= 10000 && n <= 30000 },
-  { k: 'gt30', label: 'Over $30,000', test: (n: number) => n > 30000 },
-] as const;
-function GrantSearchBody({ d }: { d: ApplicantDashboard }) {
-  const { savedGrants } = useDemo();
-  const [q, setQ] = useState('');
-  // Grant categories links here with ?category=…, so the search opens already filtered.
-  const urlCat = new URLSearchParams(useSearch()).get('category');
-  const [cat, setCat] = useState(urlCat ?? 'All');
-  useEffect(() => { if (urlCat) setCat(urlCat); }, [urlCat]);
-  const [band, setBand] = useState<string>('any');
-  const [within, setWithin] = useState('any');
-  const scored = d.recommendations.some((g) => g.matchScore !== undefined);
-  const [sort, setSort] = useState(scored ? 'match' : 'deadline');
-  const [recommendedOnly, setRecommendedOnly] = useState(false);
-  const [savedOnly, setSavedOnly] = useState(false);
-  const cats = useMemo(() => Array.from(new Set(d.recommendations.map((r) => r.category))).sort(), [d]);
-  if (cat !== 'All' && !cats.includes(cat)) setCat('All'); // an unknown ?category= falls back to every category
-  const test = amountBands.find((b) => b.k === band)!.test;
-  const term = q.trim().toLowerCase();
-  const list = d.recommendations
-    .filter((g) => !term || g.title.toLowerCase().includes(term) || g.category.toLowerCase().includes(term))
-    .filter((g) => cat === 'All' || g.category === cat)
-    .filter((g) => test(g.amount))
-    .filter((g) => { const n = daysUntil(g.deadline); return n >= 0 && (within === 'any' || n <= Number(within)); })
-    .filter((g) => !savedOnly || savedGrants.includes(g.id))
-    .filter((g) => !recommendedOnly || g.recommended)
-    // The server sends grants best match first, so a stable sort keeps that order for "Best match".
-    .sort((a, b) => sort === 'match' ? (b.matchScore ?? 0) - (a.matchScore ?? 0) : sort === 'amount-desc' ? b.amount - a.amount : sort === 'amount-asc' ? a.amount - b.amount : a.deadline.localeCompare(b.deadline));
-  const active = !!term || cat !== 'All' || band !== 'any' || within !== 'any' || savedOnly || recommendedOnly;
-  const reset = () => { setQ(''); setCat('All'); setBand('any'); setWithin('any'); setSavedOnly(false); setRecommendedOnly(false); };
-  // Phones: the filters fold away behind one button, so the results start near the top (finding UM3).
-  const [showFilters, setShowFilters] = useState(false);
-  const nFilters = [cat !== 'All', band !== 'any', within !== 'any', savedOnly, recommendedOnly].filter(Boolean).length;
-  const count = `${list.length} ${list.length === 1 ? 'grant' : 'grants'} found`;
-  return (
-    <div className="space-y-5">
-      <section className={cx(card, 'space-y-4 p-4 sm:p-5')} aria-label="Search filters">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-          <input data-testid="input-grant-search" type="search" aria-label="Search grants" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search grants by name or category" className={cx(inputCls, 'py-3 pl-11 text-[15px]')} />
-        </div>
-        <div className="flex items-center justify-between gap-3 md:hidden">
-          <button type="button" data-testid="button-toggle-filters" aria-expanded={showFilters} aria-controls="grant-filters" onClick={() => setShowFilters(!showFilters)}
-            className={cx('press inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold', showFilters || nFilters ? 'border-[#1E3A8A] bg-[#EEF4FB] text-[#1E3A8A]' : 'border-slate-300 text-slate-700')}>
-            <SlidersHorizontal className="h-4 w-4" />Filters{nFilters > 0 && ` (${nFilters})`}
-          </button>
-          <p className="text-sm text-slate-500" data-testid="text-search-count-mobile">{count}</p>
-        </div>
-        <div id="grant-filters" className={cx('space-y-4 md:block', showFilters ? 'block' : 'hidden')}>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Select label="Category" value={cat} onChange={setCat} testid="select-search-category"><option>All</option>{cats.map((c) => <option key={c}>{c}</option>)}</Select>
-          <Select label="Amount" value={band} onChange={setBand} testid="select-search-amount">{amountBands.map((b) => <option key={b.k} value={b.k}>{b.label}</option>)}</Select>
-          <Select label="Deadline" value={within} onChange={setWithin} testid="select-search-deadline">
-            <option value="any">Any open deadline</option><option value="30">Within 30 days</option><option value="60">Within 60 days</option><option value="90">Within 90 days</option>
-          </Select>
-          <Select label="Sort by" value={sort} onChange={setSort} testid="select-search-sort">
-            {scored && <option value="match">Best match</option>}<option value="deadline">Closing soonest</option><option value="amount-desc">Highest amount</option><option value="amount-asc">Lowest amount</option>
-          </Select>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
-            <input type="checkbox" data-testid="checkbox-saved-only" checked={savedOnly} onChange={(e) => setSavedOnly(e.target.checked)} className="h-4 w-4 accent-[#1E3A8A]" />Saved grants only
-          </label>
-          {scored && (
-            <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
-              <input type="checkbox" data-testid="checkbox-recommended-only" checked={recommendedOnly} onChange={(e) => setRecommendedOnly(e.target.checked)} className="h-4 w-4 accent-[#1E3A8A]" />Recommended only
-            </label>
-          )}
-          {active && <button data-testid="button-clear-filters" onClick={reset} className="text-sm font-semibold text-[#1E3A8A] hover:underline">Clear filters</button>}
-          <p className="ml-auto hidden text-sm text-slate-500 md:block" data-testid="text-search-count"><SlidersHorizontal className="mr-1 inline h-4 w-4" />{count}</p>
-        </div>
-        </div>
-      </section>
-      {list.length === 0
-        ? <Empty title="No grants match your filters" hint="Try a broader search, or clear the filters.">{active && <button onClick={reset} className="rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white">Clear filters</button>}</Empty>
-        : <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-testid="list-search-results">{list.map((g) => <GrantCard key={g.id} g={g} />)}</div>}
-    </div>
-  );
-}
-
-/* ================================================================== */
-/* Grant Funding Tracker                                               */
 /* ================================================================== */
 export function FundingTrackerPage() {
   return <Gate title="Grant Funding Tracker">{(d) => <TrackerBody d={d} />}</Gate>;
@@ -419,9 +329,9 @@ function AddMilestoneModal({ open, onClose, grants }: { open: boolean; onClose: 
 /* ================================================================== */
 const topics = ['Applications', 'Funding & payments', 'Cards', 'Account & security'] as const;
 const faqs: { topic: (typeof topics)[number]; q: string; a: string }[] = [
-  { topic: 'Applications', q: 'How do I start a new application?', a: 'Select "New Application" on the dashboard, or "Apply" on any grant in Grant Search or Grant categories. The form is pre-filled with that grant’s details.' },
+  { topic: 'Applications', q: 'How do I apply for a grant?', a: 'Open Grants (or select "New Application"), choose a grant and select "Apply for this grant". Fill in its form, attach any files it asks for, then check the summary: it shows what you receive if approved and the application fee. Nothing is charged when you submit.' },
   { topic: 'Applications', q: 'What do the application statuses mean?', a: 'Submitted means the funder has received it. Under Review means it is being assessed. Changes requested means the funder needs more information. Approved and Declined are final decisions.' },
-  { topic: 'Applications', q: 'Can I save a grant to apply later?', a: 'Yes. Select "Save" on a grant card. Use the "Saved grants only" filter in Grant Search to find your shortlist.' },
+  { topic: 'Applications', q: 'Which grants are recommended for me?', a: 'Grants for your industry, and grants open to every industry, are listed first under "Recommended for you". You chose your industry when you signed up; change it in Settings → Your industry. You can apply to any grant, recommended or not.' },
   { topic: 'Funding & payments', q: 'How long do withdrawals take?', a: 'When you place a withdrawal request you get a notification and an email with its reference. Our finance team then reviews it, and it shows as Under review until they approve or decline it; you are notified again either way, with the reason if it is declined. Pending withdrawals are deducted from your available balance, so you can’t request the same funds twice. Approved withdrawals are paid out of the balance you chose: your grant balance, or your account balance if your administrator has opened it to you.' },
   { topic: 'Funding & payments', q: 'How do I add funds?', a: 'On Add funds, choose one of the payment methods, follow its instructions, fill in the details it asks for and, if the method asks for it, attach a payment proof (a screenshot, photo or PDF of your payment). Our finance team checks it and you are notified when the amount is added to your account balance, or why it was declined.' },
   { topic: 'Funding & payments', q: 'Why was my request refused?', a: 'Requests are refused when the amount is more than your available grant balance, when your account or the platform is frozen, or when identity verification is required and not yet complete.' },
@@ -434,7 +344,7 @@ const faqs: { topic: (typeof topics)[number]; q: string; a: string }[] = [
   { topic: 'Cards', q: 'My physical card arrived. How do I activate it?', a: 'On the Cards page, choose "It’s arrived: activate". An administrator then activates it and you get a notification.' },
   { topic: 'Account & security', q: 'How do I change my email or organization?', a: 'Email and organization are locked to protect your account. Contact support and we’ll update them after confirming your identity.' },
   { topic: 'Account & security', q: 'What is identity verification (KYC)?', a: 'We check a government ID and proof of address before money can be withdrawn. Upload both in Settings → Identity verification (images or PDF, up to 10 MB). An administrator reviews each document and you are notified of the result. If one isn’t accepted, the reason is shown next to it in Settings so you can upload a new copy.' },
-  { topic: 'Applications', q: 'How do I attach my proposal?', a: 'Add a PDF or Word (.docx) file when you create an application, or open the application and choose Attach document. You can attach up to 5 files and remove them until a decision is made.' },
+  { topic: 'Applications', q: 'When is the application fee charged?', a: 'Only when your application is approved. It is taken from your account balance at the same time as the award is added to your grant balance, and it can take your account balance below $0: your next deposit then covers it first. If your application is declined or you withdraw it, nothing is charged.' },
   { topic: 'Account & security', q: 'I forgot my password. What do I do?', a: 'On the sign-in page, choose “Forgot password?” and enter your email. We’ll send a link to choose a new password; it works once and expires after an hour. Sign out from the account menu (the … next to your name).' },
   { topic: 'Account & security', q: 'How do I change my password or sign out other devices?', a: 'Go to Settings → Sign-in & security. To change your password, enter your current one and then the new one (at least 8 characters). “Sign out of other devices” ends your sessions everywhere else; a device that is already open keeps access for up to an hour.' },
   { topic: 'Account & security', q: 'Can I stop notification emails?', a: 'Yes. Turn off “Email notifications” in Settings → Account. You will still see every update under the bell.' },

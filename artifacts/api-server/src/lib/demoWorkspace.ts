@@ -6,12 +6,12 @@ import { currentKycDocuments } from "./kyc";
 import { fileUrl, storeUpload, type DbTx } from "./uploads";
 import { findMethod, methodLogoUrl, methodRules } from "./paymentMethods";
 import { amountProblem, describeAmountRule, parseAnswers, sourceAllowed, SOURCE_LABEL, SOURCES_LABEL, toCents, type BalanceSource, type WithdrawalSources } from "./paymentRules";
-import { grantRecommendations, storedAnswers } from "./matchmaking";
 import { APPEND_ONLY_TRIGGERS } from "./demoSeed";
 import { GetAdminUserResponse } from "@workspace/api-zod";
 import { effectiveLimits, limitProblem, limitsOut, withdrawnLast24h } from "./withdrawalLimits";
 import { countCardRequests } from "./cards";
 import { describeFee, feeCents } from "./fees";
+import { findIndustry } from "./industries";
 import { cardTypeInfo, typeOfCard } from "./cardTypes";
 
 export class DemoInputError extends Error {}
@@ -41,7 +41,15 @@ export function applicantProfile(person: DemoProfile) {
     id: person.id, name: person.name, email: person.email, organization: person.organization,
     verified: person.verificationLevel === "Verified", phone: person.phone, telegram: person.telegram,
     ...(person.avatarFileId ? { avatarUrl: fileUrl("applicant", person.avatarFileId) } : {}),
+    industryId: person.industryId ?? null,
   };
+}
+
+/** The applicant's profile as the API returns it. */
+export async function profileOf(id: string) {
+  const [person] = await db.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, id));
+  if (!person) throw new Error("Profile missing");
+  return applicantProfile(person);
 }
 
 export async function getUser(id: string) {
@@ -67,6 +75,7 @@ export async function getUser(id: string) {
     balances: { grant: person.grantCents / 100, deposit: person.depositCents / 100, card: person.cardCents / 100 },
     cards,
     withdrawalLimits: await userWithdrawalLimits(person),
+    industry: person.industryId ? (await findIndustry(person.industryId))?.name ?? null : null,
     audit: audit.map(entry => ({ ...entry, createdAt: entry.createdAt.toISOString() })),
   });
 }
@@ -128,11 +137,10 @@ export async function applicantDashboard(profileId: string, monthly: boolean) {
     totalBudget: 50000, allocatedFunds: person.grantCents / 100, remainingFunds: 50000 - person.grantCents / 100,
     fundingTrend: labels.map((label, index) => ({ label, submitted: submitted[index], review: review[index] })),
     setupCards: [
-      { id: "matchmaking", title: "Grant Matchmaking", description: "Answer five quick questions and we'll rank grants for your organization.", actionLabel: "Find my matches", complete: storedAnswers(person) !== null },
-      { id: "proposal", title: "Submit First Proposal", description: "Start an application and attach your proposal as a PDF or Word file. You can follow it from review to decision.", actionLabel: "Start an application", complete: submittedAny },
+      { id: "industry", title: "Choose your industry", description: person.industryId ? "Done. We recommend the grants for your industry; you can change it in Settings." : "We use it to recommend the grants that fit you.", actionLabel: "Choose industry", complete: person.industryId !== null },
+      { id: "apply", title: "Apply for a grant", description: "Pick a grant, fill in its form and follow your application from review to decision.", actionLabel: "Browse grants", complete: submittedAny },
     ],
     highlights: apps.slice(0, 5).map(applicationSummary),
-    recommendations: grantRecommendations(storedAnswers(person)),
     applicationCount: apps.length,
     balanceSummary: {
       tier: person.tier, accountBalance: person.depositCents / 100, grantBalance: person.grantCents / 100,

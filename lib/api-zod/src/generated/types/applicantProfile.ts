@@ -16,4 +16,9 @@ export interface ApplicantProfile {
   telegram: string;
   /** Same-origin URL of the profile photo; absent when none is set */
   avatarUrl?: string;
+  /**
+     * Phase 11: the user's industry; null until chosen
+     * @nullable
+     */
+  industryId: string | null;
 }

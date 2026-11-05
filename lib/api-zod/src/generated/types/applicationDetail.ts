@@ -6,7 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ApplicantApplication } from './applicantApplication';
+import type { ApplicationAnswer } from './applicationAnswer';
 import type { ApplicationEvent } from './applicationEvent';
+import type { ApplicationPlan } from './applicationPlan';
 import type { StoredDocument } from './storedDocument';
 
 export type ApplicationDetail = ApplicantApplication & {
@@ -15,6 +17,14 @@ export type ApplicationDetail = ApplicantApplication & {
   canRespond: boolean;
   /** Whether documents can still be attached or removed */
   canAttach: boolean;
+  /** Plan applications after Changes requested: the answers can be edited and resubmitted */
+  canEdit: boolean;
+  plan?: ApplicationPlan;
+  /** Plan applications: the application fee, charged from the account balance on approval */
+  fee?: number;
+  /** Whether the fee has been charged (the application was approved) */
+  feeCharged?: boolean;
+  answers?: ApplicationAnswer[];
   documents: StoredDocument[];
   events: ApplicationEvent[];
 };

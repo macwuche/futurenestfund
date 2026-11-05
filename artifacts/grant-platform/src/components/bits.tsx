@@ -174,13 +174,19 @@ export const FILE_RULES = {
     accept: '.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     types: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'], label: 'a PDF or Word (.docx) document',
   },
+  /** Phase 11: a file field on a grant plan's application form. */
+  application: {
+    accept: 'image/jpeg,image/png,image/webp,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    types: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+    label: 'a JPG, PNG or WebP image, a PDF or a Word (.docx) document',
+  },
 } as const;
 const MAX_UPLOAD = 10 * 1024 * 1024;
 /** Quick client-side check so obvious mistakes fail before uploading. Returns an error message or ''. */
 export function checkFile(file: File, rule: keyof typeof FILE_RULES) {
   const r = FILE_RULES[rule];
   const ext = file.name.toLowerCase().split('.').pop() ?? '';
-  const typeOk = (r.types as readonly string[]).includes(file.type) || (rule === 'proposal' && ['pdf', 'docx'].includes(ext));
+  const typeOk = (r.types as readonly string[]).includes(file.type) || ((rule === 'proposal' || rule === 'application') && ['pdf', 'docx'].includes(ext));
   if (!typeOk) return `Choose ${r.label}.`;
   if (file.size > MAX_UPLOAD) return 'Files must be 10 MB or smaller.';
   if (file.size === 0) return 'This file is empty.';

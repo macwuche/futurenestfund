@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import {
-  db, demoProfilesTable, demoAuditTable, demoLedgerTable, demoSettingsTable, demoRequestsTable, demoApplicationsTable,
+  db, demoProfilesTable, demoGrantPlansTable, demoAuditTable, demoLedgerTable, demoSettingsTable, demoRequestsTable, demoApplicationsTable,
   demoApplicationEventsTable, demoFilesTable, demoKycDocumentsTable, type DemoProfile,
 } from "@workspace/db";
 import { notifyUser, requestEmailData, requestReference } from "./notifications";
@@ -9,6 +9,7 @@ import { KYC_KINDS } from "./kyc";
 import { fileUrl, type DbTx } from "./uploads";
 import { DemoInputError, getUser, methodLogos, requestDetails, type LogoMap } from "./demoWorkspace";
 import { sourceAllowed, SOURCE_LABEL, SOURCES_LABEL, type BalanceSource, type WithdrawalSources } from "./paymentRules";
+import { looseDocuments, planParts } from "./planAnswers";
 import { describeLimits, effectiveLimits, limitsOut, parseLimits, withdrawnLast24h, type Limits } from "./withdrawalLimits";
 
 /*
@@ -68,17 +69,24 @@ export async function adminApplicationDetail(id: string) {
   const events = await db.select().from(demoApplicationEventsTable).where(eq(demoApplicationEventsTable.applicationId, id)).orderBy(asc(demoApplicationEventsTable.createdAt));
   const files = await db.select().from(demoFilesTable).where(eq(demoFilesTable.applicationId, id)).orderBy(asc(demoFilesTable.createdAt));
   const [settings] = await db.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
+  const [plan] = r.a.planId ? await db.select({ logoFileId: demoGrantPlansTable.logoFileId }).from(demoGrantPlansTable).where(eq(demoGrantPlansTable.id, r.a.planId)) : [];
   return {
     ...adminApplication(r.a, r.p),
     updatedAt: r.a.updatedAt.toISOString(),
     userStatus: r.p.status, platformFrozen: settings?.frozen ?? false,
+    accountBalance: r.p.depositCents / 100,
+    ...planParts(r.a, files, "admin", plan?.logoFileId),
     allowedDecisions: [...(NEXT[r.a.status] ?? [])],
-    documents: files.map(f => ({ id: f.id, name: f.originalName, mimeType: f.mimeType, sizeBytes: f.sizeBytes, url: fileUrl("admin", f.id), uploadedAt: f.createdAt.toISOString() })),
+    documents: looseDocuments(files).map(f => ({ id: f.id, name: f.originalName, mimeType: f.mimeType, sizeBytes: f.sizeBytes, url: fileUrl("admin", f.id), uploadedAt: f.createdAt.toISOString() })),
     events: events.map(e => ({ id: e.id, status: e.status, note: e.note, actor: e.actor, createdAt: e.createdAt.toISOString() })),
   };
 }
 
-/** Approving credits the requested amount to the applicant's grant balance through the ledger. */
+/**
+ * Approving credits the award to the applicant's grant balance through the ledger. For a grant plan application
+ * (Phase 11) it also charges the application fee from the account balance in the same step: the one charge that may
+ * take that balance below $0.
+ */
 export async function decideApplication(id: string, decision: Decision, note: string | undefined, actor: string) {
   const text = (note ?? "").trim();
   if (decision === "Declined" && text.length < 5) throw new DemoInputError("Give the applicant a reason of at least 5 characters.");
@@ -99,20 +107,26 @@ export async function decideApplication(id: string, decision: Decision, note: st
       if (profile.status === "Frozen") throw new DemoInputError("Unfreeze this account before approving funding.");
       const next = profile.grantCents + a.amountCents;
       if (next > MAX_BALANCE_CENTS) throw new DemoInputError("This would exceed the demo account limit.");
-      await tx.update(demoProfilesTable).set({ grantCents: next }).where(eq(demoProfilesTable.id, profile.id));
+      const fee = a.feeCents;
+      await tx.update(demoProfilesTable).set({ grantCents: next, ...(fee > 0 ? { depositCents: profile.depositCents - fee } : {}) }).where(eq(demoProfilesTable.id, profile.id));
       await tx.insert(demoLedgerTable).values({
         profileId: profile.id, kind: "Grant award", account: "grant", amountCents: a.amountCents, reason: `Grant award · ${a.title}`, applicationId: a.id, actor,
       });
-      eventNote = `Funding of ${usd(a.amountCents)} approved${text ? `. ${text}` : ""}`;
+      if (fee > 0) {
+        await tx.insert(demoLedgerTable).values({
+          profileId: profile.id, kind: "Application fee", account: "deposit", amountCents: -fee, reason: `Application fee · ${a.title}`, applicationId: a.id, actor,
+        });
+      }
+      eventNote = `Funding of ${usd(a.amountCents)} approved${fee > 0 ? `; application fee ${usd(fee)} charged from the account balance` : ""}${text ? `. ${text}` : ""}`;
     } else if (decision === "Review") {
       eventNote = text || "Moved to review";
     }
     await tx.update(demoApplicationsTable).set({ status: decision, updatedAt: new Date() }).where(eq(demoApplicationsTable.id, id));
     await tx.insert(demoApplicationEventsTable).values({ applicationId: id, status: decision, note: eventNote, actor });
-    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor, action: `Application ${id} ${decision === "Review" ? "moved to review" : statusWords(decision)}` });
+    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor, action: `Application ${id} ${decision === "Review" ? "moved to review" : statusWords(decision)}${decision === "Approved" && a.feeCents > 0 ? ` (application fee ${usd(a.feeCents)})` : ""}` });
     const message = {
       Review: `"${a.title}" is now under review`,
-      Approved: `"${a.title}" was approved. ${usd(a.amountCents)} was added to your grant balance`,
+      Approved: `"${a.title}" was approved. ${usd(a.amountCents)} was added to your grant balance${a.feeCents > 0 ? ` and the ${usd(a.feeCents)} application fee was charged from your account balance` : ""}`,
       Declined: `"${a.title}" was declined`,
       "Changes requested": `Changes were requested on "${a.title}"`,
     }[decision];
@@ -320,7 +334,7 @@ type LedgerRow = typeof demoLedgerTable.$inferSelect;
 
 const ledgerEntry = (l: LedgerRow, userName: string) => ({
   id: l.id, createdAt: l.createdAt.toISOString(), userId: l.profileId, userName,
-  kind: l.kind as "Top-up" | "Debit" | "Deposit" | "Withdrawal" | "Grant award" | "Opening balance" | "Fee" | "Card purchase" | "Card top-up",
+  kind: l.kind as "Top-up" | "Debit" | "Deposit" | "Withdrawal" | "Grant award" | "Opening balance" | "Fee" | "Card purchase" | "Card top-up" | "Application fee",
   account: l.account as "grant" | "deposit" | "card", amount: l.amountCents / 100, reason: l.reason, actor: l.actor,
   ...(l.requestId ? { requestId: l.requestId } : {}),
   ...(l.applicationId ? { applicationId: l.applicationId } : {}),

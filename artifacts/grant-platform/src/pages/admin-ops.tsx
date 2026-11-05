@@ -8,6 +8,7 @@ import {
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Download, FileText, Plus, Info, X } from 'lucide-react';
 import { keepPreviousData, useQueryClient } from '@tanstack/react-query';
 import { Shell } from '@/components/shell';
+import { PlanLogo } from '@/components/grant-plan';
 import { balanceName, Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, fileSize, money, statusLabel } from '@/components/bits';
 import { card, ainput, lime, dark, ghost, danger, Stat, SectionTitle, useAdminRefresh, ReasonModal, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
 import { apiError } from '@/lib/demo-state';
@@ -199,7 +200,7 @@ export const AdminWithdrawalsPage = () => <RequestQueuePage kind="Withdrawal" />
 const LEDGER_TYPES: { value: ListAdminTransactionsType; label: string }[] = [
   { value: 'all', label: 'All types' }, { value: 'Deposit', label: 'Deposits' }, { value: 'Withdrawal', label: 'Withdrawals' },
   { value: 'Grant award', label: 'Grant awards' }, { value: 'Top-up', label: 'Top-ups' }, { value: 'Debit', label: 'Debits' }, { value: 'Opening balance', label: 'Opening balances' },
-  { value: 'Fee', label: 'Fees' }, { value: 'Card purchase', label: 'Card purchases' }, { value: 'Card top-up', label: 'Card top-ups' },
+  { value: 'Fee', label: 'Fees' }, { value: 'Application fee', label: 'Application fees' }, { value: 'Card purchase', label: 'Card purchases' }, { value: 'Card top-up', label: 'Card top-ups' },
 ];
 
 export function AdminTransactionsPage() {
@@ -491,6 +492,10 @@ export function AdminApplicationPage() {
     onError: (e) => setError(apiError(e, 'The decision could not be saved.')),
   });
   const approveBlocked = a && (a.platformFrozen ? 'Approvals are paused by the global freeze.' : a.userStatus === 'Frozen' ? 'Unfreeze this account before approving funding.' : '');
+  // Phase 11: approving a plan application also charges its fee from the account balance, even below $0.
+  const fee = a?.fee ?? 0;
+  const afterFee = a ? Math.round((a.accountBalance - fee) * 100) / 100 : 0;
+  const approveText = a ? `${money(a.amount)} is added to ${a.userName}'s grant balance${fee > 0 ? ` and the ${money(fee)} application fee is charged from their account balance (${money(a.accountBalance)} → ${money(afterFee)}${afterFee < 0 ? ', below $0' : ''})` : ''}. Both are recorded in the ledger and the applicant is notified.` : '';
   return (
     <Shell admin title="Application review">
       <Link href={`/admin/users/${userId}`} data-testid="link-back-user" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"><ArrowLeft className="h-4 w-4" />Back to user</Link>
@@ -499,20 +504,40 @@ export function AdminApplicationPage() {
           <div className="min-w-0 space-y-5 lg:col-span-2">
             <section className={cx(card, 'p-5')} data-testid="section-application">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
+                <div className="flex min-w-0 items-start gap-3">
+                  {a.plan && <PlanLogo url={a.plan.logoUrl} name={a.plan.name} initials={a.plan.initials} className="h-12 w-12" />}
+                  <div className="min-w-0">
                   <p className="font-num text-xs text-slate-500">{a.id}</p>
                   <h2 className="font-display text-2xl font-bold" data-testid="text-application-title">{a.title}</h2>
                   <p className="text-sm text-slate-600"><Link href={`/admin/users/${a.userId}`} className="font-semibold hover:underline">{a.userName}</Link> · {a.organization} · {a.category}</p>
+                  </div>
                 </div>
                 <StatusBadge status={a.status} testid="badge-application-status" />
               </div>
-              <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-                <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">Requested</dt><dd className="font-num text-lg font-semibold">{money(a.amount)}</dd></div>
+              <dl className={cx('mt-4 grid grid-cols-2 gap-3 text-sm', a.plan ? 'sm:grid-cols-4' : 'sm:grid-cols-3')}>
+                <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">{a.plan ? 'Award' : 'Requested'}</dt><dd className="font-num text-lg font-semibold">{money(a.amount)}</dd></div>
+                {a.plan && <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">Application fee</dt><dd className="font-num text-lg font-semibold" data-testid="text-admin-app-fee">{money(fee)}</dd><dd className="text-xs text-slate-500">{fee > 0 ? (a.feeCharged ? 'Charged on approval' : a.status === 'Declined' || a.status === 'Withdrawn' ? 'Not charged' : 'Charged on approval') : 'No fee'}</dd></div>}
                 <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">Submitted</dt><dd className="font-semibold">{dateFmt(a.submittedAt)}</dd></div>
                 <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">Last change</dt><dd className="font-semibold">{dateFmt(a.updatedAt)}</dd></div>
               </dl>
             </section>
-            <section className={cx(card, 'p-5')} data-testid="section-application-documents">
+            {!!a.answers?.length && (
+              <section className={cx(card, 'p-5')} data-testid="section-application-answers">
+                <SectionTitle>Application form</SectionTitle>
+                <dl className="divide-y divide-slate-100 rounded-xl border">
+                  {a.answers.map((x, i) => (
+                    <div key={x.fieldId} className="grid gap-1 px-3 py-2.5 text-sm sm:grid-cols-[12rem_minmax(0,1fr)]">
+                      <dt className="text-slate-500">{x.label}</dt>
+                      <dd className="min-w-0 break-words" data-testid={`text-admin-answer-${i}`}>
+                        {x.file ? <a href={x.file.url} target="_blank" rel="noopener" className="inline-flex items-center gap-1 font-semibold underline"><FileText className="h-4 w-4 shrink-0" />{x.file.name}<span className="font-normal text-slate-500">({fileSize(x.file.sizeBytes)})</span></a>
+                          : x.value ? <span className="font-medium">{x.value}</span> : <span className="text-slate-400">Not given</span>}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            )}
+            {(!a.plan || a.documents.length > 0) && <section className={cx(card, 'p-5')} data-testid="section-application-documents">
               <SectionTitle>Proposal documents</SectionTitle>
               {a.documents.length === 0 ? <Empty title="No documents attached" /> : (
                 <ul className="space-y-2">{a.documents.map((d) => (
@@ -523,7 +548,7 @@ export function AdminApplicationPage() {
                   </li>
                 ))}</ul>
               )}
-            </section>
+            </section>}
             <section className={cx(card, 'p-5')} data-testid="section-application-history">
               <SectionTitle>Status history</SectionTitle>
               <ol className="space-y-3">{a.events.map((e) => (
@@ -548,13 +573,13 @@ export function AdminApplicationPage() {
                     className={cx('w-full', d === 'Approved' ? lime : d === 'Declined' ? danger : d === 'Review' ? dark : ghost, 'disabled:cursor-not-allowed')}>{decisionCopy[d].label}</button>
                 ))}
                 {approveBlocked && <p className="text-xs text-red-700" data-testid="text-approve-blocked">{approveBlocked}</p>}
-                <p className="text-xs text-slate-500">Approving adds {money(a.amount)} to the applicant's grant balance through the ledger. Sample data; no real funds move.</p>
+                <p className="text-xs text-slate-500" data-testid="text-approve-effect">{approveText} Sample data; no real funds move.</p>
               </>
             )}
           </aside>
           {open && (
             <ReasonModal open onClose={() => setOpen(null)} testid="dialog-decision" title={decisionCopy[open].title} confirmLabel={decisionCopy[open].confirm}
-              intro={<p>{open === 'Approved' ? `${money(a.amount)} is added to ${a.userName}'s grant balance and recorded in the ledger. The applicant is notified.` : decisionCopy[open].intro}</p>}
+              intro={<p>{open === 'Approved' ? approveText : decisionCopy[open].intro}</p>}
               label={open === 'Changes requested' ? 'What needs to change (shared with the applicant)' : open === 'Declined' ? 'Reason (shared with the applicant)' : 'Note for the history (shared with the applicant)'}
               optional={!decisionCopy[open].needsNote} maxLength={1000} pending={decide.isPending} error={error} onSubmit={(note) => run(open, note || undefined)} />
           )}

@@ -9,13 +9,15 @@ import { AuthProvider, useAuth } from '@/lib/auth';
 import { SignInPage, SignUpPage, ForgotPasswordPage, ResetPasswordPage, ConfirmPage, AuthLoading, AuthUnavailable } from '@/pages/auth';
 import { safeNext } from '@/lib/safe-next';
 import {
-  DashboardPage, GrantsPage, ApplicationsPage, ApplicationDetailPage, CardsPage, TransactionsPage, WithdrawalsPage, DepositsPage, SettingsPage,
+  DashboardPage, ApplicationsPage, ApplicationDetailPage, CardsPage, TransactionsPage, WithdrawalsPage, DepositsPage, SettingsPage,
 } from '@/pages/applicant';
-import { GrantSearchPage, FundingTrackerPage, ReportsPage, MilestonesPage, HelpPage } from '@/pages/applicant-more';
+import { FundingTrackerPage, ReportsPage, MilestonesPage, HelpPage } from '@/pages/applicant-more';
+import { GrantPlansPage, GrantPlanPage } from '@/pages/applicant-grants';
 import { Layout } from '@/components/shell';
 import { AdminOverviewPage, AdminUsersPage, AdminUserPage, AdminSettingsPage } from '@/pages/admin';
 import { AdminAuditPage, AdminTransactionsPage, AdminDepositsPage, AdminWithdrawalsPage, AdminKycPage, AdminApplicationPage } from '@/pages/admin-ops';
 import { AdminDepositMethodsPage, AdminWithdrawalMethodsPage } from '@/pages/admin-gateway';
+import { AdminGrantPlansPage } from '@/pages/admin-plans';
 import { AdminCardRequestsPage } from '@/pages/admin-cards';
 import {
   Redirect,
@@ -37,7 +39,8 @@ function Router() {
       <Switch>
         <Route path="/" component={DashboardPage} />
         <Route path="/dashboard" component={DashboardPage} />
-        <Route path="/grants" component={GrantsPage} />
+        <Route path="/grants" component={GrantPlansPage} />
+        <Route path="/grants/:planId" component={GrantPlanPage} />
         <Route path="/applications" component={ApplicationsPage} />
         <Route path="/applications/:id" component={ApplicationDetailPage} />
         <Route path="/cards" component={CardsPage} />
@@ -45,7 +48,7 @@ function Router() {
         <Route path="/withdrawals" component={WithdrawalsPage} />
         <Route path="/deposits" component={DepositsPage} />
         <Route path="/settings" component={SettingsPage} />
-        <Route path="/grant-search" component={GrantSearchPage} />
+        <Route path="/grant-search">{() => <Redirect to="/grants" replace />}</Route>
         <Route path="/funding-tracker" component={FundingTrackerPage} />
         <Route path="/reports" component={ReportsPage} />
         <Route path="/milestones" component={MilestonesPage} />
@@ -60,6 +63,7 @@ function Router() {
         <Route path="/admin/withdrawals" component={AdminWithdrawalsPage} />
         <Route path="/admin/kyc" component={AdminKycPage} />
         <Route path="/admin/cards" component={AdminCardRequestsPage} />
+        <Route path="/admin/grant-plans" component={AdminGrantPlansPage} />
         <Route path="/admin/payment-gateway/deposit" component={AdminDepositMethodsPage} />
         <Route path="/admin/payment-gateway/withdrawal" component={AdminWithdrawalMethodsPage} />
         <Route path="/admin/settings" component={AdminSettingsPage} />

@@ -1,4 +1,5 @@
 import { createHash, randomInt } from "node:crypto";
+import { industryFromSignUp } from "./industries";
 import type { NextFunction, Request, Response } from "express";
 import { createRemoteJWKSet } from "jose";
 import { AuthError, AuthUnavailable, verifySupabaseToken, type SupabaseClaims } from "./tokens";
@@ -112,6 +113,7 @@ async function applicantProfileId(authUserId: string, email: string, claims: Sup
     email,
     name: text(claims.user_metadata?.name, 120) || email.split("@")[0],
     organization: text(claims.user_metadata?.organization, 160),
+    industryId: await industryFromSignUp(claims.user_metadata?.industry),
     maskedId: `•••• •••• ${String(randomInt(0, 10000)).padStart(4, "0")}`,
     tier: 1,
     verificationLevel: "Unsubmitted",

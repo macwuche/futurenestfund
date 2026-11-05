@@ -3,6 +3,7 @@ import { Link, useLocation, useSearch } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useListIndustries } from '@workspace/api-client-react';
 import { Eye, EyeOff, Loader2, MailCheck } from 'lucide-react';
 import { cx, Field, inputCls } from '@/components/bits';
 import { appUrl, useAuth } from '@/lib/auth';
@@ -129,6 +130,7 @@ export function SignInPage() {
 const signUpSchema = z.object({
   name: z.string().trim().min(2, 'Enter your full name.').max(100),
   organization: z.string().trim().max(160, 'Use at most 160 characters.'),
+  industry: z.string(),
   email,
   password: newPassword,
   confirm: z.string(),
@@ -139,12 +141,16 @@ export function SignUpPage() {
   const next = safeNext(new URLSearchParams(useSearch()).get('next'));
   const [error, setError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
-  const f = useForm<z.infer<typeof signUpSchema>>({ resolver: zodResolver(signUpSchema), defaultValues: { name: '', organization: '', email: '', password: '', confirm: '' } });
+  const f = useForm<z.infer<typeof signUpSchema>>({ resolver: zodResolver(signUpSchema), defaultValues: { name: '', organization: '', industry: '', email: '', password: '', confirm: '' } });
+  // Phase 11: the industry decides which grant plans are recommended. If the list can't be loaded, sign-up still works
+  // and the user is asked for it on their dashboard.
+  const industries = useListIndustries();
   const submit = f.handleSubmit(async (v) => {
     setError(null);
+    if (industries.data?.length && !v.industry) { f.setError('industry', { message: 'Choose your industry.' }); return; }
     const { data, error: e } = await client!.auth.signUp({
       email: v.email, password: v.password,
-      options: { data: { name: v.name, organization: v.organization }, emailRedirectTo: appUrl() },
+      options: { data: { name: v.name, organization: v.organization, ...(v.industry ? { industry: v.industry } : {}) }, emailRedirectTo: appUrl() },
     });
     if (e) { setError(authErrorMessage(e)); return; }
     // With email confirmation on there is no session yet. (An address that's already registered gets the same
@@ -172,6 +178,12 @@ export function SignUpPage() {
         </Field>
         <Field label="Organization (optional)" error={f.formState.errors.organization?.message}>
           <input {...f.register('organization')} autoComplete="organization" data-testid="input-organization" className={inputCls} />
+        </Field>
+        <Field label="Industry" error={f.formState.errors.industry?.message}>
+          <select {...f.register('industry')} data-testid="select-industry" className={inputCls} disabled={industries.isLoading}>
+            <option value="">{industries.isLoading ? 'Loading…' : industries.isError ? "Couldn't load the list: you can choose later" : 'Choose your industry'}</option>
+            {industries.data?.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+          </select>
         </Field>
         <Field label="Email" error={f.formState.errors.email?.message}>
           <input {...f.register('email')} type="email" autoComplete="email" inputMode="email" data-testid="input-email" className={inputCls} />

@@ -27,6 +27,7 @@ import type {
   AdminCardRequestList,
   AdminCardType,
   AdminDashboard,
+  AdminIndustry,
   AdminKycItem,
   AdminKycQueue,
   AdminLedgerPage,
@@ -48,7 +49,6 @@ import type {
   ApplicantTransaction,
   ApplicationDecisionInput,
   ApplicationDetail,
-  ApplicationInput,
   ApplicationResponseInput,
   ApproveInput,
   AuthConfig,
@@ -73,7 +73,13 @@ import type {
   GetApplicantDashboardParams,
   GlobalFreezeStatus,
   GlobalFreezeUpdate,
+  GrantPlan,
+  GrantPlanCreate,
+  GrantPlanUpdate,
   HealthStatus,
+  Industry,
+  IndustryChoice,
+  IndustryInput,
   KycReviewInput,
   KycUpload,
   ListAdminApplicationsParams,
@@ -85,8 +91,6 @@ import type {
   ListAdminUsersParams,
   ListApplicantPaymentMethodsParams,
   LogoUrlInput,
-  Matchmaking,
-  MatchmakingAnswers,
   Me,
   Milestone,
   MilestoneInput,
@@ -97,6 +101,8 @@ import type {
   PaymentMethodCreate,
   PaymentMethodMove,
   PaymentMethodUpdate,
+  PlanApplicationForm,
+  PlanApplicationResubmitForm,
   ReasonInput,
   SearchAdminParams,
   Session,
@@ -1326,6 +1332,1375 @@ export const useUpdateApplicantProfile = <TError = ErrorType<unknown>,
       return useMutation(getUpdateApplicantProfileMutationOptions(options));
     }
 
+export const getListIndustriesUrl = () => {
+
+
+
+
+  return `/api/industries`
+}
+
+/**
+ * @summary The industries a user can choose from (Phase 11), A to Z. Public, for the sign-up form
+ */
+export const listIndustries = async ( options?: Parameters<typeof customFetch>[1]): Promise<Industry[]> => {
+
+  return customFetch<Industry[]>(getListIndustriesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListIndustriesQueryKey = () => {
+    return [
+    `/api/industries`
+    ] as const;
+    }
+
+
+export const getListIndustriesQueryOptions = <TData = Awaited<ReturnType<typeof listIndustries>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listIndustries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListIndustriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listIndustries>>> = ({ signal }) => listIndustries({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listIndustries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListIndustriesQueryResult = NonNullable<Awaited<ReturnType<typeof listIndustries>>>
+export type ListIndustriesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary The industries a user can choose from (Phase 11), A to Z. Public, for the sign-up form
+ */
+
+export function useListIndustries<TData = Awaited<ReturnType<typeof listIndustries>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listIndustries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListIndustriesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetApplicantIndustryUrl = () => {
+
+
+
+
+  return `/api/applicant/industry`
+}
+
+/**
+ * @summary Choose the applicant's industry (decides which grant plans are recommended)
+ */
+export const setApplicantIndustry = async (industryChoice: IndustryChoice, options?: Parameters<typeof customFetch>[1]): Promise<ApplicantProfile> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ApplicantProfile>(getSetApplicantIndustryUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(industryChoice)
+  }
+);}
+
+
+
+
+
+export const getSetApplicantIndustryMutationKey = () => ['setApplicantIndustry'] as const;
+
+export const getSetApplicantIndustryMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setApplicantIndustry>>, TError,SetApplicantIndustryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setApplicantIndustry>>, TError,SetApplicantIndustryMutationVariables, TContext> => {
+
+const mutationKey = getSetApplicantIndustryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setApplicantIndustry>>, SetApplicantIndustryMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setApplicantIndustry(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetApplicantIndustryMutationResult = NonNullable<Awaited<ReturnType<typeof setApplicantIndustry>>>
+    export type SetApplicantIndustryMutationBody = BodyType<IndustryChoice>
+    export type SetApplicantIndustryMutationError = ErrorType<ErrorMessage>
+    export type SetApplicantIndustryMutationVariables = {data: BodyType<IndustryChoice>}
+
+    /**
+ * @summary Choose the applicant's industry (decides which grant plans are recommended)
+ */
+export const useSetApplicantIndustry = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setApplicantIndustry>>, TError,SetApplicantIndustryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setApplicantIndustry>>,
+        TError,
+        SetApplicantIndustryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetApplicantIndustryMutationOptions(options));
+    }
+
+export const getListAdminIndustriesUrl = () => {
+
+
+
+
+  return `/api/admin/industries`
+}
+
+/**
+ * @summary Industries with how many plans and users use each
+ */
+export const listAdminIndustries = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminIndustry[]> => {
+
+  return customFetch<AdminIndustry[]>(getListAdminIndustriesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminIndustriesQueryKey = () => {
+    return [
+    `/api/admin/industries`
+    ] as const;
+    }
+
+
+export const getListAdminIndustriesQueryOptions = <TData = Awaited<ReturnType<typeof listAdminIndustries>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminIndustries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminIndustriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminIndustries>>> = ({ signal }) => listAdminIndustries({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminIndustries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminIndustriesQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminIndustries>>>
+export type ListAdminIndustriesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Industries with how many plans and users use each
+ */
+
+export function useListAdminIndustries<TData = Awaited<ReturnType<typeof listAdminIndustries>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminIndustries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminIndustriesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAdminIndustryUrl = () => {
+
+
+
+
+  return `/api/admin/industries`
+}
+
+/**
+ * @summary Add an industry
+ */
+export const createAdminIndustry = async (industryInput: IndustryInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminIndustry[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminIndustry[]>(getCreateAdminIndustryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(industryInput)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminIndustryMutationKey = () => ['createAdminIndustry'] as const;
+
+export const getCreateAdminIndustryMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminIndustry>>, TError,CreateAdminIndustryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminIndustry>>, TError,CreateAdminIndustryMutationVariables, TContext> => {
+
+const mutationKey = getCreateAdminIndustryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminIndustry>>, CreateAdminIndustryMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminIndustry(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminIndustryMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminIndustry>>>
+    export type CreateAdminIndustryMutationBody = BodyType<IndustryInput>
+    export type CreateAdminIndustryMutationError = ErrorType<ErrorMessage>
+    export type CreateAdminIndustryMutationVariables = {data: BodyType<IndustryInput>}
+
+    /**
+ * @summary Add an industry
+ */
+export const useCreateAdminIndustry = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminIndustry>>, TError,CreateAdminIndustryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminIndustry>>,
+        TError,
+        CreateAdminIndustryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAdminIndustryMutationOptions(options));
+    }
+
+export const getRenameAdminIndustryUrl = (industryId: string,) => {
+
+
+
+
+  return `/api/admin/industries/${industryId}`
+}
+
+/**
+ * @summary Rename an industry
+ */
+export const renameAdminIndustry = async (industryId: string,
+    industryInput: IndustryInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminIndustry[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminIndustry[]>(getRenameAdminIndustryUrl(industryId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(industryInput)
+  }
+);}
+
+
+
+
+
+export const getRenameAdminIndustryMutationKey = () => ['renameAdminIndustry'] as const;
+
+export const getRenameAdminIndustryMutationOptions = <TError = ErrorType<ErrorMessage | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameAdminIndustry>>, TError,RenameAdminIndustryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof renameAdminIndustry>>, TError,RenameAdminIndustryMutationVariables, TContext> => {
+
+const mutationKey = getRenameAdminIndustryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renameAdminIndustry>>, RenameAdminIndustryMutationVariables> = (props) => {
+          const {industryId,data} = props ?? {};
+
+          return  renameAdminIndustry(industryId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenameAdminIndustryMutationResult = NonNullable<Awaited<ReturnType<typeof renameAdminIndustry>>>
+    export type RenameAdminIndustryMutationBody = BodyType<IndustryInput>
+    export type RenameAdminIndustryMutationError = ErrorType<ErrorMessage | void>
+    export type RenameAdminIndustryMutationVariables = {industryId: string;data: BodyType<IndustryInput>}
+
+    /**
+ * @summary Rename an industry
+ */
+export const useRenameAdminIndustry = <TError = ErrorType<ErrorMessage | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameAdminIndustry>>, TError,RenameAdminIndustryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof renameAdminIndustry>>,
+        TError,
+        RenameAdminIndustryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRenameAdminIndustryMutationOptions(options));
+    }
+
+export const getDeleteAdminIndustryUrl = (industryId: string,) => {
+
+
+
+
+  return `/api/admin/industries/${industryId}`
+}
+
+/**
+ * @summary Remove an industry no grant plan uses; its users are asked to choose again
+ */
+export const deleteAdminIndustry = async (industryId: string, options?: Parameters<typeof customFetch>[1]): Promise<AdminIndustry[]> => {
+
+  return customFetch<AdminIndustry[]>(getDeleteAdminIndustryUrl(industryId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAdminIndustryMutationKey = () => ['deleteAdminIndustry'] as const;
+
+export const getDeleteAdminIndustryMutationOptions = <TError = ErrorType<ErrorMessage | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminIndustry>>, TError,DeleteAdminIndustryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminIndustry>>, TError,DeleteAdminIndustryMutationVariables, TContext> => {
+
+const mutationKey = getDeleteAdminIndustryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminIndustry>>, DeleteAdminIndustryMutationVariables> = (props) => {
+          const {industryId} = props ?? {};
+
+          return  deleteAdminIndustry(industryId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminIndustryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminIndustry>>>
+
+    export type DeleteAdminIndustryMutationError = ErrorType<ErrorMessage | void>
+    export type DeleteAdminIndustryMutationVariables = {industryId: string}
+
+    /**
+ * @summary Remove an industry no grant plan uses; its users are asked to choose again
+ */
+export const useDeleteAdminIndustry = <TError = ErrorType<ErrorMessage | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminIndustry>>, TError,DeleteAdminIndustryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminIndustry>>,
+        TError,
+        DeleteAdminIndustryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteAdminIndustryMutationOptions(options));
+    }
+
+export const getListApplicantGrantPlansUrl = () => {
+
+
+
+
+  return `/api/applicant/grant-plans`
+}
+
+/**
+ * @summary The grant plans open for applications (Phase 11), recommended ones first
+ */
+export const listApplicantGrantPlans = async ( options?: Parameters<typeof customFetch>[1]): Promise<GrantPlan[]> => {
+
+  return customFetch<GrantPlan[]>(getListApplicantGrantPlansUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListApplicantGrantPlansQueryKey = () => {
+    return [
+    `/api/applicant/grant-plans`
+    ] as const;
+    }
+
+
+export const getListApplicantGrantPlansQueryOptions = <TData = Awaited<ReturnType<typeof listApplicantGrantPlans>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicantGrantPlans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListApplicantGrantPlansQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listApplicantGrantPlans>>> = ({ signal }) => listApplicantGrantPlans({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listApplicantGrantPlans>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListApplicantGrantPlansQueryResult = NonNullable<Awaited<ReturnType<typeof listApplicantGrantPlans>>>
+export type ListApplicantGrantPlansQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary The grant plans open for applications (Phase 11), recommended ones first
+ */
+
+export function useListApplicantGrantPlans<TData = Awaited<ReturnType<typeof listApplicantGrantPlans>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicantGrantPlans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListApplicantGrantPlansQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetApplicantGrantPlanUrl = (planId: string,) => {
+
+
+
+
+  return `/api/applicant/grant-plans/${planId}`
+}
+
+/**
+ * @summary One open grant plan, with its application form
+ */
+export const getApplicantGrantPlan = async (planId: string, options?: Parameters<typeof customFetch>[1]): Promise<GrantPlan> => {
+
+  return customFetch<GrantPlan>(getGetApplicantGrantPlanUrl(planId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetApplicantGrantPlanQueryKey = (planId: string,) => {
+    return [
+    `/api/applicant/grant-plans/${planId}`
+    ] as const;
+    }
+
+
+export const getGetApplicantGrantPlanQueryOptions = <TData = Awaited<ReturnType<typeof getApplicantGrantPlan>>, TError = ErrorType<ErrorMessage>>(planId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantGrantPlan>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApplicantGrantPlanQueryKey(planId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApplicantGrantPlan>>> = ({ signal }) => getApplicantGrantPlan(planId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: planId !== null && planId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApplicantGrantPlan>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetApplicantGrantPlanQueryResult = NonNullable<Awaited<ReturnType<typeof getApplicantGrantPlan>>>
+export type GetApplicantGrantPlanQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary One open grant plan, with its application form
+ */
+
+export function useGetApplicantGrantPlan<TData = Awaited<ReturnType<typeof getApplicantGrantPlan>>, TError = ErrorType<ErrorMessage>>(
+ planId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantGrantPlan>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetApplicantGrantPlanQueryOptions(planId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetApplicantGrantPlanLogoUrl = (planId: string,) => {
+
+
+
+
+  return `/api/applicant/grant-plans/${planId}/logo`
+}
+
+/**
+ * @summary A grant plan's logo image
+ */
+export const getApplicantGrantPlanLogo = async (planId: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetApplicantGrantPlanLogoUrl(planId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetApplicantGrantPlanLogoQueryKey = (planId: string,) => {
+    return [
+    `/api/applicant/grant-plans/${planId}/logo`
+    ] as const;
+    }
+
+
+export const getGetApplicantGrantPlanLogoQueryOptions = <TData = Awaited<ReturnType<typeof getApplicantGrantPlanLogo>>, TError = ErrorType<ErrorMessage>>(planId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantGrantPlanLogo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApplicantGrantPlanLogoQueryKey(planId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApplicantGrantPlanLogo>>> = ({ signal }) => getApplicantGrantPlanLogo(planId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: planId !== null && planId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApplicantGrantPlanLogo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetApplicantGrantPlanLogoQueryResult = NonNullable<Awaited<ReturnType<typeof getApplicantGrantPlanLogo>>>
+export type GetApplicantGrantPlanLogoQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary A grant plan's logo image
+ */
+
+export function useGetApplicantGrantPlanLogo<TData = Awaited<ReturnType<typeof getApplicantGrantPlanLogo>>, TError = ErrorType<ErrorMessage>>(
+ planId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantGrantPlanLogo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetApplicantGrantPlanLogoQueryOptions(planId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminGrantPlansUrl = () => {
+
+
+
+
+  return `/api/admin/grant-plans`
+}
+
+/**
+ * @summary Every grant plan, newest first, with how many applications each has
+ */
+export const listAdminGrantPlans = async ( options?: Parameters<typeof customFetch>[1]): Promise<GrantPlan[]> => {
+
+  return customFetch<GrantPlan[]>(getListAdminGrantPlansUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminGrantPlansQueryKey = () => {
+    return [
+    `/api/admin/grant-plans`
+    ] as const;
+    }
+
+
+export const getListAdminGrantPlansQueryOptions = <TData = Awaited<ReturnType<typeof listAdminGrantPlans>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminGrantPlans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminGrantPlansQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminGrantPlans>>> = ({ signal }) => listAdminGrantPlans({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminGrantPlans>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminGrantPlansQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminGrantPlans>>>
+export type ListAdminGrantPlansQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Every grant plan, newest first, with how many applications each has
+ */
+
+export function useListAdminGrantPlans<TData = Awaited<ReturnType<typeof listAdminGrantPlans>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminGrantPlans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminGrantPlansQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAdminGrantPlanUrl = () => {
+
+
+
+
+  return `/api/admin/grant-plans`
+}
+
+/**
+ * @summary Create a grant plan
+ */
+export const createAdminGrantPlan = async (grantPlanCreate: GrantPlanCreate, options?: Parameters<typeof customFetch>[1]): Promise<GrantPlan> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<GrantPlan>(getCreateAdminGrantPlanUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(grantPlanCreate)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminGrantPlanMutationKey = () => ['createAdminGrantPlan'] as const;
+
+export const getCreateAdminGrantPlanMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminGrantPlan>>, TError,CreateAdminGrantPlanMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminGrantPlan>>, TError,CreateAdminGrantPlanMutationVariables, TContext> => {
+
+const mutationKey = getCreateAdminGrantPlanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminGrantPlan>>, CreateAdminGrantPlanMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminGrantPlan(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminGrantPlanMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminGrantPlan>>>
+    export type CreateAdminGrantPlanMutationBody = BodyType<GrantPlanCreate>
+    export type CreateAdminGrantPlanMutationError = ErrorType<ErrorMessage>
+    export type CreateAdminGrantPlanMutationVariables = {data: BodyType<GrantPlanCreate>}
+
+    /**
+ * @summary Create a grant plan
+ */
+export const useCreateAdminGrantPlan = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminGrantPlan>>, TError,CreateAdminGrantPlanMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminGrantPlan>>,
+        TError,
+        CreateAdminGrantPlanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAdminGrantPlanMutationOptions(options));
+    }
+
+export const getGetAdminGrantPlanUrl = (planId: string,) => {
+
+
+
+
+  return `/api/admin/grant-plans/${planId}`
+}
+
+/**
+ * @summary One grant plan
+ */
+export const getAdminGrantPlan = async (planId: string, options?: Parameters<typeof customFetch>[1]): Promise<GrantPlan> => {
+
+  return customFetch<GrantPlan>(getGetAdminGrantPlanUrl(planId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminGrantPlanQueryKey = (planId: string,) => {
+    return [
+    `/api/admin/grant-plans/${planId}`
+    ] as const;
+    }
+
+
+export const getGetAdminGrantPlanQueryOptions = <TData = Awaited<ReturnType<typeof getAdminGrantPlan>>, TError = ErrorType<ErrorMessage>>(planId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminGrantPlan>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminGrantPlanQueryKey(planId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminGrantPlan>>> = ({ signal }) => getAdminGrantPlan(planId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: planId !== null && planId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminGrantPlan>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminGrantPlanQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminGrantPlan>>>
+export type GetAdminGrantPlanQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary One grant plan
+ */
+
+export function useGetAdminGrantPlan<TData = Awaited<ReturnType<typeof getAdminGrantPlan>>, TError = ErrorType<ErrorMessage>>(
+ planId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminGrantPlan>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminGrantPlanQueryOptions(planId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAdminGrantPlanUrl = (planId: string,) => {
+
+
+
+
+  return `/api/admin/grant-plans/${planId}`
+}
+
+/**
+ * @summary Change a grant plan (only the parts sent); submitted applications keep their own copy
+ */
+export const updateAdminGrantPlan = async (planId: string,
+    grantPlanUpdate: GrantPlanUpdate, options?: Parameters<typeof customFetch>[1]): Promise<GrantPlan> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<GrantPlan>(getUpdateAdminGrantPlanUrl(planId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(grantPlanUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminGrantPlanMutationKey = () => ['updateAdminGrantPlan'] as const;
+
+export const getUpdateAdminGrantPlanMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminGrantPlan>>, TError,UpdateAdminGrantPlanMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminGrantPlan>>, TError,UpdateAdminGrantPlanMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminGrantPlanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminGrantPlan>>, UpdateAdminGrantPlanMutationVariables> = (props) => {
+          const {planId,data} = props ?? {};
+
+          return  updateAdminGrantPlan(planId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminGrantPlanMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminGrantPlan>>>
+    export type UpdateAdminGrantPlanMutationBody = BodyType<GrantPlanUpdate>
+    export type UpdateAdminGrantPlanMutationError = ErrorType<ErrorMessage>
+    export type UpdateAdminGrantPlanMutationVariables = {planId: string;data: BodyType<GrantPlanUpdate>}
+
+    /**
+ * @summary Change a grant plan (only the parts sent); submitted applications keep their own copy
+ */
+export const useUpdateAdminGrantPlan = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminGrantPlan>>, TError,UpdateAdminGrantPlanMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminGrantPlan>>,
+        TError,
+        UpdateAdminGrantPlanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminGrantPlanMutationOptions(options));
+    }
+
+export const getDeleteAdminGrantPlanUrl = (planId: string,) => {
+
+
+
+
+  return `/api/admin/grant-plans/${planId}`
+}
+
+/**
+ * @summary Delete a plan nobody applied to (otherwise switch it off)
+ */
+export const deleteAdminGrantPlan = async (planId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteAdminGrantPlanUrl(planId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAdminGrantPlanMutationKey = () => ['deleteAdminGrantPlan'] as const;
+
+export const getDeleteAdminGrantPlanMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminGrantPlan>>, TError,DeleteAdminGrantPlanMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminGrantPlan>>, TError,DeleteAdminGrantPlanMutationVariables, TContext> => {
+
+const mutationKey = getDeleteAdminGrantPlanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminGrantPlan>>, DeleteAdminGrantPlanMutationVariables> = (props) => {
+          const {planId} = props ?? {};
+
+          return  deleteAdminGrantPlan(planId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminGrantPlanMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminGrantPlan>>>
+
+    export type DeleteAdminGrantPlanMutationError = ErrorType<ErrorMessage>
+    export type DeleteAdminGrantPlanMutationVariables = {planId: string}
+
+    /**
+ * @summary Delete a plan nobody applied to (otherwise switch it off)
+ */
+export const useDeleteAdminGrantPlan = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminGrantPlan>>, TError,DeleteAdminGrantPlanMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminGrantPlan>>,
+        TError,
+        DeleteAdminGrantPlanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteAdminGrantPlanMutationOptions(options));
+    }
+
+export const getUploadAdminGrantPlanLogoUrl = (planId: string,) => {
+
+
+
+
+  return `/api/admin/grant-plans/${planId}/logo`
+}
+
+/**
+ * @summary Upload a plan's logo (PNG, JPEG or WebP, up to 2 MB)
+ */
+export const uploadAdminGrantPlanLogo = async (planId: string,
+    fileUpload: FileUpload, options?: Parameters<typeof customFetch>[1]): Promise<GrantPlan> => {
+    const formData = new FormData();
+formData.append(`file`, fileUpload.file);
+
+  return customFetch<GrantPlan>(getUploadAdminGrantPlanLogoUrl(planId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadAdminGrantPlanLogoMutationKey = () => ['uploadAdminGrantPlanLogo'] as const;
+
+export const getUploadAdminGrantPlanLogoMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAdminGrantPlanLogo>>, TError,UploadAdminGrantPlanLogoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadAdminGrantPlanLogo>>, TError,UploadAdminGrantPlanLogoMutationVariables, TContext> => {
+
+const mutationKey = getUploadAdminGrantPlanLogoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadAdminGrantPlanLogo>>, UploadAdminGrantPlanLogoMutationVariables> = (props) => {
+          const {planId,data} = props ?? {};
+
+          return  uploadAdminGrantPlanLogo(planId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadAdminGrantPlanLogoMutationResult = NonNullable<Awaited<ReturnType<typeof uploadAdminGrantPlanLogo>>>
+    export type UploadAdminGrantPlanLogoMutationBody = BodyType<FileUpload>
+    export type UploadAdminGrantPlanLogoMutationError = ErrorType<ErrorMessage>
+    export type UploadAdminGrantPlanLogoMutationVariables = {planId: string;data: BodyType<FileUpload>}
+
+    /**
+ * @summary Upload a plan's logo (PNG, JPEG or WebP, up to 2 MB)
+ */
+export const useUploadAdminGrantPlanLogo = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAdminGrantPlanLogo>>, TError,UploadAdminGrantPlanLogoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadAdminGrantPlanLogo>>,
+        TError,
+        UploadAdminGrantPlanLogoMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadAdminGrantPlanLogoMutationOptions(options));
+    }
+
+export const getDeleteAdminGrantPlanLogoUrl = (planId: string,) => {
+
+
+
+
+  return `/api/admin/grant-plans/${planId}/logo`
+}
+
+/**
+ * @summary Remove a plan's logo (the initials placeholder shows instead)
+ */
+export const deleteAdminGrantPlanLogo = async (planId: string, options?: Parameters<typeof customFetch>[1]): Promise<GrantPlan> => {
+
+  return customFetch<GrantPlan>(getDeleteAdminGrantPlanLogoUrl(planId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAdminGrantPlanLogoMutationKey = () => ['deleteAdminGrantPlanLogo'] as const;
+
+export const getDeleteAdminGrantPlanLogoMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminGrantPlanLogo>>, TError,DeleteAdminGrantPlanLogoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminGrantPlanLogo>>, TError,DeleteAdminGrantPlanLogoMutationVariables, TContext> => {
+
+const mutationKey = getDeleteAdminGrantPlanLogoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminGrantPlanLogo>>, DeleteAdminGrantPlanLogoMutationVariables> = (props) => {
+          const {planId} = props ?? {};
+
+          return  deleteAdminGrantPlanLogo(planId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminGrantPlanLogoMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminGrantPlanLogo>>>
+
+    export type DeleteAdminGrantPlanLogoMutationError = ErrorType<ErrorMessage>
+    export type DeleteAdminGrantPlanLogoMutationVariables = {planId: string}
+
+    /**
+ * @summary Remove a plan's logo (the initials placeholder shows instead)
+ */
+export const useDeleteAdminGrantPlanLogo = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminGrantPlanLogo>>, TError,DeleteAdminGrantPlanLogoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminGrantPlanLogo>>,
+        TError,
+        DeleteAdminGrantPlanLogoMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteAdminGrantPlanLogoMutationOptions(options));
+    }
+
+export const getSetAdminGrantPlanLogoUrlUrl = (planId: string,) => {
+
+
+
+
+  return `/api/admin/grant-plans/${planId}/logo-url`
+}
+
+/**
+ * @summary Take a plan's logo from an image link (downloaded once and stored; never hot-linked)
+ */
+export const setAdminGrantPlanLogoUrl = async (planId: string,
+    logoUrlInput: LogoUrlInput, options?: Parameters<typeof customFetch>[1]): Promise<GrantPlan> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<GrantPlan>(getSetAdminGrantPlanLogoUrlUrl(planId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(logoUrlInput)
+  }
+);}
+
+
+
+
+
+export const getSetAdminGrantPlanLogoUrlMutationKey = () => ['setAdminGrantPlanLogoUrl'] as const;
+
+export const getSetAdminGrantPlanLogoUrlMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAdminGrantPlanLogoUrl>>, TError,SetAdminGrantPlanLogoUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setAdminGrantPlanLogoUrl>>, TError,SetAdminGrantPlanLogoUrlMutationVariables, TContext> => {
+
+const mutationKey = getSetAdminGrantPlanLogoUrlMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setAdminGrantPlanLogoUrl>>, SetAdminGrantPlanLogoUrlMutationVariables> = (props) => {
+          const {planId,data} = props ?? {};
+
+          return  setAdminGrantPlanLogoUrl(planId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetAdminGrantPlanLogoUrlMutationResult = NonNullable<Awaited<ReturnType<typeof setAdminGrantPlanLogoUrl>>>
+    export type SetAdminGrantPlanLogoUrlMutationBody = BodyType<LogoUrlInput>
+    export type SetAdminGrantPlanLogoUrlMutationError = ErrorType<ErrorMessage>
+    export type SetAdminGrantPlanLogoUrlMutationVariables = {planId: string;data: BodyType<LogoUrlInput>}
+
+    /**
+ * @summary Take a plan's logo from an image link (downloaded once and stored; never hot-linked)
+ */
+export const useSetAdminGrantPlanLogoUrl = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAdminGrantPlanLogoUrl>>, TError,SetAdminGrantPlanLogoUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setAdminGrantPlanLogoUrl>>,
+        TError,
+        SetAdminGrantPlanLogoUrlMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetAdminGrantPlanLogoUrlMutationOptions(options));
+    }
+
 export const getUpdateApplicantPreferencesUrl = () => {
 
 
@@ -1412,171 +2787,6 @@ export const useUpdateApplicantPreferences = <TError = ErrorType<ErrorMessage>,
         TContext
       > => {
       return useMutation(getUpdateApplicantPreferencesMutationOptions(options));
-    }
-
-export const getGetApplicantMatchmakingUrl = () => {
-
-
-
-
-  return `/api/applicant/matchmaking`
-}
-
-/**
- * @summary The applicant's matchmaking answers and every sample grant scored against them (rule-based, no AI)
- */
-export const getApplicantMatchmaking = async ( options?: Parameters<typeof customFetch>[1]): Promise<Matchmaking> => {
-
-  return customFetch<Matchmaking>(getGetApplicantMatchmakingUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetApplicantMatchmakingQueryKey = () => {
-    return [
-    `/api/applicant/matchmaking`
-    ] as const;
-    }
-
-
-export const getGetApplicantMatchmakingQueryOptions = <TData = Awaited<ReturnType<typeof getApplicantMatchmaking>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantMatchmaking>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetApplicantMatchmakingQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApplicantMatchmaking>>> = ({ signal }) => getApplicantMatchmaking({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApplicantMatchmaking>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetApplicantMatchmakingQueryResult = NonNullable<Awaited<ReturnType<typeof getApplicantMatchmaking>>>
-export type GetApplicantMatchmakingQueryError = ErrorType<unknown>
-
-
-/**
- * @summary The applicant's matchmaking answers and every sample grant scored against them (rule-based, no AI)
- */
-
-export function useGetApplicantMatchmaking<TData = Awaited<ReturnType<typeof getApplicantMatchmaking>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantMatchmaking>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetApplicantMatchmakingQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getSaveApplicantMatchmakingUrl = () => {
-
-
-
-
-  return `/api/applicant/matchmaking`
-}
-
-/**
- * @summary Save (or replace) the applicant's matchmaking answers
- */
-export const saveApplicantMatchmaking = async (matchmakingAnswers: MatchmakingAnswers, options?: Parameters<typeof customFetch>[1]): Promise<Matchmaking> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return customFetch<Matchmaking>(getSaveApplicantMatchmakingUrl(),
-  {
-    ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(matchmakingAnswers)
-  }
-);}
-
-
-
-
-
-export const getSaveApplicantMatchmakingMutationKey = () => ['saveApplicantMatchmaking'] as const;
-
-export const getSaveApplicantMatchmakingMutationOptions = <TError = ErrorType<ErrorMessage>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveApplicantMatchmaking>>, TError,SaveApplicantMatchmakingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof saveApplicantMatchmaking>>, TError,SaveApplicantMatchmakingMutationVariables, TContext> => {
-
-const mutationKey = getSaveApplicantMatchmakingMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveApplicantMatchmaking>>, SaveApplicantMatchmakingMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  saveApplicantMatchmaking(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type SaveApplicantMatchmakingMutationResult = NonNullable<Awaited<ReturnType<typeof saveApplicantMatchmaking>>>
-    export type SaveApplicantMatchmakingMutationBody = BodyType<MatchmakingAnswers>
-    export type SaveApplicantMatchmakingMutationError = ErrorType<ErrorMessage>
-    export type SaveApplicantMatchmakingMutationVariables = {data: BodyType<MatchmakingAnswers>}
-
-    /**
- * @summary Save (or replace) the applicant's matchmaking answers
- */
-export const useSaveApplicantMatchmaking = <TError = ErrorType<ErrorMessage>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveApplicantMatchmaking>>, TError,SaveApplicantMatchmakingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof saveApplicantMatchmaking>>,
-        TError,
-        SaveApplicantMatchmakingMutationVariables,
-        TContext
-      > => {
-      return useMutation(getSaveApplicantMatchmakingMutationOptions(options));
     }
 
 export const getGetApplicantAccountUrl = () => {
@@ -2336,30 +3546,25 @@ export const getCreateApplicantApplicationUrl = () => {
 }
 
 /**
- * @summary Submit a new application
+ * @summary Apply to a grant plan through its form (Phase 11). Nothing is charged; the application fee is charged on approval
  */
-export const createApplicantApplication = async (applicationInput: ApplicationInput, options?: Parameters<typeof customFetch>[1]): Promise<ApplicationDetail> => {
+export const createApplicantApplication = async (planApplicationForm: PlanApplicationForm, options?: Parameters<typeof customFetch>[1]): Promise<ApplicationDetail> => {
+    const formData = new FormData();
+formData.append(`planId`, planApplicationForm.planId);
+formData.append(`answers`, planApplicationForm.answers);
+if(planApplicationForm.fileFields !== undefined) {
+ formData.append(`fileFields`, planApplicationForm.fileFields);
+ }
+if(planApplicationForm.files !== undefined) {
+ planApplicationForm.files.forEach(value => formData.append(`files`, value));
+ }
 
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return customFetch<ApplicationDetail>(getCreateApplicantApplicationUrl(),
+  return customFetch<ApplicationDetail>(getCreateApplicantApplicationUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(applicationInput)
+    method: 'POST'
+    ,
+    body: formData
   }
 );}
 
@@ -2369,7 +3574,7 @@ return customFetch<ApplicationDetail>(getCreateApplicantApplicationUrl(),
 
 export const getCreateApplicantApplicationMutationKey = () => ['createApplicantApplication'] as const;
 
-export const getCreateApplicantApplicationMutationOptions = <TError = ErrorType<unknown>,
+export const getCreateApplicantApplicationMutationOptions = <TError = ErrorType<ErrorMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApplicantApplication>>, TError,CreateApplicantApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createApplicantApplication>>, TError,CreateApplicantApplicationMutationVariables, TContext> => {
 
@@ -2397,14 +3602,14 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateApplicantApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof createApplicantApplication>>>
-    export type CreateApplicantApplicationMutationBody = BodyType<ApplicationInput>
-    export type CreateApplicantApplicationMutationError = ErrorType<unknown>
-    export type CreateApplicantApplicationMutationVariables = {data: BodyType<ApplicationInput>}
+    export type CreateApplicantApplicationMutationBody = BodyType<PlanApplicationForm>
+    export type CreateApplicantApplicationMutationError = ErrorType<ErrorMessage>
+    export type CreateApplicantApplicationMutationVariables = {data: BodyType<PlanApplicationForm>}
 
     /**
- * @summary Submit a new application
+ * @summary Apply to a grant plan through its form (Phase 11). Nothing is charged; the application fee is charged on approval
  */
-export const useCreateApplicantApplication = <TError = ErrorType<unknown>,
+export const useCreateApplicantApplication = <TError = ErrorType<ErrorMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApplicantApplication>>, TError,CreateApplicantApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createApplicantApplication>>,
@@ -2564,6 +3769,92 @@ export const useWithdrawApplicantApplication = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getWithdrawApplicantApplicationMutationOptions(options));
+    }
+
+export const getResubmitApplicantApplicationUrl = (applicationId: string,) => {
+
+
+
+
+  return `/api/applicant/applications/${applicationId}/resubmit`
+}
+
+/**
+ * @summary After "Changes requested", edit a plan application's answers (replace files or keep them) and resubmit it
+ */
+export const resubmitApplicantApplication = async (applicationId: string,
+    planApplicationResubmitForm: PlanApplicationResubmitForm, options?: Parameters<typeof customFetch>[1]): Promise<ApplicationDetail> => {
+    const formData = new FormData();
+if(planApplicationResubmitForm.note !== undefined) {
+ formData.append(`note`, planApplicationResubmitForm.note);
+ }
+formData.append(`answers`, planApplicationResubmitForm.answers);
+if(planApplicationResubmitForm.fileFields !== undefined) {
+ formData.append(`fileFields`, planApplicationResubmitForm.fileFields);
+ }
+if(planApplicationResubmitForm.files !== undefined) {
+ planApplicationResubmitForm.files.forEach(value => formData.append(`files`, value));
+ }
+
+  return customFetch<ApplicationDetail>(getResubmitApplicantApplicationUrl(applicationId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getResubmitApplicantApplicationMutationKey = () => ['resubmitApplicantApplication'] as const;
+
+export const getResubmitApplicantApplicationMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resubmitApplicantApplication>>, TError,ResubmitApplicantApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resubmitApplicantApplication>>, TError,ResubmitApplicantApplicationMutationVariables, TContext> => {
+
+const mutationKey = getResubmitApplicantApplicationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resubmitApplicantApplication>>, ResubmitApplicantApplicationMutationVariables> = (props) => {
+          const {applicationId,data} = props ?? {};
+
+          return  resubmitApplicantApplication(applicationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResubmitApplicantApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof resubmitApplicantApplication>>>
+    export type ResubmitApplicantApplicationMutationBody = BodyType<PlanApplicationResubmitForm>
+    export type ResubmitApplicantApplicationMutationError = ErrorType<ErrorMessage>
+    export type ResubmitApplicantApplicationMutationVariables = {applicationId: string;data: BodyType<PlanApplicationResubmitForm>}
+
+    /**
+ * @summary After "Changes requested", edit a plan application's answers (replace files or keep them) and resubmit it
+ */
+export const useResubmitApplicantApplication = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resubmitApplicantApplication>>, TError,ResubmitApplicantApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resubmitApplicantApplication>>,
+        TError,
+        ResubmitApplicantApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResubmitApplicantApplicationMutationOptions(options));
     }
 
 export const getRespondToApplicantApplicationUrl = (applicationId: string,) => {

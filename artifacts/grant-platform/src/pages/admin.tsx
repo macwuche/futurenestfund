@@ -9,7 +9,7 @@ import {
   getGetAdminUserQueryKey, getListAdminUsersQueryKey, type ListAdminUsersSort, type ListAdminUsersDir, type AdminDashboard, type AdminUserProfile, type AdminUserSummary,
 } from '@workspace/api-client-react';
 import { keepPreviousData } from '@tanstack/react-query';
-import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck, Mail, Gauge, Activity, ScrollText, UserRound, CreditCard } from 'lucide-react';
+import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck, Mail, Gauge, Activity, ScrollText, UserRound, CreditCard, Briefcase } from 'lucide-react';
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
@@ -18,6 +18,7 @@ import { MonitoringSettings, RateLimitSettings, VirusScanSettings } from '@/comp
 import { EmailSettingsCard } from '@/components/email-settings';
 import { CardControls } from '@/components/card-controls';
 import { CardTypeSettings } from '@/components/card-type-settings';
+import { IndustrySettings } from '@/components/industry-settings';
 import { CardActivationQueue } from '@/pages/admin-cards';
 import { AdminPhotoSettings, UserPhotoControl } from '@/components/admin-photo';
 import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, initials, money, useAnimateOnce } from '@/components/bits';
@@ -339,7 +340,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
         <div className="min-w-[12rem] flex-1">
           <h2 className="font-display text-2xl font-bold" data-testid="text-user-name">{u.name}</h2>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
-            <StatusBadge status={u.verificationLevel} testid="badge-verification" /><StatusBadge status={u.status} testid="badge-user-status" /><span className="text-slate-500">Tier {u.tier}</span>
+            <StatusBadge status={u.verificationLevel} testid="badge-verification" /><StatusBadge status={u.status} testid="badge-user-status" /><span className="text-slate-500">Tier {u.tier}</span><span className="text-slate-500" data-testid="text-user-industry">{u.industry ?? "No industry yet"}</span>
           </div>
           <div className="mt-1 flex flex-wrap gap-x-2 text-sm text-slate-600">
             <span className="break-all" data-testid="text-user-email">{u.email}</span><span aria-hidden="true" className="text-slate-300">·</span><span>{u.organization}</span>
@@ -469,6 +470,7 @@ const SETTINGS_SECTIONS = [
   { id: 'email', label: 'Email', icon: Mail, hint: 'Resend key, sender, signature and health checks' },
   { id: 'limits', label: 'Money', icon: Gauge, hint: 'Platform-wide withdrawal limits' },
   { id: 'cards', label: 'Cards', icon: CreditCard, hint: 'The card types applicants can buy, with their prices and fees' },
+  { id: 'industries', label: 'Industries', icon: Briefcase, hint: 'The industries users choose from and grant plans belong to' },
   { id: 'monitoring', label: 'Monitoring', icon: Activity, hint: 'Where errors go, upload virus scanning and rate limits' },
   { id: 'audit', label: 'Audit log', icon: ScrollText, hint: 'Every recorded change, searchable' },
   { id: 'account', label: 'Your account', icon: UserRound, hint: 'Your photo, password and sessions' },
@@ -505,6 +507,7 @@ export function AdminSettingsPage() {
           {current.id === 'email' && <EmailSettingsCard />}
           {current.id === 'limits' && <GlobalWithdrawalLimits />}
           {current.id === 'cards' && <CardTypeSettings />}
+          {current.id === 'industries' && <IndustrySettings />}
           {current.id === 'monitoring' && <><MonitoringSettings /><VirusScanSettings /><RateLimitSettings /></>}
           {current.id === 'audit' && <AuditSettings />}
           {current.id === 'account' && <><AdminPhotoSettings /><AccountSecurity tone="admin" /></>}

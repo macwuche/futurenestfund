@@ -17,6 +17,11 @@ import type { WithdrawalSources } from './withdrawalSources';
 
 export interface AdminUserProfile {
   id: string;
+  /**
+     * Phase 11: the user's industry name; null until chosen
+     * @nullable
+     */
+  industry: string | null;
   name: string;
   email: string;
   phone: string;

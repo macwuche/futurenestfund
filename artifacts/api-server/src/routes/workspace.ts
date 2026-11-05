@@ -14,11 +14,10 @@ import {
   IssueUserCardParams, IssueUserCardBody, IssueUserCardResponse, ChangeUserCardParams, ChangeUserCardBody, ChangeUserCardResponse,
   UpdateUserWithdrawalLimitsParams, UpdateUserWithdrawalLimitsBody, UpdateUserWithdrawalLimitsResponse,
   UpdateApplicantPreferencesBody, UpdateApplicantPreferencesResponse,
-  GetApplicantMatchmakingResponse, SaveApplicantMatchmakingBody, SaveApplicantMatchmakingResponse,
   ChangeApplicantCardParams, ChangeApplicantCardBody, ChangeApplicantCardResponse,
 } from "@workspace/api-zod";
 import {
-  ListApplicantApplicationsResponse, CreateApplicantApplicationBody, GetApplicantApplicationParams, GetApplicantApplicationResponse,
+  ListApplicantApplicationsResponse, ResubmitApplicantApplicationParams, GetApplicantApplicationParams, GetApplicantApplicationResponse,
   WithdrawApplicantApplicationParams, RespondToApplicantApplicationParams, RespondToApplicantApplicationBody,
   ListApplicantMilestonesResponse, CreateApplicantMilestoneBody, UpdateApplicantMilestoneParams, UpdateApplicantMilestoneBody,
   DeleteApplicantMilestoneParams, CreateApplicantMilestoneResponse, UpdateApplicantMilestoneResponse, ListApplicantNotificationsResponse, MarkApplicantNotificationsReadResponse,
@@ -45,18 +44,18 @@ import {
   listLedger, exportLedgerCsv, adminKycQueue, reviewKycDocument,
   globalWithdrawalLimits, changeGlobalWithdrawalLimits, changeUserWithdrawalLimits, listAudit, exportAuditCsv,
 } from "../lib/adminOps";
-import { receiveFile, receiveRequestForm, findFile, sendFile } from "../lib/uploads";
+import { receiveFile, receiveRequestForm, receiveApplicationForm, findFile, sendFile } from "../lib/uploads";
+import { createPlanApplication, resubmitPlanApplication } from "../lib/planApplications";
 import { applicantKyc, uploadKycDocument } from "../lib/kyc";
 import { setAvatar, clearAvatar, adminAccount, setAdminAvatar, clearAdminAvatar } from "../lib/avatars";
 import { currentAdmin, currentAdminProfile, currentUserId } from "../lib/currentUser";
 import { listNotifications, markAllRead } from "../lib/notifications";
-import { getMatchmaking, saveMatchmaking } from "../lib/matchmaking";
 import {
-  listApplications, applicationDetail, createApplication, withdrawApplication, respondToApplication,
+  listApplications, applicationDetail, withdrawApplication, respondToApplication,
   listMilestones, createMilestone, setMilestoneDone, deleteMilestone, attachApplicationDocument, removeApplicationDocument,
 } from "../lib/applicantRecords";
 import { eq } from "drizzle-orm";
-import { adminDashboard, applicantDashboard, applicantProfile, listUsers, getUser, changeProfile, adjustBalance, changeGlobalFreeze, changePreferences, applicantAccount, createApplicantRequest, DemoInputError } from "../lib/demoWorkspace";
+import { adminDashboard, applicantDashboard, applicantProfile, profileOf, listUsers, getUser, changeProfile, adjustBalance, changeGlobalFreeze, changePreferences, applicantAccount, createApplicantRequest, DemoInputError } from "../lib/demoWorkspace";
 
 const router: IRouter = Router();
 router.use((req, res, next) => {
@@ -84,15 +83,6 @@ router.patch("/applicant/preferences", async (req, res): Promise<void> => {
   const input = UpdateApplicantPreferencesBody.safeParse(req.body);
   if (!input.success) { res.status(400).json({ error: "Choose whether to get email notifications." }); return; }
   res.json(UpdateApplicantPreferencesResponse.parse(await changePreferences(currentUserId(req), input.data, req.identity!.name)));
-});
-
-router.get("/applicant/matchmaking", async (req, res): Promise<void> => {
-  res.json(GetApplicantMatchmakingResponse.parse(await getMatchmaking(currentUserId(req))));
-});
-router.put("/applicant/matchmaking", async (req, res): Promise<void> => {
-  const input = SaveApplicantMatchmakingBody.safeParse(req.body);
-  if (!input.success) { res.status(400).json({ error: "Answer every question: organization type, at least one focus area and goal, funding size and timing." }); return; }
-  res.json(SaveApplicantMatchmakingResponse.parse(await saveMatchmaking(currentUserId(req), input.data, req.identity!.name)));
 });
 
 router.get("/applicant/account", async (req, res): Promise<void> => {
@@ -148,10 +138,20 @@ router.post("/applicant/requests", receiveRequestForm, async (req, res): Promise
 router.get("/applicant/applications", async (req, res): Promise<void> => {
   res.json(ListApplicantApplicationsResponse.parse(await listApplications(currentUserId(req))));
 });
-router.post("/applicant/applications", async (req, res): Promise<void> => {
-  const input = CreateApplicantApplicationBody.safeParse(req.body);
-  if (!input.success) { res.status(400).json({ error: "Enter a title (3–120 characters), a category and an amount between $100 and $10,000,000." }); return; }
-  res.status(201).json(GetApplicantApplicationResponse.parse(await createApplication(currentUserId(req), input.data)));
+/** Phase 11: applications are made to a grant plan, through its form (multipart: planId, answers, fileFields, files). */
+router.post("/applicant/applications", receiveApplicationForm, async (req, res): Promise<void> => {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  if (typeof body["planId"] !== "string") { res.status(400).json({ error: "Choose a grant plan to apply to." }); return; }
+  const files = Array.isArray(req.files) ? req.files : [];
+  res.status(201).json(GetApplicantApplicationResponse.parse(await createPlanApplication(currentUserId(req), { planId: body["planId"], answers: body["answers"], fileFields: body["fileFields"], files })));
+});
+router.post("/applicant/applications/:applicationId/resubmit", receiveApplicationForm, async (req, res): Promise<void> => {
+  const params = ResubmitApplicantApplicationParams.safeParse(req.params);
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const files = Array.isArray(req.files) ? req.files : [];
+  const detail = params.success ? await resubmitPlanApplication(currentUserId(req), params.data.applicationId, { note: body["note"], answers: body["answers"], fileFields: body["fileFields"], files }) : undefined;
+  if (!detail) { res.status(404).json({ error: "Application not found." }); return; }
+  res.json(GetApplicantApplicationResponse.parse(detail));
 });
 router.get("/applicant/applications/:applicationId", async (req, res): Promise<void> => {
   const params = GetApplicantApplicationParams.safeParse(req.params);
@@ -486,8 +486,3 @@ router.post("/admin/kyc/documents/:documentId/review", async (req, res): Promise
 
 export default router;
 
-async function profileOf(id: string) {
-  const [person] = await db.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, id));
-  if (!person) throw new Error("Profile missing");
-  return applicantProfile(person);
-}

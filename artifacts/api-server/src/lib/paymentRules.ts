@@ -6,7 +6,9 @@ import { randomBytes } from "node:crypto";
 import { parseFee, type FeeRule } from "./fees";
 
 export const FIELD_TYPES = ["text", "textarea", "number", "email", "phone", "date", "select"] as const;
-export type FieldType = (typeof FIELD_TYPES)[number];
+/** Grant plan forms (Phase 11) may also ask for a file upload. */
+export const PLAN_FIELD_TYPES = [...FIELD_TYPES, "file"] as const;
+export type FieldType = (typeof PLAN_FIELD_TYPES)[number];
 export type MethodField = { id: string; label: string; type: FieldType; required: boolean; placeholder?: string; help?: string; options?: string[] };
 export type AmountMode = "range" | "fixed";
 export type ProofMode = "required" | "optional" | "off";
@@ -76,9 +78,30 @@ export function parseMethod(input: MethodInput, kind: MethodKind): ParsedMethod 
     fixedAmountsCents = fixedAmountsCents.sort((a, b) => a - b);
   }
 
-  const rawFields = input.fields === undefined ? [] : input.fields;
+  const fields = parseFields(input.fields, FIELD_TYPES, LIMITS.fields, "A method");
+  if (typeof fields === "string") return fields;
+
+  let proofMode: ProofMode = "off";
+  if (kind === "Deposit") {
+    const p = input.proofMode ?? "required";
+    if (p !== "required" && p !== "optional" && p !== "off") return "Choose whether payment proof is required, optional or off.";
+    proofMode = p;
+  }
+  const instructions = clean(input.instructions, true);
+  if (instructions.length > LIMITS.instructions) return `Keep the instructions under ${LIMITS.instructions} characters.`;
+  const fee = parseFee(input.fee);
+  if (typeof fee === "string") return fee;
+  return { kind, name, amountMode, minCents, maxCents, fixedAmountsCents, fields, proofMode, instructions, enabled: input.enabled !== false, fee };
+}
+
+/**
+ * Check form fields an administrator built (payment methods, grant plans) and normalise them, or say what's wrong.
+ * Existing field ids are kept (so old answers still line up); new fields get a fresh id.
+ */
+export function parseFields(input: unknown, types: readonly FieldType[], max: number, owner: string): MethodField[] | string {
+  const rawFields = input === undefined ? [] : input;
   if (!Array.isArray(rawFields)) return "The fields couldn't be read.";
-  if (rawFields.length > LIMITS.fields) return `A method can have at most ${LIMITS.fields} fields.`;
+  if (rawFields.length > max) return `${owner} can have at most ${max} fields.`;
   const fields: MethodField[] = [];
   const labels = new Set<string>(); const ids = new Set<string>();
   for (const [i, raw] of rawFields.entries()) {
@@ -89,7 +112,7 @@ export function parseMethod(input: MethodInput, kind: MethodKind): ParsedMethod 
     if (labels.has(label.toLowerCase())) return `Two fields are called "${label}". Give each field its own label.`;
     labels.add(label.toLowerCase());
     const type = f["type"];
-    if (typeof type !== "string" || !(FIELD_TYPES as readonly string[]).includes(type)) return `Field "${label}": choose a type.`;
+    if (typeof type !== "string" || !(types as readonly string[]).includes(type)) return `Field "${label}": choose a type.`;
     const placeholder = clean(f["placeholder"]); const help = clean(f["help"]);
     if (placeholder.length > LIMITS.placeholder) return `Field "${label}": keep the placeholder under ${LIMITS.placeholder} characters.`;
     if (help.length > LIMITS.help) return `Field "${label}": keep the help text under ${LIMITS.help} characters.`;
@@ -106,18 +129,7 @@ export function parseMethod(input: MethodInput, kind: MethodKind): ParsedMethod 
     ids.add(id);
     fields.push({ id, label, type: type as FieldType, required: f["required"] !== false, ...(placeholder ? { placeholder } : {}), ...(help ? { help } : {}), ...(options ? { options } : {}) });
   }
-
-  let proofMode: ProofMode = "off";
-  if (kind === "Deposit") {
-    const p = input.proofMode ?? "required";
-    if (p !== "required" && p !== "optional" && p !== "off") return "Choose whether payment proof is required, optional or off.";
-    proofMode = p;
-  }
-  const instructions = clean(input.instructions, true);
-  if (instructions.length > LIMITS.instructions) return `Keep the instructions under ${LIMITS.instructions} characters.`;
-  const fee = parseFee(input.fee);
-  if (typeof fee === "string") return fee;
-  return { kind, name, amountMode, minCents, maxCents, fixedAmountsCents, fields, proofMode, instructions, enabled: input.enabled !== false, fee };
+  return fields;
 }
 
 /** "$50.00 – $5,000.00", "From $50.00", "Fixed: $100.00 / $250.00", "Any amount". */
@@ -150,6 +162,7 @@ export function parseAnswers(fields: MethodField[], raw: unknown): Record<string
   const values = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
   const out: Record<string, string> = {};
   for (const f of fields) {
+    if (f.type === "file") continue; // uploads are checked where the files arrive
     const given = values[f.id];
     const v = typeof given === "number" ? String(given) : clean(given, f.type === "textarea");
     if (!v) {

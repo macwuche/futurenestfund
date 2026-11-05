@@ -35,6 +35,8 @@ export const demoProfilesTable = pgTable("demo_profiles", {
   matchmaking: jsonb("matchmaking"),
   /** Which balances this user can withdraw from: grant | deposit | both (set by an administrator). */
   withdrawalSources: text("withdrawal_sources").notNull().default("grant"),
+  /** Phase 11: the user's industry (demo_industries.id); null until they choose one. Drives grant plan recommendations. */
+  industryId: uuid("industry_id"),
 }).enableRLS();
 
 export const insertDemoProfileSchema = createInsertSchema(demoProfilesTable);

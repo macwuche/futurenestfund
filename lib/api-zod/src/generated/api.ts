@@ -355,10 +355,6 @@ export const GetApplicantDashboardQueryParams = zod.object({
   "period": zod.enum(['weekly', 'monthly']).default(getApplicantDashboardQueryPeriodDefault)
 })
 
-export const getApplicantDashboardResponseRecommendationsItemDeadlineRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
-export const getApplicantDashboardResponseRecommendationsItemMatchScoreMin = 0;
-export const getApplicantDashboardResponseRecommendationsItemMatchScoreMax = 100;
-
 export const getApplicantDashboardResponseBalanceSummaryTierMax = 3;
 
 
@@ -372,7 +368,8 @@ export const GetApplicantDashboardResponse = zod.object({
   "verified": zod.boolean(),
   "phone": zod.string(),
   "telegram": zod.string(),
-  "avatarUrl": zod.string().optional().describe('Same-origin URL of the profile photo; absent when none is set')
+  "avatarUrl": zod.string().optional().describe('Same-origin URL of the profile photo; absent when none is set'),
+  "industryId": zod.string().nullable().describe('Phase 11: the user\'s industry; null until chosen')
 }),
   "totalBudget": zod.number(),
   "allocatedFunds": zod.number(),
@@ -396,16 +393,6 @@ export const GetApplicantDashboardResponse = zod.object({
   "status": zod.enum(['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined', 'Withdrawn']),
   "amount": zod.number(),
   "submittedAt": zod.coerce.date()
-})),
-  "recommendations": zod.array(zod.object({
-  "id": zod.string(),
-  "title": zod.string(),
-  "category": zod.string(),
-  "amount": zod.number(),
-  "deadline": zod.string().regex(getApplicantDashboardResponseRecommendationsItemDeadlineRegExp),
-  "recommended": zod.boolean().describe('From matchmaking: eligible, open and scoring at least 70. Always false before the questionnaire is answered.'),
-  "matchScore": zod.number().int().min(getApplicantDashboardResponseRecommendationsItemMatchScoreMin).max(getApplicantDashboardResponseRecommendationsItemMatchScoreMax).optional().describe('Matchmaking score; absent before the questionnaire is answered'),
-  "matchReasons": zod.array(zod.string()).optional().describe('One reason per rule that awarded points (or why the grant doesn\'t fit)')
 })),
   "applicationCount": zod.number().int(),
   "balanceSummary": zod.object({
@@ -445,8 +432,647 @@ export const UpdateApplicantProfileResponse = zod.object({
   "verified": zod.boolean(),
   "phone": zod.string(),
   "telegram": zod.string(),
-  "avatarUrl": zod.string().optional().describe('Same-origin URL of the profile photo; absent when none is set')
+  "avatarUrl": zod.string().optional().describe('Same-origin URL of the profile photo; absent when none is set'),
+  "industryId": zod.string().nullable().describe('Phase 11: the user\'s industry; null until chosen')
 })
+
+
+/**
+ * @summary The industries a user can choose from (Phase 11), A to Z. Public, for the sign-up form
+ */
+export const ListIndustriesResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})
+export const ListIndustriesResponse = zod.array(ListIndustriesResponseItem)
+
+
+/**
+ * @summary Choose the applicant's industry (decides which grant plans are recommended)
+ */
+export const SetApplicantIndustryBody = zod.object({
+  "industryId": zod.string()
+})
+
+export const SetApplicantIndustryResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "organization": zod.string(),
+  "verified": zod.boolean(),
+  "phone": zod.string(),
+  "telegram": zod.string(),
+  "avatarUrl": zod.string().optional().describe('Same-origin URL of the profile photo; absent when none is set'),
+  "industryId": zod.string().nullable().describe('Phase 11: the user\'s industry; null until chosen')
+})
+
+
+/**
+ * @summary Industries with how many plans and users use each
+ */
+export const ListAdminIndustriesResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "planCount": zod.number().int(),
+  "userCount": zod.number().int()
+})
+export const ListAdminIndustriesResponse = zod.array(ListAdminIndustriesResponseItem)
+
+
+/**
+ * @summary Add an industry
+ */
+export const createAdminIndustryBodyNameMax = 200;
+
+
+
+export const CreateAdminIndustryBody = zod.object({
+  "name": zod.string().max(createAdminIndustryBodyNameMax)
+})
+
+export const CreateAdminIndustryResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "planCount": zod.number().int(),
+  "userCount": zod.number().int()
+})
+export const CreateAdminIndustryResponse = zod.array(CreateAdminIndustryResponseItem)
+
+
+/**
+ * @summary Rename an industry
+ */
+export const RenameAdminIndustryParams = zod.object({
+  "industryId": zod.coerce.string()
+})
+
+export const renameAdminIndustryBodyNameMax = 200;
+
+
+
+export const RenameAdminIndustryBody = zod.object({
+  "name": zod.string().max(renameAdminIndustryBodyNameMax)
+})
+
+export const RenameAdminIndustryResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "planCount": zod.number().int(),
+  "userCount": zod.number().int()
+})
+export const RenameAdminIndustryResponse = zod.array(RenameAdminIndustryResponseItem)
+
+
+/**
+ * @summary Remove an industry no grant plan uses; its users are asked to choose again
+ */
+export const DeleteAdminIndustryParams = zod.object({
+  "industryId": zod.coerce.string()
+})
+
+export const DeleteAdminIndustryResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "planCount": zod.number().int(),
+  "userCount": zod.number().int()
+})
+export const DeleteAdminIndustryResponse = zod.array(DeleteAdminIndustryResponseItem)
+
+
+/**
+ * @summary The grant plans open for applications (Phase 11), recommended ones first
+ */
+export const listApplicantGrantPlansResponseFeeAmountMin = 0;
+
+export const listApplicantGrantPlansResponseFieldsItemLabelMax = 60;
+
+export const listApplicantGrantPlansResponseFieldsItemPlaceholderMax = 80;
+
+export const listApplicantGrantPlansResponseFieldsItemHelpMax = 200;
+
+
+
+export const ListApplicantGrantPlansResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "industryId": zod.string().nullable().describe('null = all industries'),
+  "industry": zod.string().describe('The industry\'s name, or "All industries"'),
+  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(listApplicantGrantPlansResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
+  "logoUrl": zod.string().optional(),
+  "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(listApplicantGrantPlansResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(listApplicantGrantPlansResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(listApplicantGrantPlansResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type')),
+  "recommended": zod.boolean().optional().describe('Applicant only: for the applicant\'s industry, or for all industries'),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "applicationCount": zod.number().int().optional().describe('Admin only'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).describe('A grant plan (Phase 11)')
+export const ListApplicantGrantPlansResponse = zod.array(ListApplicantGrantPlansResponseItem)
+
+
+/**
+ * @summary One open grant plan, with its application form
+ */
+export const GetApplicantGrantPlanParams = zod.object({
+  "planId": zod.coerce.string()
+})
+
+export const getApplicantGrantPlanResponseFeeAmountMin = 0;
+
+export const getApplicantGrantPlanResponseFieldsItemLabelMax = 60;
+
+export const getApplicantGrantPlanResponseFieldsItemPlaceholderMax = 80;
+
+export const getApplicantGrantPlanResponseFieldsItemHelpMax = 200;
+
+
+
+export const GetApplicantGrantPlanResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "industryId": zod.string().nullable().describe('null = all industries'),
+  "industry": zod.string().describe('The industry\'s name, or "All industries"'),
+  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(getApplicantGrantPlanResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
+  "logoUrl": zod.string().optional(),
+  "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(getApplicantGrantPlanResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(getApplicantGrantPlanResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(getApplicantGrantPlanResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type')),
+  "recommended": zod.boolean().optional().describe('Applicant only: for the applicant\'s industry, or for all industries'),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "applicationCount": zod.number().int().optional().describe('Admin only'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).describe('A grant plan (Phase 11)')
+
+
+/**
+ * @summary A grant plan's logo image
+ */
+export const GetApplicantGrantPlanLogoParams = zod.object({
+  "planId": zod.coerce.string()
+})
+
+export const GetApplicantGrantPlanLogoResponse = zod.unknown()
+
+
+/**
+ * @summary Every grant plan, newest first, with how many applications each has
+ */
+export const listAdminGrantPlansResponseFeeAmountMin = 0;
+
+export const listAdminGrantPlansResponseFieldsItemLabelMax = 60;
+
+export const listAdminGrantPlansResponseFieldsItemPlaceholderMax = 80;
+
+export const listAdminGrantPlansResponseFieldsItemHelpMax = 200;
+
+
+
+export const ListAdminGrantPlansResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "industryId": zod.string().nullable().describe('null = all industries'),
+  "industry": zod.string().describe('The industry\'s name, or "All industries"'),
+  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(listAdminGrantPlansResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
+  "logoUrl": zod.string().optional(),
+  "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(listAdminGrantPlansResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(listAdminGrantPlansResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(listAdminGrantPlansResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type')),
+  "recommended": zod.boolean().optional().describe('Applicant only: for the applicant\'s industry, or for all industries'),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "applicationCount": zod.number().int().optional().describe('Admin only'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).describe('A grant plan (Phase 11)')
+export const ListAdminGrantPlansResponse = zod.array(ListAdminGrantPlansResponseItem)
+
+
+/**
+ * @summary Create a grant plan
+ */
+export const createAdminGrantPlanBodyOneFeeAmountMin = 0;
+
+export const createAdminGrantPlanBodyOneFieldsItemLabelMax = 60;
+
+export const createAdminGrantPlanBodyOneFieldsItemPlaceholderMax = 80;
+
+export const createAdminGrantPlanBodyOneFieldsItemHelpMax = 200;
+
+
+
+export const CreateAdminGrantPlanBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional(),
+  "industryId": zod.string().nullish(),
+  "amount": zod.number(),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(createAdminGrantPlanBodyOneFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(createAdminGrantPlanBodyOneFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(createAdminGrantPlanBodyOneFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(createAdminGrantPlanBodyOneFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type')).optional(),
+  "enabled": zod.boolean().optional()
+}).and(zod.object({
+
+}).passthrough())
+
+export const createAdminGrantPlanResponseFeeAmountMin = 0;
+
+export const createAdminGrantPlanResponseFieldsItemLabelMax = 60;
+
+export const createAdminGrantPlanResponseFieldsItemPlaceholderMax = 80;
+
+export const createAdminGrantPlanResponseFieldsItemHelpMax = 200;
+
+
+
+export const CreateAdminGrantPlanResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "industryId": zod.string().nullable().describe('null = all industries'),
+  "industry": zod.string().describe('The industry\'s name, or "All industries"'),
+  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(createAdminGrantPlanResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
+  "logoUrl": zod.string().optional(),
+  "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(createAdminGrantPlanResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(createAdminGrantPlanResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(createAdminGrantPlanResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type')),
+  "recommended": zod.boolean().optional().describe('Applicant only: for the applicant\'s industry, or for all industries'),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "applicationCount": zod.number().int().optional().describe('Admin only'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).describe('A grant plan (Phase 11)')
+
+
+/**
+ * @summary One grant plan
+ */
+export const GetAdminGrantPlanParams = zod.object({
+  "planId": zod.coerce.string()
+})
+
+export const getAdminGrantPlanResponseFeeAmountMin = 0;
+
+export const getAdminGrantPlanResponseFieldsItemLabelMax = 60;
+
+export const getAdminGrantPlanResponseFieldsItemPlaceholderMax = 80;
+
+export const getAdminGrantPlanResponseFieldsItemHelpMax = 200;
+
+
+
+export const GetAdminGrantPlanResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "industryId": zod.string().nullable().describe('null = all industries'),
+  "industry": zod.string().describe('The industry\'s name, or "All industries"'),
+  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(getAdminGrantPlanResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
+  "logoUrl": zod.string().optional(),
+  "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(getAdminGrantPlanResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(getAdminGrantPlanResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(getAdminGrantPlanResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type')),
+  "recommended": zod.boolean().optional().describe('Applicant only: for the applicant\'s industry, or for all industries'),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "applicationCount": zod.number().int().optional().describe('Admin only'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).describe('A grant plan (Phase 11)')
+
+
+/**
+ * @summary Change a grant plan (only the parts sent); submitted applications keep their own copy
+ */
+export const UpdateAdminGrantPlanParams = zod.object({
+  "planId": zod.coerce.string()
+})
+
+export const updateAdminGrantPlanBodyFeeAmountMin = 0;
+
+export const updateAdminGrantPlanBodyFieldsItemLabelMax = 60;
+
+export const updateAdminGrantPlanBodyFieldsItemPlaceholderMax = 80;
+
+export const updateAdminGrantPlanBodyFieldsItemHelpMax = 200;
+
+
+
+export const UpdateAdminGrantPlanBody = zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string().optional(),
+  "industryId": zod.string().nullish(),
+  "amount": zod.number().optional(),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(updateAdminGrantPlanBodyFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(updateAdminGrantPlanBodyFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(updateAdminGrantPlanBodyFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(updateAdminGrantPlanBodyFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type')).optional(),
+  "enabled": zod.boolean().optional()
+})
+
+export const updateAdminGrantPlanResponseFeeAmountMin = 0;
+
+export const updateAdminGrantPlanResponseFieldsItemLabelMax = 60;
+
+export const updateAdminGrantPlanResponseFieldsItemPlaceholderMax = 80;
+
+export const updateAdminGrantPlanResponseFieldsItemHelpMax = 200;
+
+
+
+export const UpdateAdminGrantPlanResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "industryId": zod.string().nullable().describe('null = all industries'),
+  "industry": zod.string().describe('The industry\'s name, or "All industries"'),
+  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(updateAdminGrantPlanResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
+  "logoUrl": zod.string().optional(),
+  "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(updateAdminGrantPlanResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(updateAdminGrantPlanResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(updateAdminGrantPlanResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type')),
+  "recommended": zod.boolean().optional().describe('Applicant only: for the applicant\'s industry, or for all industries'),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "applicationCount": zod.number().int().optional().describe('Admin only'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).describe('A grant plan (Phase 11)')
+
+
+/**
+ * @summary Delete a plan nobody applied to (otherwise switch it off)
+ */
+export const DeleteAdminGrantPlanParams = zod.object({
+  "planId": zod.coerce.string()
+})
+
+export const DeleteAdminGrantPlanResponse = zod.void()
+
+
+/**
+ * @summary Upload a plan's logo (PNG, JPEG or WebP, up to 2 MB)
+ */
+export const UploadAdminGrantPlanLogoParams = zod.object({
+  "planId": zod.coerce.string()
+})
+
+export const UploadAdminGrantPlanLogoBody = zod.object({
+  "file": zod.instanceof(Blob)
+})
+
+export const uploadAdminGrantPlanLogoResponseFeeAmountMin = 0;
+
+export const uploadAdminGrantPlanLogoResponseFieldsItemLabelMax = 60;
+
+export const uploadAdminGrantPlanLogoResponseFieldsItemPlaceholderMax = 80;
+
+export const uploadAdminGrantPlanLogoResponseFieldsItemHelpMax = 200;
+
+
+
+export const UploadAdminGrantPlanLogoResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "industryId": zod.string().nullable().describe('null = all industries'),
+  "industry": zod.string().describe('The industry\'s name, or "All industries"'),
+  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(uploadAdminGrantPlanLogoResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
+  "logoUrl": zod.string().optional(),
+  "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(uploadAdminGrantPlanLogoResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(uploadAdminGrantPlanLogoResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(uploadAdminGrantPlanLogoResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type')),
+  "recommended": zod.boolean().optional().describe('Applicant only: for the applicant\'s industry, or for all industries'),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "applicationCount": zod.number().int().optional().describe('Admin only'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).describe('A grant plan (Phase 11)')
+
+
+/**
+ * @summary Remove a plan's logo (the initials placeholder shows instead)
+ */
+export const DeleteAdminGrantPlanLogoParams = zod.object({
+  "planId": zod.coerce.string()
+})
+
+export const deleteAdminGrantPlanLogoResponseFeeAmountMin = 0;
+
+export const deleteAdminGrantPlanLogoResponseFieldsItemLabelMax = 60;
+
+export const deleteAdminGrantPlanLogoResponseFieldsItemPlaceholderMax = 80;
+
+export const deleteAdminGrantPlanLogoResponseFieldsItemHelpMax = 200;
+
+
+
+export const DeleteAdminGrantPlanLogoResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "industryId": zod.string().nullable().describe('null = all industries'),
+  "industry": zod.string().describe('The industry\'s name, or "All industries"'),
+  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(deleteAdminGrantPlanLogoResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
+  "logoUrl": zod.string().optional(),
+  "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(deleteAdminGrantPlanLogoResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(deleteAdminGrantPlanLogoResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(deleteAdminGrantPlanLogoResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type')),
+  "recommended": zod.boolean().optional().describe('Applicant only: for the applicant\'s industry, or for all industries'),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "applicationCount": zod.number().int().optional().describe('Admin only'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).describe('A grant plan (Phase 11)')
+
+
+/**
+ * @summary Take a plan's logo from an image link (downloaded once and stored; never hot-linked)
+ */
+export const SetAdminGrantPlanLogoUrlParams = zod.object({
+  "planId": zod.coerce.string()
+})
+
+export const setAdminGrantPlanLogoUrlBodyUrlMax = 2000;
+
+
+
+export const SetAdminGrantPlanLogoUrlBody = zod.object({
+  "url": zod.string().max(setAdminGrantPlanLogoUrlBodyUrlMax)
+})
+
+export const setAdminGrantPlanLogoUrlResponseFeeAmountMin = 0;
+
+export const setAdminGrantPlanLogoUrlResponseFieldsItemLabelMax = 60;
+
+export const setAdminGrantPlanLogoUrlResponseFieldsItemPlaceholderMax = 80;
+
+export const setAdminGrantPlanLogoUrlResponseFieldsItemHelpMax = 200;
+
+
+
+export const SetAdminGrantPlanLogoUrlResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "industryId": zod.string().nullable().describe('null = all industries'),
+  "industry": zod.string().describe('The industry\'s name, or "All industries"'),
+  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "fee": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(setAdminGrantPlanLogoUrlResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
+  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
+  "logoUrl": zod.string().optional(),
+  "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(setAdminGrantPlanLogoUrlResponseFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(setAdminGrantPlanLogoUrlResponseFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(setAdminGrantPlanLogoUrlResponseFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type')),
+  "recommended": zod.boolean().optional().describe('Applicant only: for the applicant\'s industry, or for all industries'),
+  "enabled": zod.boolean().optional().describe('Admin only'),
+  "applicationCount": zod.number().int().optional().describe('Admin only'),
+  "createdBy": zod.string().optional(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).describe('A grant plan (Phase 11)')
 
 
 /**
@@ -458,82 +1084,6 @@ export const UpdateApplicantPreferencesBody = zod.object({
 
 export const UpdateApplicantPreferencesResponse = zod.object({
   "emailNotifications": zod.boolean()
-})
-
-
-/**
- * @summary The applicant's matchmaking answers and every sample grant scored against them (rule-based, no AI)
- */
-export const getApplicantMatchmakingResponseAnswersOneFocusAreasMax = 6;
-
-export const getApplicantMatchmakingResponseAnswersOneGoalsMax = 5;
-
-export const getApplicantMatchmakingResponseMatchesItemScoreMin = 0;
-export const getApplicantMatchmakingResponseMatchesItemScoreMax = 100;
-
-
-
-export const GetApplicantMatchmakingResponse = zod.object({
-  "answers": zod.union([zod.object({
-  "orgType": zod.enum(['Nonprofit', 'Small business', 'Individual or artist', 'School or university', 'Community group']),
-  "focusAreas": zod.array(zod.enum(['Technology & innovation', 'Arts & culture', 'Community', 'Environment', 'Education', 'Health'])).min(1).max(getApplicantMatchmakingResponseAnswersOneFocusAreasMax),
-  "goals": zod.array(zod.enum(['Start a new project', 'Grow an existing program', 'Research and development', 'Equipment', 'Operating costs'])).min(1).max(getApplicantMatchmakingResponseAnswersOneGoalsMax),
-  "fundingSize": zod.enum(['under10k', '10to30k', 'over30k', 'any']),
-  "timeline": zod.enum(['30days', '90days', 'flexible'])
-}),zod.null()]),
-  "matches": zod.array(zod.object({
-  "grantId": zod.string(),
-  "score": zod.number().int().min(getApplicantMatchmakingResponseMatchesItemScoreMin).max(getApplicantMatchmakingResponseMatchesItemScoreMax),
-  "eligible": zod.boolean(),
-  "open": zod.boolean(),
-  "recommended": zod.boolean(),
-  "reasons": zod.array(zod.string())
-}))
-})
-
-
-/**
- * @summary Save (or replace) the applicant's matchmaking answers
- */
-export const saveApplicantMatchmakingBodyFocusAreasMax = 6;
-
-export const saveApplicantMatchmakingBodyGoalsMax = 5;
-
-
-
-export const SaveApplicantMatchmakingBody = zod.object({
-  "orgType": zod.enum(['Nonprofit', 'Small business', 'Individual or artist', 'School or university', 'Community group']),
-  "focusAreas": zod.array(zod.enum(['Technology & innovation', 'Arts & culture', 'Community', 'Environment', 'Education', 'Health'])).min(1).max(saveApplicantMatchmakingBodyFocusAreasMax),
-  "goals": zod.array(zod.enum(['Start a new project', 'Grow an existing program', 'Research and development', 'Equipment', 'Operating costs'])).min(1).max(saveApplicantMatchmakingBodyGoalsMax),
-  "fundingSize": zod.enum(['under10k', '10to30k', 'over30k', 'any']),
-  "timeline": zod.enum(['30days', '90days', 'flexible'])
-})
-
-export const saveApplicantMatchmakingResponseAnswersOneFocusAreasMax = 6;
-
-export const saveApplicantMatchmakingResponseAnswersOneGoalsMax = 5;
-
-export const saveApplicantMatchmakingResponseMatchesItemScoreMin = 0;
-export const saveApplicantMatchmakingResponseMatchesItemScoreMax = 100;
-
-
-
-export const SaveApplicantMatchmakingResponse = zod.object({
-  "answers": zod.union([zod.object({
-  "orgType": zod.enum(['Nonprofit', 'Small business', 'Individual or artist', 'School or university', 'Community group']),
-  "focusAreas": zod.array(zod.enum(['Technology & innovation', 'Arts & culture', 'Community', 'Environment', 'Education', 'Health'])).min(1).max(saveApplicantMatchmakingResponseAnswersOneFocusAreasMax),
-  "goals": zod.array(zod.enum(['Start a new project', 'Grow an existing program', 'Research and development', 'Equipment', 'Operating costs'])).min(1).max(saveApplicantMatchmakingResponseAnswersOneGoalsMax),
-  "fundingSize": zod.enum(['under10k', '10to30k', 'over30k', 'any']),
-  "timeline": zod.enum(['30days', '90days', 'flexible'])
-}),zod.null()]),
-  "matches": zod.array(zod.object({
-  "grantId": zod.string(),
-  "score": zod.number().int().min(saveApplicantMatchmakingResponseMatchesItemScoreMin).max(saveApplicantMatchmakingResponseMatchesItemScoreMax),
-  "eligible": zod.boolean(),
-  "open": zod.boolean(),
-  "recommended": zod.boolean(),
-  "reasons": zod.array(zod.string())
-}))
 })
 
 
@@ -586,7 +1136,7 @@ export const GetApplicantAccountResponse = zod.object({
 })),
   "transactions": zod.array(zod.object({
   "id": zod.string(),
-  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up', 'Application fee']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "direction": zod.enum(['in', 'out']),
   "amount": zod.number(),
@@ -706,7 +1256,7 @@ export const BuyApplicantCardResponse = zod.object({
 })),
   "transactions": zod.array(zod.object({
   "id": zod.string(),
-  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up', 'Application fee']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "direction": zod.enum(['in', 'out']),
   "amount": zod.number(),
@@ -799,7 +1349,7 @@ export const TopUpApplicantCardResponse = zod.object({
 })),
   "transactions": zod.array(zod.object({
   "id": zod.string(),
-  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up', 'Application fee']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "direction": zod.enum(['in', 'out']),
   "amount": zod.number(),
@@ -887,7 +1437,7 @@ export const ChangeApplicantCardResponse = zod.object({
 })),
   "transactions": zod.array(zod.object({
   "id": zod.string(),
-  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up', 'Application fee']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "direction": zod.enum(['in', 'out']),
   "amount": zod.number(),
@@ -937,7 +1487,7 @@ export const CreateApplicantRequestBody = zod.object({
 
 export const CreateApplicantRequestResponse = zod.object({
   "id": zod.string(),
-  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']),
+  "type": zod.enum(['Deposit', 'Withdrawal', 'Top-up', 'Debit', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up', 'Application fee']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "direction": zod.enum(['in', 'out']),
   "amount": zod.number(),
@@ -1039,22 +1589,13 @@ export const ListApplicantApplicationsResponse = zod.array(ListApplicantApplicat
 
 
 /**
- * @summary Submit a new application
+ * @summary Apply to a grant plan through its form (Phase 11). Nothing is charged; the application fee is charged on approval
  */
-export const createApplicantApplicationBodyTitleMin = 3;
-export const createApplicantApplicationBodyTitleMax = 120;
-
-export const createApplicantApplicationBodyCategoryMax = 60;
-
-export const createApplicantApplicationBodyAmountMin = 100;
-export const createApplicantApplicationBodyAmountMax = 10000000;
-
-
-
 export const CreateApplicantApplicationBody = zod.object({
-  "title": zod.string().min(createApplicantApplicationBodyTitleMin).max(createApplicantApplicationBodyTitleMax),
-  "category": zod.string().min(1).max(createApplicantApplicationBodyCategoryMax),
-  "amount": zod.number().min(createApplicantApplicationBodyAmountMin).max(createApplicantApplicationBodyAmountMax)
+  "planId": zod.string(),
+  "answers": zod.string().describe('JSON object of answers by field id (file fields are sent in files)'),
+  "fileFields": zod.string().optional().describe('JSON array: the field id each file in files is for, in the same order'),
+  "files": zod.array(zod.instanceof(Blob)).optional()
 })
 
 export const CreateApplicantApplicationResponse = zod.object({
@@ -1069,6 +1610,34 @@ export const CreateApplicantApplicationResponse = zod.object({
   "canWithdraw": zod.boolean(),
   "canRespond": zod.boolean(),
   "canAttach": zod.boolean().describe('Whether documents can still be attached or removed'),
+  "canEdit": zod.boolean().describe('Plan applications after Changes requested: the answers can be edited and resubmitted'),
+  "plan": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "industry": zod.string(),
+  "initials": zod.string(),
+  "logoUrl": zod.string().optional()
+}).optional().describe('The grant plan an application was made to, as it was when submitted'),
+  "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
+  "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "answers": zod.array(zod.object({
+  "fieldId": zod.string(),
+  "label": zod.string(),
+  "type": zod.string(),
+  "value": zod.string().describe('The answer; for a file field, the file\'s name'),
+  "file": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+}).optional(),
+  "required": zod.boolean(),
+  "placeholder": zod.string().optional(),
+  "help": zod.string().optional(),
+  "options": zod.array(zod.string()).optional()
+})).optional(),
   "documents": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -1106,6 +1675,34 @@ export const GetApplicantApplicationResponse = zod.object({
   "canWithdraw": zod.boolean(),
   "canRespond": zod.boolean(),
   "canAttach": zod.boolean().describe('Whether documents can still be attached or removed'),
+  "canEdit": zod.boolean().describe('Plan applications after Changes requested: the answers can be edited and resubmitted'),
+  "plan": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "industry": zod.string(),
+  "initials": zod.string(),
+  "logoUrl": zod.string().optional()
+}).optional().describe('The grant plan an application was made to, as it was when submitted'),
+  "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
+  "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "answers": zod.array(zod.object({
+  "fieldId": zod.string(),
+  "label": zod.string(),
+  "type": zod.string(),
+  "value": zod.string().describe('The answer; for a file field, the file\'s name'),
+  "file": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+}).optional(),
+  "required": zod.boolean(),
+  "placeholder": zod.string().optional(),
+  "help": zod.string().optional(),
+  "options": zod.array(zod.string()).optional()
+})).optional(),
   "documents": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -1143,6 +1740,110 @@ export const WithdrawApplicantApplicationResponse = zod.object({
   "canWithdraw": zod.boolean(),
   "canRespond": zod.boolean(),
   "canAttach": zod.boolean().describe('Whether documents can still be attached or removed'),
+  "canEdit": zod.boolean().describe('Plan applications after Changes requested: the answers can be edited and resubmitted'),
+  "plan": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "industry": zod.string(),
+  "initials": zod.string(),
+  "logoUrl": zod.string().optional()
+}).optional().describe('The grant plan an application was made to, as it was when submitted'),
+  "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
+  "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "answers": zod.array(zod.object({
+  "fieldId": zod.string(),
+  "label": zod.string(),
+  "type": zod.string(),
+  "value": zod.string().describe('The answer; for a file field, the file\'s name'),
+  "file": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+}).optional(),
+  "required": zod.boolean(),
+  "placeholder": zod.string().optional(),
+  "help": zod.string().optional(),
+  "options": zod.array(zod.string()).optional()
+})).optional(),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+})),
+  "events": zod.array(zod.object({
+  "id": zod.string(),
+  "status": zod.string(),
+  "note": zod.string(),
+  "actor": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary After "Changes requested", edit a plan application's answers (replace files or keep them) and resubmit it
+ */
+export const ResubmitApplicantApplicationParams = zod.object({
+  "applicationId": zod.coerce.string()
+})
+
+export const resubmitApplicantApplicationBodyNoteMax = 1000;
+
+
+
+export const ResubmitApplicantApplicationBody = zod.object({
+  "note": zod.string().max(resubmitApplicantApplicationBodyNoteMax).optional().describe('Optional note to the reviewer'),
+  "answers": zod.string().describe('JSON object of answers by field id'),
+  "fileFields": zod.string().optional().describe('JSON array: the field id each file in files is for; a file field with no new file keeps the one attached'),
+  "files": zod.array(zod.instanceof(Blob)).optional()
+})
+
+export const ResubmitApplicantApplicationResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "status": zod.enum(['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined', 'Withdrawn']),
+  "amount": zod.number(),
+  "submittedAt": zod.coerce.date()
+}).and(zod.object({
+  "updatedAt": zod.coerce.date(),
+  "canWithdraw": zod.boolean(),
+  "canRespond": zod.boolean(),
+  "canAttach": zod.boolean().describe('Whether documents can still be attached or removed'),
+  "canEdit": zod.boolean().describe('Plan applications after Changes requested: the answers can be edited and resubmitted'),
+  "plan": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "industry": zod.string(),
+  "initials": zod.string(),
+  "logoUrl": zod.string().optional()
+}).optional().describe('The grant plan an application was made to, as it was when submitted'),
+  "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
+  "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "answers": zod.array(zod.object({
+  "fieldId": zod.string(),
+  "label": zod.string(),
+  "type": zod.string(),
+  "value": zod.string().describe('The answer; for a file field, the file\'s name'),
+  "file": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+}).optional(),
+  "required": zod.boolean(),
+  "placeholder": zod.string().optional(),
+  "help": zod.string().optional(),
+  "options": zod.array(zod.string()).optional()
+})).optional(),
   "documents": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -1193,6 +1894,34 @@ export const RespondToApplicantApplicationResponse = zod.object({
   "canWithdraw": zod.boolean(),
   "canRespond": zod.boolean(),
   "canAttach": zod.boolean().describe('Whether documents can still be attached or removed'),
+  "canEdit": zod.boolean().describe('Plan applications after Changes requested: the answers can be edited and resubmitted'),
+  "plan": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "industry": zod.string(),
+  "initials": zod.string(),
+  "logoUrl": zod.string().optional()
+}).optional().describe('The grant plan an application was made to, as it was when submitted'),
+  "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
+  "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "answers": zod.array(zod.object({
+  "fieldId": zod.string(),
+  "label": zod.string(),
+  "type": zod.string(),
+  "value": zod.string().describe('The answer; for a file field, the file\'s name'),
+  "file": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+}).optional(),
+  "required": zod.boolean(),
+  "placeholder": zod.string().optional(),
+  "help": zod.string().optional(),
+  "options": zod.array(zod.string()).optional()
+})).optional(),
   "documents": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -1226,7 +1955,8 @@ export const UploadApplicantAvatarResponse = zod.object({
   "verified": zod.boolean(),
   "phone": zod.string(),
   "telegram": zod.string(),
-  "avatarUrl": zod.string().optional().describe('Same-origin URL of the profile photo; absent when none is set')
+  "avatarUrl": zod.string().optional().describe('Same-origin URL of the profile photo; absent when none is set'),
+  "industryId": zod.string().nullable().describe('Phase 11: the user\'s industry; null until chosen')
 })
 
 
@@ -1241,7 +1971,8 @@ export const DeleteApplicantAvatarResponse = zod.object({
   "verified": zod.boolean(),
   "phone": zod.string(),
   "telegram": zod.string(),
-  "avatarUrl": zod.string().optional().describe('Same-origin URL of the profile photo; absent when none is set')
+  "avatarUrl": zod.string().optional().describe('Same-origin URL of the profile photo; absent when none is set'),
+  "industryId": zod.string().nullable().describe('Phase 11: the user\'s industry; null until chosen')
 })
 
 
@@ -1315,6 +2046,34 @@ export const UploadApplicantApplicationDocumentResponse = zod.object({
   "canWithdraw": zod.boolean(),
   "canRespond": zod.boolean(),
   "canAttach": zod.boolean().describe('Whether documents can still be attached or removed'),
+  "canEdit": zod.boolean().describe('Plan applications after Changes requested: the answers can be edited and resubmitted'),
+  "plan": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "industry": zod.string(),
+  "initials": zod.string(),
+  "logoUrl": zod.string().optional()
+}).optional().describe('The grant plan an application was made to, as it was when submitted'),
+  "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
+  "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "answers": zod.array(zod.object({
+  "fieldId": zod.string(),
+  "label": zod.string(),
+  "type": zod.string(),
+  "value": zod.string().describe('The answer; for a file field, the file\'s name'),
+  "file": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+}).optional(),
+  "required": zod.boolean(),
+  "placeholder": zod.string().optional(),
+  "help": zod.string().optional(),
+  "options": zod.array(zod.string()).optional()
+})).optional(),
   "documents": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -1353,6 +2112,34 @@ export const DeleteApplicantApplicationDocumentResponse = zod.object({
   "canWithdraw": zod.boolean(),
   "canRespond": zod.boolean(),
   "canAttach": zod.boolean().describe('Whether documents can still be attached or removed'),
+  "canEdit": zod.boolean().describe('Plan applications after Changes requested: the answers can be edited and resubmitted'),
+  "plan": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "industry": zod.string(),
+  "initials": zod.string(),
+  "logoUrl": zod.string().optional()
+}).optional().describe('The grant plan an application was made to, as it was when submitted'),
+  "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
+  "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "answers": zod.array(zod.object({
+  "fieldId": zod.string(),
+  "label": zod.string(),
+  "type": zod.string(),
+  "value": zod.string().describe('The answer; for a file field, the file\'s name'),
+  "file": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+}).optional(),
+  "required": zod.boolean(),
+  "placeholder": zod.string().optional(),
+  "help": zod.string().optional(),
+  "options": zod.array(zod.string()).optional()
+})).optional(),
   "documents": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -1592,6 +2379,7 @@ export const getAdminUserResponseTierMax = 3;
 
 export const GetAdminUserResponse = zod.object({
   "id": zod.string(),
+  "industry": zod.string().nullable().describe('Phase 11: the user\'s industry name; null until chosen'),
   "name": zod.string(),
   "email": zod.string().email(),
   "phone": zod.string(),
@@ -1700,6 +2488,7 @@ export const updateAdminUserResponseTierMax = 3;
 
 export const UpdateAdminUserResponse = zod.object({
   "id": zod.string(),
+  "industry": zod.string().nullable().describe('Phase 11: the user\'s industry name; null until chosen'),
   "name": zod.string(),
   "email": zod.string().email(),
   "phone": zod.string(),
@@ -1848,6 +2637,7 @@ export const uploadAdminUserAvatarResponseTierMax = 3;
 
 export const UploadAdminUserAvatarResponse = zod.object({
   "id": zod.string(),
+  "industry": zod.string().nullable().describe('Phase 11: the user\'s industry name; null until chosen'),
   "name": zod.string(),
   "email": zod.string().email(),
   "phone": zod.string(),
@@ -1930,6 +2720,7 @@ export const deleteAdminUserAvatarResponseTierMax = 3;
 
 export const DeleteAdminUserAvatarResponse = zod.object({
   "id": zod.string(),
+  "industry": zod.string().nullable().describe('Phase 11: the user\'s industry name; null until chosen'),
   "name": zod.string(),
   "email": zod.string().email(),
   "phone": zod.string(),
@@ -2127,6 +2918,7 @@ export const topUpUserCardResponseTierMax = 3;
 
 export const TopUpUserCardResponse = zod.object({
   "id": zod.string(),
+  "industry": zod.string().nullable().describe('Phase 11: the user\'s industry name; null until chosen'),
   "name": zod.string(),
   "email": zod.string().email(),
   "phone": zod.string(),
@@ -2216,6 +3008,7 @@ export const issueUserCardResponseTierMax = 3;
 
 export const IssueUserCardResponse = zod.object({
   "id": zod.string(),
+  "industry": zod.string().nullable().describe('Phase 11: the user\'s industry name; null until chosen'),
   "name": zod.string(),
   "email": zod.string().email(),
   "phone": zod.string(),
@@ -2308,6 +3101,7 @@ export const changeUserCardResponseTierMax = 3;
 
 export const ChangeUserCardResponse = zod.object({
   "id": zod.string(),
+  "industry": zod.string().nullable().describe('Phase 11: the user\'s industry name; null until chosen'),
   "name": zod.string(),
   "email": zod.string().email(),
   "phone": zod.string(),
@@ -2437,6 +3231,7 @@ export const declineAdminCardRequestResponseTierMax = 3;
 
 export const DeclineAdminCardRequestResponse = zod.object({
   "id": zod.string(),
+  "industry": zod.string().nullable().describe('Phase 11: the user\'s industry name; null until chosen'),
   "name": zod.string(),
   "email": zod.string().email(),
   "phone": zod.string(),
@@ -2525,6 +3320,7 @@ export const updateUserWithdrawalLimitsResponseTierMax = 3;
 
 export const UpdateUserWithdrawalLimitsResponse = zod.object({
   "id": zod.string(),
+  "industry": zod.string().nullable().describe('Phase 11: the user\'s industry name; null until chosen'),
   "name": zod.string(),
   "email": zod.string().email(),
   "phone": zod.string(),
@@ -2679,7 +3475,7 @@ export const SearchAdminResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "userId": zod.string(),
   "userName": zod.string(),
-  "kind": zod.enum(['Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']),
+  "kind": zod.enum(['Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up', 'Application fee']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "amount": zod.number().describe('Signed: negative amounts left the account'),
   "reason": zod.string(),
@@ -2745,6 +3541,34 @@ export const GetAdminApplicationResponse = zod.object({
   "updatedAt": zod.coerce.date(),
   "userStatus": zod.enum(['Active', 'Frozen']),
   "platformFrozen": zod.boolean(),
+  "accountBalance": zod.number().describe('The applicant\'s account balance now (the application fee is taken from it on approval)'),
+  "plan": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "industry": zod.string(),
+  "initials": zod.string(),
+  "logoUrl": zod.string().optional()
+}).optional().describe('The grant plan an application was made to, as it was when submitted'),
+  "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
+  "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "answers": zod.array(zod.object({
+  "fieldId": zod.string(),
+  "label": zod.string(),
+  "type": zod.string(),
+  "value": zod.string().describe('The answer; for a file field, the file\'s name'),
+  "file": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+}).optional(),
+  "required": zod.boolean(),
+  "placeholder": zod.string().optional(),
+  "help": zod.string().optional(),
+  "options": zod.array(zod.string()).optional()
+})).optional(),
   "allowedDecisions": zod.array(zod.enum(['Review', 'Approved', 'Declined', 'Changes requested'])),
   "documents": zod.array(zod.object({
   "id": zod.string(),
@@ -2795,6 +3619,34 @@ export const DecideAdminApplicationResponse = zod.object({
   "updatedAt": zod.coerce.date(),
   "userStatus": zod.enum(['Active', 'Frozen']),
   "platformFrozen": zod.boolean(),
+  "accountBalance": zod.number().describe('The applicant\'s account balance now (the application fee is taken from it on approval)'),
+  "plan": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "industry": zod.string(),
+  "initials": zod.string(),
+  "logoUrl": zod.string().optional()
+}).optional().describe('The grant plan an application was made to, as it was when submitted'),
+  "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
+  "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "answers": zod.array(zod.object({
+  "fieldId": zod.string(),
+  "label": zod.string(),
+  "type": zod.string(),
+  "value": zod.string().describe('The answer; for a file field, the file\'s name'),
+  "file": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+}).optional(),
+  "required": zod.boolean(),
+  "placeholder": zod.string().optional(),
+  "help": zod.string().optional(),
+  "options": zod.array(zod.string()).optional()
+})).optional(),
   "allowedDecisions": zod.array(zod.enum(['Review', 'Approved', 'Declined', 'Changes requested'])),
   "documents": zod.array(zod.object({
   "id": zod.string(),
@@ -3341,6 +4193,7 @@ export const updateUserWithdrawalSourcesResponseTierMax = 3;
 
 export const UpdateUserWithdrawalSourcesResponse = zod.object({
   "id": zod.string(),
+  "industry": zod.string().nullable().describe('Phase 11: the user\'s industry name; null until chosen'),
   "name": zod.string(),
   "email": zod.string().email(),
   "phone": zod.string(),
@@ -3576,7 +4429,7 @@ export const listAdminTransactionsQueryPageDefault = 1;
 
 
 export const ListAdminTransactionsQueryParams = zod.object({
-  "type": zod.enum(['all', 'Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']).default(listAdminTransactionsQueryTypeDefault),
+  "type": zod.enum(['all', 'Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up', 'Application fee']).default(listAdminTransactionsQueryTypeDefault),
   "userId": zod.coerce.string().optional(),
   "from": zod.coerce.string().regex(listAdminTransactionsQueryFromRegExp).optional(),
   "to": zod.coerce.string().regex(listAdminTransactionsQueryToRegExp).optional(),
@@ -3590,7 +4443,7 @@ export const ListAdminTransactionsResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "userId": zod.string(),
   "userName": zod.string(),
-  "kind": zod.enum(['Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']),
+  "kind": zod.enum(['Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up', 'Application fee']),
   "account": zod.enum(['grant', 'deposit', 'card']),
   "amount": zod.number().describe('Signed: negative amounts left the account'),
   "reason": zod.string(),
@@ -3619,7 +4472,7 @@ export const exportAdminTransactionsQueryPageDefault = 1;
 
 
 export const ExportAdminTransactionsQueryParams = zod.object({
-  "type": zod.enum(['all', 'Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up']).default(exportAdminTransactionsQueryTypeDefault),
+  "type": zod.enum(['all', 'Top-up', 'Debit', 'Deposit', 'Withdrawal', 'Grant award', 'Opening balance', 'Fee', 'Card purchase', 'Card top-up', 'Application fee']).default(exportAdminTransactionsQueryTypeDefault),
   "userId": zod.coerce.string().optional(),
   "from": zod.coerce.string().regex(exportAdminTransactionsQueryFromRegExp).optional(),
   "to": zod.coerce.string().regex(exportAdminTransactionsQueryToRegExp).optional(),

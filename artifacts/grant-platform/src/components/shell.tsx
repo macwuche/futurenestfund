@@ -6,12 +6,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   useGetAdminDashboard, useListAdminCardRequests, getListAdminCardRequestsQueryKey, useUpdateGlobalFreeze, useSearchAdmin, getSearchAdminQueryKey,
-  useCreateApplicantApplication, useUploadApplicantApplicationDocument, getGetApplicantApplicationQueryKey, useMarkApplicantNotificationsRead, getListApplicantNotificationsQueryKey, type NotificationList,
+  useMarkApplicantNotificationsRead, getListApplicantNotificationsQueryKey, type NotificationList,
 } from '@workspace/api-client-react';
 import {
-  LayoutDashboard, Layers, FileText, CreditCard, ArrowLeftRight, ArrowUpFromLine, PlusCircle, Settings, Bell, Search, Plus, Menu, X,
+  LayoutDashboard, FileText, CreditCard, ArrowLeftRight, ArrowUpFromLine, PlusCircle, Settings, Bell, Search, Plus, Menu, X,
   Users, ArrowDownToLine, Snowflake, Building2, ScanLine, House, ClipboardList, ChartPie, Milestone,
-  MessageCircleQuestion, Ellipsis, BadgeCheck, Upload, ArrowLeftRight as SwitchIcon, LogOut, Wallet, ChevronDown,
+  MessageCircleQuestion, Ellipsis, BadgeCheck, Upload, ArrowLeftRight as SwitchIcon, LogOut, Wallet, ChevronDown, Award,
 } from 'lucide-react';
 import { Avatar, checkFile, cx, Field, FILE_RULES, fileSize, inputCls, Modal, money, Skel, useDismiss } from '@/components/bits';
 import { CATEGORIES, apiError, useApplicantDashboard, useDemo, useNotifications, useRefreshApplicant } from '@/lib/demo-state';
@@ -29,8 +29,7 @@ const userNavGroups: { label: string; items: NavItem[] }[] = [
     { href: '/milestones', label: 'Milestones', icon: Milestone },
   ] },
   { label: 'Find funding', items: [
-    { href: '/grants', label: 'Grant categories', icon: Layers },
-    { href: '/grant-search', label: 'Grant Search', icon: Search },
+    { href: '/grants', label: 'Grants', icon: Award },
   ] },
   { label: 'Track', items: [
     { href: '/funding-tracker', label: 'Funding Tracker', icon: ClipboardList },
@@ -50,6 +49,7 @@ const userNavFooter: NavItem[] = [
 const adminNav: NavItem[] = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/users', label: 'Users', icon: Users },
+  { href: '/admin/grant-plans', label: 'Grant Plans', icon: Award },
   { href: '/admin/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { href: '/admin/deposits', label: 'Deposit Page', icon: ArrowDownToLine },
   { href: '/admin/withdrawals', label: 'Withdrawal Page', icon: ArrowUpFromLine },
@@ -65,14 +65,14 @@ const gatewayNav: NavItem[] = [
 ];
 const bottomNav: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: House },
-  { href: '/grants', label: 'Categories', icon: Layers },
+  { href: '/grants', label: 'Grants', icon: Award },
   { href: '/applications', label: 'Apps', icon: FileText },
   { href: '/cards', label: 'Cards', icon: CreditCard },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 const isActive = (loc: string, href: string) =>
-  loc === href || (href === '/dashboard' && loc === '/') || (href === '/admin/users' && loc.startsWith('/admin/users')) || (href === '/admin/settings' && loc.startsWith('/admin/settings/')) || (href === '/applications' && loc.startsWith('/applications/'));
+  loc === href || (href === '/dashboard' && loc === '/') || (href === '/admin/users' && loc.startsWith('/admin/users')) || (href === '/admin/settings' && loc.startsWith('/admin/settings/')) || (href === '/applications' && loc.startsWith('/applications/')) || (href === '/grants' && loc.startsWith('/grants/'));
 const testId = (href: string) => `link-nav-${href.replace(/\//g, '-').slice(1)}`;
 
 /* ---------- Page title plumbing: pages render <Shell title>, the persistent layout renders the chrome ---------- */
@@ -163,17 +163,16 @@ function UserFrame({ title, open, setOpen, close, loc, children }: { title: stri
         </main>
         <BottomNav loc={loc} />
       </div>
-      <NewApplicationModal />
     </div>
   );
 }
 
+/** Phase 11: applications are made to a grant plan, so "New Application" opens the Grants page. */
 function NewAppButton({ className, testid = 'button-new-application' }: { className?: string; testid?: string }) {
-  const { openNewApp } = useDemo();
   return (
-    <button data-testid={testid} onClick={() => openNewApp()} className={cx('press items-center gap-1.5 rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0F172A]', className)}>
+    <Link href="/grants" data-testid={testid} className={cx('press items-center gap-1.5 rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0F172A]', className)}>
       <Plus className="h-4 w-4" />New Application
-    </button>
+    </Link>
   );
 }
 
@@ -415,80 +414,6 @@ function BottomNav({ loc }: { loc: string }) {
   );
 }
 
-const appSchema = z.object({
-  title: z.string().trim().min(3, 'Enter at least 3 characters').max(120),
-  category: z.string().min(1, 'Choose a category'),
-  amount: z.coerce.number().min(100, 'Minimum is $100').max(10_000_000, 'Maximum is $10,000,000'),
-});
-export function NewApplicationModal() {
-  const { newApp, closeNewApp } = useDemo();
-  const [, nav] = useLocation();
-  const { toast } = useToast();
-  const create = useCreateApplicantApplication();
-  const upload = useUploadApplicantApplicationDocument();
-  const qc = useQueryClient();
-  const refresh = useRefreshApplicant();
-  const [serverError, setServerError] = useState('');
-  const [doc, setDoc] = useState<File | null>(null);
-  const [docError, setDocError] = useState('');
-  const docInput = useRef<HTMLInputElement>(null);
-  const f = useForm<z.input<typeof appSchema>, unknown, z.output<typeof appSchema>>({ resolver: zodResolver(appSchema), defaultValues: { title: '', category: CATEGORIES[0], amount: 5000 } });
-  useEffect(() => {
-    if (newApp) { f.reset({ title: newApp.title ?? '', category: newApp.category ?? CATEGORIES[0], amount: newApp.amount ?? 5000 }); setServerError(''); setDoc(null); setDocError(''); }
-  }, [newApp, f]);
-  return (
-    <Modal open={!!newApp} onClose={closeNewApp} title="New application" testid="dialog-new-application">
-      <form className="space-y-4" noValidate onSubmit={f.handleSubmit((v) => create.mutate({ data: v }, {
-        onSuccess: (app) => {
-          refresh();
-          closeNewApp(); nav(`/applications/${app.id}`);
-          if (!doc) { toast({ title: 'Application submitted', description: v.title }); return; }
-          // The application exists either way; a failed upload can be retried from its page.
-          upload.mutate({ applicationId: app.id, data: { file: doc } }, {
-            onSuccess: (d) => { qc.setQueryData(getGetApplicantApplicationQueryKey(app.id), d); refresh(); toast({ title: 'Application submitted', description: `${v.title} · ${doc.name} attached` }); },
-            onError: (e) => toast({ title: 'Application submitted, but the document did not upload', description: apiError(e, 'Try attaching it again from the application page.'), variant: 'destructive' }),
-          });
-        },
-        onError: (e) => setServerError(apiError(e, 'The application could not be submitted. Please try again.')),
-      }))}>
-        <Field label="Project title" error={f.formState.errors.title?.message}><input data-testid="input-app-title" className={inputCls} {...f.register('title')} /></Field>
-        <Field label="Category" error={f.formState.errors.category?.message}>
-          <select data-testid="select-app-category" className={inputCls} {...f.register('category')}>
-            {(newApp?.category && !(CATEGORIES as readonly string[]).includes(newApp.category) ? [...CATEGORIES, newApp.category] : CATEGORIES).map((c) => <option key={c}>{c}</option>)}
-          </select>
-        </Field>
-        <Field label="Requested amount (USD)" error={f.formState.errors.amount?.message}><input data-testid="input-app-amount" type="number" inputMode="decimal" step="any" className={inputCls} {...f.register('amount')} /></Field>
-        <Field label="Proposal document (optional)" error={docError}>
-          <input ref={docInput} type="file" accept={FILE_RULES.proposal.accept} hidden data-testid="input-app-document" onChange={(e) => {
-            const file = e.target.files?.[0]; e.target.value = '';
-            if (!file) return;
-            const err = checkFile(file, 'proposal'); setDocError(err); setDoc(err ? null : file);
-          }} />
-          {doc ? (
-            <div className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2.5" data-testid="text-app-document">
-              <FileText className="h-5 w-5 shrink-0 text-[#1E3A8A]" />
-              <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-slate-900">{doc.name}</span><span className="block text-xs text-slate-500">{fileSize(doc.size)}</span></span>
-              <button type="button" aria-label="Remove document" data-testid="button-app-document-remove" onClick={() => setDoc(null)} className="grid h-10 w-10 place-items-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>
-            </div>
-          ) : (
-            <button type="button" data-testid="button-app-document" onClick={() => docInput.current?.click()} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 px-3 py-3 text-sm font-semibold text-[#1E3A8A] hover:border-[#1E3A8A] hover:bg-[#EEF4FB]">
-              <Upload className="h-4 w-4" />Attach PDF or Word file · up to 10 MB
-            </button>
-          )}
-        </Field>
-        {serverError && <p role="alert" className="rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-application-error">{serverError}</p>}
-        <p className="text-xs text-slate-500">Demo: saved to the sample workspace, not sent to a real funder.</p>
-        <button data-testid="button-submit-application" type="submit" disabled={create.isPending} className="press w-full rounded-full bg-[#1E3A8A] py-2.5 text-sm font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60">{create.isPending ? 'Submitting…' : 'Submit application'}</button>
-      </form>
-    </Modal>
-  );
-}
-
-/* ================================================================== */
-/* Admin workspace (written admin spec: black / lime command center)   */
-/* ================================================================== */
-
-/** Demo-only navigation between the two workspaces (not sign-in); lives in the admin sidebar. */
 function WorkspaceSwitch() {
   const [, nav] = useLocation();
   return (

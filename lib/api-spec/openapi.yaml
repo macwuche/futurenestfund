@@ -253,6 +253,329 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApplicantProfile"
+  /industries:
+    get:
+      operationId: listIndustries
+      tags: [auth]
+      summary: The industries a user can choose from (Phase 11), A to Z. Public, for the sign-up form
+      security: []
+      responses:
+        "200":
+          description: Industries
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Industry" } }
+  /applicant/industry:
+    put:
+      operationId: setApplicantIndustry
+      tags: [applicant]
+      summary: Choose the applicant's industry (decides which grant plans are recommended)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IndustryChoice" }
+      responses:
+        "200":
+          description: Updated applicant profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicantProfile" }
+        "400":
+          description: Unknown industry
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/industries:
+    get:
+      operationId: listAdminIndustries
+      tags: [admin]
+      summary: Industries with how many plans and users use each
+      responses:
+        "200":
+          description: Industries
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AdminIndustry" } }
+    post:
+      operationId: createAdminIndustry
+      tags: [admin]
+      summary: Add an industry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IndustryInput" }
+      responses:
+        "201":
+          description: The whole list after the change
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AdminIndustry" } }
+        "400":
+          description: Invalid or duplicate name
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/industries/{industryId}:
+    patch:
+      operationId: renameAdminIndustry
+      tags: [admin]
+      summary: Rename an industry
+      parameters:
+        - { name: industryId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IndustryInput" }
+      responses:
+        "200":
+          description: The whole list after the change
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AdminIndustry" } }
+        "400":
+          description: Invalid or duplicate name
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Industry not found
+    delete:
+      operationId: deleteAdminIndustry
+      tags: [admin]
+      summary: Remove an industry no grant plan uses; its users are asked to choose again
+      parameters:
+        - { name: industryId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The whole list after the change
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AdminIndustry" } }
+        "400":
+          description: Still used by a plan
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Industry not found
+  /applicant/grant-plans:
+    get:
+      operationId: listApplicantGrantPlans
+      tags: [applicant]
+      summary: The grant plans open for applications (Phase 11), recommended ones first
+      responses:
+        "200":
+          description: Plans
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/GrantPlan" } }
+  /applicant/grant-plans/{planId}:
+    get:
+      operationId: getApplicantGrantPlan
+      tags: [applicant]
+      summary: One open grant plan, with its application form
+      parameters:
+        - { name: planId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The plan
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrantPlan" }
+        "404":
+          description: Not found or switched off
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /applicant/grant-plans/{planId}/logo:
+    get:
+      operationId: getApplicantGrantPlanLogo
+      tags: [applicant]
+      summary: A grant plan's logo image
+      parameters:
+        - { name: planId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The image
+          content:
+            image/webp:
+              schema: { type: string, format: binary }
+        "404":
+          description: No logo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/grant-plans:
+    get:
+      operationId: listAdminGrantPlans
+      tags: [admin]
+      summary: Every grant plan, newest first, with how many applications each has
+      responses:
+        "200":
+          description: Plans
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/GrantPlan" } }
+    post:
+      operationId: createAdminGrantPlan
+      tags: [admin]
+      summary: Create a grant plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GrantPlanCreate" }
+      responses:
+        "201":
+          description: The new plan
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrantPlan" }
+        "400":
+          description: Invalid plan
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/grant-plans/{planId}:
+    get:
+      operationId: getAdminGrantPlan
+      tags: [admin]
+      summary: One grant plan
+      parameters:
+        - { name: planId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The plan
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrantPlan" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    patch:
+      operationId: updateAdminGrantPlan
+      tags: [admin]
+      summary: Change a grant plan (only the parts sent); submitted applications keep their own copy
+      parameters:
+        - { name: planId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GrantPlanUpdate" }
+      responses:
+        "200":
+          description: The plan
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrantPlan" }
+        "400":
+          description: Invalid plan
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    delete:
+      operationId: deleteAdminGrantPlan
+      tags: [admin]
+      summary: Delete a plan nobody applied to (otherwise switch it off)
+      parameters:
+        - { name: planId, in: path, required: true, schema: { type: string } }
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          description: Has applications
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/grant-plans/{planId}/logo:
+    post:
+      operationId: uploadAdminGrantPlanLogo
+      tags: [admin]
+      summary: Upload a plan's logo (PNG, JPEG or WebP, up to 2 MB)
+      parameters:
+        - { name: planId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/FileUpload" }
+      responses:
+        "200":
+          description: The plan with its new logo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrantPlan" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    delete:
+      operationId: deleteAdminGrantPlanLogo
+      tags: [admin]
+      summary: Remove a plan's logo (the initials placeholder shows instead)
+      parameters:
+        - { name: planId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The plan
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrantPlan" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/grant-plans/{planId}/logo-url:
+    post:
+      operationId: setAdminGrantPlanLogoUrl
+      tags: [admin]
+      summary: Take a plan's logo from an image link (downloaded once and stored; never hot-linked)
+      parameters:
+        - { name: planId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LogoUrlInput" }
+      responses:
+        "200":
+          description: The plan with its new logo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrantPlan" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /applicant/preferences:
     patch:
       operationId: updateApplicantPreferences
@@ -271,37 +594,6 @@ paths:
               schema: { $ref: "#/components/schemas/ApplicantPreferences" }
         "400":
           description: Invalid input
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ErrorMessage" }
-  /applicant/matchmaking:
-    get:
-      operationId: getApplicantMatchmaking
-      tags: [applicant]
-      summary: The applicant's matchmaking answers and every sample grant scored against them (rule-based, no AI)
-      responses:
-        "200":
-          description: Answers (null until answered) and matches, best first
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Matchmaking" }
-    put:
-      operationId: saveApplicantMatchmaking
-      tags: [applicant]
-      summary: Save (or replace) the applicant's matchmaking answers
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/MatchmakingAnswers" }
-      responses:
-        "200":
-          description: Saved answers and fresh matches
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Matchmaking" }
-        "400":
-          description: Invalid answers
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorMessage" }
@@ -480,18 +772,23 @@ paths:
     post:
       operationId: createApplicantApplication
       tags: [applicant]
-      summary: Submit a new application
+      summary: Apply to a grant plan through its form (Phase 11). Nothing is charged; the application fee is charged on approval
       requestBody:
         required: true
         content:
-          application/json:
-            schema: { $ref: "#/components/schemas/ApplicationInput" }
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/PlanApplicationForm" }
       responses:
         "201":
           description: Created application
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApplicationDetail" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /applicant/applications/{applicationId}:
     get:
       operationId: getApplicantApplication
@@ -523,6 +820,34 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApplicationDetail" }
+  /applicant/applications/{applicationId}/resubmit:
+    post:
+      operationId: resubmitApplicantApplication
+      tags: [applicant]
+      summary: After "Changes requested", edit a plan application's answers (replace files or keep them) and resubmit it
+      parameters:
+        - { name: applicationId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/PlanApplicationResubmitForm" }
+      responses:
+        "200":
+          description: The resubmitted application
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicationDetail" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /applicant/applications/{applicationId}/respond:
     post:
       operationId: respondToApplicantApplication
@@ -1565,7 +1890,7 @@ paths:
       tags: [admin]
       summary: Search the ledger
       parameters: &ledgerFilters
-        - { name: type, in: query, required: false, schema: { type: string, enum: [all, Top-up, Debit, Deposit, Withdrawal, Grant award, Opening balance, Fee, Card purchase, Card top-up], default: all } }
+        - { name: type, in: query, required: false, schema: { type: string, enum: [all, Top-up, Debit, Deposit, Withdrawal, Grant award, Opening balance, Fee, Card purchase, Card top-up, Application fee], default: all } }
         - { name: userId, in: query, required: false, schema: { type: string } }
         - { name: from, in: query, required: false, schema: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" } }
         - { name: to, in: query, required: false, schema: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" } }
@@ -1858,7 +2183,7 @@ components:
       type: object
       properties:
         id: { type: string }
-        type: { type: string, enum: [Deposit, Withdrawal, Top-up, Debit, Grant award, Opening balance, Fee, Card purchase, Card top-up] }
+        type: { type: string, enum: [Deposit, Withdrawal, Top-up, Debit, Grant award, Opening balance, Fee, Card purchase, Card top-up, Application fee] }
         account: { type: string, enum: [grant, deposit, card] }
         direction: { type: string, enum: [in, out] }
         amount: { type: number }
@@ -2023,6 +2348,86 @@ components:
         status:
           type: string
       required: [status]
+    PlanField:
+      type: object
+      description: A field on a grant plan's application form; like PaymentField, plus the file type
+      properties:
+        id: { type: string, description: "Kept across edits; new fields get one from the server" }
+        label: { type: string, maxLength: 60 }
+        type: { type: string, enum: [text, textarea, number, email, phone, date, select, file] }
+        required: { type: boolean }
+        placeholder: { type: string, maxLength: 80 }
+        help: { type: string, maxLength: 200 }
+        options:
+          type: array
+          items: { type: string }
+      required: [label, type, required]
+    GrantPlan:
+      type: object
+      description: A grant plan (Phase 11)
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        industryId: { type: [string, "null"], description: "null = all industries" }
+        industry: { type: string, description: "The industry's name, or \"All industries\"" }
+        amount: { type: number, description: "Award in USD, credited to the grant balance on approval" }
+        fee: { $ref: "#/components/schemas/FeeRule" }
+        feeAmount: { type: number, description: "The application fee on this award, in USD (charged on approval)" }
+        feeText: { type: string, description: "e.g. \"Fee $2.00\", \"Fee 1% ($50.00)\" or \"No fee\"" }
+        logoUrl: { type: string }
+        initials: { type: string, description: "Placeholder when there is no logo, e.g. SG" }
+        fields:
+          type: array
+          items: { $ref: "#/components/schemas/PlanField" }
+        recommended: { type: boolean, description: "Applicant only: for the applicant's industry, or for all industries" }
+        enabled: { type: boolean, description: "Admin only" }
+        applicationCount: { type: integer, description: "Admin only" }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, name, description, industryId, industry, amount, fee, feeAmount, feeText, initials, fields]
+    GrantPlanUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        industryId: { type: [string, "null"] }
+        amount: { type: number }
+        fee: { $ref: "#/components/schemas/FeeRule" }
+        fields:
+          type: array
+          items: { $ref: "#/components/schemas/PlanField" }
+        enabled: { type: boolean }
+    GrantPlanCreate:
+      allOf:
+        - $ref: "#/components/schemas/GrantPlanUpdate"
+        - type: object
+          required: [name, amount]
+    Industry:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+      required: [id, name]
+    AdminIndustry:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        planCount: { type: integer }
+        userCount: { type: integer }
+      required: [id, name, planCount, userCount]
+    IndustryInput:
+      type: object
+      properties:
+        name: { type: string, maxLength: 200 }
+      required: [name]
+    IndustryChoice:
+      type: object
+      properties:
+        industryId: { type: string }
+      required: [industryId]
     ApplicantProfile:
       type: object
       properties:
@@ -2034,7 +2439,8 @@ components:
         phone: { type: string }
         telegram: { type: string }
         avatarUrl: { type: string, description: "Same-origin URL of the profile photo; absent when none is set" }
-      required: [id, name, email, organization, verified, phone, telegram]
+        industryId: { type: [string, "null"], description: "Phase 11: the user's industry; null until chosen" }
+      required: [id, name, email, organization, verified, phone, telegram, industryId]
     ApplicantProfileUpdate:
       type: object
       properties:
@@ -2069,6 +2475,51 @@ components:
         actor: { type: string }
         createdAt: { type: string, format: date-time }
       required: [id, status, note, actor, createdAt]
+    PlanApplicationForm:
+      type: object
+      properties:
+        planId: { type: string }
+        answers: { type: string, description: "JSON object of answers by field id (file fields are sent in files)" }
+        fileFields: { type: string, description: "JSON array: the field id each file in files is for, in the same order" }
+        files:
+          type: array
+          items: { type: string, format: binary }
+      required: [planId, answers]
+    PlanApplicationResubmitForm:
+      type: object
+      properties:
+        note: { type: string, maxLength: 1000, description: "Optional note to the reviewer" }
+        answers: { type: string, description: "JSON object of answers by field id" }
+        fileFields: { type: string, description: "JSON array: the field id each file in files is for; a file field with no new file keeps the one attached" }
+        files:
+          type: array
+          items: { type: string, format: binary }
+      required: [answers]
+    ApplicationPlan:
+      type: object
+      description: The grant plan an application was made to, as it was when submitted
+      properties:
+        id: { type: string }
+        name: { type: string }
+        industry: { type: string }
+        initials: { type: string }
+        logoUrl: { type: string }
+      required: [id, name, industry, initials]
+    ApplicationAnswer:
+      type: object
+      properties:
+        fieldId: { type: string }
+        label: { type: string }
+        type: { type: string }
+        value: { type: string, description: "The answer; for a file field, the file's name" }
+        file: { $ref: "#/components/schemas/StoredDocument" }
+        required: { type: boolean }
+        placeholder: { type: string }
+        help: { type: string }
+        options:
+          type: array
+          items: { type: string }
+      required: [fieldId, label, type, value, required]
     ApplicationDetail:
       allOf:
         - $ref: "#/components/schemas/ApplicantApplication"
@@ -2078,13 +2529,20 @@ components:
             canWithdraw: { type: boolean }
             canRespond: { type: boolean }
             canAttach: { type: boolean, description: "Whether documents can still be attached or removed" }
+            canEdit: { type: boolean, description: "Plan applications after Changes requested: the answers can be edited and resubmitted" }
+            plan: { $ref: "#/components/schemas/ApplicationPlan" }
+            fee: { type: number, description: "Plan applications: the application fee, charged from the account balance on approval" }
+            feeCharged: { type: boolean, description: "Whether the fee has been charged (the application was approved)" }
+            answers:
+              type: array
+              items: { $ref: "#/components/schemas/ApplicationAnswer" }
             documents:
               type: array
               items: { $ref: "#/components/schemas/StoredDocument" }
             events:
               type: array
               items: { $ref: "#/components/schemas/ApplicationEvent" }
-          required: [updatedAt, canWithdraw, canRespond, canAttach, documents, events]
+          required: [updatedAt, canWithdraw, canRespond, canAttach, canEdit, documents, events]
     ApplicationResponseInput:
       type: object
       properties:
@@ -2145,58 +2603,6 @@ components:
         actionLabel: { type: string }
         complete: { type: boolean }
       required: [id, title, description, actionLabel, complete]
-    GrantHighlight:
-      type: object
-      properties:
-        id: { type: string }
-        title: { type: string }
-        category: { type: string }
-        amount: { type: number }
-        deadline: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
-        recommended: { type: boolean, description: "From matchmaking: eligible, open and scoring at least 70. Always false before the questionnaire is answered." }
-        matchScore: { type: integer, minimum: 0, maximum: 100, description: "Matchmaking score; absent before the questionnaire is answered" }
-        matchReasons: { type: array, items: { type: string }, description: "One reason per rule that awarded points (or why the grant doesn't fit)" }
-      required: [id, title, category, amount, deadline, recommended]
-    MatchmakingAnswers:
-      type: object
-      properties:
-        orgType: { type: string, enum: [Nonprofit, Small business, Individual or artist, School or university, Community group] }
-        focusAreas:
-          type: array
-          minItems: 1
-          maxItems: 6
-          uniqueItems: true
-          items: { type: string, enum: [Technology & innovation, Arts & culture, Community, Environment, Education, Health] }
-        goals:
-          type: array
-          minItems: 1
-          maxItems: 5
-          uniqueItems: true
-          items: { type: string, enum: [Start a new project, Grow an existing program, Research and development, Equipment, Operating costs] }
-        fundingSize: { type: string, enum: [under10k, 10to30k, over30k, any] }
-        timeline: { type: string, enum: [30days, 90days, flexible] }
-      required: [orgType, focusAreas, goals, fundingSize, timeline]
-    GrantMatch:
-      type: object
-      properties:
-        grantId: { type: string }
-        score: { type: integer, minimum: 0, maximum: 100 }
-        eligible: { type: boolean }
-        open: { type: boolean }
-        recommended: { type: boolean }
-        reasons: { type: array, items: { type: string } }
-      required: [grantId, score, eligible, open, recommended, reasons]
-    Matchmaking:
-      type: object
-      properties:
-        answers:
-          oneOf:
-            - { $ref: "#/components/schemas/MatchmakingAnswers" }
-            - { type: "null" }
-        matches:
-          type: array
-          items: { $ref: "#/components/schemas/GrantMatch" }
-      required: [answers, matches]
     ApplicantDashboard:
       type: object
       properties:
@@ -2213,12 +2619,9 @@ components:
         highlights:
           type: array
           items: { $ref: "#/components/schemas/ApplicantApplication" }
-        recommendations:
-          type: array
-          items: { $ref: "#/components/schemas/GrantHighlight" }
         applicationCount: { type: integer }
         balanceSummary: { $ref: "#/components/schemas/BalanceSummary" }
-      required: [profile, totalBudget, allocatedFunds, remainingFunds, fundingTrend, setupCards, highlights, recommendations, applicationCount, balanceSummary]
+      required: [profile, totalBudget, allocatedFunds, remainingFunds, fundingTrend, setupCards, highlights, applicationCount, balanceSummary]
     BalanceSummary:
       type: object
       description: The three balance cards on the applicant dashboard (8.2)
@@ -2416,6 +2819,7 @@ components:
       type: object
       properties:
         id: { type: string }
+        industry: { type: [string, "null"], description: "Phase 11: the user's industry name; null until chosen" }
         name: { type: string }
         email: { type: string, format: email }
         phone: { type: string }
@@ -2439,7 +2843,7 @@ components:
         audit:
           type: array
           items: { $ref: "#/components/schemas/AuditEntry" }
-      required: [id, name, email, phone, telegram, organization, maskedId, tier, verificationLevel, status, balances, cards, documents, permissions, withdrawalLimits, withdrawalSources, audit]
+      required: [id, industry, name, email, phone, telegram, organization, maskedId, tier, verificationLevel, status, balances, cards, documents, permissions, withdrawalLimits, withdrawalSources, audit]
     AdminUserUpdate:
       type: object
       properties:
@@ -2618,6 +3022,13 @@ components:
             updatedAt: { type: string, format: date-time }
             userStatus: { type: string, enum: [Active, Frozen] }
             platformFrozen: { type: boolean }
+            accountBalance: { type: number, description: "The applicant's account balance now (the application fee is taken from it on approval)" }
+            plan: { $ref: "#/components/schemas/ApplicationPlan" }
+            fee: { type: number, description: "Plan applications: the application fee, charged from the account balance on approval" }
+            feeCharged: { type: boolean, description: "Whether the fee has been charged (the application was approved)" }
+            answers:
+              type: array
+              items: { $ref: "#/components/schemas/ApplicationAnswer" }
             allowedDecisions:
               type: array
               items: { type: string, enum: [Review, Approved, Declined, Changes requested] }
@@ -2627,7 +3038,7 @@ components:
             events:
               type: array
               items: { $ref: "#/components/schemas/ApplicationEvent" }
-          required: [updatedAt, userStatus, platformFrozen, allowedDecisions, documents, events]
+          required: [updatedAt, userStatus, platformFrozen, accountBalance, allowedDecisions, documents, events]
     ApplicationDecisionInput:
       type: object
       properties:
@@ -2673,7 +3084,7 @@ components:
         createdAt: { type: string, format: date-time }
         userId: { type: string }
         userName: { type: string }
-        kind: { type: string, enum: [Top-up, Debit, Deposit, Withdrawal, Grant award, Opening balance, Fee, Card purchase, Card top-up] }
+        kind: { type: string, enum: [Top-up, Debit, Deposit, Withdrawal, Grant award, Opening balance, Fee, Card purchase, Card top-up, Application fee] }
         account: { type: string, enum: [grant, deposit, card] }
         amount: { type: number, description: "Signed: negative amounts left the account" }
         reason: { type: string }

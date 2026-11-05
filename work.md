@@ -2460,3 +2460,98 @@ Each approved deposit is already listed under Transactions (ledger kind `Deposit
 phase4-email needs Supabase keys and was not rerun in full; the email wording is covered by `emailTemplates.test.ts`.
 
 **Committed** `f7436f7`. **Deployed** 2026-11-05 at `1b2a4c0` (no migration).
+
+---
+
+## 20. Phase 11 build plan: grant plans, industries and application fees (2026-11-05)
+
+**Request (user, 2026-11-05):** admins create grant plans; users apply to a plan through a form the admin designed for it; the plan's application fee is charged when the admin approves, and it is the one charge that may take the account balance below zero.
+
+### 20a. Decisions (user's answers, 2026-11-05)
+
+| # | Topic | Decision |
+|---|---|---|
+| 1 | Plan | Name, description, industry, award amount, application fee, optional logo/image. No logo → initials placeholder ("School Grant" → **SG**) |
+| 2 | Application form | **Different for every plan**, built by the admin field by field (like Payment Gateway custom fields) |
+| 3 | Documents | Yes: as a **file** field type the admin can add to a plan's form |
+| 4 | Fee type | Fixed amount **or** a percentage of the award; the admin chooses per plan |
+| 5 | When the fee is charged | **On approval only.** Submitting charges nothing; a declined or withdrawn application is never charged |
+| 6 | Negative balance | The application fee may take the account balance below zero ($0 → −$2). No other charge can (card price, card fee, withdrawal fee, admin debit stay refused) |
+| 7 | Withdrawals | Never from a balance that is $0 or below |
+| 8 | Applying | A user may apply to the same plan again and hold several applications at once |
+| 9 | Industries | Admin-managed list (add / rename / remove), pre-filled with ~40 industries. Required at sign-up; changeable in Settings. Users who signed up earlier are asked once |
+| 10 | Recommendations | Plans in the user's industry (and "All industries" plans) are recommended; users may still apply to any plan |
+| 11 | Old parts | The 12 sample grants, the 5-question matchmaking and the free-form "New Application" (any title/amount) are **removed**. Existing applications stay as they are |
+| 12 | Closing | Plans stay open until the admin switches them off (no deadline) |
+
+### 20b. How it works
+
+**Admin creates a plan** (Admin → **Grant Plans**):
+- name, description, industry (one, or "All industries"), award amount, fee (fixed $ or % of the award, 0 = no fee), logo (upload; optional), on/off
+- **application form builder**: fields with label, type (text, long text, number, email, phone, date, dropdown, **file**), required/optional, placeholder, help text, dropdown options. Reuses the Payment Gateway builder and its rules (`paymentRules.ts`)
+- a plan with applications can't be deleted, only switched off. Editing a plan never changes applications already submitted: each keeps a snapshot of the plan (name, amount, fee, fields) as it was when submitted
+
+**User applies** (Grants page → plan → Apply):
+1. Plan list: **Recommended for you** (their industry + "All industries"), then **All plans** with an industry filter and search. Each plan card: logo or initials, name, industry, award amount, application fee.
+2. Plan page: description, amount, fee, **Apply**.
+3. The plan's form, with file uploads for file fields.
+4. **Summary**: "You'll receive $X if approved", every answer and file name, and "Application fee $Y, charged from your account balance when your application is approved (your balance can go below $0)". Back to edit, or **Submit**.
+5. Submitted: no money moves. The application shows in My Applications with its timeline, as today.
+
+**Admin reviews** (Applications, as today, now showing the plan, the answers and the files). Decisions stay Review / Approved / Declined / Changes requested:
+- **Approved** → in one step: grant balance + award (ledger `Grant award`), account balance − fee (new ledger kind **`Application fee`**, "Application fee · <plan>"), even below zero. Notification and email mention both.
+- **Declined** or withdrawn by the user → nothing charged.
+- **Changes requested** → the user edits their answers / replaces files and resubmits.
+
+**Negative account balance:**
+- Shown as **−$2.00** on the Account balance card (and everywhere else balances show), with a short note "Covers your application fee. Your next deposit pays it first."
+- The next approved deposit simply adds to it (−$2 + $100 = $98).
+- While the account balance is $0 or below: no withdrawal from it, no card purchase, no card top-up, no withdrawal fee can be paid from it.
+
+**Industries:**
+- Settings → **Industries** (admin): add, rename, remove. An industry used by a plan can't be removed (switch the plan to another industry first). Users whose industry is removed are asked to choose again.
+- Sign-up form: required **Industry** dropdown (list served without sign-in, `GET /api/industries`; stored with the sign-up and copied to the profile).
+- Existing users without an industry: a one-time "Choose your industry" prompt on the dashboard (replaces the Grant Matchmaking setup card). Applicant Settings: change industry (audited).
+- Starting list (40): Medical & healthcare · Government & public sector · Education · Women empowerment · Agriculture & farming · Technology & innovation · Small business & entrepreneurship · Arts & culture · Environment & climate · Renewable energy · Community development · Youth development · Housing · Nonprofit & charity · Faith-based organisations · Sports & recreation · Tourism & hospitality · Transport & logistics · Manufacturing · Retail & e-commerce · Food & beverage · Media & journalism · Film & entertainment · Music · Science & research · Mental health · Disability support · Elderly care · Child welfare · Veterans · Minority-owned business · Indigenous communities · Water & sanitation · Financial inclusion · Legal aid & human rights · Construction & infrastructure · Fashion & textiles · Beauty & personal care · Fisheries & aquaculture · Mining & natural resources
+
+### 20c. Build
+
+**Migration 0011** (+ Supabase migration for the new tables' grants, like 0004):
+- `demo_industries` (id, name unique, created_at), seeded with the 40 above
+- `demo_grant_plans` (id, name, description, industry_id null = all, amount_cents, fee_mode, fee_value, logo_file_id, fields jsonb, enabled, created_at, updated_at)
+- `demo_profiles.industry_id`
+- `demo_applications`: plan_id, plan_snapshot jsonb, answers jsonb, fee_cents (worked out at submit, charged on approval)
+- no balance constraint stops a negative `deposit_cents` today; the "only the application fee" rule lives in the code that charges
+
+**Steps** (each tested before the next):
+1. **11.1 Industries:** table + seed, `GET /api/industries`, admin CRUD + Settings → Industries, sign-up dropdown, Settings → industry, dashboard prompt.
+2. **11.2 Grant plans (admin):** plan CRUD, logo upload, form builder with the file type, on/off, Admin → Grant Plans page (desktop + phone).
+3. **11.3 Apply (user):** Grants page (recommended + all, filter, search, initials placeholder), plan page, form, summary, submit (multipart with files), edit after Changes requested. Remove the old free-form form; "New Application" opens the Grants page.
+4. **11.4 Approval and fee:** fee and award in one transaction, `Application fee` ledger kind (Transactions filter), negative balance shown and guarded (withdrawals, card purchase, card top-up, withdrawal fee), notification/email text.
+5. **11.5 Remove the old parts:** sample catalogue, matchmaking questionnaire and endpoints, "Grant categories" page; menus and Help updated. Migration 0006 columns stay, unused.
+
+**Tests:** typecheck; unit tests (fee maths, form answers incl. files, industry rules, negative-balance guards); new `.unlazy/phase11-*.mjs` API and browser suites (admin builds a plan with every field type → user sees it recommended → applies with a file → summary → submit charges nothing → approve: grant + award, account − fee to −$2 → withdrawal and card purchase refused → deposit $100 → $98; decline and withdraw charge nothing; plan edit doesn't change a submitted application; switched-off plan hidden; sign-up with industry); regressions (smoke, phone audit, phase3, phase8, phase9.3, phase10).
+
+### 20d. Open question
+- ~~While the account balance is negative, may the user still withdraw from a positive grant balance?~~ **Yes** (user, 2026-11-05), as long as the withdrawal method has no fee (a method fee is paid from the account balance and is refused while it can't cover it).
+
+### 2026-11-05: Phase 11 built (grant plans, industries, application fees)
+
+**Built** (plan 20b–20c; migration **0011**, Supabase **0005**):
+- **11.1 Industries** (`lib/industries.ts`): `demo_industries` seeded with the 40 in 20b; `GET /api/industries` (public, for the sign-up form); `GET|POST /admin/industries`, `PATCH|DELETE /admin/industries/{id}` (case-insensitive duplicates refused naming the existing entry; no removal while a plan uses it; removing one clears it from its users and notifies them); `PUT /applicant/industry` (audited). Sign-up form: required **Industry** dropdown (saved in the account metadata and copied to the profile when the profile is created; if the list can't load, sign-up still works). Admin → Settings → **Industries**; applicant Settings → **Your industry**; the inspector shows the user's industry.
+- **11.2 Grant plans** (`lib/grantPlanRules.ts` pure rules, `lib/grantPlans.ts`, `routes/grantPlans.ts`): CRUD, logo (upload / https link / remove), on/off, delete only without applications. Admin → **Grant Plans** (menu after Users) with a live preview. The form builder is now shared with Payment Gateway (`components/field-builder.tsx`), plus a **File upload** type (plans only; up to 30 fields, 10 files).
+- **11.3 Applying**: user **Grants** page (`/grants`: recommended first, search, industry filter) and plan page (`/grants/:id`: details → form → summary → submit). `POST /applicant/applications` is now multipart: `planId`, `answers` (JSON), `fileFields` (JSON list naming the field of each file in `files`). Files are stored (purpose `application`: image, PDF or Word, virus-scanned, re-encoded) before the application row; a refused application leaves no files. Applications keep `plan_snapshot`, `answers`, `fee_cents`. After **Changes requested**: `POST /applicant/applications/{id}/resubmit` (edit answers, replace or keep files, optional note; replaced files are deleted). "New Application" opens Grants. Old applications keep reply-with-note and loose documents.
+- **11.4 Approval and the fee**: approving charges `fee_cents` from the account balance in the same transaction as the award (ledger kind **`Application fee`**, reason "Application fee · <plan>"), even below $0; notification, audit and timeline name it. The admin review shows the plan, the answers (files open in a new tab), the fee and the account balance before → after. Nothing else can go below $0: account-balance withdrawals, card purchases / top-ups, withdrawal fees and admin debits stay refused; a withdrawal from a positive grant balance through a method without a fee is allowed (user, 2026-11-05). Account balance card: "Below $0 after an application fee. Your next deposit covers it first." Transactions filters on both sides include Application fees.
+- **11.5 Removed**: matchmaking (questionnaire, `GET|PUT /applicant/matchmaking`, `lib/matchmaking.ts`, `lib/grantCatalog.ts` with its 12 sample grants, `components/matchmaking.tsx`), Grant categories and Grant Search (`/grant-search` redirects to `/grants`), the free-form New Application dialog, `ApplicantDashboard.recommendations`. Dashboard setup cards: **Choose your industry** (opens a picker) and **Apply for a grant**. Help Centre answers rewritten (applying, recommendations, when the fee is charged). Migration 0006's column stays, unused.
+
+**Found and fixed while testing:** initials of accented names ("Écoles & Lycées" gave "EC", now "EL"); choosing the same file again after removing it did nothing (the file input is now cleared after each pick); on phones the plan header squeezed the name beside the amount (the amount now sits under it).
+
+**Tests (2026-11-05, test API on :8099 via the proxy, demo data restored before each suite):**
+- typecheck clean; `pnpm test` 121/121 (+1 skipped without Redis): new `grantPlanRules.test.ts` (10); the matchmaking/catalogue tests went with the code
+- new `phase11-plans.mjs` 17/17 and `phase11-ui.mjs` 9 + 9 (see PROJECT §11 for what they cover)
+- updated for plans (applications made through a plan with `.unlazy/plans-helper.mjs`): phase1-desktop 26/26, phase2-desktop 26/26, phase2-phone 6/6, phase3-api 24/24, phase3-desktop 22/22, phase3-phone 17/17 (admin drawer has 9 links now), phase8-balances 8/8, smoke 22 + 22, phase6-mobile 42/42 with 0 problems (Grants, a plan form, Admin → Grant Plans and Settings → Industries added)
+- unchanged and passing: phase1-phone 10, phase10-methods 18, phase10-ui 11 + 11, phase5-audit 9, -audit-ui 6 + 6, -avatars 12, -avatars-ui 6 + 6, -cards 9, -cards-ui 5 + 5, -debits 8, -debits-ui 5 + 5, -limits 10, -limits-ui 6 + 6, -ui 4 + 4, -users 7, -users-ui 6 + 6, -withdrawals 11, phase6-cards 7, -cards-ui 6 + 6, phase8-balances-ui 6 + 6, phase93-cards 12, -fees 8, -ui 8 + 8, phase9-cards 9, -cards-ui 6 + 6
+- removed: phase6-matchmaking, phase6-matchmaking-ui
+- not run here: phase4-auth (updated; needs Supabase), the sign-up Industry dropdown end to end (needs Supabase sign-up)
+
+**Still to do:** commit; deploy (`deploy.sh` applies 0011 and Supabase 0005); then create grant plans in Admin → Grant Plans (until then applicants see "No grants are open right now").

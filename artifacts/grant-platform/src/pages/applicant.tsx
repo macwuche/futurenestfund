@@ -13,16 +13,18 @@ import {
   type ApplicantDashboard, type ApplicantKyc, type KycDocumentKind, type ApplicantAccount, type ApplicantApplication, type ApplicationDetail,
 } from '@workspace/api-client-react';
 import {
-  ArrowDownToLine, Check, ChevronDown, ChevronRight, Layers, CircleCheck, CircleX, Clock, FileText, PenLine, Sparkles,
+  ArrowDownToLine, Briefcase, Check, ChevronDown, ChevronRight, Layers, CircleCheck, CircleX, Clock, FileText, PenLine, Sparkles,
   Search, ArrowDownLeft, Undo2, ArrowLeft, ArrowUpRight, Snowflake, Landmark, Wallet,
   CreditCard, BadgeCheck, Lock, Camera, Upload, Download, Trash2, IdCard, House as HouseIcon, Loader2, Nfc, type LucideIcon,
 } from 'lucide-react';
 import { Shell } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { useAuth } from '@/lib/auth';
-import { MatchPill, TopMatches, WhyMatch, useMatchmakingDialog } from '@/components/matchmaking';
 import { OwnCardControls } from '@/components/card-self-service';
 import { CardShop, CardTopUp } from '@/components/card-shop';
+import { IndustryDialog, IndustrySettings } from '@/components/industry-picker';
+import { PlanLogo } from '@/components/grant-plan';
+import { PlanAnswers, PlanResubmit, feeStatus } from '@/components/plan-application';
 import { Avatar, Empty, ErrorState, Field, FILE_RULES, Modal, PageSkeleton, Skel, StatusBadge, checkFile, cx, dateFmt, fileSize, inputCls, money, statusLabel } from '@/components/bits';
 import { apiError, matchesSearch, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
@@ -107,7 +109,9 @@ function BalanceCards({ d }: { d: ApplicantDashboard }) {
       {/* Phones: Account balance full width, the other two side by side; tablet and up: three columns. */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
         <BalanceCard tone={0} wide href="/transactions" label="Account balance" icon={Wallet} value={b.accountBalance} valueTestid="text-account-balance" testid="card-balance-account">
-          Deposits minus fees and charges
+          {b.accountBalance < 0
+            ? <span data-testid="text-account-negative">Below $0 after an application fee. Your next deposit covers it first.</span>
+            : 'Deposits minus fees and charges'}
         </BalanceCard>
         <BalanceCard tone={1} href="/applications?status=approved" label="Grant balance" icon={Landmark} value={b.grantBalance} valueTestid="text-grant-balance" testid="card-balance-grant">
           <span data-testid="text-approved-awards"><strong className="font-semibold text-white tabular-nums">{b.approvedAwards}</strong> approved {b.approvedAwards === 1 ? 'award' : 'awards'}</span>
@@ -120,13 +124,13 @@ function BalanceCards({ d }: { d: ApplicantDashboard }) {
   );
 }
 
-const setupIcon: Record<string, LucideIcon> = { matchmaking: Sparkles, proposal: FileText };
+const setupIcon: Record<string, LucideIcon> = { industry: Briefcase, apply: FileText };
 
 function SetupCards({ d }: { d: ApplicantDashboard }) {
-  const { openNewApp } = useDemo();
-  const mm = useMatchmakingDialog();
-  // Completion comes from the server: matchmaking once its answers are saved, the proposal step once an application is submitted.
-  const act = (id: string) => (id === 'proposal' ? openNewApp() : mm.open());
+  const [, navigate] = useLocation();
+  const [choosing, setChoosing] = useState(false);
+  // Completion comes from the server (Phase 11): the industry once chosen, applying once an application is submitted.
+  const act = (id: string) => (id === 'industry' ? setChoosing(true) : navigate('/grants'));
   if (d.setupCards.length === 0) return null;
   return (
     <section aria-labelledby="setup-heading">
@@ -151,7 +155,7 @@ function SetupCards({ d }: { d: ApplicantDashboard }) {
           );
         })}
       </div>
-      {mm.dialog}
+      <IndustryDialog open={choosing} onClose={() => setChoosing(false)} current={d.profile.industryId} />
     </section>
   );
 }
@@ -228,95 +232,13 @@ function AppList({ list }: { list: ApplicantApplication[] }) {
   );
 }
 
-/* ---------- Grants ---------- */
-export function GrantsPage() {
-  return <Gate title="Grant categories">{(d) => <GrantsBody d={d} />}</Gate>;
-}
-export function GrantCard({ g }: { g: ApplicantDashboard['recommendations'][number] }) {
-  const { openNewApp, savedGrants, toggleSavedGrant } = useDemo();
-  const { toast } = useToast();
-  const saved = savedGrants.includes(g.id);
-  return (
-    <div data-testid={`card-grant-${g.id}`} className={cx(card, 'lift flex flex-col p-4 sm:p-5')}>
-      {/* Phones: category and deadline share one small line, and the amount sits beside the buttons (finding UM3). */}
-      <div className="mb-1 flex items-start justify-between gap-2 sm:mb-3">
-        <span className="pt-0.5 text-xs text-slate-500 sm:hidden">{g.category} · due {dateFmt(g.deadline)}</span>
-        <span className="hidden rounded-full bg-[#EEF4FB] px-2.5 py-0.5 text-xs font-semibold text-[#1E3A8A] sm:inline">{g.category}</span>
-        <span className="flex flex-wrap justify-end gap-1.5">{g.recommended && <StatusBadge status="Recommended" dot={false} />}<MatchPill g={g} /></span>
-      </div>
-      <h3 className="text-base font-semibold text-slate-900 sm:text-lg">{g.title}</h3>
-      <p className="mt-1 hidden flex-wrap items-baseline gap-x-3 gap-y-0.5 sm:flex">
-        <span className="text-lg font-bold tabular-nums text-[#1E3A8A] sm:text-xl">{money(g.amount)}</span>
-        <span className="text-xs text-slate-500">Deadline {dateFmt(g.deadline)}</span>
-      </p>
-      <WhyMatch g={g} />
-      <div className="mt-auto flex items-center gap-2 pt-2 sm:pt-4">
-        <span className="mr-auto text-lg font-bold tabular-nums text-[#1E3A8A] sm:hidden">{money(g.amount)}</span>
-        <button data-testid={`button-apply-${g.id}`} onClick={() => openNewApp({ title: g.title, category: g.category, amount: g.amount })} className="press rounded-full bg-[#1E3A8A] px-4 py-1.5 text-sm font-semibold text-white hover:bg-[#0F172A]">Apply</button>
-        <button data-testid={`button-save-${g.id}`} aria-pressed={saved} onClick={() => {
-          const nowSaved = toggleSavedGrant(g.id);
-          toast({ title: nowSaved ? 'Saved to your shortlist' : 'Removed from your shortlist' });
-        }} className={cx('press rounded-full border px-4 py-1.5 text-sm font-semibold', saved ? 'border-[#1E3A8A] bg-[#EEF4FB] text-[#1E3A8A]' : 'border-slate-300 hover:border-[#1E3A8A]')}>{saved ? 'Saved' : 'Save'}</button>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Grant categories is an overview: your top matches, then one tile per category that opens Grant Search filtered to it.
- * The grant cards themselves live only in Grant Search (finding U2: the two pages used to show the same 12 cards).
- */
-function GrantsBody({ d }: { d: ApplicantDashboard }) {
-  const scored = d.recommendations.some((g) => g.matchScore !== undefined);
-  const cats = useMemo(() => {
-    const by = new Map<string, ApplicantDashboard['recommendations']>();
-    for (const g of d.recommendations) by.set(g.category, [...(by.get(g.category) ?? []), g]);
-    return [...by.entries()].map(([name, grants]) => ({
-      name, grants,
-      top: Math.max(...grants.map((g) => g.amount)),
-      next: grants.map((g) => g.deadline).sort()[0],
-      recommended: grants.filter((g) => g.recommended).length,
-      best: Math.max(...grants.map((g) => g.matchScore ?? 0)),
-    })).sort((x, y) => (scored ? y.best - x.best : 0) || x.name.localeCompare(y.name));
-  }, [d, scored]);
-  return (
-    <div className="space-y-5">
-      <TopMatches d={d} />
-      <section aria-labelledby="categories-heading" data-testid="section-categories">
-        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="categories-heading" className="text-lg font-semibold text-slate-900">Browse by category</h2>
-          <Link href="/grant-search" data-testid="link-all-grants" className="inline-flex min-h-11 items-center text-sm font-semibold text-[#1E3A8A] hover:underline md:min-h-0">See all {d.recommendations.length} grants</Link>
-        </div>
-        {cats.length === 0 ? <Empty title="No grants open right now" /> : (
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {cats.map((c) => (
-              <li key={c.name}>
-                <Link href={`/grant-search?category=${encodeURIComponent(c.name)}`} data-testid={`link-category-${c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-                  className={cx(card, 'lift group flex h-full items-start gap-3 p-4 transition hover:border-[#1E3A8A]')}>
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#EEF4FB] text-[#1E3A8A]"><Layers className="h-5 w-5" /></span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center justify-between gap-2"><span className="font-semibold text-slate-900">{c.name}</span><ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition group-hover:translate-x-0.5" /></span>
-                    <span className="mt-0.5 block text-sm text-slate-600">{c.grants.length} {c.grants.length === 1 ? 'grant' : 'grants'} · up to <span className="tabular-nums">{usd0(c.top)}</span></span>
-                    <span className="mt-0.5 block text-xs text-slate-500">Next deadline {dateFmt(c.next)}</span>
-                    {c.recommended > 0 && <span className="mt-2 inline-block"><StatusBadge status="Recommended" dot={false} label={`${c.recommended} recommended`} /></span>}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </div>
-  );
-}
-
 /* ---------- Applications ---------- */
 export function ApplicationsPage() {
   return <Shell title="My Applications"><AppsBody /></Shell>;
 }
 const appFilters = ['All', 'Active', 'Changes requested', 'Approved', 'Withdrawn'] as const;
 function AppsBody() {
-  const { search, setSearch, openNewApp } = useDemo();
+  const { search, setSearch } = useDemo();
   const q = useApplications();
   // Links can open the list filtered, e.g. the dashboard's Grant balance card → /applications?status=approved.
   const wanted = new URLSearchParams(useSearch()).get('status')?.toLowerCase().replace(/-/g, ' ');
@@ -332,7 +254,7 @@ function AppsBody() {
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input data-testid="input-search-applications" type="search" aria-label="Search applications" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by title or category" className={cx(inputCls, 'pl-9')} />
         </div>
-        <button data-testid="button-new-application-page" onClick={() => openNewApp()} className="press rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0F172A] sm:ml-auto">New application</button>
+        <Link href="/grants" data-testid="button-new-application-page" className="press inline-flex items-center rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0F172A] sm:ml-auto">New application</Link>
       </div>
       <div className="noscroll -mx-1 mb-3 flex gap-2 overflow-x-auto px-1" role="group" aria-label="Filter by status">
         {appFilters.map((k) => (
@@ -385,19 +307,32 @@ function AppDetail({ a }: { a: ApplicationDetail }) {
     <div className="space-y-5">
       <section className={cx(card, 'p-5')} data-testid="section-application-header">
         <div className="flex flex-wrap items-start gap-4">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#EEF4FB] text-[#1E3A8A]"><Icon className="h-6 w-6" /></span>
+          {a.plan ? <PlanLogo url={a.plan.logoUrl} name={a.plan.name} initials={a.plan.initials} className="h-12 w-12" />
+            : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#EEF4FB] text-[#1E3A8A]"><Icon className="h-6 w-6" /></span>}
           <div className="min-w-0 flex-1">
             <h2 className="text-xl font-semibold text-slate-900" data-testid="text-application-title">{a.title}</h2>
             <p className="text-sm text-slate-500">{a.id} · {a.category}</p>
           </div>
           <StatusBadge status={a.status} dot={false} testid="badge-application-status" />
         </div>
-        <dl className="mt-5 grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-3">
-          <div><dt className="text-sm text-slate-500">Requested amount</dt><dd className="text-lg font-bold tabular-nums text-slate-900" data-testid="text-application-amount">{money(a.amount)}</dd></div>
+        <dl className={cx('mt-5 grid gap-4 border-t border-slate-100 pt-4', a.plan ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3')}>
+          <div><dt className="text-sm text-slate-500">{a.plan ? (a.status === 'Approved' ? 'Awarded' : 'You receive if approved') : 'Requested amount'}</dt><dd className="text-lg font-bold tabular-nums text-slate-900" data-testid="text-application-amount">{money(a.amount)}</dd></div>
+          {a.plan && <div><dt className="text-sm text-slate-500">Application fee</dt><dd className="font-semibold text-slate-900" data-testid="text-application-fee">{feeStatus(a)}</dd></div>}
           <div><dt className="text-sm text-slate-500">Submitted</dt><dd className="font-semibold text-slate-900">{dateFmt(a.submittedAt)}</dd></div>
           <div><dt className="text-sm text-slate-500">Last updated</dt><dd className="font-semibold text-slate-900">{dateFmt(a.updatedAt)}</dd></div>
         </dl>
       </section>
+
+      {a.canEdit && (
+        <section className="rounded-2xl border border-[#E9D5FF] bg-[#FAF5FF] p-5" aria-labelledby="edit-heading" data-testid="section-edit-application">
+          <h2 id="edit-heading" className="text-lg font-semibold text-slate-900">Changes requested</h2>
+          {lastRequest && <p className="mt-1 text-[15px] text-slate-700" data-testid="text-funder-request">“{lastRequest.note}”<span className="block text-xs text-slate-500">{lastRequest.actor} · {dateFmt(lastRequest.createdAt)}</span></p>}
+          <p className="mt-2 text-sm text-slate-600">Edit your answers below and resubmit. A file you don't replace stays attached.</p>
+          <PlanResubmit a={a} onDone={done('Application resubmitted')} />
+        </section>
+      )}
+
+      {a.plan && !a.canEdit && <PlanAnswers a={a} />}
 
       {a.canRespond && (
         <section className="rounded-2xl border border-[#E9D5FF] bg-[#FAF5FF] p-5" aria-labelledby="respond-heading" data-testid="section-respond">
@@ -432,7 +367,7 @@ function AppDetail({ a }: { a: ApplicationDetail }) {
         </ol>
       </section>
 
-      <AppDocuments a={a} onChange={(d) => { qc.setQueryData(getGetApplicantApplicationQueryKey(a.id), d); refresh(); }} />
+      {(!a.plan || a.documents.length > 0) && <AppDocuments a={a} onChange={(d) => { qc.setQueryData(getGetApplicantApplicationQueryKey(a.id), d); refresh(); }} />}
 
       {a.canWithdraw && (
         <div className="flex justify-end">
@@ -637,8 +572,8 @@ function CardsBody({ a }: { a: Account }) {
 }
 
 /* Transactions */
-const txTypes = ['All', 'Deposit', 'Withdrawal', 'Grant award', 'Top-up', 'Debit', 'Fee', 'Card purchase', 'Card top-up'] as const;
-const txFilterLabel: Record<(typeof txTypes)[number], string> = { All: 'All', Deposit: 'Deposits', Withdrawal: 'Withdrawals', 'Grant award': 'Grant awards', 'Top-up': 'Top-ups', Debit: 'Debits', Fee: 'Fees', 'Card purchase': 'Card purchases', 'Card top-up': 'Card top-ups' };
+const txTypes = ['All', 'Deposit', 'Withdrawal', 'Grant award', 'Top-up', 'Debit', 'Fee', 'Application fee', 'Card purchase', 'Card top-up'] as const;
+const txFilterLabel: Record<(typeof txTypes)[number], string> = { All: 'All', Deposit: 'Deposits', Withdrawal: 'Withdrawals', 'Grant award': 'Grant awards', 'Top-up': 'Top-ups', Debit: 'Debits', Fee: 'Fees', 'Application fee': 'Application fees', 'Card purchase': 'Card purchases', 'Card top-up': 'Card top-ups' };
 const accountLabel: Record<string, string> = { grant: 'Grant balance', deposit: 'Account balance', card: 'Card account' };
 
 /** Deposit and withdrawal requests are reviewed by the finance team, so their statuses read as review outcomes. */
@@ -986,6 +921,7 @@ function SettingsBody({ d }: { d: ApplicantDashboard }) {
             )}
         </section>
       </div>
+      <IndustrySettings current={d.profile.industryId} />
       <AccountSecurity tone="user" />
       <IdentitySection />
     </div>

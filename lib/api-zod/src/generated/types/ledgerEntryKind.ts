@@ -19,4 +19,5 @@ export const LedgerEntryKind = {
   Fee: 'Fee',
   Card_purchase: 'Card purchase',
   'Card_top-up': 'Card top-up',
+  Application_fee: 'Application fee',
 } as const;

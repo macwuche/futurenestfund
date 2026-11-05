@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import {
   useListAdminPaymentMethods, useCreateAdminPaymentMethod, useUpdateAdminPaymentMethod, useDeleteAdminPaymentMethod, useMoveAdminPaymentMethod,
   useUploadAdminPaymentMethodLogo, useSetAdminPaymentMethodLogoUrl, useDeleteAdminPaymentMethodLogo,
-  type PaymentMethod, type PaymentField, type PaymentFieldType, type PaymentMethodUpdate,
+  type PaymentMethod, type PaymentField, type PaymentMethodUpdate,
 } from '@workspace/api-client-react';
 import { ArrowDown, ArrowUp, ImageUp, Link2, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { BASE_FIELD_TYPES, FieldBuilder, checkDraftFields, fieldsOut, toDraftFields, type DraftField } from '@/components/field-builder';
 import { Shell } from '@/components/shell';
 import { Empty, ErrorState, Field, Modal, Skel, checkFile, cx, money } from '@/components/bits';
 import { card, ainput, lime, dark, ghost, danger, SectionTitle, useAdminRefresh } from '@/components/admin-bits';
@@ -19,10 +20,6 @@ import { useToast } from '@/hooks/use-toast';
  */
 
 type Kind = 'Deposit' | 'Withdrawal';
-const FIELD_TYPES: { value: PaymentFieldType; label: string }[] = [
-  { value: 'text', label: 'Short text' }, { value: 'textarea', label: 'Long text' }, { value: 'number', label: 'Number' },
-  { value: 'email', label: 'Email' }, { value: 'phone', label: 'Phone' }, { value: 'date', label: 'Date' }, { value: 'select', label: 'Dropdown' },
-];
 const PROOF: { value: PaymentMethod['proofMode']; label: string; hint: string }[] = [
   { value: 'required', label: 'Required', hint: 'Applicants must attach a proof to place the request.' },
   { value: 'optional', label: 'Optional', hint: 'Applicants may attach one.' },
@@ -133,30 +130,23 @@ function DeleteMethod({ method, onClose }: { method: PaymentMethod | null; onClo
 
 /* ---------- the create / edit form ---------- */
 
-type DraftField = PaymentField & { key: string; optionsText: string };
 type Draft = {
   name: string; amountMode: 'range' | 'fixed'; min: string; max: string; fixed: string[]; fixedInput: string;
   fields: DraftField[]; proofMode: PaymentMethod['proofMode']; instructions: string; enabled: boolean; fee: FeeDraft;
   logoTab: 'upload' | 'url'; logoFile: File | null; logoUrlInput: string; removeLogo: boolean;
 };
-let keySeq = 0;
-const newKey = () => `f${++keySeq}`;
 const amountText = (n: number | null | undefined) => (n == null ? '' : String(n));
 const toDraft = (m: PaymentMethod | undefined, kind: Kind): Draft => ({
   name: m?.name ?? '', amountMode: m?.amountMode ?? 'range', min: amountText(m?.minAmount), max: amountText(m?.maxAmount),
   fixed: (m?.fixedAmounts ?? []).map((a) => a.toFixed(2)), fixedInput: '',
-  fields: (m?.fields ?? []).map((f) => ({ ...f, key: newKey(), optionsText: (f.options ?? []).join('\n') })),
+  fields: toDraftFields(m?.fields),
   proofMode: m?.proofMode ?? (kind === 'Deposit' ? 'required' : 'off'), instructions: m?.instructions ?? '', enabled: m?.enabled ?? true,
   fee: feeDraft(m?.fee),
   logoTab: 'upload', logoFile: null, logoUrlInput: '', removeLogo: false,
 });
 const parseAmount = (s: string) => { const t = s.trim().replace(/[$,\s]/g, ''); return t === '' ? null : Number(t); };
 const validAmount = (n: number | null) => n !== null && Number.isFinite(n) && n >= 0.01 && n <= 1_000_000 && Math.abs(n * 100 - Math.round(n * 100)) < 1e-6;
-const fieldsOut = (fields: DraftField[]): PaymentField[] => fields.map(({ key: _k, optionsText, ...f }) => ({
-  ...(f.id ? { id: f.id } : {}), label: f.label.trim(), type: f.type, required: f.required,
-  ...(f.placeholder?.trim() ? { placeholder: f.placeholder.trim() } : {}), ...(f.help?.trim() ? { help: f.help.trim() } : {}),
-  ...(f.type === 'select' ? { options: optionsText.split('\n').map((o) => o.trim()).filter(Boolean) } : {}),
-}));
+const methodFields = (fields: DraftField[]) => fieldsOut(fields) as PaymentField[];
 
 function checkDraft(d: Draft, kind: Kind): string {
   if (d.name.trim().length < 2) return 'Give the method a name (at least 2 characters).';
@@ -168,10 +158,8 @@ function checkDraft(d: Draft, kind: Kind): string {
   } else if (!d.fixed.length) return 'Add at least one fixed amount.';
   const fee = feeFromDraft(d.fee);
   if (typeof fee === 'string') return fee;
-  for (const [i, f] of d.fields.entries()) {
-    if (!f.label.trim()) return `Field ${i + 1} needs a label.`;
-    if (f.type === 'select' && !f.optionsText.split('\n').some((o) => o.trim())) return `"${f.label}" needs at least one option.`;
-  }
+  const fieldProblem = checkDraftFields(d.fields);
+  if (fieldProblem) return fieldProblem;
   if (d.logoTab === 'url' && d.logoUrlInput.trim() && !/^https:\/\//i.test(d.logoUrlInput.trim())) return 'The logo link must start with https://';
   void kind;
   return '';
@@ -191,8 +179,6 @@ function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentM
   const refresh = useAdminRefresh();
   const { toast } = useToast();
   const set = (patch: Partial<Draft>) => setD((x) => ({ ...x, ...patch }));
-  const setField = (key: string, patch: Partial<DraftField>) => setD((x) => ({ ...x, fields: x.fields.map((f) => (f.key === key ? { ...f, ...patch } : f)) }));
-  const moveField = (i: number, by: -1 | 1) => setD((x) => { const fs = [...x.fields]; [fs[i], fs[i + by]] = [fs[i + by]!, fs[i]!]; return { ...x, fields: fs }; });
   const word = kind.toLowerCase();
 
   const [localLogo, setLocalLogo] = useState<string | undefined>();
@@ -219,7 +205,7 @@ function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentM
     const data: PaymentMethodUpdate = {
       name: d.name.trim(), amountMode: d.amountMode,
       ...(d.amountMode === 'range' ? { minAmount: parseAmount(d.min), maxAmount: parseAmount(d.max) } : { fixedAmounts: d.fixed.map(Number) }),
-      fields: fieldsOut(d.fields), instructions: d.instructions, enabled: d.enabled, ...(kind === 'Deposit' ? { proofMode: d.proofMode } : {}),
+      fields: methodFields(d.fields), instructions: d.instructions, enabled: d.enabled, ...(kind === 'Deposit' ? { proofMode: d.proofMode } : {}),
       fee: feeFromDraft(d.fee) as { mode: 'fixed' | 'percent'; amount: number },
     };
     let saved = current;
@@ -334,49 +320,8 @@ function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentM
               placeholder={kind === 'Deposit' ? 'e.g. Send to IBAN DE89 3704 0044 0532 0130 00 (Future Nest Fund). Use your email as the reference.' : 'e.g. Payouts reach your account in 1–3 business days.'} />
           </Field>
 
-          {/* Field builder */}
-          <fieldset>
-            <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Details applicants fill in</legend>
-            <p className="mb-3 text-xs text-slate-500">{kind === 'Deposit' ? 'e.g. sender name, transaction ID, network.' : 'e.g. wallet address, network name, account number.'} Up to {MAX_FIELDS}.</p>
-            <ol className="space-y-3" data-testid="list-builder-fields">
-              {d.fields.map((f, i) => (
-                <li key={f.key} className="rounded-xl border border-slate-200 p-3" data-testid={`builder-field-${i}`}>
-                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
-                    <input value={f.label} onChange={(e) => setField(f.key, { label: e.target.value })} maxLength={60} placeholder={`Field ${i + 1} label, e.g. Wallet address`}
-                      aria-label={`Field ${i + 1} label`} className={cx(ainput, 'min-h-11')} data-testid={`input-field-label-${i}`} />
-                    <select value={f.type} onChange={(e) => setField(f.key, { type: e.target.value as PaymentFieldType })} aria-label={`Field ${i + 1} type`} className={cx(ainput, 'min-h-11')} data-testid={`select-field-type-${i}`}>
-                      {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </select>
-                  </div>
-                  {f.type === 'select' && (
-                    <textarea value={f.optionsText} onChange={(e) => setField(f.key, { optionsText: e.target.value })} rows={3} placeholder={'One option per line, e.g.\nTRC20\nERC20'}
-                      aria-label={`Field ${i + 1} options`} className={cx(ainput, 'mt-2')} data-testid={`input-field-options-${i}`} />
-                  )}
-                  <details className="mt-2">
-                    <summary className="cursor-pointer text-xs font-semibold text-slate-600">Placeholder and help text</summary>
-                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                      <input value={f.placeholder ?? ''} onChange={(e) => setField(f.key, { placeholder: e.target.value })} maxLength={80} placeholder="Placeholder" aria-label={`Field ${i + 1} placeholder`} className={cx(ainput, 'min-h-11')} />
-                      <input value={f.help ?? ''} onChange={(e) => setField(f.key, { help: e.target.value })} maxLength={200} placeholder="Help text under the field" aria-label={`Field ${i + 1} help`} className={cx(ainput, 'min-h-11')} />
-                    </div>
-                  </details>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold">
-                      <input type="checkbox" checked={f.required} onChange={(e) => setField(f.key, { required: e.target.checked })} className="h-5 w-5 accent-[#111]" data-testid={`check-field-required-${i}`} />Required
-                    </label>
-                    <span className="ml-auto flex gap-1">
-                      <button type="button" aria-label={`Move field ${i + 1} up`} disabled={i === 0} onClick={() => moveField(i, -1)} className={cx(ghost, 'grid min-h-11 min-w-11 place-items-center !px-0')}><ArrowUp className="h-4 w-4" /></button>
-                      <button type="button" aria-label={`Move field ${i + 1} down`} disabled={i === d.fields.length - 1} onClick={() => moveField(i, 1)} className={cx(ghost, 'grid min-h-11 min-w-11 place-items-center !px-0')}><ArrowDown className="h-4 w-4" /></button>
-                      <button type="button" aria-label={`Remove field ${i + 1}`} data-testid={`button-field-remove-${i}`} onClick={() => setD((x) => ({ ...x, fields: x.fields.filter((y) => y.key !== f.key) }))}
-                        className="press grid min-h-11 min-w-11 place-items-center rounded-lg text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ol>
-            <button type="button" disabled={d.fields.length >= MAX_FIELDS} data-testid="button-add-field"
-              onClick={() => setD((x) => ({ ...x, fields: [...x.fields, { key: newKey(), label: '', type: 'text', required: true, optionsText: '' }] }))}
-              className={cx(ghost, 'mt-3 inline-flex min-h-11 items-center gap-1.5')}><Plus className="h-4 w-4" />Add field</button>
-          </fieldset>
+          <FieldBuilder fields={d.fields} onChange={(update) => setD((x) => ({ ...x, fields: update(x.fields) }))} types={BASE_FIELD_TYPES} max={MAX_FIELDS}
+            legend="Details applicants fill in" hint={kind === 'Deposit' ? 'e.g. sender name, transaction ID, network.' : 'e.g. wallet address, network name, account number.'} />
 
           {kind === 'Deposit' && (
             <fieldset>
@@ -417,7 +362,7 @@ function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentM
               {d.amountMode === 'fixed'
                 ? d.fixed.length ? <FixedAmountChoices amounts={d.fixed.map(Number)} value="" onChange={() => {}} activeClass="border-[#1E3A8A] bg-[#1E3A8A] text-white" /> : null
                 : <input disabled placeholder="Amount" className={cx(ainput, 'min-h-11')} aria-label="Amount (preview)" />}
-              <MethodFieldInputs fields={fieldsOut(d.fields).map((f, i) => ({ ...f, id: d.fields[i]!.key }))} values={preview} onChange={setPreview} inputClass={ainput} idPrefix="preview" />
+              <MethodFieldInputs fields={methodFields(d.fields).map((f, i) => ({ ...f, id: d.fields[i]!.key }))} values={preview} onChange={setPreview} inputClass={ainput} idPrefix="preview" />
               {kind === 'Deposit' && <ProofInput mode={d.proofMode} file={null} onChange={() => {}} disabled />}
             </div>
           </div>

@@ -1,8 +1,8 @@
-import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, ne } from "drizzle-orm";
 import {
-  db, demoApplicationsTable, demoApplicationEventsTable, demoMilestonesTable, demoProfilesTable, demoAuditTable, demoFilesTable,
+  db, demoApplicationsTable, demoApplicationEventsTable, demoMilestonesTable, demoProfilesTable, demoAuditTable, demoFilesTable, demoGrantPlansTable,
 } from "@workspace/db";
+import { looseDocuments, planParts } from "./planAnswers";
 import { notifyUser } from "./notifications";
 import { fileUrl, findFile, removeFile, storeUpload, type StoredFile } from "./uploads";
 
@@ -38,13 +38,19 @@ export async function applicationDetail(profileId: string, id: string) {
   const events = await db.select().from(demoApplicationEventsTable).where(eq(demoApplicationEventsTable.applicationId, id)).orderBy(asc(demoApplicationEventsTable.createdAt));
   const files = await db.select().from(demoFilesTable)
     .where(and(eq(demoFilesTable.applicationId, id), eq(demoFilesTable.profileId, profileId))).orderBy(asc(demoFilesTable.createdAt));
+  // Phase 11: plan applications carry their form's answers (files included) and are edited as a whole after
+  // "Changes requested"; older applications keep the reply-with-a-note flow and loose documents.
+  const fromPlan = a.planId !== null;
+  const [plan] = fromPlan ? await db.select({ logoFileId: demoGrantPlansTable.logoFileId }).from(demoGrantPlansTable).where(eq(demoGrantPlansTable.id, a.planId!)) : [];
   return {
     ...applicationSummary(a),
     updatedAt: a.updatedAt.toISOString(),
     canWithdraw: WITHDRAWABLE.includes(a.status),
-    canRespond: a.status === "Changes requested",
-    canAttach: ATTACHABLE.includes(a.status),
-    documents: files.map(storedDocument),
+    canRespond: !fromPlan && a.status === "Changes requested",
+    canAttach: !fromPlan && ATTACHABLE.includes(a.status),
+    canEdit: fromPlan && a.status === "Changes requested",
+    ...planParts(a, files, "applicant", plan?.logoFileId),
+    documents: looseDocuments(files).map(storedDocument),
     events: events.map(e => ({ id: e.id, status: e.status, note: e.note, actor: e.actor, createdAt: e.createdAt.toISOString() })),
   };
 }
@@ -52,21 +58,6 @@ export async function applicationDetail(profileId: string, id: string) {
 async function actorName(profileId: string) {
   const [p] = await db.select({ name: demoProfilesTable.name }).from(demoProfilesTable).where(eq(demoProfilesTable.id, profileId));
   return p?.name ?? "Applicant";
-}
-
-export async function createApplication(profileId: string, input: { title: string; category: string; amount: number }) {
-  const title = input.title.trim();
-  if (title.length < 3) throw new RecordInputError("Enter a title of at least 3 characters.");
-  const cents = toCents(input.amount);
-  const id = `APP-${randomUUID().slice(0, 8).toUpperCase()}`;
-  const actor = await actorName(profileId);
-  await db.transaction(async tx => {
-    await tx.insert(demoApplicationsTable).values({ id, profileId, title, category: input.category.trim(), amountCents: cents });
-    await tx.insert(demoApplicationEventsTable).values({ applicationId: id, status: "Submitted", note: "Application submitted", actor });
-    await tx.insert(demoAuditTable).values({ profileId, actor, action: `Application ${id} submitted` });
-    await notifyUser(profileId, `Application "${title}" submitted`, `/applications/${id}`, tx);
-  });
-  return (await applicationDetail(profileId, id))!;
 }
 
 export async function withdrawApplication(profileId: string, id: string) {

@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-11-05 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1, 9.2 and 9.3 done; Phase 10 done · **live at https://access.futurenestfund.org** (`1b2a4c0` deployed 2026-11-05)._
+_Last updated 2026-11-05 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1, 9.2 and 9.3 done; Phase 10 done; Phase 11 (grant plans, industries, application fees) built, not committed · **live at https://access.futurenestfund.org** (`1b2a4c0` deployed 2026-11-05)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -20,6 +20,7 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 8 | User dashboard: balance cards | 8.1 done 2026-11-02, deployed at `62ec3aa` (`work.md` §14); **8.2 built and tested 2026-11-05** (`work.md` §19): Account balance / Grant balance / Successful deposit, eligible amount removed, "deposit balance" renamed "account balance" everywhere users see it; deployed at `1b2a4c0` |
 | 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), fees and card sales (9.3), tier rules (9.4) | **9.1 done 2026-11-04** (`4300a48`); **9.3 built and tested 2026-11-05** (`711ec58`, `work.md` §17, migration 0010); both deployed 2026-11-05 at `dc386f9`; **9.2 built and tested 2026-11-05** (`3f7ef8a`, `work.md` §18, deployed at `a1072f6`; off on the VPS unless Redis is set up); 9.4 waits for decisions |
 | 10 | Payment gateway: admin-made deposit and withdrawal methods (logo, amount rule, custom fields, payment proof); withdrawals from the grant and/or deposit balance; optional approval note | Built and tested 2026-11-04 (`work.md` §16), committed `e183fb3`; deployed 2026-11-05 at `dc386f9` (migration 0009 + Supabase 0004) |
+| 11 | Grant plans: admin-made plans (industry, award, application fee, logo, own application form with file uploads); industries (admin-managed, chosen at sign-up, drive recommendations); the application fee is charged on approval and may take the account balance below $0; matchmaking, the sample grants and the free-form application removed | **Built and tested 2026-11-05** (`work.md` §20, migration 0011 + Supabase 0005); not committed |
 | 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin layout, admin tables on phones, applicant fixes (review scored the UI 67/100) | Done: 7.1 on 2026-10-31, 7.2–7.7 on 2026-11-01 ([`work.md`](../work.md) §13 and the log after it) |
 
 What still needs you is listed in §12 (go-live checklist) and §15 (open items).
@@ -49,16 +50,19 @@ What still needs you is listed in §12 (go-live checklist) and §15 (open items)
 ## 1. What's built
 
 ### Applicant workspace (navy theme)
-Menu in groups: **Overview** (Dashboard, My Applications (+ detail page), Milestones) · **Find funding** (Grant categories, Grant Search) · **Track** (Funding Tracker, Reports) · **Money** (Cards, Transactions, Withdrawals, Add funds) · Settings and Help Centre at the bottom. Phones keep the bottom tab bar and a New Application button on the dashboard.
+Menu in groups: **Overview** (Dashboard, My Applications (+ detail page), Milestones) · **Find funding** (Grants) · **Track** (Funding Tracker, Reports) · **Money** (Cards, Transactions, Withdrawals, Add funds) · Settings and Help Centre at the bottom. Phones keep the bottom tab bar and a New Application button on the dashboard.
 
 - **Dashboard:**
   - three balance cards (8.1, meanings from 8.2): **Account balance** (the main balance = the deposit balance: successful deposits minus fees and charges, card purchases and top-ups, withdrawals from it; links to Transactions), **Grant balance** (awards minus withdrawals from it, with the number of approved awards), **Successful deposit** (running total of approved deposits at their full amount before the fee, plus admin top-ups and the opening balance; only goes up; "N approved deposits")
-  - setup cards: grant matchmaking, first proposal (each is marked complete by the server: answers saved / an application submitted)
+  - setup cards: **Choose your industry** (opens a picker) and **Apply for a grant** (opens Grants); each is marked complete by the server (industry chosen / an application submitted)
+  - the Account balance card can show a negative figure after an application fee, with "Your next deposit covers it first"
   - grant highlights
-- **Applications:** create (with an optional PDF/Word proposal), list with filters, detail page.
-  - The detail page has a status timeline and documents (attach up to 5, download, remove).
-  - When changes are requested, the applicant can reply and resubmit (optionally with a revised amount).
-  - Applications can be withdrawn.
+- **Grants** (`/grants`, Phase 11): the enabled grant plans, **Recommended for you** first (the user's industry, and plans open to all industries), then the others; search and an industry filter. A plan card shows its logo (or initials, e.g. **SG**), industry, award and application fee.
+- **Applying** (`/grants/:planId`): the plan's description → its own form (text, long text, number, email, phone, date, dropdown, **file**) → a **summary** (what you receive if approved, the application fee, every answer and file name) → submit. **Nothing is charged on submit.** "New Application" opens Grants.
+- **Applications:** list with filters, detail page with the plan, the award, the fee status (charged only if approved / charged on approval / not charged), the answers with file downloads, and a status timeline.
+  - When changes are requested on a plan application, the applicant edits the answers (a file not replaced stays attached) and resubmits with an optional note.
+  - Applications from before plans keep their old flow: reply with a note and documents (attach up to 5).
+  - Applications can be withdrawn; a declined or withdrawn application is never charged.
 - **Money:**
   - deposit and withdrawal requests go through a **payment method** the admin created (Phase 10): the applicant picks a method (logo, name, amount rule), reads its instructions, enters an amount within its minimum/maximum or picks one of its fixed amounts, fills in its fields (e.g. wallet address, network, account number) and, for deposits when the method asks for it, attaches a **payment proof** (image or PDF, virus-scanned, stored with the request in one transaction)
   - checked server-side: the method's rules, 2 decimals, $0.01 to $1M, freezes, KYC rules, withdrawal limits (the stricter of the method and the limits wins), and withdrawals can't exceed the available amount of the chosen balance
@@ -73,12 +77,9 @@ Menu in groups: **Overview** (Dashboard, My Applications (+ detail page), Milest
   - profile (name, phone, Telegram) and profile photo
   - **identity verification**: upload a government ID and proof of address, see status and rejection reasons
   - account panel with an **email-notifications switch**
+  - **Your industry** (Phase 11): change it at any time; it decides which grants are recommended
   - **Sign-in & security**: change password, sign out of other devices, sign out everywhere
-- **Grant matchmaking (rule-based, no AI):** five questions (organization type, focus areas, goals, funding size, timing), stored per applicant and editable. Every sample grant gets a 0–100 score from fixed rules, with a reason for each point: focus area 40, goal 20, amount 20 (neighbouring band 8), timing 20 (5–10 if later than needed). Grants not open to the applicant's organization type score 0, and closed grants are never recommended. **Recommended = score ≥ 70.** Before answering, nothing is marked Recommended.
-  - Grant categories: "Your top matches" (top 3 with reasons), "Edit answers", and one tile per category (grants, largest amount, next deadline, how many recommended) that opens Grant Search filtered to it (`/grant-search?category=…`); grant cards (with % match and "Why this match") are in Grant Search only
-  - Grant Search: "Best match" sort (default once answered) and a "Recommended only" filter
-  - Catalogue and rules: `api-server/src/lib/grantCatalog.ts`; API `GET|PUT /applicant/matchmaking`
-- **Grant Search, Funding Tracker, Reports** (with CSV downloads) and a **Help Centre** FAQ.
+- **Funding Tracker, Reports** (with CSV downloads) and a **Help Centre** FAQ. (Grant matchmaking, Grant categories and Grant Search, with their 12 sample grants, were removed in Phase 11.)
 
 ### Admin workspace (black / lime "command center")
 Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, Payment Gateway, KYC Page, Card Requests, Settings (the written admin spec's menu plus later additions). Application review lives under Users (`/admin/users/:userId/applications/:id`).
@@ -96,7 +97,8 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, Payment Ga
   - **cards:** issue a sample card of any type (virtual active at once, physical pending until marked issued), charged at the type's price + fee from the deposit balance unless **Free of charge** is ticked; **Top up** moves money from the deposit balance to the card account (the card account has no plain Credit any more); freeze / unfreeze with a reason shown to the user (also locks a card the user froze themselves), cancel (permanent); shows who froze a card and when a user asked for a physical card to be activated
   - **profile photo:** upload or remove the user's photo (same checks and re-encoding as the applicant's own upload; removal asks first). Audited, and the user is notified.
   - the user's applications and KYC documents
-- **Application review:** Submitted → Review → Approved / Declined / Changes requested, with notes. Approving credits the grant balance through the ledger.
+- **Application review:** Submitted → Review → Approved / Declined / Changes requested, with notes. Shows the plan, the application form's answers (files open in a new tab) and the fee. Approving credits the award to the grant balance and, for a plan with a fee, charges the **application fee** from the account balance in the same step (ledger kind `Application fee`), even below $0; the panel spells out the account balance before and after.
+- **Grant Plans** (`/admin/grant-plans`, Phase 11): create, edit, switch on/off and delete plans: name, description, industry (or All industries), award ($1–$10,000,000), application fee (fixed or % of the award, never more than the award), logo (upload or `https://` link, else initials), and the application form (up to 30 fields, 10 of them files; same builder as Payment Gateway plus **File upload**). A live preview shows the applicant's view. Applications keep a copy of the plan as it was, so edits never change them; a plan with applications can only be switched off. Audited.
 - **Deposit / Withdrawal queues:** approve (with an optional note shown to the applicant) or decline (decline needs a reason). Each request shows its method, the applicant's answers, the payment proof (preview / download) and, for withdrawals, the balance it's paid from. Freezes, balances, KYC and the user's open withdrawal balances are re-checked at approval time. A pending withdrawal above the user's current limit is flagged.
 - **Payment Gateway** (menu group → Deposit / Withdrawal, `/admin/payment-gateway/deposit|withdrawal`): create, edit, enable / disable, reorder and delete methods. A method has a logo (uploaded, or downloaded once from an `https://` link with private / internal addresses refused, re-encoded to WebP), a name (unique per kind), an amount rule (minimum and maximum, either optional, or up to 10 fixed amounts), instructions, up to 20 fields (short / long text, number, email, phone, date, dropdown; required or optional; placeholder and help) and, for deposits, payment proof required / optional / off, and a **fee** (fixed or %, never negative; 9.3). A live preview shows the applicant's form. Requests keep a copy of the method as it was, so edits never change them; a used method can only be disabled. Every change is audited.
 - **Withdraw from** (inspector → Limits): grant balance / deposit balance / both, per user; audited, the user is notified. A debit can't eat into what pending withdrawals from that balance hold.
@@ -110,6 +112,7 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, Payment Ga
   - **Email:** Resend key, sender, signature, health checks, test email (§7)
   - **Money** (`/admin/settings/limits`): the platform-wide withdrawal limits
   - **Cards** (`/admin/settings/cards`, 9.3): switch each card type on or off (Visa Debit, Visa Credit, Mastercard Debit, Mastercard Credit, Amex Platinum) and set its virtual and physical price and fee (fixed or %), with the total the user pays. Empty price = that kind isn't sold; 0 = free. Audited. Credit cards are a name only: no credit line, they spend what's topped up
+  - **Industries** (`/admin/settings/industries`, Phase 11): the list users choose from (40 to start), with how many plans and users use each; add, rename, remove (not while a plan uses it; its users are asked to choose again)
   - **Monitoring:** where errors go (server log, plus Sentry when configured), a "Send test errors" button that raises one server and one browser error and shows their references, **upload virus scanning** status (Scanning / Not answering / Off, with the ClamAV version) and **rate limits** (This server / Shared (Redis) / Redis not answering)
   - **Audit log:** a link to the full log
   - **Your account:** the admin's own profile photo (shown in the sidebar and as the header avatar, which links here) and **Sign-in & security**
@@ -262,15 +265,17 @@ Dashboard settings (see §12): Site URL and Redirect URLs are set to `https://ac
 | `lib/db/migrations/0003_notification_templates.sql` | `demo_notifications.email_kind`, `email_data`, `in_app` |
 | `lib/db/migrations/0004_withdrawal_limits.sql` | Global (`demo_settings`) and per-user (`demo_profiles`) withdrawal limits |
 | `lib/db/migrations/0005_admin_profiles.sql` | `demo_admin_profiles` (admins' own photo) |
-| `lib/db/migrations/0006_matchmaking.sql` | `demo_profiles.matchmaking` (the applicant's matchmaking answers) |
+| `lib/db/migrations/0006_matchmaking.sql` | `demo_profiles.matchmaking` (the applicant's matchmaking answers; unused since Phase 11) |
 | `lib/db/migrations/0008_eligible_amounts.sql` | `demo_settings.tier1/2/3_eligible_cents`; `demo_profiles.eligible_custom`, `eligible_cents` (eligible amount per tier and per user; unused since 8.2, kept for 9.4) |
 | `lib/db/migrations/0010_fees_and_card_types.sql` | `demo_payment_methods.fee_mode`, `fee_value`; `demo_requests.fee_cents`; `demo_settings.card_types` (no new tables, so no Supabase migration) |
 | `lib/db/migrations/0009_payment_methods.sql` | `demo_payment_methods`; `demo_requests.source`, `method_id`, `method_snapshot`, `field_values`, `proof_file_id` (old withdrawals backfilled to `grant`); `demo_profiles.withdrawal_sources` |
+| `lib/db/migrations/0011_grant_plans.sql` | `demo_industries` (seeded with 40), `demo_grant_plans`; `demo_profiles.industry_id`; `demo_applications.plan_id`, `plan_snapshot`, `answers`, `fee_cents` |
 | `lib/db/migrations/0007_email_settings.sql` | `demo_settings.email_config`, `email_secrets`, `email_hook_seen_at`, `email_hook_result`; `demo_notifications.email_last_error` |
 | `lib/db/supabase/migrations/0001_user_roles.sql` | `user_roles` (Supabase only) |
 | `lib/db/supabase/migrations/0002_app_api_role.sql` | `app_api` role, grants, `app_api_all` policies, revoked Data API grants |
 | `lib/db/supabase/migrations/0003_admin_profiles.sql` | `app_api_all` policy for `demo_admin_profiles`; no Data API grants |
 | `lib/db/supabase/migrations/0004_payment_methods.sql` | `app_api_all` policy for `demo_payment_methods`; no Data API grants |
+| `lib/db/supabase/migrations/0005_grant_plans.sql` | `app_api_all` policies for `demo_industries` and `demo_grant_plans`; no Data API grants |
 
 Changing the schema: edit `lib/db/src/schema` → `pnpm --filter @workspace/db run generate` → review the new SQL → `pnpm --filter @workspace/scripts run db:migrate`. A new table also needs an `app_api_all` policy in a new Supabase migration. Both existing databases were "baselined" once on 2026-10-29 (`db:migrate -- --baseline`), because they had been built with `drizzle-kit push`.
 
@@ -419,7 +424,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 - Rate limiter: windows, per account / per IP, limiters kept apart, two servers sharing one store, fallback to memory with one warning a minute; the Redis protocol, URL parsing (password never shown), against a Redis stand-in (password, database, shared atomic counts, no answer → gives up in 100 ms and doesn't wait while reconnecting, cut connection, closed port) and, with `TEST_REDIS_URL`, a real Redis.
 - `safeNext`.
 - Error wording.
-- Matchmaking rules (scores, reasons, closed and not-eligible grants).
+- Grant plans: what a plan may contain (names, award, fee never above the award, 30 fields / 10 files, industry id), the initials placeholder, file fields only on plans, answers skip file fields.
 - Error monitoring: scrubbing (emails, tokens, secrets, long numbers), DSN and stack parsing, the exact fields sent to Sentry, the React component stack.
 - Email settings: secret encryption (round trip, tampering, wrong field or master key; the self-created key file: made once with mode 600, never overwritten, broken or unwritable file reported), signature and support address escaped in every template, From parsing.
 - Payment methods: what a method may contain (names, amounts, fixed amounts, fields, proof), amount rules, answers per field type; logo links (https only, private / loopback / mapped addresses refused before connecting); money emails with method, balance and approval note.
@@ -435,7 +440,8 @@ On Replit, restart the existing workflows instead of starting extra servers.
 | `phase4-email` | Hook signatures, every email type, escaping, replay, Resend failures, notification outbox (11) |
 | `phase1-*`, `phase2-*`, `phase3-*`, `smoke` | Everything built in Phases 0–3 (175 checks, demo mode) |
 | `phase5-*` | Admin operations from Phase 5: withdrawals, limits, audit log, users directory, debits, cards, photos |
-| `phase6-matchmaking`, `phase6-cards` (+ `-ui`) | Rule-based matchmaking; applicant card controls (8 + 7 + 7; 7 + 6 + 6) |
+| `phase6-cards` (+ `-ui`) | Applicant card controls (7 + 6 + 6). (`phase6-matchmaking` was removed with matchmaking in Phase 11.) |
+| `phase11-plans`, `phase11-ui` | Industries (40, A–Z, add / rename / duplicates / remove), plans (checks, initials, recommended first, switched off hidden, delete rules), applying (required answers and files, file types, unknown files, nothing charged, snapshot kept), decline / withdraw never charged, changes requested → edit and resubmit (replace one file, keep another), approval (award + fee, −$2.00, ledger, notification), % fee, below-$0 rules, the next deposit covering it (17); Settings → Industries, plan builder with file field and logo, industry setup card, apply → summary → submit, resubmit, approval panel, dashboard −$2.00, Transactions, switch off (9 + 9). Older suites apply through a plan with `.unlazy/plans-helper.mjs` |
 | `phase6-monitoring` (+ `-ui`) | Request ids, 500 references, server and browser errors in the log and in a mock Sentry (envelope shape, nothing personal, scrubbing), signed-out reports, rate limit; test button, uncaught error, rejection, render crash screen (8; 4 + 4) |
 | `phase7-email` (+ `-ui`) | Email settings: validation, secrets never returned / stored plain / logged / audited, precedence, every health state (pending or missing domain, sending-only or refused key, hook calls, outbox failures, undecryptable secret), test email, removal (11; 9 + 9) |
 | `phase10-methods`, `phase10-ui` | Payment Gateway: methods, logos (upload and link), requests through a method (amounts, fields, proof, no orphan files), copies kept, queue details, approval note, withdrawal sources, limits on top, concurrency (18); admin menu, method form, applicant deposit / withdrawal, queue, inspector (11 + 11). Older suites place requests through a plain test method (`.unlazy/methods.mjs`) |
@@ -556,6 +562,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | (this commit) | `server.md` deployment record for `1b2a4c0` |
 | `5766d1f` | `server.md` deployment record for `a1072f6` |
 | `f7436f7` | Dashboard cards: Account balance, Grant balance, Successful deposit; eligible amount removed; "deposit balance" renamed "account balance" (8.2) |
+| (next) | Grant plans, industries and application fees; matchmaking and sample grants removed (Phase 11) |
 
 ---
 
@@ -595,6 +602,10 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 - ~~9.2 shared rate limits (Redis, was 6.7)~~: built and tested 2026-11-05 (`work.md` §18), deployed at `a1072f6`. Only matters with more than one API server, so it stays off on the VPS (DEPLOY step 12 when needed)
 - ~~9.3 fees, card types and card purchases~~: built and tested 2026-11-05 (plan and log in `work.md` §17), `711ec58`, deployed 2026-11-05. Provisional choices still to confirm are in `work.md` §17h
 - 9.4 tier rules: **waits for your answer** to §15f question 4 (which rules, and thresholds for automatic tier changes)
+
+**Phase 11 (grant plans)**, plan and log in `work.md` §20:
+- ~~11.1 industries · 11.2 grant plans (admin) · 11.3 applying · 11.4 approval and the fee · 11.5 removing matchmaking and the sample grants~~: built and tested 2026-11-05, not committed. **To deploy:** `deploy.sh` applies app migration **0011** and Supabase **0005**. Then create grant plans in Admin → Grant Plans: until then applicants see "No grants are open right now". Existing users are asked for their industry by a setup card on their dashboard.
+- Not tested here: the sign-up form's Industry dropdown end to end (needs Supabase sign-up); `phase4-auth` was updated to apply through a plan but needs the Supabase settings to run.
 
 **Phase 10 (payment gateway)**, plan in `work.md` §16:
 - ~~10.1–10.4 methods, admin pages, applicant forms, queues~~: done 2026-11-04 (`e183fb3`), deployed 2026-11-05. Not done as planned: no separate method column in CSV export / search (the ledger reason names the method).

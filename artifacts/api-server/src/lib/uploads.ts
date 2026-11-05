@@ -19,7 +19,7 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_FILES_PER_USER = 200;
 const MAX_INPUT_PIXELS = 50_000_000; // guards against decompression bombs
 
-export type Purpose = "avatar" | "kyc" | "proposal" | "logo" | "proof";
+export type Purpose = "avatar" | "kyc" | "proposal" | "logo" | "proof" | "application";
 const IMAGE = ["image/jpeg", "image/png", "image/webp"] as const;
 const PDF = "application/pdf";
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -29,6 +29,8 @@ const ACCEPTS: Record<Purpose, { types: readonly string[]; label: string }> = {
   proposal: { types: [PDF, DOCX], label: "a PDF or Word (.docx) document" },
   logo: { types: IMAGE, label: "a JPG, PNG or WebP image" },
   proof: { types: [...IMAGE, PDF], label: "a JPG, PNG or WebP image, or a PDF" },
+  /** Phase 11: a file field on a grant plan's application form. */
+  application: { types: [...IMAGE, PDF, DOCX], label: "a JPG, PNG or WebP image, a PDF or a Word (.docx) document" },
 };
 
 await mkdir(UPLOAD_DIR, { recursive: true, mode: 0o700 });
@@ -66,6 +68,29 @@ export const receiveRequestForm: RequestHandler = (req, res, next) => {
       const msg = err.code === "LIMIT_FILE_SIZE" ? "Payment proof must be 10 MB or smaller."
         : err.code === "LIMIT_UNEXPECTED_FILE" || err.code === "LIMIT_FILE_COUNT" ? "Attach one payment proof file."
         : "The request form could not be read.";
+      return next(new UploadError(msg));
+    }
+    next(err);
+  });
+};
+
+/**
+ * A grant plan application (Phase 11): `planId`, `answers` (JSON) and `note`, plus one file per file field, each sent
+ * as `file_<fieldId>`. Up to 10 files of 10 MB each, held in memory until each is checked and stored.
+ */
+const applicationParser = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_BYTES, files: 10, fields: 5, fieldSize: 64_000, parts: 15 },
+}).any();
+
+export const receiveApplicationForm: RequestHandler = (req, res, next) => {
+  if (!req.is("multipart/form-data")) return next();
+  applicationParser(req, res, (err: unknown) => {
+    if (!err) return next();
+    if (err instanceof multer.MulterError) {
+      const msg = err.code === "LIMIT_FILE_SIZE" ? "Each file must be 10 MB or smaller."
+        : err.code === "LIMIT_FILE_COUNT" ? "An application can carry at most 10 files."
+        : "The application form could not be read.";
       return next(new UploadError(msg));
     }
     next(err);

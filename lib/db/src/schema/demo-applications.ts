@@ -10,6 +10,14 @@ export const demoApplicationsTable = pgTable("demo_applications", {
   status: text("status").notNull().default("Submitted"),
   submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  /** Phase 11: the grant plan applied to (null for applications made before plans existed). */
+  planId: uuid("plan_id"),
+  /** The plan as it was when submitted (name, industry, amount, fee rule, form fields), so later edits never change it. */
+  planSnapshot: jsonb("plan_snapshot"),
+  /** The applicant's answers by field id; a file field holds the id of the uploaded file (demo_files). */
+  answers: jsonb("answers"),
+  /** The application fee worked out at submission; charged from the account balance only on approval. */
+  feeCents: integer("fee_cents").notNull().default(0),
 }).enableRLS();
 
 /** Append-only status history shown as the application timeline. */

@@ -9,7 +9,6 @@ import type { ApplicantApplication } from './applicantApplication';
 import type { ApplicantProfile } from './applicantProfile';
 import type { BalanceSummary } from './balanceSummary';
 import type { FundingPoint } from './fundingPoint';
-import type { GrantHighlight } from './grantHighlight';
 import type { SetupCard } from './setupCard';
 
 export interface ApplicantDashboard {
@@ -20,7 +19,6 @@ export interface ApplicantDashboard {
   fundingTrend: FundingPoint[];
   setupCards: SetupCard[];
   highlights: ApplicantApplication[];
-  recommendations: GrantHighlight[];
   applicationCount: number;
   balanceSummary: BalanceSummary;
 }

@@ -4,7 +4,7 @@ export type SupabaseClaims = JWTPayload & {
   email?: string;
   role?: string;
   app_metadata?: { role?: unknown };
-  user_metadata?: { name?: unknown; organization?: unknown };
+  user_metadata?: { name?: unknown; organization?: unknown; industry?: unknown };
 };
 
 /** The token is bad (expired, forged, wrong project, not a signed-in user): the caller gets a 401. */

@@ -342,6 +342,7 @@ export const ApplicantTransactionType = {
   Fee: 'Fee',
   Card_purchase: 'Card purchase',
   'Card_top-up': 'Card top-up',
+  Application_fee: 'Application fee',
 } as const;
 
 export type ApplicantTransactionAccount = typeof ApplicantTransactionAccount[keyof typeof ApplicantTransactionAccount];
@@ -791,6 +792,107 @@ export interface HealthStatus {
   status: string;
 }
 
+export type PlanFieldType = typeof PlanFieldType[keyof typeof PlanFieldType];
+
+
+export const PlanFieldType = {
+  text: 'text',
+  textarea: 'textarea',
+  number: 'number',
+  email: 'email',
+  phone: 'phone',
+  date: 'date',
+  select: 'select',
+  file: 'file',
+} as const;
+
+/**
+ * A field on a grant plan's application form; like PaymentField, plus the file type
+ */
+export interface PlanField {
+  /** Kept across edits; new fields get one from the server */
+  id?: string;
+  /** @maxLength 60 */
+  label: string;
+  type: PlanFieldType;
+  required: boolean;
+  /** @maxLength 80 */
+  placeholder?: string;
+  /** @maxLength 200 */
+  help?: string;
+  options?: string[];
+}
+
+/**
+ * A grant plan (Phase 11)
+ */
+export interface GrantPlan {
+  id: string;
+  name: string;
+  description: string;
+  /**
+     * null = all industries
+     * @nullable
+     */
+  industryId: string | null;
+  /** The industry's name, or "All industries" */
+  industry: string;
+  /** Award in USD, credited to the grant balance on approval */
+  amount: number;
+  fee: FeeRule;
+  /** The application fee on this award, in USD (charged on approval) */
+  feeAmount: number;
+  /** e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee" */
+  feeText: string;
+  logoUrl?: string;
+  /** Placeholder when there is no logo, e.g. SG */
+  initials: string;
+  fields: PlanField[];
+  /** Applicant only: for the applicant's industry, or for all industries */
+  recommended?: boolean;
+  /** Admin only */
+  enabled?: boolean;
+  /** Admin only */
+  applicationCount?: number;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GrantPlanUpdate {
+  name?: string;
+  description?: string;
+  /** @nullable */
+  industryId?: string | null;
+  amount?: number;
+  fee?: FeeRule;
+  fields?: PlanField[];
+  enabled?: boolean;
+}
+
+export type GrantPlanCreate = GrantPlanUpdate & { [key: string]: unknown } & Required<Pick<GrantPlanUpdate & { [key: string]: unknown }, 'name' | 'amount'>>;
+
+export interface Industry {
+  id: string;
+  name: string;
+}
+
+export interface AdminIndustry {
+  id: string;
+  name: string;
+  planCount: number;
+  userCount: number;
+}
+
+export interface IndustryInput {
+  /** @maxLength 200 */
+  name: string;
+}
+
+export interface IndustryChoice {
+  industryId: string;
+}
+
 export interface ApplicantProfile {
   id: string;
   name: string;
@@ -801,6 +903,11 @@ export interface ApplicantProfile {
   telegram: string;
   /** Same-origin URL of the profile photo; absent when none is set */
   avatarUrl?: string;
+  /**
+     * Phase 11: the user's industry; null until chosen
+     * @nullable
+     */
+  industryId: string | null;
 }
 
 export interface ApplicantProfileUpdate {
@@ -862,6 +969,39 @@ export interface ApplicationEvent {
   createdAt: string;
 }
 
+export interface PlanApplicationForm {
+  planId: string;
+  /** JSON object of answers by field id (file fields are sent in files) */
+  answers: string;
+  /** JSON array: the field id each file in files is for, in the same order */
+  fileFields?: string;
+  files?: Blob[];
+}
+
+export interface PlanApplicationResubmitForm {
+  /**
+     * Optional note to the reviewer
+     * @maxLength 1000
+     */
+  note?: string;
+  /** JSON object of answers by field id */
+  answers: string;
+  /** JSON array: the field id each file in files is for; a file field with no new file keeps the one attached */
+  fileFields?: string;
+  files?: Blob[];
+}
+
+/**
+ * The grant plan an application was made to, as it was when submitted
+ */
+export interface ApplicationPlan {
+  id: string;
+  name: string;
+  industry: string;
+  initials: string;
+  logoUrl?: string;
+}
+
 export interface StoredDocument {
   id: string;
   name: string;
@@ -871,12 +1011,33 @@ export interface StoredDocument {
   uploadedAt: string;
 }
 
+export interface ApplicationAnswer {
+  fieldId: string;
+  label: string;
+  type: string;
+  /** The answer; for a file field, the file's name */
+  value: string;
+  file?: StoredDocument;
+  required: boolean;
+  placeholder?: string;
+  help?: string;
+  options?: string[];
+}
+
 export type ApplicationDetail = ApplicantApplication & {
   updatedAt: string;
   canWithdraw: boolean;
   canRespond: boolean;
   /** Whether documents can still be attached or removed */
   canAttach: boolean;
+  /** Plan applications after Changes requested: the answers can be edited and resubmitted */
+  canEdit: boolean;
+  plan?: ApplicationPlan;
+  /** Plan applications: the application fee, charged from the account balance on approval */
+  fee?: number;
+  /** Whether the fee has been charged (the application was approved) */
+  feeCharged?: boolean;
+  answers?: ApplicationAnswer[];
   documents: StoredDocument[];
   events: ApplicationEvent[];
 };
@@ -949,112 +1110,6 @@ export interface SetupCard {
   complete: boolean;
 }
 
-export interface GrantHighlight {
-  id: string;
-  title: string;
-  category: string;
-  amount: number;
-  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
-  deadline: string;
-  /** From matchmaking: eligible, open and scoring at least 70. Always false before the questionnaire is answered. */
-  recommended: boolean;
-  /**
-     * Matchmaking score; absent before the questionnaire is answered
-     * @minimum 0
-     * @maximum 100
-     */
-  matchScore?: number;
-  /** One reason per rule that awarded points (or why the grant doesn't fit) */
-  matchReasons?: string[];
-}
-
-export type MatchmakingAnswersOrgType = typeof MatchmakingAnswersOrgType[keyof typeof MatchmakingAnswersOrgType];
-
-
-export const MatchmakingAnswersOrgType = {
-  Nonprofit: 'Nonprofit',
-  Small_business: 'Small business',
-  Individual_or_artist: 'Individual or artist',
-  School_or_university: 'School or university',
-  Community_group: 'Community group',
-} as const;
-
-export type MatchmakingAnswersFocusAreasItem = typeof MatchmakingAnswersFocusAreasItem[keyof typeof MatchmakingAnswersFocusAreasItem];
-
-
-export const MatchmakingAnswersFocusAreasItem = {
-  'Technology_&_innovation': 'Technology & innovation',
-  'Arts_&_culture': 'Arts & culture',
-  Community: 'Community',
-  Environment: 'Environment',
-  Education: 'Education',
-  Health: 'Health',
-} as const;
-
-export type MatchmakingAnswersGoalsItem = typeof MatchmakingAnswersGoalsItem[keyof typeof MatchmakingAnswersGoalsItem];
-
-
-export const MatchmakingAnswersGoalsItem = {
-  Start_a_new_project: 'Start a new project',
-  Grow_an_existing_program: 'Grow an existing program',
-  Research_and_development: 'Research and development',
-  Equipment: 'Equipment',
-  Operating_costs: 'Operating costs',
-} as const;
-
-export type MatchmakingAnswersFundingSize = typeof MatchmakingAnswersFundingSize[keyof typeof MatchmakingAnswersFundingSize];
-
-
-export const MatchmakingAnswersFundingSize = {
-  under10k: 'under10k',
-  '10to30k': '10to30k',
-  over30k: 'over30k',
-  any: 'any',
-} as const;
-
-export type MatchmakingAnswersTimeline = typeof MatchmakingAnswersTimeline[keyof typeof MatchmakingAnswersTimeline];
-
-
-export const MatchmakingAnswersTimeline = {
-  '30days': '30days',
-  '90days': '90days',
-  flexible: 'flexible',
-} as const;
-
-export interface MatchmakingAnswers {
-  orgType: MatchmakingAnswersOrgType;
-  /**
-     * @minItems 1
-     * @maxItems 6
-     */
-  focusAreas: MatchmakingAnswersFocusAreasItem[];
-  /**
-     * @minItems 1
-     * @maxItems 5
-     */
-  goals: MatchmakingAnswersGoalsItem[];
-  fundingSize: MatchmakingAnswersFundingSize;
-  timeline: MatchmakingAnswersTimeline;
-}
-
-export interface GrantMatch {
-  grantId: string;
-  /**
-     * @minimum 0
-     * @maximum 100
-     */
-  score: number;
-  eligible: boolean;
-  open: boolean;
-  recommended: boolean;
-  reasons: string[];
-}
-
-export interface Matchmaking {
-  answers: MatchmakingAnswers | null;
-  matches: GrantMatch[];
-}
-
 /**
  * The three balance cards on the applicant dashboard (8.2)
  */
@@ -1084,7 +1139,6 @@ export interface ApplicantDashboard {
   fundingTrend: FundingPoint[];
   setupCards: SetupCard[];
   highlights: ApplicantApplication[];
-  recommendations: GrantHighlight[];
   applicationCount: number;
   balanceSummary: BalanceSummary;
 }
@@ -1318,6 +1372,11 @@ export const AdminUserProfileStatus = {
 
 export interface AdminUserProfile {
   id: string;
+  /**
+     * Phase 11: the user's industry name; null until chosen
+     * @nullable
+     */
+  industry: string | null;
   name: string;
   email: string;
   phone: string;
@@ -1654,6 +1713,14 @@ export type AdminApplicationDetail = AdminApplication & {
   updatedAt: string;
   userStatus: AdminApplicationDetailUserStatus;
   platformFrozen: boolean;
+  /** The applicant's account balance now (the application fee is taken from it on approval) */
+  accountBalance: number;
+  plan?: ApplicationPlan;
+  /** Plan applications: the application fee, charged from the account balance on approval */
+  fee?: number;
+  /** Whether the fee has been charged (the application was approved) */
+  feeCharged?: boolean;
+  answers?: ApplicationAnswer[];
   allowedDecisions: AdminApplicationDetailAllowedDecisionsItem[];
   documents: StoredDocument[];
   events: ApplicationEvent[];
@@ -1756,6 +1823,7 @@ export const LedgerEntryKind = {
   Fee: 'Fee',
   Card_purchase: 'Card purchase',
   'Card_top-up': 'Card top-up',
+  Application_fee: 'Application fee',
 } as const;
 
 export type LedgerEntryAccount = typeof LedgerEntryAccount[keyof typeof LedgerEntryAccount];
@@ -2053,6 +2121,7 @@ export const ListAdminTransactionsType = {
   Fee: 'Fee',
   Card_purchase: 'Card purchase',
   'Card_top-up': 'Card top-up',
+  Application_fee: 'Application fee',
 } as const;
 
 export type ExportAdminTransactionsParams = {
@@ -2090,6 +2159,7 @@ export const ExportAdminTransactionsType = {
   Fee: 'Fee',
   Card_purchase: 'Card purchase',
   'Card_top-up': 'Card top-up',
+  Application_fee: 'Application fee',
 } as const;
 
 export type ListAdminAuditParams = {

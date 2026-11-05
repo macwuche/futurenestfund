@@ -2,7 +2,7 @@ import { createContext, useCallback, useEffect, useContext, useMemo, useState, t
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useGetApplicantDashboard, getGetApplicantDashboardQueryKey, useGetApplicantAccount, getGetApplicantAccountQueryKey,
-  useListApplicantApplications, getListApplicantApplicationsQueryKey, useListApplicantMilestones, getListApplicantMilestonesQueryKey, getGetApplicantMatchmakingQueryKey,
+  useListApplicantApplications, getListApplicantApplicationsQueryKey, useListApplicantMilestones, getListApplicantMilestonesQueryKey, getListApplicantGrantPlansQueryKey,
   useListApplicantNotifications, getListApplicantNotificationsQueryKey,
   type ApplicantApplication, type ApplicantDashboard, type ApplicantAccount, type Milestone, type NotificationList,
 } from '@workspace/api-client-react';
@@ -51,7 +51,7 @@ export function useNotifications() {
 export function useRefreshApplicant() {
   const qc = useQueryClient();
   return useCallback(() => {
-    for (const key of [getListApplicantApplicationsQueryKey(), getGetApplicantDashboardQueryKey(), getGetApplicantAccountQueryKey(), getListApplicantNotificationsQueryKey(), getListApplicantMilestonesQueryKey(), getGetApplicantMatchmakingQueryKey()]) {
+    for (const key of [getListApplicantApplicationsQueryKey(), getGetApplicantDashboardQueryKey(), getGetApplicantAccountQueryKey(), getListApplicantNotificationsQueryKey(), getListApplicantMilestonesQueryKey(), getListApplicantGrantPlansQueryKey()]) {
       qc.invalidateQueries({ queryKey: key });
     }
   }, [qc]);
@@ -66,13 +66,9 @@ export const matchesSearch = (a: { title: string; category: string }, s: string)
   return !q || a.title.toLowerCase().includes(q) || a.category.toLowerCase().includes(q);
 };
 
-export interface NewAppPrefill { title?: string; category?: string; amount?: number }
 interface Demo {
   search: string;
   setSearch: (s: string) => void;
-  newApp: NewAppPrefill | null;
-  openNewApp: (prefill?: NewAppPrefill) => void;
-  closeNewApp: () => void;
   savedGrants: string[];
   toggleSavedGrant: (id: string) => boolean;
 }
@@ -91,17 +87,14 @@ function usePersisted<T>(scope: string, name: string, init: T) {
 export function DemoProvider({ scope, children }: { scope: string; children: ReactNode }) {
   const [search, setSearch] = useState('');
   const [savedGrants, setSaved] = usePersisted<string[]>(scope, 'saved-grants', []);
-  const [newApp, setNewApp] = useState<NewAppPrefill | null>(null);
   const value = useMemo<Demo>(() => ({
-    search, setSearch, newApp, savedGrants,
-    openNewApp: (prefill) => setNewApp(prefill ?? {}),
-    closeNewApp: () => setNewApp(null),
+    search, setSearch, savedGrants,
     toggleSavedGrant: (id) => {
       const saving = !savedGrants.includes(id);
       setSaved((p) => (saving ? [...p, id] : p.filter((x) => x !== id)));
       return saving;
     },
-  }), [search, newApp, savedGrants, setSaved]);
+  }), [search, savedGrants, setSaved]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 export function useDemo() {
