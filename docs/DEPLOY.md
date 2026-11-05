@@ -130,7 +130,7 @@ bash /var/www/futurenestfund/deploy/deploy.sh
 This takes a few minutes. It:
 1. installs the locked packages
 2. builds the API and the web app
-3. **runs the pending database migrations on Supabase** (0003 to 0006)
+3. **runs the pending database migrations on Supabase** (on the first run 0003 to 0006; each later deploy applies only the new ones, e.g. 0011 and Supabase 0005 for Phase 11)
 4. starts the API under PM2
 5. ends with `OK: <commit> is live`
 

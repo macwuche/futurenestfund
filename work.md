@@ -2555,3 +2555,22 @@ phase4-email needs Supabase keys and was not rerun in full; the email wording is
 - not run here: phase4-auth (updated; needs Supabase), the sign-up Industry dropdown end to end (needs Supabase sign-up)
 
 **Committed** `010d4b9`. **Deployed** 2026-11-05 at `f39c238` (0011 and Supabase 0005 applied). **Still to do:** create grant plans in Admin → Grant Plans (until then applicants see "No grants are open right now").
+
+---
+
+## 21. Summary of 2026-11-05
+
+| Step | Commit | Deployed | Notes |
+|---|---|---|---|
+| 9.3 fees, card types, card purchases | `711ec58` | `dc386f9` (with 9.1 and Phase 10; migrations 0009, 0010, Supabase 0004) | §17; provisional choices in §17h still to confirm |
+| 9.2 shared rate limits (Redis, optional) | `3f7ef8a` | `a1072f6` | §18; off on the VPS (one API server) |
+| 8.2 balance cards rework; "deposit balance" → "account balance" | `f7436f7` | `1b2a4c0` | §19; eligible amount removed (0008 columns kept) |
+| Phase 11 grant plans, industries, application fees | `010d4b9` | `f39c238` (migration 0011, Supabase 0005) | §20; matchmaking and sample grants removed |
+
+**Live now:** `f39c238` at https://access.futurenestfund.org.
+
+**Needs the user (admin area):** create grant plans; create and enable deposit and withdrawal methods; set card types and prices; check the industries list (`server.md` §6b).
+
+**Waiting for answers:** 9.4 tier rules (what tiers should control, beyond what's built); confirmation of the 9.3 provisional choices (§17h).
+
+**Server and dashboards (unchanged):** rotate the secrets pasted in chat and delete the GitHub token; Resend email (DEPLOY step 10); Supabase minimum password length 8; off-server backup copies; ClamAV only if memory allows; reboot at a quiet time (21 updates waiting, "System restart required").

@@ -111,6 +111,19 @@ Step 6.5 counts as **done** when steps 1–9 have been followed once end to end.
 | Optional: Sentry (EU) or GlitchTip, `SENTRY_DSN` in `api.env` | Errors reported outside the server log | Any time after step 8 |
 | Replit Secrets (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_DB_URL`) | Only for real sign-in on the Replit preview; the VPS doesn't need them | Optional |
 
+## 6b. After deploying (in the admin area)
+
+The app is live at `f39c238` (2026-11-05). These need you in the admin area, or applicants can't use the matching feature:
+
+| What | Where | Until it's done |
+|---|---|---|
+| Create at least one grant plan | Admin → Grant Plans | "No grants are open right now" |
+| Create and enable a Deposit and a Withdrawal method | Admin → Payment Gateway | No deposit or withdrawal requests |
+| Switch card types on and set prices | Admin → Settings → Cards | "No cards are on sale right now" |
+| Check the 40 starting industries | Admin → Settings → Industries | The starting list is used |
+
+Memory readings: 1,028 MB available at rest on 2026-11-05 (before Phase 11); RAM 70.8% right after the Phase 11 build (earlier builds 47–57%). Check `free -m` again once it settles.
+
 ## 7. Server housekeeping (affects all apps: do separately, carefully)
 
 These were found during the checks and **aren't part of GrantApp's deployment**:
@@ -122,7 +135,7 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 ## 8. Later (Phase 6, after go-live)
 
 - **6.6 (code done 2026-11-01):** the API scans every upload through a ClamAV daemon when `CLAMAV_SOCKET` is set (off until then). Installing ClamAV is step 11 in `docs/DEPLOY.md`. **Decision for you:** the daemon needs ~1–1.2 GB of memory and this server has 1.8 GB for four apps, so either add memory first (4 GB is comfortable) or leave scanning off. Uploads are already on the server's own disk (`/var/lib/futurenestfund/uploads`), which survives deploys, and backed up nightly.
-- **6.7**: shared rate limits (Redis), only if there's ever more than one API server.
+- ~~6.7~~ **9.2 shared rate limits (Redis)**: built and deployed 2026-11-05 (`a1072f6`), off on this server (one API server, no Redis). Turn on only with a second API server: DEPLOY step 12.
 
 ## 9. Updating and rolling back (after go-live)
 
@@ -132,6 +145,7 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 - **Roll back:**
   1. `git -C /var/www/futurenestfund log --oneline -5`
   2. `bash /var/www/futurenestfund/deploy/deploy.sh <commit>`
+  - Migrations only add tables and columns, so older code runs on top of them. One caveat since Phase 11: an account balance below $0 (from an application fee) or plan applications made since would be shown by older code without their plan details.
 - **Status, logs, restarts:** see "Everyday operations" in `docs/DEPLOY.md`.
 
 ## 10. Log
