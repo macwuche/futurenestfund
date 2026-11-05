@@ -17,7 +17,7 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 4 | Real accounts on Supabase: sign-in, API auth, email through Resend, Settings security; then a hardening pass (RLS, `app_api` role, migrations, CSP, rate limits, unit tests) | Done (4.5 two-factor dropped by decision) |
 | 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
 | 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.5 done 2026-10-30/31; **6.5: deployed on the EU VPS at https://access.futurenestfund.org on 2026-10-31** ([`docs/DEPLOY.md`](DEPLOY.md), record in [`server.md`](../server.md)); **6.6 virus scanning of uploads: code done 2026-11-01**, off until ClamAV is installed on the server (DEPLOY step 11, memory decision); 6.7 shared rate limits (only with several servers) |
-| 8 | User dashboard: balance cards, eligible amounts per tier and per user | 8.1 done 2026-11-02, deployed at `62ec3aa` (`work.md` §14) |
+| 8 | User dashboard: balance cards | 8.1 done 2026-11-02, deployed at `62ec3aa` (`work.md` §14); **8.2 built and tested 2026-11-05** (`work.md` §19): Account balance / Grant balance / Successful deposit, eligible amount removed, "deposit balance" renamed "account balance" everywhere users see it; not deployed |
 | 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), fees and card sales (9.3), tier rules (9.4) | **9.1 done 2026-11-04** (`4300a48`); **9.3 built and tested 2026-11-05** (`711ec58`, `work.md` §17, migration 0010); both deployed 2026-11-05 at `dc386f9`; **9.2 built and tested 2026-11-05** (`3f7ef8a`, `work.md` §18, deployed at `a1072f6`; off on the VPS unless Redis is set up); 9.4 waits for decisions |
 | 10 | Payment gateway: admin-made deposit and withdrawal methods (logo, amount rule, custom fields, payment proof); withdrawals from the grant and/or deposit balance; optional approval note | Built and tested 2026-11-04 (`work.md` §16), committed `e183fb3`; deployed 2026-11-05 at `dc386f9` (migration 0009 + Supabase 0004) |
 | 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin layout, admin tables on phones, applicant fixes (review scored the UI 67/100) | Done: 7.1 on 2026-10-31, 7.2–7.7 on 2026-11-01 ([`work.md`](../work.md) §13 and the log after it) |
@@ -52,7 +52,7 @@ What still needs you is listed in §12 (go-live checklist) and §15 (open items)
 Menu in groups: **Overview** (Dashboard, My Applications (+ detail page), Milestones) · **Find funding** (Grant categories, Grant Search) · **Track** (Funding Tracker, Reports) · **Money** (Cards, Transactions, Withdrawals, Add funds) · Settings and Help Centre at the bottom. Phones keep the bottom tab bar and a New Application button on the dashboard.
 
 - **Dashboard:**
-  - three balance cards (Phase 8.1): **Eligible amount** ("Largest open award at Tier N", set by an admin per tier or per user), **Grant balance** (with the number of approved awards), **Successful deposit** (the deposit balance: approved deposits minus charges)
+  - three balance cards (8.1, meanings from 8.2): **Account balance** (the main balance = the deposit balance: successful deposits minus fees and charges, card purchases and top-ups, withdrawals from it; links to Transactions), **Grant balance** (awards minus withdrawals from it, with the number of approved awards), **Successful deposit** (running total of approved deposits at their full amount before the fee, plus admin top-ups and the opening balance; only goes up; "N approved deposits")
   - setup cards: grant matchmaking, first proposal (each is marked complete by the server: answers saved / an application submitted)
   - grant highlights
 - **Applications:** create (with an optional PDF/Word proposal), list with filters, detail page.
@@ -100,7 +100,7 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, Payment Ga
 - **Deposit / Withdrawal queues:** approve (with an optional note shown to the applicant) or decline (decline needs a reason). Each request shows its method, the applicant's answers, the payment proof (preview / download) and, for withdrawals, the balance it's paid from. Freezes, balances, KYC and the user's open withdrawal balances are re-checked at approval time. A pending withdrawal above the user's current limit is flagged.
 - **Payment Gateway** (menu group → Deposit / Withdrawal, `/admin/payment-gateway/deposit|withdrawal`): create, edit, enable / disable, reorder and delete methods. A method has a logo (uploaded, or downloaded once from an `https://` link with private / internal addresses refused, re-encoded to WebP), a name (unique per kind), an amount rule (minimum and maximum, either optional, or up to 10 fixed amounts), instructions, up to 20 fields (short / long text, number, email, phone, date, dropdown; required or optional; placeholder and help) and, for deposits, payment proof required / optional / off, and a **fee** (fixed or %, never negative; 9.3). A live preview shows the applicant's form. Requests keep a copy of the method as it was, so edits never change them; a used method can only be disabled. Every change is audited.
 - **Withdraw from** (inspector → Limits): grant balance / deposit balance / both, per user; audited, the user is notified. A debit can't eat into what pending withdrawals from that balance hold.
-- **Eligible amount:** one amount per tier in Settings → Money, and an optional custom amount per user (inspector → Limits) that replaces it; shown on the applicant's dashboard only (it doesn't limit requests yet). Per-user changes are audited and notify the applicant.
+- ~~Eligible amount~~: removed in 8.2 (2026-11-05). Its columns from migration 0008 stay in the database, unused, for the tier rules (9.4).
 - **Withdrawal limits:** a global max per request and daily total (last 24 h, under review + approved) in Settings, and optional custom limits per user that replace them. Enforced when the applicant places a request.
 - **Transactions:** the full ledger with filters, search, pagination, totals and **CSV export** (spreadsheet-formula injection neutralised).
 - **Card Requests** (`/admin/cards`, 9.1): physical cards still being issued, in two tabs: *Activation requested* (the user says it arrived; oldest first, with how long it's waited) and *Awaiting delivery*. Activate, or decline with a reason the user sees (the card stays pending and they can ask again). The menu item shows how many requests are waiting. Audited; the user is notified.
@@ -108,7 +108,7 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, Payment Ga
 - **Settings** (`/admin/settings/<section>`, side menu on desktop, tabs on phones):
   - **General:** global freeze (with a confirmation and a reason) and the security rules
   - **Email:** Resend key, sender, signature, health checks, test email (§7)
-  - **Money** (`/admin/settings/limits`): the platform-wide withdrawal limits and the **eligible amount per tier**
+  - **Money** (`/admin/settings/limits`): the platform-wide withdrawal limits
   - **Cards** (`/admin/settings/cards`, 9.3): switch each card type on or off (Visa Debit, Visa Credit, Mastercard Debit, Mastercard Credit, Amex Platinum) and set its virtual and physical price and fee (fixed or %), with the total the user pays. Empty price = that kind isn't sold; 0 = free. Audited. Credit cards are a name only: no credit line, they spend what's topped up
   - **Monitoring:** where errors go (server log, plus Sentry when configured), a "Send test errors" button that raises one server and one browser error and shows their references, **upload virus scanning** status (Scanning / Not answering / Off, with the ClamAV version) and **rate limits** (This server / Shared (Redis) / Redis not answering)
   - **Audit log:** a link to the full log
@@ -263,7 +263,7 @@ Dashboard settings (see §12): Site URL and Redirect URLs are set to `https://ac
 | `lib/db/migrations/0004_withdrawal_limits.sql` | Global (`demo_settings`) and per-user (`demo_profiles`) withdrawal limits |
 | `lib/db/migrations/0005_admin_profiles.sql` | `demo_admin_profiles` (admins' own photo) |
 | `lib/db/migrations/0006_matchmaking.sql` | `demo_profiles.matchmaking` (the applicant's matchmaking answers) |
-| `lib/db/migrations/0008_eligible_amounts.sql` | `demo_settings.tier1/2/3_eligible_cents`; `demo_profiles.eligible_custom`, `eligible_cents` (eligible amount per tier and per user) |
+| `lib/db/migrations/0008_eligible_amounts.sql` | `demo_settings.tier1/2/3_eligible_cents`; `demo_profiles.eligible_custom`, `eligible_cents` (eligible amount per tier and per user; unused since 8.2, kept for 9.4) |
 | `lib/db/migrations/0010_fees_and_card_types.sql` | `demo_payment_methods.fee_mode`, `fee_value`; `demo_requests.fee_cents`; `demo_settings.card_types` (no new tables, so no Supabase migration) |
 | `lib/db/migrations/0009_payment_methods.sql` | `demo_payment_methods`; `demo_requests.source`, `method_id`, `method_snapshot`, `field_values`, `proof_file_id` (old withdrawals backfilled to `grant`); `demo_profiles.withdrawal_sources` |
 | `lib/db/migrations/0007_email_settings.sql` | `demo_settings.email_config`, `email_secrets`, `email_hook_seen_at`, `email_hook_result`; `demo_notifications.email_last_error` |
@@ -505,6 +505,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | 2026-10-30 | **No two-person (4-eyes) approval**: one finance admin approves or declines each withdrawal; the applicant is notified in-app and by email when they request it and when it's decided |
 | 2026-11-04 | **Payment Gateway**: admins create the deposit and withdrawal methods; every request uses one (the plain amount-and-note form is gone). Fields ask the applicant for details; fixed-amount methods offer several amounts; payment proof is set per method. Withdrawals can come from the grant balance, the deposit balance or both, set per user by an admin. The method limits and the withdrawal limits both apply. Approvals take an optional note; declines still need a reason |
 | 2026-11-02 | The applicant's level is called **Tier** (1–3) everywhere, on both sides; the **eligible amount** is set by an admin per tier, with an optional custom amount per user; Successful deposit = the deposit balance (approved deposits minus charges) |
+| 2026-11-05 | Dashboard cards (8.2): **Account balance** = the deposit balance; **Successful deposit** = lifetime approved deposits at their full amount (a $100 deposit with a $2 fee counts $100) plus admin top-ups; **Grant balance** = awards minus withdrawals from it. The eligible amount is removed; tiers stay and will drive rules in 9.4. The deposit balance is called **account balance** everywhere users see it |
 
 ---
 
@@ -552,13 +553,14 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | `711ec58` | Fees on payment methods, card types sold for price + fee, card top-ups from the deposit balance (9.3) |
 | `3f7ef8a` | Shared rate limits through Redis, optional (9.2) |
 | `a5b7ac2`, `c65cf9d`, `5b2d5c9`, `160646a` | `server.md` deployment records for `a82a158`, `d9f2edc`, `62ec3aa`, `dc386f9` |
-| (this commit) | `server.md` deployment record for `a1072f6` |
+| `5766d1f` | `server.md` deployment record for `a1072f6` |
+| (next) | Dashboard cards: Account balance, Grant balance, Successful deposit; eligible amount removed; "deposit balance" renamed "account balance" (8.2) |
 
 ---
 
 ## 15. Open items and next steps
 
-**Deployed 2026-11-05:** `dc386f9` (9.1, Phase 10, 9.3; migrations 0009, 0010 and Supabase 0004 applied). **Needs you now, in the admin area:** create and enable at least one method in Payment Gateway (Deposit and Withdrawal), or applicants can't place deposit or withdrawal requests; set card types and prices in Settings → Cards (until then "No cards are on sale right now"); set the tier amounts in Settings → Money. The server also asks for a restart (`server.md` §7).
+**Deployed 2026-11-05:** `dc386f9` (9.1, Phase 10, 9.3; migrations 0009, 0010 and Supabase 0004 applied). **Needs you now, in the admin area:** create and enable at least one method in Payment Gateway (Deposit and Withdrawal), or applicants can't place deposit or withdrawal requests; set card types and prices in Settings → Cards (until then "No cards are on sale right now"). The server also asks for a restart (`server.md` §7).
 
 **Needs you** (unchanged since `a82a158`): the open §12 items: rotate the secrets pasted in chat, email through Resend (step 10 in `docs/DEPLOY.md`), minimum password length 8, off-server backup copies; and the ClamAV memory decision (step 11). Shared-server housekeeping (firewall, fail2ban, 29 package updates) is listed in `server.md` §7.
 
@@ -584,7 +586,8 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 - ~~7.2 Settings in sections · 7.3 design system · 7.4 admin layout · 7.5 admin tables on phones · 7.6 applicant fixes · 7.7 applicant phone~~: done 2026-11-01. Not done as planned: no new shared `Button`/`Card` React components (the shared class tokens stayed the single source), and Grant Search on phones is 38% shorter rather than half.
 
 **Phase 8 (dashboard balances)**, plan in `work.md` §14:
-- ~~8.1 balance cards, eligible amount per tier and per user~~: done 2026-11-02, deployed at `62ec3aa`. **Needs you:** set the tier amounts in Admin → Settings → Money (until then every dashboard shows $0.00).
+- ~~8.1 balance cards, eligible amount per tier and per user~~: done 2026-11-02, deployed at `62ec3aa`.
+- ~~8.2 balance cards rework~~: built and tested 2026-11-05 (`work.md` §19), not deployed. No migration. "Deposit balance" is called "Account balance" everywhere users see it (the API and database keep the key `deposit`)
 
 **Phase 9 (remaining backlog)**, plan in `work.md` §15:
 - ~~9.1 admin queue for card activation requests~~: done 2026-11-04 (`4300a48`), deployed 2026-11-05

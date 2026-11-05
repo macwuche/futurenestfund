@@ -11,11 +11,13 @@ import { APPEND_ONLY_TRIGGERS } from "./demoSeed";
 import { GetAdminUserResponse } from "@workspace/api-zod";
 import { effectiveLimits, limitProblem, limitsOut, withdrawnLast24h } from "./withdrawalLimits";
 import { countCardRequests } from "./cards";
-import { centsOut, effectiveEligible, tierAmount, tierAmountsFrom } from "./eligibleAmount";
 import { describeFee, feeCents } from "./fees";
 import { cardTypeInfo, typeOfCard } from "./cardTypes";
 
 export class DemoInputError extends Error {}
+
+/** Ledger kinds that add to the dashboard's "Successful deposit" total: approved deposits, admin top-ups and the opening balance. */
+export const SUCCESSFUL_DEPOSIT_KINDS = ["Deposit", "Top-up", "Opening balance"] as const;
 
 /** A user's effective withdrawal limits plus what they withdrew in the last 24 hours, in API shape. */
 export async function userWithdrawalLimits(profile: DemoProfile) {
@@ -23,17 +25,6 @@ export async function userWithdrawalLimits(profile: DemoProfile) {
   const used = (await withdrawnLast24h([profile.id])).get(profile.id) ?? 0;
   return { custom: profile.withdrawalLimitCustom, ...limitsOut(effectiveLimits(profile, settings)), usedLast24h: used / 100 };
 }
-
-/** A user's eligible amount (custom, or their tier's), plus the tier amount it replaces, in API shape. */
-export async function userEligibleAmount(profile: DemoProfile) {
-  const [settings] = await db.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
-  return {
-    custom: profile.eligibleCustom,
-    amount: centsOut(effectiveEligible(profile, settings)),
-    tierAmount: centsOut(tierAmount(tierAmountsFrom(settings), profile.tier)),
-  };
-}
-
 
 export function summary(person: DemoProfile, pendingKycDocuments = 0) {
   return {
@@ -76,7 +67,6 @@ export async function getUser(id: string) {
     balances: { grant: person.grantCents / 100, deposit: person.depositCents / 100, card: person.cardCents / 100 },
     cards,
     withdrawalLimits: await userWithdrawalLimits(person),
-    eligibleAmount: await userEligibleAmount(person),
     audit: audit.map(entry => ({ ...entry, createdAt: entry.createdAt.toISOString() })),
   });
 }
@@ -129,7 +119,10 @@ export async function applicantDashboard(profileId: string, monthly: boolean) {
   const [{ submittedAny }] = await db.select({ submittedAny: sql<boolean>`count(*) > 0` }).from(demoApplicationsTable).where(eq(demoApplicationsTable.profileId, person.id));
   const [{ approvedAwards }] = await db.select({ approvedAwards: sql<number>`count(*)::int` }).from(demoApplicationsTable)
     .where(and(eq(demoApplicationsTable.profileId, person.id), eq(demoApplicationsTable.status, "Approved")));
-  const eligible = await userEligibleAmount(person);
+  // Successful deposit (8.2): every credit to the account balance at its full amount (fees are their own ledger lines).
+  const [deposits] = await db.select({ total: sql<number>`coalesce(sum(${demoLedgerTable.amountCents}), 0)::bigint`, n: sql<number>`count(*)::int` })
+    .from(demoLedgerTable)
+    .where(and(eq(demoLedgerTable.profileId, person.id), eq(demoLedgerTable.account, "deposit"), inArray(demoLedgerTable.kind, [...SUCCESSFUL_DEPOSIT_KINDS])));
   return {
     profile: applicantProfile(person),
     totalBudget: 50000, allocatedFunds: person.grantCents / 100, remainingFunds: 50000 - person.grantCents / 100,
@@ -142,8 +135,8 @@ export async function applicantDashboard(profileId: string, monthly: boolean) {
     recommendations: grantRecommendations(storedAnswers(person)),
     applicationCount: apps.length,
     balanceSummary: {
-      tier: person.tier, eligibleAmount: eligible.amount, grantBalance: person.grantCents / 100,
-      approvedAwards, depositBalance: person.depositCents / 100,
+      tier: person.tier, accountBalance: person.depositCents / 100, grantBalance: person.grantCents / 100,
+      approvedAwards, successfulDeposits: Number(deposits?.total ?? 0) / 100, depositCount: deposits?.n ?? 0,
     },
   };
 }
@@ -269,12 +262,12 @@ export async function changePreferences(id: string, prefs: { emailNotifications:
   });
 }
 
-const accountName = { grant: "grant", deposit: "deposit", card: "card" } as const;
+const accountName = { grant: "grant", deposit: "account", card: "card" } as const;
 const dollars = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /**
  * Credit or debit a balance: balance, ledger, audit and notification in one transaction (settings → profile locks, like approvals).
- * A debit never takes a balance below $0, and never takes the grant or deposit balance below what pending withdrawals from it hold.
+ * A debit never takes a balance below $0, and never takes the grant or account balance below what pending withdrawals from it hold.
  */
 export async function adjustBalance(id: string, account: "grant" | "deposit" | "card", amount: number, reason: string, actor: string, direction: "credit" | "debit" = "credit") {
   const cents = Math.round(amount * 100);
@@ -289,11 +282,11 @@ export async function adjustBalance(id: string, account: "grant" | "deposit" | "
     if (!current) return undefined;
     if (current.status === "Frozen") throw new DemoInputError("Unfreeze the demo account before adjusting its balance.");
     // Every card top-up comes from the deposit (main) balance (9.3), through the card's own Top up; debits can still empty the card account.
-    if (account === "card" && !debit) throw new DemoInputError("Card top-ups come from the user's deposit balance. Use Top up on one of their active cards.");
+    if (account === "card" && !debit) throw new DemoInputError("Card top-ups come from the user's account balance. Use Top up on one of their active cards.");
     const key = account === "grant" ? "grantCents" : account === "deposit" ? "depositCents" : "cardCents";
     const next = debit ? current[key] - cents : current[key] + cents;
     if (next > 2000000000) throw new DemoInputError("This would exceed the demo account limit.");
-    if (next < 0) throw new DemoInputError(`The ${account} balance is only ${dollars(current[key])}, so ${dollars(cents)} can't be removed.`);
+    if (next < 0) throw new DemoInputError(`The ${accountName[account]} balance is only ${dollars(current[key])}, so ${dollars(cents)} can't be removed.`);
     if (debit && account !== "card") {
       const held = current[key] - await availableCents(current, account, tx);
       if (next < held) throw new DemoInputError(`This would leave ${dollars(next)}, less than the ${dollars(held)} held for pending withdrawals. Decline those first or remove less.`);
@@ -438,13 +431,13 @@ export async function createApplicantRequest(profileId: string, input: RequestIn
       const available = await availableCents(profile, source, tx);
       if (source === "deposit" && cents + fee > available) {
         throw new DemoInputError(fee > 0
-          ? `This withdrawal and its ${dollars(fee)} fee come to ${dollars(cents + fee)}, more than the ${dollars(available)} available in your deposit balance, after pending withdrawals.`
-          : `This is more than the ${dollars(available)} available in your deposit balance, after pending withdrawals.`);
+          ? `This withdrawal and its ${dollars(fee)} fee come to ${dollars(cents + fee)}, more than the ${dollars(available)} available in your account balance, after pending withdrawals.`
+          : `This is more than the ${dollars(available)} available in your account balance, after pending withdrawals.`);
       }
       if (source === "grant") {
         if (cents > available) throw new DemoInputError(`This is more than the ${dollars(available)} available in your grant balance, after pending withdrawals.`);
         const main = fee > 0 ? await availableCents(profile, "deposit", tx) : 0;
-        if (fee > main) throw new DemoInputError(`The ${dollars(fee)} fee is paid from your deposit balance, which has ${dollars(main)} available. Add funds first.`);
+        if (fee > main) throw new DemoInputError(`The ${dollars(fee)} fee is paid from your account balance, which has ${dollars(main)} available. Add funds first.`);
       }
       // The profile row is locked above, so two quick requests can't both fit under the daily total.
       const problem = limitProblem(effectiveLimits(profile, settings), (await withdrawnLast24h([profile.id], tx)).get(profile.id) ?? 0, cents);

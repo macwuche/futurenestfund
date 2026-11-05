@@ -6,8 +6,8 @@ import { apiError, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
 /*
- * Step 9.3: applicants buy a card from the types the admin put on sale (price + fee from the deposit balance),
- * and top up an active card from the deposit balance (no fee).
+ * Step 9.3: applicants buy a card from the types the admin put on sale (price + fee from the account balance),
+ * and top up an active card from the account balance (no fee).
  */
 
 const primary = 'press inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#1E3A8A] px-4 text-sm font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60';
@@ -28,7 +28,7 @@ export function CardShop({ a }: { a: ApplicantAccount }) {
     <section aria-labelledby="shop-heading" className="space-y-3" data-testid="section-card-shop">
       <div>
         <h2 id="shop-heading" className="text-lg font-semibold text-slate-900">Get a card</h2>
-        <p className="text-sm text-slate-500">Paid from your deposit balance ({money(a.availableToWithdraw.deposit)} available). You can hold one virtual and one physical card.</p>
+        <p className="text-sm text-slate-500">Paid from your account balance ({money(a.availableToWithdraw.deposit)} available). You can hold one virtual and one physical card.</p>
       </div>
       {q.isLoading ? <div className="grid gap-3 md:grid-cols-2"><Skel className="h-32" /><Skel className="h-32" /></div>
         : q.isError || !q.data ? <ErrorState onRetry={() => q.refetch()} />
@@ -83,17 +83,17 @@ function BuyCardModal({ choice, a, onClose }: { choice: Choice | null; a: Applic
           <dl className="space-y-1 rounded-xl bg-slate-50 p-4 text-sm tabular-nums" data-testid="text-buy-summary">
             <div className="flex justify-between"><dt>Card</dt><dd>{money(choice.p.price ?? 0)}</dd></div>
             <div className="flex justify-between"><dt>Fee</dt><dd>{money(Math.round((total - (choice.p.price ?? 0)) * 100) / 100)}</dd></div>
-            <div className="flex justify-between border-t pt-1 font-semibold"><dt>Total, from your deposit balance</dt><dd>{money(total)}</dd></div>
+            <div className="flex justify-between border-t pt-1 font-semibold"><dt>Total, from your account balance</dt><dd>{money(total)}</dd></div>
           </dl>
           <p className="text-sm text-slate-600">{choice.kind === 'Virtual' ? 'Your virtual card is ready to use straight away.' : 'Your physical card is posted to you. Once it arrives, ask us to activate it from this page.'} Sample card: no real card network is connected.</p>
-          {short && <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="text-buy-short">Your deposit balance has {money(a.availableToWithdraw.deposit)} available. Add funds first.</p>}
+          {short && <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="text-buy-short">Your account balance has {money(a.availableToWithdraw.deposit)} available. Add funds first.</p>}
           {error && <p role="alert" className="rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-buy-error">{error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={close} className="press min-h-11 rounded-full px-4 text-sm font-semibold hover:bg-slate-100">Cancel</button>
             <button type="button" className={primary} disabled={buy.isPending || short} data-testid="button-buy-confirm" onClick={() => {
               setError('');
               buy.mutate({ data: { type: choice.t.key, kind: choice.kind } }, {
-                onSuccess: () => { refresh(); close(); toast({ title: `${choice.t.name} ${choice.kind.toLowerCase()} card bought`, description: total ? `${money(total)} was paid from your deposit balance.` : undefined }); },
+                onSuccess: () => { refresh(); close(); toast({ title: `${choice.t.name} ${choice.kind.toLowerCase()} card bought`, description: total ? `${money(total)} was paid from your account balance.` : undefined }); },
                 onError: (e) => setError(apiError(e, 'The card could not be bought. Please try again.')),
               });
             }}>{buy.isPending && <Loader2 className="h-4 w-4 animate-spin" />}{total ? `Pay ${money(total)}` : 'Get it free'}</button>
@@ -104,7 +104,7 @@ function BuyCardModal({ choice, a, onClose }: { choice: Choice | null; a: Applic
   );
 }
 
-/** "Top up" on an active card: moves money from the deposit balance to the card account, with no fee. */
+/** "Top up" on an active card: moves money from the account balance to the card account, with no fee. */
 export function CardTopUp({ c, a }: { c: UserCard; a: ApplicantAccount }) {
   const top = useTopUpApplicantCard();
   const refresh = useRefreshApplicant();
@@ -124,14 +124,14 @@ export function CardTopUp({ c, a }: { c: UserCard; a: ApplicantAccount }) {
         <form className="space-y-3" noValidate onSubmit={(e) => {
           e.preventDefault();
           if (!(n >= 0.01) || Math.abs(n * 100 - Math.round(n * 100)) > 1e-6) return setError('Enter an amount of at least $0.01 with at most two decimals.');
-          if (n > available) return setError(`Your deposit balance has ${money(available)} available.`);
+          if (n > available) return setError(`Your account balance has ${money(available)} available.`);
           setError('');
           top.mutate({ cardId: c.id, data: { amount: n } }, {
-            onSuccess: () => { refresh(); close(); toast({ title: `${money(n)} added to your card`, description: 'From your deposit balance.' }); },
+            onSuccess: () => { refresh(); close(); toast({ title: `${money(n)} added to your card`, description: 'From your account balance.' }); },
             onError: (e2) => setError(apiError(e2, 'The top-up could not be made. Please try again.')),
           });
         }}>
-          <p className="text-sm text-slate-600">Moves money from your deposit balance ({money(available)} available) to your card. No fee.</p>
+          <p className="text-sm text-slate-600">Moves money from your account balance ({money(available)} available) to your card. No fee.</p>
           <Field label="Amount (USD)">
             <div className="relative">
               <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-500">$</span>

@@ -407,7 +407,7 @@ export interface ApplicantTransaction {
   source?: BalanceSource;
   details?: RequestDetail[];
   proofUrl?: string;
-  /** Deposit and withdrawal requests: the method's fee (withdrawals: from the deposit balance; deposits: out of the amount) */
+  /** Deposit and withdrawal requests: the method's fee (withdrawals: from the account balance; deposits: out of the amount) */
   fee?: number;
 }
 
@@ -1056,7 +1056,7 @@ export interface Matchmaking {
 }
 
 /**
- * The three balance cards on the applicant dashboard
+ * The three balance cards on the applicant dashboard (8.2)
  */
 export interface BalanceSummary {
   /**
@@ -1064,16 +1064,16 @@ export interface BalanceSummary {
      * @maximum 3
      */
   tier: number;
-  /**
-     * The user's custom eligible amount, else the amount for their tier; null = not set
-     * @nullable
-     */
-  eligibleAmount: number | null;
+  /** Main balance: successful deposits minus fees and charges (the account balance) */
+  accountBalance: number;
+  /** Awarded grants minus withdrawals from the grant balance */
   grantBalance: number;
   /** Applications approved (grants awarded) */
   approvedAwards: number;
-  /** Approved deposits minus the charges taken from them */
-  depositBalance: number;
+  /** Running total of approved deposits at their full amount (before fees), plus admin top-ups and the opening balance */
+  successfulDeposits: number;
+  /** How many entries make up successfulDeposits */
+  depositCount: number;
 }
 
 export interface ApplicantDashboard {
@@ -1316,21 +1316,6 @@ export const AdminUserProfileStatus = {
   Frozen: 'Frozen',
 } as const;
 
-export interface EffectiveEligibleAmount {
-  /** Whether this is the user's own amount rather than their tier's */
-  custom: boolean;
-  /**
-     * What the user sees; null = not set
-     * @nullable
-     */
-  amount: number | null;
-  /**
-     * The amount for the user's current tier
-     * @nullable
-     */
-  tierAmount: number | null;
-}
-
 export interface AdminUserProfile {
   id: string;
   name: string;
@@ -1352,7 +1337,6 @@ export interface AdminUserProfile {
   documents: KycDocument[];
   permissions: UserPermissions;
   withdrawalLimits: EffectiveWithdrawalLimits;
-  eligibleAmount: EffectiveEligibleAmount;
   withdrawalSources: WithdrawalSources;
   audit: AuditEntry[];
 }
@@ -1437,25 +1421,6 @@ export interface UserWithdrawalLimitsUpdate {
   maxPerRequest?: number | null;
   /** @nullable */
   dailyTotal?: number | null;
-}
-
-export interface TierAmounts {
-  /**
-     * Eligible amount in USD for Tier 1; null = not set
-     * @nullable
-     */
-  tier1: number | null;
-  /** @nullable */
-  tier2: number | null;
-  /** @nullable */
-  tier3: number | null;
-}
-
-export interface UserEligibleAmountUpdate {
-  /** false = use the amount for the user's tier; true = the amount below replaces it */
-  custom: boolean;
-  /** @nullable */
-  amount?: number | null;
 }
 
 export type CardIssueInputKind = typeof CardIssueInputKind[keyof typeof CardIssueInputKind];
@@ -1774,7 +1739,7 @@ export interface AdminRequest {
   proofUrl?: string;
   /** The method's fee worked out when the request was placed */
   fee: number;
-  /** Deposits: what the deposit balance gets (amount − fee). Withdrawals: what leaves the user's balances in all (amount + fee) */
+  /** Deposits: what the account balance gets (amount − fee). Withdrawals: what leaves the user's balances in all (amount + fee) */
   net: number;
 }
 

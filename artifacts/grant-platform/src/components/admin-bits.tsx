@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useCreateUserBalanceAdjustment, useReviewAdminKycDocument, type KycDocument } from '@workspace/api-client-react';
 import { Check, FileText, X } from 'lucide-react';
-import { Field, Modal, cx, dateFmt, money } from '@/components/bits';
+import { Field, Modal, balanceName, cx, dateFmt, money } from '@/components/bits';
 import { apiError } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
@@ -166,7 +166,7 @@ export function CreditModal({ open, onClose, user, account = 'deposit', users, d
   const before = balances?.[chosen];
   const after = before === undefined || !(typed > 0) ? undefined : Math.round((debit ? before - typed : before + typed) * 100) / 100;
   const record = ({ userId, ...v }: z.output<typeof adjSchema>) => m.mutate({ userId, data: { ...v, direction } }, {
-    onSuccess: () => { refresh(); toast({ title: debit ? `Removed ${money(v.amount)} from the ${v.account} balance` : `Credited ${money(v.amount)} to the ${v.account} balance` }); onClose(); },
+    onSuccess: () => { refresh(); toast({ title: debit ? `Removed ${money(v.amount)} from the ${balanceName(v.account)} balance` : `Credited ${money(v.amount)} to the ${balanceName(v.account)} balance` }); onClose(); },
     onError: (e) => { setConfirming(null); setError(apiError(e, debit ? 'The debit was refused.' : 'The credit was refused.')); },
   });
   return (
@@ -184,7 +184,7 @@ export function CreditModal({ open, onClose, user, account = 'deposit', users, d
       ) : (
         <form className="space-y-3" noValidate onSubmit={f.handleSubmit((v) => {
           setError('');
-          if (debit && before !== undefined && v.amount > before) return setError(`The ${v.account} balance is only ${money(before)}.`);
+          if (debit && before !== undefined && v.amount > before) return setError(`The ${balanceName(v.account)} balance is only ${money(before)}.`);
           if (debit) setConfirming(v); else record(v);
         })}>
           <p className={cx('rounded-lg p-3 text-xs text-slate-700', debit ? 'bg-[#FEF2F2]' : 'bg-[#F7FADC]')}>
@@ -199,11 +199,11 @@ export function CreditModal({ open, onClose, user, account = 'deposit', users, d
               </select>
             </Field>
           )}
-          <Field label="Account"><select data-testid="select-adjust-account" className={ainput} {...f.register('account')}><option value="grant">Grant</option><option value="deposit">Deposit</option><option value="card">Card</option></select></Field>
+          <Field label="Account"><select data-testid="select-adjust-account" className={ainput} {...f.register('account')}><option value="grant">Grant</option><option value="deposit">Account balance</option><option value="card">Card</option></select></Field>
           <Field label="Amount (USD)" error={f.formState.errors.amount?.message}><input data-testid="input-adjust-amount" type="number" inputMode="decimal" step="0.01" className={ainput} {...f.register('amount')} /></Field>
           {before !== undefined && (
             <p className="font-num text-xs text-slate-600" data-testid="text-adjust-preview">
-              {chosen} balance {money(before)}{after !== undefined && <> → <span className={cx('font-semibold', after < 0 ? 'text-[#991B1B]' : 'text-slate-900')}>{money(after)}</span></>}
+              {balanceName(chosen)} balance {money(before)}{after !== undefined && <> → <span className={cx('font-semibold', after < 0 ? 'text-[#991B1B]' : 'text-slate-900')}>{money(after)}</span></>}
             </p>
           )}
           <Field label={debit ? 'Reason (shown to the user and recorded in the ledger)' : 'Reason (recorded in the ledger)'} error={f.formState.errors.reason?.message}><textarea data-testid="input-adjust-reason" maxLength={240} className={cx(ainput, 'h-20')} {...f.register('reason')} /></Field>

@@ -13,7 +13,7 @@ import {
   ListAdminCardRequestsQueryParams, ListAdminCardRequestsResponse, DeclineAdminCardRequestParams, DeclineAdminCardRequestBody, DeclineAdminCardRequestResponse,
   IssueUserCardParams, IssueUserCardBody, IssueUserCardResponse, ChangeUserCardParams, ChangeUserCardBody, ChangeUserCardResponse,
   UpdateUserWithdrawalLimitsParams, UpdateUserWithdrawalLimitsBody, UpdateUserWithdrawalLimitsResponse,
-  GetTierAmountsResponse, UpdateTierAmountsBody, UpdateTierAmountsResponse, UpdateUserEligibleAmountParams, UpdateUserEligibleAmountBody, UpdateUserEligibleAmountResponse, UpdateApplicantPreferencesBody, UpdateApplicantPreferencesResponse,
+  UpdateApplicantPreferencesBody, UpdateApplicantPreferencesResponse,
   GetApplicantMatchmakingResponse, SaveApplicantMatchmakingBody, SaveApplicantMatchmakingResponse,
   ChangeApplicantCardParams, ChangeApplicantCardBody, ChangeApplicantCardResponse,
 } from "@workspace/api-zod";
@@ -43,7 +43,7 @@ import { adminCardTypes, applicantCardTypes, changeCardTypes } from "../lib/card
 import {
   adminSearch, listAdminApplications, adminApplicationDetail, decideApplication, listAdminRequests, approveRequest, rejectRequest,
   listLedger, exportLedgerCsv, adminKycQueue, reviewKycDocument,
-  globalWithdrawalLimits, changeGlobalWithdrawalLimits, changeUserWithdrawalLimits, globalTierAmounts, changeTierAmounts, changeUserEligibleAmount, listAudit, exportAuditCsv,
+  globalWithdrawalLimits, changeGlobalWithdrawalLimits, changeUserWithdrawalLimits, listAudit, exportAuditCsv,
 } from "../lib/adminOps";
 import { receiveFile, receiveRequestForm, findFile, sendFile } from "../lib/uploads";
 import { applicantKyc, uploadKycDocument } from "../lib/kyc";
@@ -389,25 +389,6 @@ router.put("/admin/users/:userId/withdrawal-limits", async (req, res): Promise<v
   const user = await changeUserWithdrawalLimits(params.data.userId, input.data, currentAdmin(req));
   if (!user) { res.status(404).json({ error: "User not found." }); return; }
   res.json(UpdateUserWithdrawalLimitsResponse.parse(user));
-});
-
-router.get("/admin/system/tier-amounts", async (_req, res): Promise<void> => {
-  res.json(GetTierAmountsResponse.parse(await globalTierAmounts()));
-});
-
-router.put("/admin/system/tier-amounts", async (req, res): Promise<void> => {
-  const input = UpdateTierAmountsBody.safeParse(req.body);
-  if (!input.success) { res.status(400).json({ error: "Enter each tier's amount, or leave it empty for not set." }); return; }
-  res.json(UpdateTierAmountsResponse.parse(await changeTierAmounts(input.data, currentAdmin(req))));
-});
-
-router.put("/admin/users/:userId/eligible-amount", async (req, res): Promise<void> => {
-  const params = UpdateUserEligibleAmountParams.safeParse(req.params);
-  const input = UpdateUserEligibleAmountBody.safeParse(req.body);
-  if (!params.success || !input.success) { res.status(400).json({ error: "Choose the tier amount or enter a custom one." }); return; }
-  const user = await changeUserEligibleAmount(params.data.userId, input.data, currentAdmin(req));
-  if (!user) { res.status(404).json({ error: "User not found." }); return; }
-  res.json(UpdateUserEligibleAmountResponse.parse(user));
 });
 
 /* ---------- admin operations ---------- */

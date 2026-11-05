@@ -82,8 +82,8 @@ export async function issueCard(userId: string, o: IssueOptions) {
       const available = await availableCents(profile, "deposit", tx);
       if (price.totalCents > available) {
         throw new DemoInputError(o.by === "applicant"
-          ? `This card costs ${usd(price.totalCents)}${price.feeCents ? ` (${usd(price.priceCents)} + ${usd(price.feeCents)} fee)` : ""}, and your deposit balance has ${usd(available)} available. Add funds first.`
-          : `This card costs ${usd(price.totalCents)} and the user's deposit balance has ${usd(available)} available. Tick "Free of charge" to issue it without charging, or ask them to add funds.`);
+          ? `This card costs ${usd(price.totalCents)}${price.feeCents ? ` (${usd(price.priceCents)} + ${usd(price.feeCents)} fee)` : ""}, and your account balance has ${usd(available)} available. Add funds first.`
+          : `This card costs ${usd(price.totalCents)} and the user's account balance has ${usd(available)} available. Tick "Free of charge" to issue it without charging, or ask them to add funds.`);
       }
     }
     const card: StoredCard = {
@@ -98,7 +98,7 @@ export async function issueCard(userId: string, o: IssueOptions) {
     }
     const paid = charged ? ` · paid ${usd(price.totalCents)}${price.feeCents ? ` (${usd(price.priceCents)} + fee ${usd(price.feeCents)})` : ""}` : o.by === "admin" && o.freeOfCharge ? " · free of charge" : "";
     await tx.insert(demoAuditTable).values({ profileId: userId, actor: o.actor, action: `${o.by === "applicant" ? "Bought" : "Issued"} ${label(card)}${o.kind === "Physical" ? " (pending delivery)" : ""}${paid}` });
-    const cost = charged ? ` ${usd(price.totalCents)} was paid from your deposit balance.` : "";
+    const cost = charged ? ` ${usd(price.totalCents)} was paid from your account balance.` : "";
     await notifyUser(userId, o.kind === "Virtual"
       ? `Your virtual ${info.name} card ending ${card.lastFour} is ready to use.${cost}`
       : `Your physical ${info.name} card ending ${card.lastFour} is being issued. We'll let you know when it's active.${cost}`, "/cards", tx);
@@ -128,18 +128,18 @@ export async function topUpCard(userId: string, cardId: string, amount: number, 
     const available = await availableCents(profile, "deposit", tx);
     if (cents > available) {
       throw new DemoInputError(by === "applicant"
-        ? `Your deposit balance has ${usd(available)} available${available < profile.depositCents ? " after pending withdrawals" : ""}. Top up less, or add funds first.`
-        : `The user's deposit balance has ${usd(available)} available${available < profile.depositCents ? " after pending withdrawals" : ""}, less than ${usd(cents)}.`);
+        ? `Your account balance has ${usd(available)} available${available < profile.depositCents ? " after pending withdrawals" : ""}. Top up less, or add funds first.`
+        : `The user's account balance has ${usd(available)} available${available < profile.depositCents ? " after pending withdrawals" : ""}, less than ${usd(cents)}.`);
     }
     if (profile.cardCents + cents > 2_000_000_000) throw new DemoInputError("This would exceed the demo account limit.");
     await tx.update(demoProfilesTable).set({ depositCents: profile.depositCents - cents, cardCents: profile.cardCents + cents }).where(eq(demoProfilesTable.id, userId));
     const what = `${cardTypeInfo(typeOfCard(card)).name} card •• ${card.lastFour}`;
     await tx.insert(demoLedgerTable).values([
       { profileId: userId, kind: "Card top-up", account: "deposit", amountCents: -cents, reason: `Top-up of ${what}`, actor },
-      { profileId: userId, kind: "Card top-up", account: "card", amountCents: cents, reason: `Top-up of ${what}, from the deposit balance`, actor },
+      { profileId: userId, kind: "Card top-up", account: "card", amountCents: cents, reason: `Top-up of ${what}, from the account balance`, actor },
     ]);
-    await tx.insert(demoAuditTable).values({ profileId: userId, actor, action: `Card top-up ${usd(cents)} to ${label(card)} from the deposit balance` });
-    await notifyUser(userId, `${usd(cents)} was moved from your deposit balance to your ${what}.`, "/cards", tx);
+    await tx.insert(demoAuditTable).values({ profileId: userId, actor, action: `Card top-up ${usd(cents)} to ${label(card)} from the account balance` });
+    await notifyUser(userId, `${usd(cents)} was moved from your account balance to your ${what}.`, "/cards", tx);
     return true;
   });
   return found ? getUser(userId) : undefined;

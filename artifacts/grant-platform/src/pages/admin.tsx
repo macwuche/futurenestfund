@@ -13,7 +13,6 @@ import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDow
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
-import { GlobalTierAmounts, UserEligibleAmount } from '@/components/eligible-amount';
 import { UserWithdrawalSources } from '@/components/withdrawal-sources';
 import { MonitoringSettings, RateLimitSettings, VirusScanSettings } from '@/components/monitoring-settings';
 import { EmailSettingsCard } from '@/components/email-settings';
@@ -40,7 +39,7 @@ export function AdminOverviewPage() {
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         <Stat id="total-users" label="Total users" value={d.totalUsers} accent hint={`${d.activeUsers} active`} href="/admin/users" />
         <Stat id="grant-balances" label="Grant balances" value={money(d.totalGrantBalances)} />
-        <Stat id="deposit-balances" label="Deposit balances" value={money(d.totalDepositBalances)} />
+        <Stat id="deposit-balances" label="Account balances" value={money(d.totalDepositBalances)} />
         <Stat id="frozen-users" label="Frozen accounts" value={d.totalUsers - d.activeUsers} hint="Can't move money" href="/admin/users?status=frozen" />
         <Stat id="pending-applications" label="Pending applications" value={d.pendingApplications} hint="Submitted or under review" href="#review-queue" />
         <Stat id="pending-kyc" label="Pending KYC" value={d.pendingKyc} hint="Users with documents to review" href="/admin/kyc" />
@@ -144,7 +143,7 @@ function ReviewQueue() {
 
 /* ---------- Users directory ---------- */
 type UserSort = ListAdminUsersSort;
-const SORT_LABEL: Record<UserSort, string> = { name: 'Name', joined: 'Joined', tier: 'Tier', status: 'Status', grant: 'Grant balance', deposit: 'Deposit balance' };
+const SORT_LABEL: Record<UserSort, string> = { name: 'Name', joined: 'Joined', tier: 'Tier', status: 'Status', grant: 'Grant balance', deposit: 'Account balance' };
 /** Same defaults as the API: names, tiers and statuses A→Z / low→high; dates and balances newest / largest first. */
 const defaultDir = (s: UserSort): ListAdminUsersDir => (s === 'joined' || s === 'grant' || s === 'deposit' ? 'desc' : 'asc');
 const joinedFmt = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
@@ -176,7 +175,7 @@ function UserTable({ items, sort, dir, onSort }: { items: AdminUserSummary[]; so
         <table className="w-full min-w-[820px] text-left text-sm" data-testid="table-users">
           <thead><tr className="border-b text-xs text-slate-500">
             {th('name', 'User', 'py-2 pr-3')}{th('joined', 'Joined')}{th('tier', 'Tier')}<th className="uppercase tracking-wide">KYC</th>{th('status', 'Status')}
-            {th('grant', 'Grant', 'text-right')}{th('deposit', 'Deposit', 'text-right')}<th />
+            {th('grant', 'Grant', 'text-right')}{th('deposit', 'Account', 'text-right')}<th />
           </tr></thead>
           <tbody>
             {items.map((u) => (
@@ -392,7 +391,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
         </div>
       </div>
 
-      <div id="sec-limits" className="grid scroll-mt-32 items-start gap-4 xl:grid-cols-2"><UserWithdrawalLimits u={u} /><UserEligibleAmount u={u} /><UserWithdrawalSources u={u} /></div>
+      <div id="sec-limits" className="grid scroll-mt-32 items-start gap-4 xl:grid-cols-2"><UserWithdrawalLimits u={u} /><UserWithdrawalSources u={u} /></div>
 
       <section id="sec-balances" className={cx(card, 'scroll-mt-32 p-5')} data-testid="section-balances">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="font-display font-bold">Balances and cards</h3><span className="text-xs text-slate-500">Sample balances. Credits and debits write a ledger entry; no real transfer.</span></div>
@@ -408,7 +407,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
             </div>
           ))}
         </div>
-        {/* Card top-ups move money from the deposit balance (9.3), so the card account has no Credit button: use Top up on a card. */}
+        {/* Card top-ups move money from the account balance (9.3), so the card account has no Credit button: use Top up on a card. */}
         <CardControls u={u} />
       </section>
 
@@ -468,7 +467,7 @@ function UserApplications({ userId }: { userId: string }) {
 const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: Snowflake, hint: 'Global freeze and the rules every approval follows' },
   { id: 'email', label: 'Email', icon: Mail, hint: 'Resend key, sender, signature and health checks' },
-  { id: 'limits', label: 'Money', icon: Gauge, hint: 'Withdrawal limits and the eligible amount per tier' },
+  { id: 'limits', label: 'Money', icon: Gauge, hint: 'Platform-wide withdrawal limits' },
   { id: 'cards', label: 'Cards', icon: CreditCard, hint: 'The card types applicants can buy, with their prices and fees' },
   { id: 'monitoring', label: 'Monitoring', icon: Activity, hint: 'Where errors go, upload virus scanning and rate limits' },
   { id: 'audit', label: 'Audit log', icon: ScrollText, hint: 'Every recorded change, searchable' },
@@ -504,7 +503,7 @@ export function AdminSettingsPage() {
           </header>
           {current.id === 'general' && <GeneralSettings />}
           {current.id === 'email' && <EmailSettingsCard />}
-          {current.id === 'limits' && <><GlobalWithdrawalLimits /><GlobalTierAmounts /></>}
+          {current.id === 'limits' && <GlobalWithdrawalLimits />}
           {current.id === 'cards' && <CardTypeSettings />}
           {current.id === 'monitoring' && <><MonitoringSettings /><VirusScanSettings /><RateLimitSettings /></>}
           {current.id === 'audit' && <AuditSettings />}
@@ -541,7 +540,7 @@ function GeneralSettings() {
           <li className="flex items-start justify-between gap-3 py-3"><span>Approvals re-check freezes, balances and each user's KYC requirement at the moment of approval.</span><StatusBadge status="Active" /></li>
           <li className="flex items-start justify-between gap-3 py-3"><span>One finance administrator approves or declines each request, and the applicant is told by email and in the app.</span><StatusBadge status="Active" label="Single approver" dot={false} /></li>
         </ul>
-        <p className="mt-2 flex items-start gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0" />Per-user KYC requirements, tiers, notification overrides, custom withdrawal limits and custom eligible amounts are set on each user's profile.</p>
+        <p className="mt-2 flex items-start gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0" />Per-user KYC requirements, tiers, notification overrides, and custom withdrawal limits are set on each user's profile.</p>
       </section>
     </>
   );

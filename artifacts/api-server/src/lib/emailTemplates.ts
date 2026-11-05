@@ -119,7 +119,7 @@ export type MoneyEmailData = {
   reason?: string;
   /** Payment method name (Phase 10) and, for withdrawals, the balance it's paid from. */
   method?: string; source?: "grant" | "deposit";
-  /** The method's fee (9.3): deposits lose it from the amount; withdrawals pay it from the deposit balance. */
+  /** The method's fee (9.3): deposits lose it from the amount; withdrawals pay it from the account balance. */
   feeCents?: number;
 };
 export const isMoneyEmailKind = (k: unknown): k is MoneyEmailKind => k === "request_received" || k === "request_approved" || k === "request_declined";
@@ -129,10 +129,10 @@ const usd = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minim
 export function moneyEmail(kind: MoneyEmailKind, to: string, name: string, d: MoneyEmailData, url: string): OutgoingEmail {
   const what = d.request.toLowerCase();
   const withdrawal = d.request === "Withdrawal";
-  const balance = d.source === "deposit" ? "deposit balance" : "grant balance";
+  const balance = d.source === "deposit" ? "account balance" : "grant balance";
   const rows: [string, string][] = [["Amount", usd(d.amountCents)], ...(d.method ? [["Method", d.method] as [string, string]] : []),
     ...(withdrawal && d.source ? [["Paid from", `Your ${balance}`] as [string, string]] : []),
-    ...(d.feeCents ? [["Fee", withdrawal ? `${usd(d.feeCents)}, from your deposit balance` : usd(d.feeCents)] as [string, string],
+    ...(d.feeCents ? [["Fee", withdrawal ? `${usd(d.feeCents)}, from your account balance` : usd(d.feeCents)] as [string, string],
       [withdrawal ? "Total" : "You receive", usd(withdrawal ? d.amountCents + d.feeCents : d.amountCents - d.feeCents)] as [string, string]] : []),
     ["Reference", d.reference], ["Requested", d.date]];
   const button = { kind: "button" as const, label: withdrawal ? "View your withdrawals" : "View your deposits", href: url };
@@ -142,14 +142,14 @@ export function moneyEmail(kind: MoneyEmailKind, to: string, name: string, d: Mo
       { kind: "p", text: greeting(name) },
       { kind: "p", text: withdrawal
         ? "Your withdrawal request has been placed. Our finance team will review it, and your funds will be released once it's approved. The amount is held from your available balance in the meantime."
-        : "Your deposit request has been placed. Our finance team will review it, and the funds will be added to your deposit balance once it's approved." },
+        : "Your deposit request has been placed. Our finance team will review it, and the funds will be added to your account balance once it's approved." },
       { kind: "rows", rows: [...rows, ["Status", "Under review"]] },
       { kind: "p", text: "We'll email you again as soon as it has been reviewed." }, button, footer]);
     case "request_approved": return render(to, `Your ${what} of ${usd(d.amountCents)} was approved`, `${d.request} approved`, [
       { kind: "p", text: greeting(name) },
       { kind: "p", text: withdrawal
         ? `Good news: our finance team approved your withdrawal. The funds have been released from your ${balance}.`
-        : "Good news: our finance team approved your deposit. The funds are now in your deposit balance." },
+        : "Good news: our finance team approved your deposit. The funds are now in your account balance." },
       { kind: "rows", rows: [...rows, ["Status", "Approved"], ...(d.reason ? [["Note", d.reason] as [string, string]] : [])] }, button, footer]);
     case "request_declined": return render(to, `Your ${what} request of ${usd(d.amountCents)} was declined`, `${d.request} declined`, [
       { kind: "p", text: greeting(name) },

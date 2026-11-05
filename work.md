@@ -2383,3 +2383,80 @@ Every step: typecheck and `pnpm test`; one commit when 9.3 is green. Deploy appl
 
 **Committed** `3f7ef8a`. **Deployed** 2026-11-05 at `a1072f6`. Nothing changes on the server unless `RATE_LIMIT_REDIS_URL` is set.
 
+
+---
+
+## 19. Step 8.2: balance cards rework (2026-11-05)
+
+**Request (user, 2026-11-05):** the dashboard's three balance cards should describe real balances. The "Eligible amount" is not a balance and goes. Tiers stay: they will drive other rules, to be discussed later (9.4).
+
+### 19a. What the cards mean (user's answers, 2026-11-05)
+
+| # | Card | Figure | Goes up / down |
+|---|---|---|---|
+| 1 | **Account balance** (main balance, replaces "Eligible amount") | Successful deposits minus fees and charges: today's deposit balance (`demo_profiles.deposit_cents`) | Both. Down for deposit and withdrawal fees, admin debits, card purchases, card top-ups and withdrawals from it |
+| 2 | **Grant balance** | Awarded grants minus withdrawals from the grant balance (unchanged: $5,000 awarded − $1,000 withdrawn = $4,000) | Both |
+| 3 | **Successful deposit** | Running total of every approved deposit, **at its full amount before the fee** ($100 deposit with a $2 fee counts $100; the account balance gets $98). Admin top-ups to the deposit balance count too | Only up |
+
+Each approved deposit is already listed under Transactions (ledger kind `Deposit`, full amount; the fee is its own `Fee` line).
+
+### 19b. Plan
+1. **API:** `ApplicantDashboard.balanceSummary` becomes `{ tier, accountBalance, grantBalance, approvedAwards, successfulDeposits, depositCount }`.
+   - `successfulDeposits` = sum of the user's ledger entries on the deposit account with kind `Deposit`, `Top-up` or `Opening balance`. Sample accounts start with an opening balance, so it counts as their first deposit; that keeps Successful deposit ≥ Account balance. No migration.
+   - `depositCount` = the number of those entries, shown under the figure.
+2. **Remove the eligible amount** (user, answer 5):
+   - Dashboard card.
+   - Settings → Money → "Eligible amount per tier" form.
+   - The "Eligible amount" card in the user inspector.
+   - `GET|PUT /admin/system/tier-amounts`, `PUT /admin/users/{userId}/eligible-amount`, `AdminUserProfile.eligibleAmount`, `lib/eligibleAmount.ts` and its tests, `components/eligible-amount.tsx`.
+   - **Kept:** the database columns from migration 0008 (`tier1/2/3_eligible_cents`, `eligible_custom`, `eligible_cents`), unused for now, so no destructive migration and the values are there if the tier rules want them. The tier itself (1–3, set in the inspector) stays.
+3. **UI** (same layout, colours and phone arrangement as 8.1):
+   - **Account balance:** wide card, line "Deposits minus fees and charges", links to Transactions.
+   - **Grant balance:** unchanged.
+   - **Successful deposit:** line "N approved deposit(s)", links to Add funds.
+   - Settings → Money hint becomes "Platform-wide withdrawal limits".
+4. **Tests:** typecheck, `pnpm test`, and `phase8-balances(-ui).mjs` rewritten for the new figures: a deposit with a fee raises Successful deposit by the full amount and Account balance by amount − fee; an admin top-up raises both; a fee or debit lowers only Account balance; the removed endpoints answer 404. Plus regressions: smoke, phase5-limits-ui, phase5-users-ui, phase6-mobile at 0 problems.
+
+### 19c. Follow-ups
+- ~~Rename "Deposit balance" to "Account balance" everywhere~~: **yes** (user, 2026-11-05), done in 8.2 (see below).
+- 9.4 tier rules: the user will explain what tiers control.
+
+### 2026-11-05: Step 8.2 done (balance cards rework)
+
+**Built** (as planned in 19b, no migration):
+- **Dashboard:** *Account balance* (wide, darkest card, "Deposits minus fees and charges", links to Transactions), *Grant balance* (unchanged), *Successful deposit* (running total, "N approved deposit(s)", links to Add funds). Same colours and phone layout as 8.1.
+- **API:** `balanceSummary { tier, accountBalance, grantBalance, approvedAwards, successfulDeposits, depositCount }`. `successfulDeposits` sums the user's deposit-account ledger entries of kind `Deposit`, `Top-up` and `Opening balance` (`SUCCESSFUL_DEPOSIT_KINDS` in `demoWorkspace.ts`).
+- **Removed:** `GET|PUT /admin/system/tier-amounts`, `PUT /admin/users/{userId}/eligible-amount`, `AdminUserProfile.eligibleAmount`, `lib/eligibleAmount.ts` (+ test), `components/eligible-amount.tsx`, the Settings → Money tier form and the inspector card. The 0008 columns stay, unused.
+
+**Tests (2026-11-05, test API on :8099 via the proxy, demo data restored before each suite):**
+- typecheck clean; `pnpm test` 121/121 (+1 skipped without Redis; the 4 eligible-amount tests went with the code)
+- `phase8-balances.mjs` rewritten, 8/8:
+  - a $100 deposit with a $2 fee: Successful deposit +$100, Account balance +$98
+  - pending and declined deposits count nothing
+  - an admin top-up raises both; a grant top-up raises neither
+  - a debit and a withdrawal from the deposit balance lower only Account balance
+  - $5,000 award then a $1,000 grant withdrawal: Grant balance +$4,000
+  - the removed endpoints answer 404
+- `phase8-balances-ui.mjs` 6/6 desktop + 6/6 phone
+- regressions: smoke 23+23, phase5-limits-ui 6+6, phase5-users-ui 6+6, phase9.3 fees 8/8, phase3-api 24/24, phase6-mobile 42/42 with 0 problems. Screenshots checked at 1440 and 390 px.
+
+**Rename (user, 2026-11-05: "yes change it"):** every user-facing "deposit balance" is now **"account balance"**:
+- applicant pages: Cards tiles, Withdraw and Add funds forms, fee lines, card shop, Help
+- admin pages: request queues and review panels, card controls, card type settings, Payment Gateway fee help, users directory column ("Account"), Withdraw-from card, the adjust-balance account menu ("Account balance")
+- server messages: errors, notifications, emails, and the `SOURCE_LABEL` / `SOURCES_LABEL` texts ("grant and account balances")
+- Transactions rows name the balance in full: "Grant balance" / "Account balance" / "Card account"
+- `balanceName()` in `components/bits.tsx` turns the API key `deposit` into "account" wherever a name is built from it
+
+**Not renamed:** the API and database keep the key `deposit` (`balances.deposit`, `source: "deposit"`, `deposit_cents`), so there's no migration and no API break. Audit-log wording stays as before (`Debit deposit −$10.00`), so new entries match the old log.
+
+**Tests after the rename:** typecheck clean; `pnpm test` 121/121. Suites, all passing:
+- phase8-balances 8/8, phase8-balances-ui 6+6
+- phase10-methods 18/18, phase10-ui 11+11
+- phase9.3 fees 8/8, cards 12/12, ui 8+8
+- phase5-cards 9/9, phase5-debits 8/8, phase5-debits-ui 5+5
+- phase1-desktop 26/26, phase3-desktop 22/22, phase3-phone 17/17
+- smoke 23+23, phase6-mobile 42/42 with 0 problems
+
+phase4-email needs Supabase keys and was not rerun in full; the email wording is covered by `emailTemplates.test.ts`.
+
+**Still to do:** deploy (no migration).

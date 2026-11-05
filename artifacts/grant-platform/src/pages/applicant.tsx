@@ -13,7 +13,7 @@ import {
   type ApplicantDashboard, type ApplicantKyc, type KycDocumentKind, type ApplicantAccount, type ApplicantApplication, type ApplicationDetail,
 } from '@workspace/api-client-react';
 import {
-  Award, Check, ChevronDown, ChevronRight, Layers, CircleCheck, CircleX, Clock, FileText, PenLine, Sparkles,
+  ArrowDownToLine, Check, ChevronDown, ChevronRight, Layers, CircleCheck, CircleX, Clock, FileText, PenLine, Sparkles,
   Search, ArrowDownLeft, Undo2, ArrowLeft, ArrowUpRight, Snowflake, Landmark, Wallet,
   CreditCard, BadgeCheck, Lock, Camera, Upload, Download, Trash2, IdCard, House as HouseIcon, Loader2, Nfc, type LucideIcon,
 } from 'lucide-react';
@@ -67,7 +67,7 @@ export function Legend({ className }: { className?: string }) {
 }
 
 /**
- * The three balance cards at the top of the dashboard (Phase 8): three shades of the brand navy, darkest first.
+ * The three balance cards at the top of the dashboard (Phase 8, meanings from 8.2): three shades of the brand navy, darkest first.
  * Muted text is blue-100 on the two dark cards and white on the brighter one, so every line stays ≥ 4.5:1.
  */
 const balanceTones = [
@@ -104,16 +104,16 @@ function BalanceCards({ d }: { d: ApplicantDashboard }) {
   return (
     <section aria-labelledby="balances-heading" data-testid="section-balances">
       <h2 id="balances-heading" className="sr-only">Balances</h2>
-      {/* Phones: Eligible amount full width, the other two side by side; tablet and up: three columns. */}
+      {/* Phones: Account balance full width, the other two side by side; tablet and up: three columns. */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
-        <BalanceCard tone={0} wide href="/grant-search" label="Eligible amount" icon={Award} value={b.eligibleAmount} valueTestid="text-eligible-amount" testid="card-balance-eligible">
-          <span data-testid="text-eligible-tier">Largest open award at Tier {b.tier}</span>
+        <BalanceCard tone={0} wide href="/transactions" label="Account balance" icon={Wallet} value={b.accountBalance} valueTestid="text-account-balance" testid="card-balance-account">
+          Deposits minus fees and charges
         </BalanceCard>
         <BalanceCard tone={1} href="/applications?status=approved" label="Grant balance" icon={Landmark} value={b.grantBalance} valueTestid="text-grant-balance" testid="card-balance-grant">
           <span data-testid="text-approved-awards"><strong className="font-semibold text-white tabular-nums">{b.approvedAwards}</strong> approved {b.approvedAwards === 1 ? 'award' : 'awards'}</span>
         </BalanceCard>
-        <BalanceCard tone={2} href="/deposits" label="Successful deposit" icon={Wallet} value={b.depositBalance} valueTestid="text-deposit-balance" testid="card-balance-deposit">
-          Covers card fees and commissions
+        <BalanceCard tone={2} href="/deposits" label="Successful deposit" icon={ArrowDownToLine} value={b.successfulDeposits} valueTestid="text-successful-deposits" testid="card-balance-deposit">
+          <span data-testid="text-deposit-count"><strong className="font-semibold text-white tabular-nums">{b.depositCount}</strong> approved {b.depositCount === 1 ? 'deposit' : 'deposits'}</span>
         </BalanceCard>
       </div>
     </section>
@@ -556,7 +556,7 @@ function Balances({ a }: { a: Account }) {
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       <StatTile label="Grant balance" value={a.balances.grant} icon={Landmark} testid="text-balance-grant" />
-      <StatTile label="Deposit balance" value={a.balances.deposit} icon={Wallet} testid="text-balance-deposit" />
+      <StatTile label="Account balance" value={a.balances.deposit} icon={Wallet} testid="text-balance-deposit" />
       <StatTile label="Card balance" value={a.balances.card} icon={CreditCard} testid="text-balance-card" />
     </div>
   );
@@ -583,7 +583,7 @@ function CardsBody({ a }: { a: Account }) {
       <Balances a={a} />
       <section aria-labelledby="cards-heading" className="space-y-3">
         <h2 id="cards-heading" className="text-lg font-semibold text-slate-900">Your cards</h2>
-        {live.length === 0 ? <Empty title="No cards on this account" hint="Buy one below, paid from your deposit balance." /> : (
+        {live.length === 0 ? <Empty title="No cards on this account" hint="Buy one below, paid from your account balance." /> : (
           <div className="grid gap-4 md:grid-cols-2" data-testid="list-cards">
             {live.map((c) => (
               <div key={c.id} className={cx(card, 'p-4')} data-testid={`card-payment-${c.id}`}>
@@ -639,7 +639,7 @@ function CardsBody({ a }: { a: Account }) {
 /* Transactions */
 const txTypes = ['All', 'Deposit', 'Withdrawal', 'Grant award', 'Top-up', 'Debit', 'Fee', 'Card purchase', 'Card top-up'] as const;
 const txFilterLabel: Record<(typeof txTypes)[number], string> = { All: 'All', Deposit: 'Deposits', Withdrawal: 'Withdrawals', 'Grant award': 'Grant awards', 'Top-up': 'Top-ups', Debit: 'Debits', Fee: 'Fees', 'Card purchase': 'Card purchases', 'Card top-up': 'Card top-ups' };
-const accountLabel: Record<string, string> = { grant: 'Grant', deposit: 'Deposit', card: 'Card' };
+const accountLabel: Record<string, string> = { grant: 'Grant balance', deposit: 'Account balance', card: 'Card account' };
 
 /** Deposit and withdrawal requests are reviewed by the finance team, so their statuses read as review outcomes. */
 const requestStatusLabel: Record<string, string> = { Pending: 'Under review', Completed: 'Approved', Declined: 'Declined' };
@@ -652,7 +652,7 @@ export function TxRow({ t, showDetails = false }: { t: Tx; showDetails?: boolean
       <span className={cx('grid h-10 w-10 shrink-0 place-items-center rounded-lg', incoming ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#EEF4FB] text-[#1E3A8A]')}><Icon className="h-5 w-5" /></span>
       <span className="min-w-0 flex-1">
         <span className="line-clamp-2 block font-semibold text-slate-900">{t.description}</span>
-        <span className="block truncate text-sm text-slate-500">{t.type}{t.reference && <> · <span data-testid={`text-transaction-ref-${t.id}`}>Ref {t.reference}</span></>}<span className="hidden sm:inline"> · {accountLabel[t.account]} account</span> · {dateFmt(t.createdAt)}</span>
+        <span className="block truncate text-sm text-slate-500">{t.type}{t.reference && <> · <span data-testid={`text-transaction-ref-${t.id}`}>Ref {t.reference}</span></>}<span className="hidden sm:inline"> · {accountLabel[t.account]}</span> · {dateFmt(t.createdAt)}</span>
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1">
         <span className={cx('font-semibold tabular-nums', t.status === 'Declined' ? 'text-slate-400 line-through' : incoming ? 'text-[#166534]' : 'text-slate-900')} data-testid={`text-transaction-amount-${t.id}`}>{incoming ? '+' : '−'}{money(t.amount)}</span>
@@ -660,7 +660,7 @@ export function TxRow({ t, showDetails = false }: { t: Tx; showDetails?: boolean
       </span>
     </div>
     {showDetails && <RequestDetails method={t.method} details={t.details} proofUrl={t.proofUrl} source={t.type === 'Withdrawal' ? t.source : undefined} testid={`details-transaction-${t.id}`} />}
-    {showDetails && t.fee ? <p className="mt-2 text-xs tabular-nums text-slate-600" data-testid={`text-fee-${t.id}`}>{t.type === 'Deposit' ? `Fee ${money(t.fee)} · ${t.status === 'Completed' ? 'credited' : 'you receive'} ${money(Math.round((t.amount - t.fee) * 100) / 100)}` : `Fee ${money(t.fee)}, from your deposit balance`}</p> : null}
+    {showDetails && t.fee ? <p className="mt-2 text-xs tabular-nums text-slate-600" data-testid={`text-fee-${t.id}`}>{t.type === 'Deposit' ? `Fee ${money(t.fee)} · ${t.status === 'Completed' ? 'credited' : 'you receive'} ${money(Math.round((t.amount - t.fee) * 100) / 100)}` : `Fee ${money(t.fee)}, from your account balance`}</p> : null}
     {showDetails && t.status === 'Completed' && t.reviewNote && <p className="mt-2 text-xs text-slate-600" data-testid={`text-approve-note-${t.id}`}><span className="font-semibold">Note from our team:</span> {t.reviewNote}</p>}
     </li>
   );
@@ -695,7 +695,7 @@ function MoneyPage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
   return <AccountGate title={kind === 'Deposit' ? 'Add funds' : 'Withdrawals'}>{(a) => <MoneyBody kind={kind} a={a} />}</AccountGate>;
 }
 type Source = 'grant' | 'deposit';
-const sourceName: Record<Source, string> = { grant: 'Grant balance', deposit: 'Deposit balance' };
+const sourceName: Record<Source, string> = { grant: 'Grant balance', deposit: 'Account balance' };
 
 function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) {
   const refresh = useRefreshApplicant();
@@ -743,8 +743,8 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
     }
     const fee = feeOn(method.fee, n);
     if (isDeposit && fee > 0 && fee >= n) return setErr(`The ${money(fee)} fee is more than this deposit. Deposit a larger amount.`);
-    if (!isDeposit && source === 'deposit' && fee > 0 && n + fee > a.availableToWithdraw.deposit) return setErr(`This withdrawal and its ${money(fee)} fee come to ${money(n + fee)}, more than the ${money(a.availableToWithdraw.deposit)} available in your deposit balance.`);
-    if (!isDeposit && source === 'grant' && fee > a.availableToWithdraw.deposit) return setErr(`The ${money(fee)} fee is paid from your deposit balance, which has ${money(a.availableToWithdraw.deposit)} available. Add funds first.`);
+    if (!isDeposit && source === 'deposit' && fee > 0 && n + fee > a.availableToWithdraw.deposit) return setErr(`This withdrawal and its ${money(fee)} fee come to ${money(n + fee)}, more than the ${money(a.availableToWithdraw.deposit)} available in your account balance.`);
+    if (!isDeposit && source === 'grant' && fee > a.availableToWithdraw.deposit) return setErr(`The ${money(fee)} fee is paid from your account balance, which has ${money(a.availableToWithdraw.deposit)} available. Add funds first.`);
     if (!isDeposit && available !== null && n > available) return setErr(`You can withdraw up to ${money(available)} from your ${sourceName[source as Source].toLowerCase()}.`);
     if (!isDeposit && lim.maxPerRequest !== null && n > lim.maxPerRequest) return setErr(`You can withdraw up to ${money(lim.maxPerRequest)} per request.`);
     if (!isDeposit && leftToday !== null && n > leftToday) return setErr(leftToday <= 0 ? `You've reached your ${money(lim.dailyTotal!)} daily withdrawal limit.` : `You have ${money(leftToday)} left of your ${money(lim.dailyTotal!)} daily withdrawal limit.`);
@@ -776,7 +776,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
         <form noValidate onSubmit={submit} className={cx(card, 'min-w-0 space-y-4 p-5 lg:col-span-2 lg:self-start')} data-testid="form-money">
           {isDeposit || sources.length === 1 ? (
             <div className="rounded-xl bg-[#EEF4FB] p-4">
-              <p className="text-sm text-slate-600">{isDeposit ? 'Deposit balance' : `Available to withdraw · ${sourceName[sources[0]!].toLowerCase()}`}</p>
+              <p className="text-sm text-slate-600">{isDeposit ? 'Account balance' : `Available to withdraw · ${sourceName[sources[0]!].toLowerCase()}`}</p>
               <p className="text-2xl font-bold tabular-nums text-slate-900" data-testid="text-source-balance">{money(isDeposit ? a.balances.deposit : a.availableToWithdraw[sources[0]!])}</p>
               {!isDeposit && a.availableToWithdraw[sources[0]!] < a.balances[sources[0]!] && (
                 <p className="mt-1 text-xs text-slate-500">{sourceName[sources[0]!]} {money(a.balances[sources[0]!])}, minus pending withdrawals.</p>
@@ -861,7 +861,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
             <ol className="list-decimal space-y-1 pl-5">
               <li>You get a reference number{isDeposit ? '' : ', and the amount is held from the balance you chose'}.</li>
               <li>A finance administrator {isDeposit ? 'checks your payment and ' : ''}approves or declines it. You're told in the app{emailed ? ' and by email' : ''}, with the reason if it's declined.</li>
-              <li>{isDeposit ? 'Once approved, the amount is added to your deposit balance.' : 'Once approved, the amount leaves that balance. A declined request releases the hold.'}</li>
+              <li>{isDeposit ? 'Once approved, the amount is added to your account balance.' : 'Once approved, the amount leaves that balance. A declined request releases the hold.'}</li>
             </ol>
           </div>
         </form>
@@ -875,16 +875,16 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
     </div>
   );
 }
-/** The method's fee as the applicant types an amount (9.3): withdrawals pay it from the deposit balance, deposits lose it from the amount. */
+/** The method's fee as the applicant types an amount (9.3): withdrawals pay it from the account balance, deposits lose it from the amount. */
 function FeeSummary({ isDeposit, feeText, fee, amount }: { isDeposit: boolean; feeText: string; fee: number | null; amount: number }) {
   if (feeText === 'No fee') return null;
   return (
     <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700" data-testid="text-method-fee" aria-live="polite">
       {fee === null
-        ? <>{feeText}{isDeposit ? ', taken out of the amount you deposit.' : ', paid from your deposit balance.'}</>
+        ? <>{feeText}{isDeposit ? ', taken out of the amount you deposit.' : ', paid from your account balance.'}</>
         : isDeposit
           ? <>Fee <span className="font-semibold tabular-nums">{money(fee)}</span> · you'll receive <span className="font-semibold tabular-nums" data-testid="text-fee-net">{money(Math.max(0, Math.round((amount - fee) * 100) / 100))}</span></>
-          : <>Fee <span className="font-semibold tabular-nums">{money(fee)}</span>, paid from your deposit balance · total <span className="font-semibold tabular-nums" data-testid="text-fee-net">{money(Math.round((amount + fee) * 100) / 100)}</span></>}
+          : <>Fee <span className="font-semibold tabular-nums">{money(fee)}</span>, paid from your account balance · total <span className="font-semibold tabular-nums" data-testid="text-fee-net">{money(Math.round((amount + fee) * 100) / 100)}</span></>}
     </p>
   );
 }
@@ -895,7 +895,7 @@ function RequestPlaced({ t, emailed, onClose }: { t: Tx; emailed: boolean; onClo
   const steps = [
     { title: 'Request placed', text: `${money(t.amount)}, reference ${t.reference}. ${withdrawal ? 'The amount is held from your available balance.' : ''}` },
     { title: 'Finance team review', text: 'An administrator checks the request. It shows as Under review until then.' },
-    { title: withdrawal ? 'Funds released' : 'Funds added', text: withdrawal ? 'Once approved, your funds are released. If it’s declined, the held amount is available again and you’ll see why.' : 'Once approved, the amount is added to your deposit balance.' },
+    { title: withdrawal ? 'Funds released' : 'Funds added', text: withdrawal ? 'Once approved, your funds are released. If it’s declined, the held amount is available again and you’ll see why.' : 'Once approved, the amount is added to your account balance.' },
   ];
   return (
     <section role="status" aria-labelledby="placed-heading" data-testid="panel-request-placed" className={cx(card, 'border-[#BBF7D0] bg-[#F0FDF4] p-5')}>

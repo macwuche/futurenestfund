@@ -45,7 +45,7 @@ describe("email templates", () => {
     it("words deposits as deposits", () => {
       const m = moneyEmail("request_received", "ada@x.org", "Ada", { ...data, request: "Deposit" }, "https://app.example.org/deposits");
       expect(m.subject).toBe("We received your deposit request ($1,234.56)");
-      expect(m.text).toContain("added to your deposit balance");
+      expect(m.text).toContain("added to your account balance");
     });
   });
 });
@@ -91,8 +91,8 @@ describe("money emails with a payment method (Phase 10)", () => {
   it("names the method and the balance paid from, and shows an approval note escaped", () => {
     const m = moneyEmail("request_approved", "a@b.co", "Jane", { ...base, method: "Bank <transfer>", source: "deposit", reason: "Paid <today>" }, "https://x/withdrawals");
     expect(m.text).toContain("Method: Bank <transfer>");
-    expect(m.text).toContain("Paid from: Your deposit balance");
-    expect(m.text).toContain("released from your deposit balance");
+    expect(m.text).toContain("Paid from: Your account balance");
+    expect(m.text).toContain("released from your account balance");
     expect(m.text).toContain("Note: Paid <today>");
     expect(m.html).not.toContain("<transfer>");
     expect(m.html).not.toContain("<today>");
@@ -105,9 +105,9 @@ describe("money emails with a payment method (Phase 10)", () => {
 });
 
 describe("money emails with a fee (9.3)", () => {
-  it("withdrawal: fee from the deposit balance and the total", () => {
+  it("withdrawal: fee from the account balance and the total", () => {
     const m = moneyEmail("request_received", "a@b.co", "Jane", { request: "Withdrawal", amountCents: 20000, reference: "R1", date: "4 Nov 2026", source: "grant", feeCents: 200 }, "https://x/withdrawals");
-    expect(m.text).toContain("Fee: $2.00, from your deposit balance");
+    expect(m.text).toContain("Fee: $2.00, from your account balance");
     expect(m.text).toContain("Total: $202.00");
   });
   it("deposit: what the user receives after the fee", () => {

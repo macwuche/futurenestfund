@@ -7,7 +7,7 @@
  */
 
 /**
- * The three balance cards on the applicant dashboard
+ * The three balance cards on the applicant dashboard (8.2)
  */
 export interface BalanceSummary {
   /**
@@ -15,14 +15,14 @@ export interface BalanceSummary {
      * @maximum 3
      */
   tier: number;
-  /**
-     * The user's custom eligible amount, else the amount for their tier; null = not set
-     * @nullable
-     */
-  eligibleAmount: number | null;
+  /** Main balance: successful deposits minus fees and charges (the account balance) */
+  accountBalance: number;
+  /** Awarded grants minus withdrawals from the grant balance */
   grantBalance: number;
   /** Applications approved (grants awarded) */
   approvedAwards: number;
-  /** Approved deposits minus the charges taken from them */
-  depositBalance: number;
+  /** Running total of approved deposits at their full amount (before fees), plus admin top-ups and the opening balance */
+  successfulDeposits: number;
+  /** How many entries make up successfulDeposits */
+  depositCount: number;
 }

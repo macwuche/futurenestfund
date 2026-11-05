@@ -100,9 +100,7 @@ import type {
   ReasonInput,
   SearchAdminParams,
   Session,
-  TierAmounts,
   UserBalances,
-  UserEligibleAmountUpdate,
   UserWithdrawalLimitsUpdate,
   WithdrawalLimits,
   WithdrawalSourcesUpdate
@@ -1744,7 +1742,7 @@ export const getBuyApplicantCardUrl = () => {
 }
 
 /**
- * @summary Buy a card; the price and fee are paid from the deposit balance
+ * @summary Buy a card; the price and fee are paid from the account balance
  */
 export const buyApplicantCard = async (cardBuyInput: CardBuyInput, options?: Parameters<typeof customFetch>[1]): Promise<ApplicantAccount> => {
 
@@ -1810,7 +1808,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type BuyApplicantCardMutationVariables = {data: BodyType<CardBuyInput>}
 
     /**
- * @summary Buy a card; the price and fee are paid from the deposit balance
+ * @summary Buy a card; the price and fee are paid from the account balance
  */
 export const useBuyApplicantCard = <TError = ErrorType<ErrorMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof buyApplicantCard>>, TError,BuyApplicantCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1832,7 +1830,7 @@ export const getTopUpApplicantCardUrl = (cardId: string,) => {
 }
 
 /**
- * @summary Move money from the deposit balance to the card account (no fee)
+ * @summary Move money from the account balance to the card account (no fee)
  */
 export const topUpApplicantCard = async (cardId: string,
     cardTopUpInput: CardTopUpInput, options?: Parameters<typeof customFetch>[1]): Promise<ApplicantAccount> => {
@@ -1899,7 +1897,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type TopUpApplicantCardMutationVariables = {cardId: string;data: BodyType<CardTopUpInput>}
 
     /**
- * @summary Move money from the deposit balance to the card account (no fee)
+ * @summary Move money from the account balance to the card account (no fee)
  */
 export const useTopUpApplicantCard = <TError = ErrorType<ErrorMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof topUpApplicantCard>>, TError,TopUpApplicantCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -4639,7 +4637,7 @@ export const getTopUpUserCardUrl = (userId: string,
 }
 
 /**
- * @summary Move money from the user's deposit balance to their card account (no fee)
+ * @summary Move money from the user's account balance to their card account (no fee)
  */
 export const topUpUserCard = async (userId: string,
     cardId: string,
@@ -4707,7 +4705,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type TopUpUserCardMutationVariables = {userId: string;cardId: string;data: BodyType<CardTopUpInput>}
 
     /**
- * @summary Move money from the user's deposit balance to their card account (no fee)
+ * @summary Move money from the user's account balance to their card account (no fee)
  */
 export const useTopUpUserCard = <TError = ErrorType<ErrorMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof topUpUserCard>>, TError,TopUpUserCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -5327,260 +5325,6 @@ export const useUpdateWithdrawalLimits = <TError = ErrorType<ErrorMessage>,
         TContext
       > => {
       return useMutation(getUpdateWithdrawalLimitsMutationOptions(options));
-    }
-
-export const getUpdateUserEligibleAmountUrl = (userId: string,) => {
-
-
-
-
-  return `/api/admin/users/${userId}/eligible-amount`
-}
-
-/**
- * @summary Use the amount for this user's tier, or set a custom eligible amount that replaces it
- */
-export const updateUserEligibleAmount = async (userId: string,
-    userEligibleAmountUpdate: UserEligibleAmountUpdate, options?: Parameters<typeof customFetch>[1]): Promise<AdminUserProfile> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return customFetch<AdminUserProfile>(getUpdateUserEligibleAmountUrl(userId),
-  {
-    ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(userEligibleAmountUpdate)
-  }
-);}
-
-
-
-
-
-export const getUpdateUserEligibleAmountMutationKey = () => ['updateUserEligibleAmount'] as const;
-
-export const getUpdateUserEligibleAmountMutationOptions = <TError = ErrorType<ErrorMessage | void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserEligibleAmount>>, TError,UpdateUserEligibleAmountMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateUserEligibleAmount>>, TError,UpdateUserEligibleAmountMutationVariables, TContext> => {
-
-const mutationKey = getUpdateUserEligibleAmountMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateUserEligibleAmount>>, UpdateUserEligibleAmountMutationVariables> = (props) => {
-          const {userId,data} = props ?? {};
-
-          return  updateUserEligibleAmount(userId,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type UpdateUserEligibleAmountMutationResult = NonNullable<Awaited<ReturnType<typeof updateUserEligibleAmount>>>
-    export type UpdateUserEligibleAmountMutationBody = BodyType<UserEligibleAmountUpdate>
-    export type UpdateUserEligibleAmountMutationError = ErrorType<ErrorMessage | void>
-    export type UpdateUserEligibleAmountMutationVariables = {userId: string;data: BodyType<UserEligibleAmountUpdate>}
-
-    /**
- * @summary Use the amount for this user's tier, or set a custom eligible amount that replaces it
- */
-export const useUpdateUserEligibleAmount = <TError = ErrorType<ErrorMessage | void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserEligibleAmount>>, TError,UpdateUserEligibleAmountMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof updateUserEligibleAmount>>,
-        TError,
-        UpdateUserEligibleAmountMutationVariables,
-        TContext
-      > => {
-      return useMutation(getUpdateUserEligibleAmountMutationOptions(options));
-    }
-
-export const getGetTierAmountsUrl = () => {
-
-
-
-
-  return `/api/admin/system/tier-amounts`
-}
-
-/**
- * @summary The eligible amount for each tier
- */
-export const getTierAmounts = async ( options?: Parameters<typeof customFetch>[1]): Promise<TierAmounts> => {
-
-  return customFetch<TierAmounts>(getGetTierAmountsUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetTierAmountsQueryKey = () => {
-    return [
-    `/api/admin/system/tier-amounts`
-    ] as const;
-    }
-
-
-export const getGetTierAmountsQueryOptions = <TData = Awaited<ReturnType<typeof getTierAmounts>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTierAmounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetTierAmountsQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTierAmounts>>> = ({ signal }) => getTierAmounts({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTierAmounts>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetTierAmountsQueryResult = NonNullable<Awaited<ReturnType<typeof getTierAmounts>>>
-export type GetTierAmountsQueryError = ErrorType<unknown>
-
-
-/**
- * @summary The eligible amount for each tier
- */
-
-export function useGetTierAmounts<TData = Awaited<ReturnType<typeof getTierAmounts>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTierAmounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetTierAmountsQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getUpdateTierAmountsUrl = () => {
-
-
-
-
-  return `/api/admin/system/tier-amounts`
-}
-
-/**
- * @summary Set the eligible amount for each tier
- */
-export const updateTierAmounts = async (tierAmounts: TierAmounts, options?: Parameters<typeof customFetch>[1]): Promise<TierAmounts> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return customFetch<TierAmounts>(getUpdateTierAmountsUrl(),
-  {
-    ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(tierAmounts)
-  }
-);}
-
-
-
-
-
-export const getUpdateTierAmountsMutationKey = () => ['updateTierAmounts'] as const;
-
-export const getUpdateTierAmountsMutationOptions = <TError = ErrorType<ErrorMessage>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTierAmounts>>, TError,UpdateTierAmountsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateTierAmounts>>, TError,UpdateTierAmountsMutationVariables, TContext> => {
-
-const mutationKey = getUpdateTierAmountsMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTierAmounts>>, UpdateTierAmountsMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  updateTierAmounts(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type UpdateTierAmountsMutationResult = NonNullable<Awaited<ReturnType<typeof updateTierAmounts>>>
-    export type UpdateTierAmountsMutationBody = BodyType<TierAmounts>
-    export type UpdateTierAmountsMutationError = ErrorType<ErrorMessage>
-    export type UpdateTierAmountsMutationVariables = {data: BodyType<TierAmounts>}
-
-    /**
- * @summary Set the eligible amount for each tier
- */
-export const useUpdateTierAmounts = <TError = ErrorType<ErrorMessage>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTierAmounts>>, TError,UpdateTierAmountsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof updateTierAmounts>>,
-        TError,
-        UpdateTierAmountsMutationVariables,
-        TContext
-      > => {
-      return useMutation(getUpdateTierAmountsMutationOptions(options));
     }
 
 export const getGetAdminFileUrl = (fileId: string,) => {

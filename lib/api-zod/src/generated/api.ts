@@ -410,11 +410,12 @@ export const GetApplicantDashboardResponse = zod.object({
   "applicationCount": zod.number().int(),
   "balanceSummary": zod.object({
   "tier": zod.number().int().min(1).max(getApplicantDashboardResponseBalanceSummaryTierMax),
-  "eligibleAmount": zod.number().nullable().describe('The user\'s custom eligible amount, else the amount for their tier; null = not set'),
-  "grantBalance": zod.number(),
+  "accountBalance": zod.number().describe('Main balance: successful deposits minus fees and charges (the account balance)'),
+  "grantBalance": zod.number().describe('Awarded grants minus withdrawals from the grant balance'),
   "approvedAwards": zod.number().int().describe('Applications approved (grants awarded)'),
-  "depositBalance": zod.number().describe('Approved deposits minus the charges taken from them')
-}).describe('The three balance cards on the applicant dashboard')
+  "successfulDeposits": zod.number().describe('Running total of approved deposits at their full amount (before fees), plus admin top-ups and the opening balance'),
+  "depositCount": zod.number().int().describe('How many entries make up successfulDeposits')
+}).describe('The three balance cards on the applicant dashboard (8.2)')
 })
 
 
@@ -605,7 +606,7 @@ export const GetApplicantAccountResponse = zod.object({
   "value": zod.string()
 })).optional(),
   "proofUrl": zod.string().optional(),
-  "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the deposit balance; deposits: out of the amount)')
+  "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the account balance; deposits: out of the amount)')
 })),
   "withdrawalLimits": zod.object({
   "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
@@ -652,7 +653,7 @@ export const ListApplicantCardTypesResponse = zod.array(ListApplicantCardTypesRe
 
 
 /**
- * @summary Buy a card; the price and fee are paid from the deposit balance
+ * @summary Buy a card; the price and fee are paid from the account balance
  */
 export const BuyApplicantCardBody = zod.object({
   "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
@@ -725,7 +726,7 @@ export const BuyApplicantCardResponse = zod.object({
   "value": zod.string()
 })).optional(),
   "proofUrl": zod.string().optional(),
-  "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the deposit balance; deposits: out of the amount)')
+  "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the account balance; deposits: out of the amount)')
 })),
   "withdrawalLimits": zod.object({
   "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
@@ -737,7 +738,7 @@ export const BuyApplicantCardResponse = zod.object({
 
 
 /**
- * @summary Move money from the deposit balance to the card account (no fee)
+ * @summary Move money from the account balance to the card account (no fee)
  */
 export const TopUpApplicantCardParams = zod.object({
   "cardId": zod.coerce.string()
@@ -818,7 +819,7 @@ export const TopUpApplicantCardResponse = zod.object({
   "value": zod.string()
 })).optional(),
   "proofUrl": zod.string().optional(),
-  "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the deposit balance; deposits: out of the amount)')
+  "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the account balance; deposits: out of the amount)')
 })),
   "withdrawalLimits": zod.object({
   "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
@@ -906,7 +907,7 @@ export const ChangeApplicantCardResponse = zod.object({
   "value": zod.string()
 })).optional(),
   "proofUrl": zod.string().optional(),
-  "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the deposit balance; deposits: out of the amount)')
+  "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the account balance; deposits: out of the amount)')
 })),
   "withdrawalLimits": zod.object({
   "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
@@ -956,7 +957,7 @@ export const CreateApplicantRequestResponse = zod.object({
   "value": zod.string()
 })).optional(),
   "proofUrl": zod.string().optional(),
-  "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the deposit balance; deposits: out of the amount)')
+  "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the account balance; deposits: out of the amount)')
 })
 
 
@@ -1650,11 +1651,6 @@ export const GetAdminUserResponse = zod.object({
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
 }),
-  "eligibleAmount": zod.object({
-  "custom": zod.boolean().describe('Whether this is the user\'s own amount rather than their tier\'s'),
-  "amount": zod.number().nullable().describe('What the user sees; null = not set'),
-  "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
-}),
   "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
   "id": zod.string(),
@@ -1762,11 +1758,6 @@ export const UpdateAdminUserResponse = zod.object({
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
-}),
-  "eligibleAmount": zod.object({
-  "custom": zod.boolean().describe('Whether this is the user\'s own amount rather than their tier\'s'),
-  "amount": zod.number().nullable().describe('What the user sees; null = not set'),
-  "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
 }),
   "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
@@ -1916,11 +1907,6 @@ export const UploadAdminUserAvatarResponse = zod.object({
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
 }),
-  "eligibleAmount": zod.object({
-  "custom": zod.boolean().describe('Whether this is the user\'s own amount rather than their tier\'s'),
-  "amount": zod.number().nullable().describe('What the user sees; null = not set'),
-  "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
-}),
   "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
   "id": zod.string(),
@@ -2002,11 +1988,6 @@ export const DeleteAdminUserAvatarResponse = zod.object({
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
-}),
-  "eligibleAmount": zod.object({
-  "custom": zod.boolean().describe('Whether this is the user\'s own amount rather than their tier\'s'),
-  "amount": zod.number().nullable().describe('What the user sees; null = not set'),
-  "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
 }),
   "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
@@ -2124,7 +2105,7 @@ export const UpdateAdminCardTypesResponse = zod.array(UpdateAdminCardTypesRespon
 
 
 /**
- * @summary Move money from the user's deposit balance to their card account (no fee)
+ * @summary Move money from the user's account balance to their card account (no fee)
  */
 export const TopUpUserCardParams = zod.object({
   "userId": zod.coerce.string(),
@@ -2204,11 +2185,6 @@ export const TopUpUserCardResponse = zod.object({
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
-}),
-  "eligibleAmount": zod.object({
-  "custom": zod.boolean().describe('Whether this is the user\'s own amount rather than their tier\'s'),
-  "amount": zod.number().nullable().describe('What the user sees; null = not set'),
-  "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
 }),
   "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
@@ -2298,11 +2274,6 @@ export const IssueUserCardResponse = zod.object({
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
-}),
-  "eligibleAmount": zod.object({
-  "custom": zod.boolean().describe('Whether this is the user\'s own amount rather than their tier\'s'),
-  "amount": zod.number().nullable().describe('What the user sees; null = not set'),
-  "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
 }),
   "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
@@ -2395,11 +2366,6 @@ export const ChangeUserCardResponse = zod.object({
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
-}),
-  "eligibleAmount": zod.object({
-  "custom": zod.boolean().describe('Whether this is the user\'s own amount rather than their tier\'s'),
-  "amount": zod.number().nullable().describe('What the user sees; null = not set'),
-  "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
 }),
   "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
@@ -2530,11 +2496,6 @@ export const DeclineAdminCardRequestResponse = zod.object({
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
 }),
-  "eligibleAmount": zod.object({
-  "custom": zod.boolean().describe('Whether this is the user\'s own amount rather than their tier\'s'),
-  "amount": zod.number().nullable().describe('What the user sees; null = not set'),
-  "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
-}),
   "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
   "id": zod.string(),
@@ -2623,11 +2584,6 @@ export const UpdateUserWithdrawalLimitsResponse = zod.object({
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
 }),
-  "eligibleAmount": zod.object({
-  "custom": zod.boolean().describe('Whether this is the user\'s own amount rather than their tier\'s'),
-  "amount": zod.number().nullable().describe('What the user sees; null = not set'),
-  "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
-}),
   "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
   "id": zod.string(),
@@ -2658,124 +2614,6 @@ export const UpdateWithdrawalLimitsBody = zod.object({
 export const UpdateWithdrawalLimitsResponse = zod.object({
   "maxPerRequest": zod.number().nullable().describe('Largest single withdrawal in USD; null = no limit'),
   "dailyTotal": zod.number().nullable().describe('Most that can be withdrawn in any 24 hours (under review + approved); null = no limit')
-})
-
-
-/**
- * @summary Use the amount for this user's tier, or set a custom eligible amount that replaces it
- */
-export const UpdateUserEligibleAmountParams = zod.object({
-  "userId": zod.coerce.string()
-})
-
-export const UpdateUserEligibleAmountBody = zod.object({
-  "custom": zod.boolean().describe('false = use the amount for the user\'s tier; true = the amount below replaces it'),
-  "amount": zod.number().nullish()
-})
-
-export const updateUserEligibleAmountResponseTierMax = 3;
-
-
-
-export const UpdateUserEligibleAmountResponse = zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "email": zod.string().email(),
-  "phone": zod.string(),
-  "telegram": zod.string(),
-  "organization": zod.string(),
-  "maskedId": zod.string(),
-  "avatarUrl": zod.string().optional(),
-  "tier": zod.number().int().min(1).max(updateUserEligibleAmountResponseTierMax),
-  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
-  "status": zod.enum(['Active', 'Frozen']),
-  "balances": zod.object({
-  "grant": zod.number(),
-  "deposit": zod.number(),
-  "card": zod.number()
-}),
-  "cards": zod.array(zod.object({
-  "id": zod.string(),
-  "network": zod.enum(['Visa', 'Mastercard', 'Amex']),
-  "type": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
-  "typeName": zod.string().describe('e.g. Visa Debit'),
-  "pricePaid": zod.number().optional().describe('What the user paid for the card (without the fee)'),
-  "feePaid": zod.number().optional(),
-  "kind": zod.enum(['Virtual', 'Physical']),
-  "lastFour": zod.string(),
-  "status": zod.enum(['Active', 'Frozen', 'Pending', 'Cancelled']),
-  "balance": zod.number(),
-  "statusReason": zod.string().optional().describe('Why an administrator froze or cancelled the card'),
-  "frozenBy": zod.enum(['user', 'admin']).optional().describe('Who froze a frozen card; a card frozen by an administrator stays locked to the user'),
-  "activationRequestedAt": zod.coerce.date().optional().describe('When the user said a pending physical card arrived and asked for it to be activated'),
-  "activationDeclinedAt": zod.coerce.date().optional().describe('When an administrator last declined an activation request'),
-  "activationDeclinedReason": zod.string().optional().describe('Why the last activation request was declined; shown to the user until they ask again'),
-  "issuedAt": zod.coerce.date().optional()
-})),
-  "documents": zod.array(zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "kind": zod.enum(['Government ID', 'Proof of address']),
-  "status": zod.enum(['Verified', 'Pending', 'Rejected']),
-  "sample": zod.boolean().describe('Seeded sample document with no file'),
-  "confidence": zod.number().optional().describe('Demonstration OCR score; only present on sample documents'),
-  "url": zod.string().optional().describe('Same-origin download URL for uploaded documents'),
-  "mimeType": zod.string().optional(),
-  "submittedAt": zod.coerce.date(),
-  "reviewNote": zod.string().optional().describe('Reviewer\'s reason, shown when a document is rejected'),
-  "reviewedAt": zod.coerce.date().optional()
-})),
-  "permissions": zod.object({
-  "emailNotifications": zod.boolean(),
-  "withdrawalKycRequired": zod.boolean(),
-  "depositKycRequired": zod.boolean(),
-  "emailOverride": zod.boolean().nullish().describe('Set by an administrator: true/false forces email notifications on/off whatever the user chose; null leaves it to the user'),
-  "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
-}),
-  "withdrawalLimits": zod.object({
-  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
-  "maxPerRequest": zod.number().nullable(),
-  "dailyTotal": zod.number().nullable(),
-  "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
-}),
-  "eligibleAmount": zod.object({
-  "custom": zod.boolean().describe('Whether this is the user\'s own amount rather than their tier\'s'),
-  "amount": zod.number().nullable().describe('What the user sees; null = not set'),
-  "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
-}),
-  "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
-  "audit": zod.array(zod.object({
-  "id": zod.string(),
-  "action": zod.string(),
-  "actor": zod.string(),
-  "createdAt": zod.coerce.date()
-}))
-})
-
-
-/**
- * @summary The eligible amount for each tier
- */
-export const GetTierAmountsResponse = zod.object({
-  "tier1": zod.number().nullable().describe('Eligible amount in USD for Tier 1; null = not set'),
-  "tier2": zod.number().nullable(),
-  "tier3": zod.number().nullable()
-})
-
-
-/**
- * @summary Set the eligible amount for each tier
- */
-export const UpdateTierAmountsBody = zod.object({
-  "tier1": zod.number().nullable().describe('Eligible amount in USD for Tier 1; null = not set'),
-  "tier2": zod.number().nullable(),
-  "tier3": zod.number().nullable()
-})
-
-export const UpdateTierAmountsResponse = zod.object({
-  "tier1": zod.number().nullable().describe('Eligible amount in USD for Tier 1; null = not set'),
-  "tier2": zod.number().nullable(),
-  "tier3": zod.number().nullable()
 })
 
 
@@ -3562,11 +3400,6 @@ export const UpdateUserWithdrawalSourcesResponse = zod.object({
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
 }),
-  "eligibleAmount": zod.object({
-  "custom": zod.boolean().describe('Whether this is the user\'s own amount rather than their tier\'s'),
-  "amount": zod.number().nullable().describe('What the user sees; null = not set'),
-  "tierAmount": zod.number().nullable().describe('The amount for the user\'s current tier')
-}),
   "withdrawalSources": zod.enum(['grant', 'deposit', 'both']).describe('Which balances the user can withdraw from'),
   "audit": zod.array(zod.object({
   "id": zod.string(),
@@ -3620,7 +3453,7 @@ export const ListAdminRequestsResponseItem = zod.object({
 })),
   "proofUrl": zod.string().optional(),
   "fee": zod.number().describe('The method\'s fee worked out when the request was placed'),
-  "net": zod.number().describe('Deposits: what the deposit balance gets (amount − fee). Withdrawals: what leaves the user\'s balances in all (amount + fee)')
+  "net": zod.number().describe('Deposits: what the account balance gets (amount − fee). Withdrawals: what leaves the user\'s balances in all (amount + fee)')
 })
 export const ListAdminRequestsResponse = zod.array(ListAdminRequestsResponseItem)
 
@@ -3673,7 +3506,7 @@ export const ApproveAdminRequestResponse = zod.object({
 })),
   "proofUrl": zod.string().optional(),
   "fee": zod.number().describe('The method\'s fee worked out when the request was placed'),
-  "net": zod.number().describe('Deposits: what the deposit balance gets (amount − fee). Withdrawals: what leaves the user\'s balances in all (amount + fee)')
+  "net": zod.number().describe('Deposits: what the account balance gets (amount − fee). Withdrawals: what leaves the user\'s balances in all (amount + fee)')
 })
 
 
@@ -3726,7 +3559,7 @@ export const RejectAdminRequestResponse = zod.object({
 })),
   "proofUrl": zod.string().optional(),
   "fee": zod.number().describe('The method\'s fee worked out when the request was placed'),
-  "net": zod.number().describe('Deposits: what the deposit balance gets (amount − fee). Withdrawals: what leaves the user\'s balances in all (amount + fee)')
+  "net": zod.number().describe('Deposits: what the account balance gets (amount − fee). Withdrawals: what leaves the user\'s balances in all (amount + fee)')
 })
 
 

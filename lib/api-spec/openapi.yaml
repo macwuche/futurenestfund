@@ -334,7 +334,7 @@ paths:
     post:
       operationId: buyApplicantCard
       tags: [applicant]
-      summary: Buy a card; the price and fee are paid from the deposit balance
+      summary: Buy a card; the price and fee are paid from the account balance
       requestBody:
         required: true
         content:
@@ -355,7 +355,7 @@ paths:
     post:
       operationId: topUpApplicantCard
       tags: [applicant]
-      summary: Move money from the deposit balance to the card account (no fee)
+      summary: Move money from the account balance to the card account (no fee)
       parameters:
         - { name: cardId, in: path, required: true, schema: { type: string } }
       requestBody:
@@ -990,7 +990,7 @@ paths:
     post:
       operationId: topUpUserCard
       tags: [admin]
-      summary: Move money from the user's deposit balance to their card account (no fee)
+      summary: Move money from the user's account balance to their card account (no fee)
       parameters:
         - { name: userId, in: path, required: true, schema: { type: string } }
         - { name: cardId, in: path, required: true, schema: { type: string } }
@@ -1173,71 +1173,6 @@ paths:
                 $ref: "#/components/schemas/WithdrawalLimits"
         "400":
           description: Invalid limits
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ErrorMessage" }
-  /admin/users/{userId}/eligible-amount:
-    put:
-      operationId: updateUserEligibleAmount
-      tags: [admin]
-      summary: Use the amount for this user's tier, or set a custom eligible amount that replaces it
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UserEligibleAmountUpdate"
-      responses:
-        "200":
-          description: The updated user
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AdminUserProfile"
-        "400":
-          description: Invalid amount
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ErrorMessage" }
-        "404":
-          description: User not found
-  /admin/system/tier-amounts:
-    get:
-      operationId: getTierAmounts
-      tags: [admin]
-      summary: The eligible amount for each tier
-      responses:
-        "200":
-          description: Amounts per tier (null = not set)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TierAmounts"
-    put:
-      operationId: updateTierAmounts
-      tags: [admin]
-      summary: Set the eligible amount for each tier
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/TierAmounts"
-      responses:
-        "200":
-          description: Updated amounts
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TierAmounts"
-        "400":
-          description: Invalid amounts
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorMessage" }
@@ -1938,7 +1873,7 @@ components:
           type: array
           items: { $ref: "#/components/schemas/RequestDetail" }
         proofUrl: { type: string }
-        fee: { type: number, description: "Deposit and withdrawal requests: the method's fee (withdrawals: from the deposit balance; deposits: out of the amount)" }
+        fee: { type: number, description: "Deposit and withdrawal requests: the method's fee (withdrawals: from the account balance; deposits: out of the amount)" }
       required: [id, type, account, direction, amount, description, status, createdAt]
     ApplicantAccount:
       type: object
@@ -2286,14 +2221,15 @@ components:
       required: [profile, totalBudget, allocatedFunds, remainingFunds, fundingTrend, setupCards, highlights, recommendations, applicationCount, balanceSummary]
     BalanceSummary:
       type: object
-      description: The three balance cards on the applicant dashboard
+      description: The three balance cards on the applicant dashboard (8.2)
       properties:
         tier: { type: integer, minimum: 1, maximum: 3 }
-        eligibleAmount: { type: [number, "null"], description: "The user's custom eligible amount, else the amount for their tier; null = not set" }
-        grantBalance: { type: number }
+        accountBalance: { type: number, description: "Main balance: successful deposits minus fees and charges (the account balance)" }
+        grantBalance: { type: number, description: "Awarded grants minus withdrawals from the grant balance" }
         approvedAwards: { type: integer, description: "Applications approved (grants awarded)" }
-        depositBalance: { type: number, description: "Approved deposits minus the charges taken from them" }
-      required: [tier, eligibleAmount, grantBalance, approvedAwards, depositBalance]
+        successfulDeposits: { type: number, description: "Running total of approved deposits at their full amount (before fees), plus admin top-ups and the opening balance" }
+        depositCount: { type: integer, description: "How many entries make up successfulDeposits" }
+      required: [tier, accountBalance, grantBalance, approvedAwards, successfulDeposits, depositCount]
     AdminDashboard:
       type: object
       properties:
@@ -2499,12 +2435,11 @@ components:
           items: { $ref: "#/components/schemas/KycDocument" }
         permissions: { $ref: "#/components/schemas/UserPermissions" }
         withdrawalLimits: { $ref: "#/components/schemas/EffectiveWithdrawalLimits" }
-        eligibleAmount: { $ref: "#/components/schemas/EffectiveEligibleAmount" }
         withdrawalSources: { $ref: "#/components/schemas/WithdrawalSources" }
         audit:
           type: array
           items: { $ref: "#/components/schemas/AuditEntry" }
-      required: [id, name, email, phone, telegram, organization, maskedId, tier, verificationLevel, status, balances, cards, documents, permissions, withdrawalLimits, eligibleAmount, withdrawalSources, audit]
+      required: [id, name, email, phone, telegram, organization, maskedId, tier, verificationLevel, status, balances, cards, documents, permissions, withdrawalLimits, withdrawalSources, audit]
     AdminUserUpdate:
       type: object
       properties:
@@ -2543,26 +2478,6 @@ components:
         dailyTotal: { type: [number, "null"] }
         usedLast24h: { type: number, description: "Withdrawals under review or approved in the last 24 hours" }
       required: [custom, maxPerRequest, dailyTotal, usedLast24h]
-    TierAmounts:
-      type: object
-      properties:
-        tier1: { type: [number, "null"], description: "Eligible amount in USD for Tier 1; null = not set" }
-        tier2: { type: [number, "null"] }
-        tier3: { type: [number, "null"] }
-      required: [tier1, tier2, tier3]
-    UserEligibleAmountUpdate:
-      type: object
-      properties:
-        custom: { type: boolean, description: "false = use the amount for the user's tier; true = the amount below replaces it" }
-        amount: { type: [number, "null"] }
-      required: [custom]
-    EffectiveEligibleAmount:
-      type: object
-      properties:
-        custom: { type: boolean, description: "Whether this is the user's own amount rather than their tier's" }
-        amount: { type: [number, "null"], description: "What the user sees; null = not set" }
-        tierAmount: { type: [number, "null"], description: "The amount for the user's current tier" }
-      required: [custom, amount, tierAmount]
     CardIssueInput:
       type: object
       properties:
@@ -2749,7 +2664,7 @@ components:
           items: { $ref: "#/components/schemas/RequestDetail" }
         proofUrl: { type: string }
         fee: { type: number, description: "The method's fee worked out when the request was placed" }
-        net: { type: number, description: "Deposits: what the deposit balance gets (amount − fee). Withdrawals: what leaves the user's balances in all (amount + fee)" }
+        net: { type: number, description: "Deposits: what the account balance gets (amount − fee). Withdrawals: what leaves the user's balances in all (amount + fee)" }
       required: [id, reference, kind, amount, note, status, createdAt, userId, userName, organization, userStatus, verificationLevel, kycRequired, grantBalance, depositBalance, details, withdrawalSources, fee, net]
     LedgerEntry:
       type: object

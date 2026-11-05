@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { AlertTriangle, Inbox, RefreshCw, X } from 'lucide-react';
 
 export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(' ');
+/** The name users see for a balance: the API's "deposit" balance is called the account balance (8.2). */
+export const balanceName = (key: string) => (key === 'deposit' ? 'account' : key);
 export const money = (n: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 export const dateFmt = (s: string) => {

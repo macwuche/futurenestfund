@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const OPTIONS: { value: WithdrawalSources; title: string; text: (u: AdminUserProfile) => string }[] = [
   { value: 'grant', title: 'Grant balance', text: (u) => `${money(u.balances.grant)} now` },
-  { value: 'deposit', title: 'Deposit balance', text: (u) => `${money(u.balances.deposit)} now` },
+  { value: 'deposit', title: 'Account balance', text: (u) => `${money(u.balances.deposit)} now` },
   { value: 'both', title: 'Both', text: () => 'The applicant chooses for each withdrawal' },
 ];
 

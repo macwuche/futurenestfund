@@ -172,5 +172,5 @@ export function parseAnswers(fields: MethodField[], raw: unknown): Record<string
 export type WithdrawalSources = "grant" | "deposit" | "both";
 export type BalanceSource = "grant" | "deposit";
 export const sourceAllowed = (allowed: string, source: BalanceSource) => allowed === "both" || allowed === source;
-export const SOURCE_LABEL: Record<BalanceSource, string> = { grant: "grant balance", deposit: "deposit balance" };
-export const SOURCES_LABEL: Record<WithdrawalSources, string> = { grant: "grant balance only", deposit: "deposit balance only", both: "grant and deposit balances" };
+export const SOURCE_LABEL: Record<BalanceSource, string> = { grant: "grant balance", deposit: "account balance" };
+export const SOURCES_LABEL: Record<WithdrawalSources, string> = { grant: "grant balance only", deposit: "account balance only", both: "grant and account balances" };

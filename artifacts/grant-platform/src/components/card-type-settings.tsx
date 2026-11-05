@@ -89,7 +89,7 @@ export function CardTypeSettings() {
     <form noValidate onSubmit={save} className={cx(card, 'space-y-4 p-5')} data-testid="form-card-types">
       <div>
         <SectionTitle>Card types</SectionTitle>
-        <p className="text-sm text-slate-600">Switch on the cards applicants can buy, and set the price and fee of each one's virtual and physical card. The user pays <b>price + fee</b> from their deposit balance (e.g. $10 + 1% = $10.10). Leave a price empty to not sell that kind; 0 makes it free.</p>
+        <p className="text-sm text-slate-600">Switch on the cards applicants can buy, and set the price and fee of each one's virtual and physical card. The user pays <b>price + fee</b> from their account balance (e.g. $10 + 1% = $10.10). Leave a price empty to not sell that kind; 0 makes it free.</p>
       </div>
       <ul className="space-y-3">
         {rows.map((r) => (
@@ -125,7 +125,7 @@ export function CardTypeSettings() {
           </li>
         ))}
       </ul>
-      <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600" data-testid="text-credit-note">No card network or credit line is connected. Credit cards are a card type you can sell and price separately; like every card, they spend only what's topped up from the deposit balance. Top-ups have no fee.</p>
+      <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600" data-testid="text-credit-note">No card network or credit line is connected. Credit cards are a card type you can sell and price separately; like every card, they spend only what's topped up from the account balance. Top-ups have no fee.</p>
       {err && <p role="alert" className="text-sm text-red-700" data-testid="error-card-types">{err}</p>}
       <button data-testid="button-save-card-types" disabled={m.isPending} className={cx(lime, 'inline-flex min-h-11 items-center gap-2')}>
         {m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}{m.isPending ? 'Saving…' : 'Save card types'}

@@ -9,7 +9,6 @@ import { KYC_KINDS } from "./kyc";
 import { fileUrl, type DbTx } from "./uploads";
 import { DemoInputError, getUser, methodLogos, requestDetails, type LogoMap } from "./demoWorkspace";
 import { sourceAllowed, SOURCE_LABEL, SOURCES_LABEL, type BalanceSource, type WithdrawalSources } from "./paymentRules";
-import { describeEligible, describeTierAmounts, effectiveEligible, parseEligible, parseTierAmounts, tierAmountsFrom, tierAmountsOut } from "./eligibleAmount";
 import { describeLimits, effectiveLimits, limitsOut, parseLimits, withdrawnLast24h, type Limits } from "./withdrawalLimits";
 
 /*
@@ -218,45 +217,6 @@ export async function changeUserWithdrawalSources(id: string, sources: Withdrawa
   return found ? getUser(id) : undefined;
 }
 
-/* ---------- eligible amounts (per tier, and per user) ---------- */
-
-export async function globalTierAmounts() {
-  const [settings] = await db.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
-  return tierAmountsOut(tierAmountsFrom(settings));
-}
-
-export async function changeTierAmounts(input: { tier1?: number | null; tier2?: number | null; tier3?: number | null }, actor: string) {
-  const amounts = parseTierAmounts(input);
-  if (typeof amounts === "string") throw new DemoInputError(amounts);
-  await db.transaction(async tx => {
-    const [before] = await tx.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform")).for("update");
-    const old = tierAmountsFrom(before);
-    if (old.tier1 === amounts.tier1 && old.tier2 === amounts.tier2 && old.tier3 === amounts.tier3) return;
-    await tx.update(demoSettingsTable).set({ tier1EligibleCents: amounts.tier1, tier2EligibleCents: amounts.tier2, tier3EligibleCents: amounts.tier3 }).where(eq(demoSettingsTable.id, "platform"));
-    await tx.insert(demoAuditTable).values({ actor, action: `Eligible amounts per tier set: ${describeTierAmounts(amounts)}` });
-  });
-  return tierAmountsOut(amounts);
-}
-
-/** custom = false: the user gets their tier's amount. custom = true: the given amount replaces it (null = not set). */
-export async function changeUserEligibleAmount(id: string, input: { custom: boolean; amount?: number | null }, actor: string) {
-  const cents = input.custom ? parseEligible(input.amount) : null;
-  if (typeof cents === "string") throw new DemoInputError(cents);
-  const found = await db.transaction(async tx => {
-    const [settings] = await tx.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
-    const profile = await lockProfile(tx, id);
-    if (!profile) return false;
-    const next = { eligibleCustom: input.custom, eligibleCents: cents };
-    if (profile.eligibleCustom === next.eligibleCustom && profile.eligibleCents === next.eligibleCents) return true;
-    await tx.update(demoProfilesTable).set(next).where(eq(demoProfilesTable.id, id));
-    const before = effectiveEligible(profile, settings), after = effectiveEligible({ ...profile, ...next }, settings);
-    await tx.insert(demoAuditTable).values({ profileId: id, actor, action: input.custom ? `Custom eligible amount set: ${describeEligible(cents)}` : `Eligible amount set to follow Tier ${profile.tier}` });
-    if (after !== before) await notifyUser(id, `Your eligible amount is now ${describeEligible(after)}.`, "/dashboard", tx);
-    return true;
-  });
-  return found ? getUser(id) : undefined;
-}
-
 /** Lock a request together with its owner, in the standard order. */
 async function lockRequest(tx: DbTx, id: string) {
   if (!isUuid(id)) return undefined;
@@ -271,7 +231,7 @@ async function lockRequest(tx: DbTx, id: string) {
 }
 
 /**
- * A deposit credits the deposit balance; a withdrawal is paid out of the balance the applicant chose (grant or deposit),
+ * A deposit credits the account balance; a withdrawal is paid out of the balance the applicant chose (grant or deposit),
  * which must still be open to them. `note` (optional, up to 240 characters) is shown to the applicant.
  */
 export async function approveRequest(id: string, actor: string, note?: string) {
@@ -290,7 +250,7 @@ export async function approveRequest(id: string, actor: string, note?: string) {
     }
     const deposit = r.kind === "Deposit";
     const source: BalanceSource = deposit ? "deposit" : r.source === "deposit" ? "deposit" : "grant";
-    // The fee was worked out when the request was placed (9.3): deposits lose it from the amount, withdrawals pay it from the deposit balance.
+    // The fee was worked out when the request was placed (9.3): deposits lose it from the amount, withdrawals pay it from the account balance.
     const fee = r.feeCents;
     let change: Partial<DemoProfile>;
     if (deposit) {
@@ -303,12 +263,12 @@ export async function approveRequest(id: string, actor: string, note?: string) {
       }
       if (source === "deposit") {
         if (profile.depositCents < r.amountCents + fee) {
-          throw new DemoInputError(`The deposit balance (${usd(profile.depositCents)}) is less than this withdrawal${fee ? ` and its ${usd(fee)} fee (${usd(r.amountCents + fee)})` : ""}.`);
+          throw new DemoInputError(`The account balance (${usd(profile.depositCents)}) is less than this withdrawal${fee ? ` and its ${usd(fee)} fee (${usd(r.amountCents + fee)})` : ""}.`);
         }
         change = { depositCents: profile.depositCents - r.amountCents - fee };
       } else {
         if (profile.grantCents < r.amountCents) throw new DemoInputError(`The grant balance (${usd(profile.grantCents)}) is less than this withdrawal.`);
-        if (profile.depositCents < fee) throw new DemoInputError(`The ${usd(fee)} fee is paid from the deposit balance, which has only ${usd(profile.depositCents)}.`);
+        if (profile.depositCents < fee) throw new DemoInputError(`The ${usd(fee)} fee is paid from the account balance, which has only ${usd(profile.depositCents)}.`);
         change = { grantCents: profile.grantCents - r.amountCents, ...(fee ? { depositCents: profile.depositCents - fee } : {}) };
       }
     }
@@ -327,8 +287,8 @@ export async function approveRequest(id: string, actor: string, note?: string) {
     }
     await tx.insert(demoAuditTable).values({ profileId: profile.id, actor, action: `${r.kind} request ${r.id.slice(0, 8)} approved ${deposit ? "+" : "−"}${usd(r.amountCents)}${deposit ? "" : ` from the ${SOURCE_LABEL[source]}`}${fee ? `, fee ${usd(fee)}` : ""}${message ? ` · ${message}` : ""}` });
     await notifyUser(profile.id, deposit
-      ? `Your deposit of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was approved${fee ? `: ${usd(r.amountCents - fee)} was added to your deposit balance after the ${usd(fee)} fee` : " and added to your deposit balance"}${message ? `. Note: ${message}` : ""}`
-      : `Your withdrawal of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was approved. Your funds have been released from your ${SOURCE_LABEL[source]}${fee ? `; the ${usd(fee)} fee was paid from your deposit balance` : ""}${message ? `. Note: ${message}` : "."}`,
+      ? `Your deposit of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was approved${fee ? `: ${usd(r.amountCents - fee)} was added to your account balance after the ${usd(fee)} fee` : " and added to your account balance"}${message ? `. Note: ${message}` : ""}`
+      : `Your withdrawal of ${usd(r.amountCents)} (ref ${requestReference(r.id)}) was approved. Your funds have been released from your ${SOURCE_LABEL[source]}${fee ? `; the ${usd(fee)} fee was paid from your account balance` : ""}${message ? `. Note: ${message}` : "."}`,
     deposit ? "/deposits" : "/withdrawals", tx, { kind: "request_approved", data: requestEmailData(r, message || undefined) });
     const logos = await methodLogos([r.methodId], "admin");
     return adminRequest({ ...r, status: "Completed", reviewedAt, reviewedBy: actor, reviewNote: message || null }, { ...profile, ...change }, logos);

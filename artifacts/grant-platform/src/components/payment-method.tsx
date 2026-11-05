@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { PaymentField, PaymentMethod } from '@workspace/api-client-react';
 import { Copy, Landmark, Paperclip } from 'lucide-react';
-import { cx, money } from '@/components/bits';
+import { balanceName, cx, money } from '@/components/bits';
 
 /**
  * A payment method as applicants see it (Phase 10). The same pieces draw the admin's live preview in Payment Gateway,
@@ -140,7 +140,7 @@ export function RequestDetails({ method, details, proofUrl, source, testid }: {
       {method && (
         <p className="flex items-center gap-2 text-xs text-slate-600">
           <MethodLogo url={method.logoUrl} name={method.name} className="h-6 w-6 !rounded-md" />
-          <span><span className="font-semibold text-slate-800">{method.name}</span>{source ? ` · from the ${source} balance` : ''}</span>
+          <span><span className="font-semibold text-slate-800">{method.name}</span>{source ? ` · from the ${balanceName(source)} balance` : ''}</span>
         </p>
       )}
       {!!details?.length && (

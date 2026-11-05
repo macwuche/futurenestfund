@@ -105,10 +105,10 @@ function IssueCardModal({ open, onClose, u }: { open: boolean; onClose: () => vo
       <form className="space-y-3" noValidate onSubmit={(e) => {
         e.preventDefault();
         if (taken(kind)) return setError(`${u.name} already has a ${kind.toLowerCase()} card. Cancel it before issuing another.`);
-        if (charge > u.balances.deposit) return setError(`This card costs ${money(charge)} and ${u.name}'s deposit balance is ${money(u.balances.deposit)}. Tick "Free of charge" to issue it without charging.`);
+        if (charge > u.balances.deposit) return setError(`This card costs ${money(charge)} and ${u.name}'s account balance is ${money(u.balances.deposit)}. Tick "Free of charge" to issue it without charging.`);
         setError('');
         issue.mutate({ userId: u.id, data: { kind, type, ...(free ? { freeOfCharge: true } : {}) } }, {
-          onSuccess: () => { refresh(); onClose(); toast({ title: kind === 'Virtual' ? 'Virtual card issued and active' : 'Physical card issued: pending delivery', description: `${charge ? `${money(charge)} charged to the deposit balance. ` : ''}${u.name} has been notified.` }); },
+          onSuccess: () => { refresh(); onClose(); toast({ title: kind === 'Virtual' ? 'Virtual card issued and active' : 'Physical card issued: pending delivery', description: `${charge ? `${money(charge)} charged to the account balance. ` : ''}${u.name} has been notified.` }); },
           onError: (e2) => setError(apiError(e2, 'The card could not be issued.')),
         });
       }}>
@@ -122,7 +122,7 @@ function IssueCardModal({ open, onClose, u }: { open: boolean; onClose: () => vo
         <p className="font-num rounded-lg bg-slate-50 px-3 py-2 text-sm" data-testid="text-issue-price">
           {!price || price.price === null ? 'No price set for this card: issued free.'
             : free ? `Free of charge (price ${money(price.total ?? 0)} waived).`
-            : `${money(price.price)}${price.total !== price.price ? ` + fee ${money((price.total ?? 0) - price.price)}` : ''} = ${money(price.total ?? 0)}, charged to ${u.name}'s deposit balance (${money(u.balances.deposit)}).`}
+            : `${money(price.price)}${price.total !== price.price ? ` + fee ${money((price.total ?? 0) - price.price)}` : ''} = ${money(price.total ?? 0)}, charged to ${u.name}'s account balance (${money(u.balances.deposit)}).`}
         </p>
         <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold">
           <input type="checkbox" checked={free} onChange={(e) => { setFree(e.target.checked); setError(''); }} className="h-5 w-5 accent-[#111]" data-testid="check-issue-free" />
@@ -135,7 +135,7 @@ function IssueCardModal({ open, onClose, u }: { open: boolean; onClose: () => vo
   );
 }
 
-/** Top up a card from the user's deposit balance (no fee). */
+/** Top up a card from the user's account balance (no fee). */
 function TopUpModal({ card: c, onClose, u }: { card: UserCard | null; onClose: () => void; u: AdminUserProfile }) {
   const top = useTopUpUserCard();
   const refresh = useAdminRefresh();
@@ -148,18 +148,18 @@ function TopUpModal({ card: c, onClose, u }: { card: UserCard | null; onClose: (
       {c && <form className="space-y-3" noValidate onSubmit={(e) => {
         e.preventDefault();
         if (!(n >= 0.01) || Math.abs(n * 100 - Math.round(n * 100)) > 1e-6) return setError('Enter an amount of at least $0.01 with at most two decimals.');
-        if (n > u.balances.deposit) return setError(`${u.name}'s deposit balance is ${money(u.balances.deposit)}.`);
+        if (n > u.balances.deposit) return setError(`${u.name}'s account balance is ${money(u.balances.deposit)}.`);
         setError('');
         top.mutate({ userId: u.id, cardId: c.id, data: { amount: n } }, {
-          onSuccess: () => { refresh(); setAmount(''); onClose(); toast({ title: `${money(n)} moved to the card`, description: `From ${u.name}'s deposit balance. They have been notified.` }); },
+          onSuccess: () => { refresh(); setAmount(''); onClose(); toast({ title: `${money(n)} moved to the card`, description: `From ${u.name}'s account balance. They have been notified.` }); },
           onError: (e2) => setError(apiError(e2, 'The top-up was refused.')),
         });
       }}>
-        <p className="text-sm text-slate-600">Moves money from {u.name}'s deposit balance to their card account ({c.typeName} •• {c.lastFour}). No fee. A ledger entry and an audit record are written, and the user is notified.</p>
+        <p className="text-sm text-slate-600">Moves money from {u.name}'s account balance to their card account ({c.typeName} •• {c.lastFour}). No fee. A ledger entry and an audit record are written, and the user is notified.</p>
         <Field label="Amount (USD)"><input data-testid="input-topup-amount" type="number" min={0.01} step="0.01" inputMode="decimal" value={amount} onChange={(e) => { setAmount(e.target.value); setError(''); }} className={cx(ainput, 'font-num min-h-11')} /></Field>
         <p className="font-num text-sm" data-testid="text-topup-change">Deposit {money(u.balances.deposit)}{n > 0 ? ` → ${money(Math.round((u.balances.deposit - n) * 100) / 100)}` : ''} · Card {money(u.balances.card)}{n > 0 ? ` → ${money(Math.round((u.balances.card + n) * 100) / 100)}` : ''}</p>
         {error && <p role="alert" className="rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-topup-error">{error}</p>}
-        <button data-testid="button-topup-confirm" disabled={top.isPending} className={cx(lime, 'w-full')}>{top.isPending ? 'Moving…' : 'Top up from deposit balance'}</button>
+        <button data-testid="button-topup-confirm" disabled={top.isPending} className={cx(lime, 'w-full')}>{top.isPending ? 'Moving…' : 'Top up from account balance'}</button>
       </form>}
     </Modal>
   );

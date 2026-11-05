@@ -323,8 +323,8 @@ function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentM
             <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Fee</legend>
             <p className="mb-2 text-xs text-slate-500" data-testid="text-fee-help">
               {kind === 'Deposit'
-                ? 'Taken out of the amount deposited: a $100 deposit with a $3 fee adds $97 to the deposit balance. A fixed amount or a percentage of the deposit; empty = no fee.'
-                : 'Paid from the applicant\'s deposit balance, on top of the amount withdrawn. A fixed amount or a percentage of the withdrawal; empty = no fee.'}
+                ? 'Taken out of the amount deposited: a $100 deposit with a $3 fee adds $97 to the account balance. A fixed amount or a percentage of the deposit; empty = no fee.'
+                : 'Paid from the applicant\'s account balance, on top of the amount withdrawn. A fixed amount or a percentage of the withdrawal; empty = no fee.'}
             </p>
             <div className="max-w-xs"><FeeInput value={d.fee} onChange={(fee) => set({ fee })} label={`${kind} fee`} testid="input-method-fee" /></div>
           </fieldset>

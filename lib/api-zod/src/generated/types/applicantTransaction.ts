@@ -30,6 +30,6 @@ export interface ApplicantTransaction {
   source?: BalanceSource;
   details?: RequestDetail[];
   proofUrl?: string;
-  /** Deposit and withdrawal requests: the method's fee (withdrawals: from the deposit balance; deposits: out of the amount) */
+  /** Deposit and withdrawal requests: the method's fee (withdrawals: from the account balance; deposits: out of the amount) */
   fee?: number;
 }

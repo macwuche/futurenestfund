@@ -8,7 +8,7 @@ import {
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Download, FileText, Plus, Info, X } from 'lucide-react';
 import { keepPreviousData, useQueryClient } from '@tanstack/react-query';
 import { Shell } from '@/components/shell';
-import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, fileSize, money, statusLabel } from '@/components/bits';
+import { balanceName, Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, fileSize, money, statusLabel } from '@/components/bits';
 import { card, ainput, lime, dark, ghost, danger, Stat, SectionTitle, useAdminRefresh, ReasonModal, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
 import { apiError } from '@/lib/demo-state';
 import { RequestDetails } from '@/components/payment-method';
@@ -47,7 +47,7 @@ function RequestQueuePage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
             {deposit ? 'Deposits awaiting approval' : 'Payouts awaiting sign-off'}
           </SectionTitle>
           <p className="-mt-2 mb-4 text-xs text-slate-500">
-            {deposit ? 'Approving credits the deposit balance and writes a ledger entry.' : 'Approving pays the amount out of the balance the applicant chose (grant or deposit) and writes a ledger entry.'} Oldest first. No real money moves.
+            {deposit ? 'Approving credits the account balance and writes a ledger entry.' : 'Approving pays the amount out of the balance the applicant chose (grant or deposit) and writes a ledger entry.'} Oldest first. No real money moves.
           </p>
           {pending.isLoading ? <div className="space-y-2">{[1, 2].map((i) => <Skel key={i} className="h-16" />)}</div>
             : pending.isError || !pending.data ? <ErrorState onRetry={() => pending.refetch()} />
@@ -63,7 +63,7 @@ function RequestQueuePage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
               <ul className="divide-y md:hidden" data-testid="list-decided">{decided.data.map((r) => (
                 <li key={r.id} className="py-3" data-testid={`card-decided-${r.id}`}>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="min-w-0"><Link href={`/admin/users/${r.userId}`} className="block truncate font-semibold hover:underline">{r.userName}</Link><span className="block text-xs text-slate-500">{dateFmt(r.createdAt)} · ref <span className="font-num">{r.reference}</span>{r.method ? ` · ${r.method.name}` : ''}{r.source === 'deposit' ? ' · from deposit balance' : ''}</span></span>
+                    <span className="min-w-0"><Link href={`/admin/users/${r.userId}`} className="block truncate font-semibold hover:underline">{r.userName}</Link><span className="block text-xs text-slate-500">{dateFmt(r.createdAt)} · ref <span className="font-num">{r.reference}</span>{r.method ? ` · ${r.method.name}` : ''}{r.source === 'deposit' ? ' · from account balance' : ''}</span></span>
                     <span className="shrink-0 text-right"><span className="font-num block font-semibold">{money(r.amount)}</span><StatusBadge status={r.status === 'Completed' ? 'Approved' : r.status} /></span>
                   </div>
                   {(r.reviewNote ?? r.note) && <p className="mt-1 text-xs text-slate-600">{r.reviewNote ?? r.note}</p>}
@@ -75,7 +75,7 @@ function RequestQueuePage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
                   <thead><tr className="border-b text-xs uppercase tracking-wide text-slate-500"><th className="py-2 pr-3">User</th><th className="text-right">Amount</th><th className="pl-4">Decision</th><th>Reviewed</th><th>Note</th></tr></thead>
                   <tbody>{decided.data.map((r) => (
                     <tr key={r.id} className="border-b align-top" data-testid={`row-decided-${r.id}`}>
-                      <td className="py-2.5 pr-3"><Link href={`/admin/users/${r.userId}`} className="font-semibold hover:underline">{r.userName}</Link><span className="block text-xs text-slate-500">{dateFmt(r.createdAt)} · ref <span className="font-num">{r.reference}</span>{r.method ? ` · ${r.method.name}` : ''}{r.source === 'deposit' ? ' · from deposit balance' : ''}</span></td>
+                      <td className="py-2.5 pr-3"><Link href={`/admin/users/${r.userId}`} className="font-semibold hover:underline">{r.userName}</Link><span className="block text-xs text-slate-500">{dateFmt(r.createdAt)} · ref <span className="font-num">{r.reference}</span>{r.method ? ` · ${r.method.name}` : ''}{r.source === 'deposit' ? ' · from account balance' : ''}</span></td>
                       <td className="font-num py-2.5 text-right">{money(r.amount)}</td>
                       <td className="py-2.5 pl-4"><StatusBadge status={r.status === 'Completed' ? 'Approved' : r.status} /></td>
                       <td className="py-2.5 text-xs text-slate-500">{r.reviewedAt ? dateTime(r.reviewedAt) : '–'}<span className="block">{r.reviewedBy}</span></td>
@@ -99,10 +99,10 @@ function blocker(r: AdminRequest) {
   if (r.kycRequired && r.verificationLevel !== 'Verified') return 'Identity not verified';
   if (r.kind === 'Withdrawal') {
     const src = r.source ?? 'grant';
-    if (r.withdrawalSources !== 'both' && r.withdrawalSources !== src) return `Withdrawals from the ${src} balance are closed for this user`;
-    if (src === 'deposit' && r.amount + r.fee > r.depositBalance) return r.fee ? 'Amount + fee more than the deposit balance' : 'More than the deposit balance';
+    if (r.withdrawalSources !== 'both' && r.withdrawalSources !== src) return `Withdrawals from the ${balanceName(src)} balance are closed for this user`;
+    if (src === 'deposit' && r.amount + r.fee > r.depositBalance) return r.fee ? 'Amount + fee more than the account balance' : 'More than the account balance';
     if (src === 'grant' && r.amount > r.grantBalance) return 'More than the grant balance';
-    if (src === 'grant' && r.fee > r.depositBalance) return 'Fee more than the deposit balance';
+    if (src === 'grant' && r.fee > r.depositBalance) return 'Fee more than the account balance';
   }
   return '';
 }
@@ -146,13 +146,13 @@ function RequestRow({ r }: { r: AdminRequest }) {
           {r.proofUrl ? <ProofPreview url={r.proofUrl} name={r.userName} /> : deposit && r.method && <p className="mt-2 text-xs text-slate-500" data-testid={`text-no-proof-${r.id}`}>No payment proof attached.</p>}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
             <StatusBadge status={r.verificationLevel} /><StatusBadge status={r.userStatus} />
-            <span className="text-slate-500">{deposit ? `Deposit balance ${money(r.depositBalance)}` : `${src === 'deposit' ? 'Deposit' : 'Grant'} balance ${money(srcBalance)}`}</span>
+            <span className="text-slate-500">{deposit ? `Account balance ${money(r.depositBalance)}` : `${src === 'deposit' ? 'Account' : 'Grant'} balance ${money(srcBalance)}`}</span>
           </div>
           {r.limitWarning && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900" data-testid={`text-limit-warning-${r.id}`}>{r.limitWarning} Limits are checked when a request is placed; you can still approve it.</p>}
         </div>
         <div className="flex flex-col items-end gap-2">
           <span className="font-num text-xl font-semibold" data-testid={`text-request-amount-${r.id}`}>{money(r.amount)}</span>
-          {r.fee > 0 && <span className="font-num text-right text-xs text-slate-600" data-testid={`text-request-fee-${r.id}`}>{deposit ? `Fee ${money(r.fee)} · credits ${money(r.net)}` : `Fee ${money(r.fee)} from deposit balance`}</span>}
+          {r.fee > 0 && <span className="font-num text-right text-xs text-slate-600" data-testid={`text-request-fee-${r.id}`}>{deposit ? `Fee ${money(r.fee)} · credits ${money(r.net)}` : `Fee ${money(r.fee)} from account balance`}</span>}
           <div className="flex gap-2">
             <button data-testid={`button-reject-${r.id}`} onClick={() => { setError(''); setDeclining(true); }} className={cx(ghost, 'inline-flex items-center gap-1 !py-1.5 text-xs')}><X className="h-3.5 w-3.5" />Decline</button>
             <button data-testid={`button-approve-${r.id}`} disabled={!!why} title={why || undefined} onClick={() => { setError(''); setNote(''); setConfirm(true); }} className={cx(lime, 'inline-flex items-center gap-1 !py-1.5 text-xs disabled:cursor-not-allowed')}><Check className="h-3.5 w-3.5" />Approve</button>
@@ -162,10 +162,10 @@ function RequestRow({ r }: { r: AdminRequest }) {
       </div>
       <Modal open={confirm} onClose={() => setConfirm(false)} title={`Approve ${money(r.amount)} ${deposit ? 'deposit' : 'withdrawal'}?`} testid="dialog-approve-request">
         <p className="text-sm text-slate-600">
-          {deposit ? `${r.userName}'s deposit balance goes from ${money(r.depositBalance)} to ${money(Math.round((r.depositBalance + r.net) * 100) / 100)}${r.fee ? ` (${money(r.amount)} less the ${money(r.fee)} fee)` : ''}.`
+          {deposit ? `${r.userName}'s account balance goes from ${money(r.depositBalance)} to ${money(Math.round((r.depositBalance + r.net) * 100) / 100)}${r.fee ? ` (${money(r.amount)} less the ${money(r.fee)} fee)` : ''}.`
             : src === 'deposit'
-              ? `${money(r.amount)}${r.fee ? ` and the ${money(r.fee)} fee` : ''} ${r.fee ? 'are' : 'is'} paid out of ${r.userName}'s deposit balance, leaving ${money(Math.round((srcBalance - r.amount - r.fee) * 100) / 100)}.`
-              : `${money(r.amount)} is paid out of ${r.userName}'s grant balance, leaving ${money(Math.round((srcBalance - r.amount) * 100) / 100)}.${r.fee ? ` The ${money(r.fee)} fee comes from the deposit balance, leaving ${money(Math.round((r.depositBalance - r.fee) * 100) / 100)}.` : ''}`} A ledger entry and an audit record are written, and the applicant is notified in the app and by email (if their email notifications are on).
+              ? `${money(r.amount)}${r.fee ? ` and the ${money(r.fee)} fee` : ''} ${r.fee ? 'are' : 'is'} paid out of ${r.userName}'s account balance, leaving ${money(Math.round((srcBalance - r.amount - r.fee) * 100) / 100)}.`
+              : `${money(r.amount)} is paid out of ${r.userName}'s grant balance, leaving ${money(Math.round((srcBalance - r.amount) * 100) / 100)}.${r.fee ? ` The ${money(r.fee)} fee comes from the account balance, leaving ${money(Math.round((r.depositBalance - r.fee) * 100) / 100)}.` : ''}`} A ledger entry and an audit record are written, and the applicant is notified in the app and by email (if their email notifications are on).
         </p>
         <Field label="Note for the applicant (optional)">
           <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={240} rows={2} className={cx(ainput, 'mt-1')} data-testid="input-approve-note" placeholder="e.g. Received, thank you." />

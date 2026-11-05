@@ -43,6 +43,6 @@ export interface AdminRequest {
   proofUrl?: string;
   /** The method's fee worked out when the request was placed */
   fee: number;
-  /** Deposits: what the deposit balance gets (amount − fee). Withdrawals: what leaves the user's balances in all (amount + fee) */
+  /** Deposits: what the account balance gets (amount − fee). Withdrawals: what leaves the user's balances in all (amount + fee) */
   net: number;
 }
