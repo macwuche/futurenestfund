@@ -2381,5 +2381,5 @@ Every step: typecheck and `pnpm test`; one commit when 9.3 is green. Deploy appl
 - new `.unlazy/phase92-redis.mjs` 13/13: two real API servers on one Redis share one limit; a burst of 40 at once lets exactly 10 through; Redis killed → still answered (8 ms for 4), each server limits on its own, Settings says *Redis not answering*, one warning; Redis restarted → back on shared counts
 - regressions in memory mode: phase3-api 24/24, smoke 23+23, phase5-limits 10/10, phase6-mobile 42/42 with 0 problems; Rate limits card checked on desktop and phone
 
-**Committed** `3f7ef8a`. **Still to do:** deploy (optional). Nothing changes on the server unless `RATE_LIMIT_REDIS_URL` is set.
+**Committed** `3f7ef8a`. **Deployed** 2026-11-05 at `a1072f6`. Nothing changes on the server unless `RATE_LIMIT_REDIS_URL` is set.
 
