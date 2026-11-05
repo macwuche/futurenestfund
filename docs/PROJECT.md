@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-11-05 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1, 9.2 and 9.3 done; Phase 10 done; Phase 11 (grant plans, industries, application fees) built, not committed · **live at https://access.futurenestfund.org** (`1b2a4c0` deployed 2026-11-05)._
+_Last updated 2026-11-05 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1, 9.2 and 9.3 done; Phase 10 done; Phase 11 (grant plans, industries, application fees) built (`010d4b9`, not deployed) · **live at https://access.futurenestfund.org** (`1b2a4c0` deployed 2026-11-05)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -20,7 +20,7 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 8 | User dashboard: balance cards | 8.1 done 2026-11-02, deployed at `62ec3aa` (`work.md` §14); **8.2 built and tested 2026-11-05** (`work.md` §19): Account balance / Grant balance / Successful deposit, eligible amount removed, "deposit balance" renamed "account balance" everywhere users see it; deployed at `1b2a4c0` |
 | 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), fees and card sales (9.3), tier rules (9.4) | **9.1 done 2026-11-04** (`4300a48`); **9.3 built and tested 2026-11-05** (`711ec58`, `work.md` §17, migration 0010); both deployed 2026-11-05 at `dc386f9`; **9.2 built and tested 2026-11-05** (`3f7ef8a`, `work.md` §18, deployed at `a1072f6`; off on the VPS unless Redis is set up); 9.4 waits for decisions |
 | 10 | Payment gateway: admin-made deposit and withdrawal methods (logo, amount rule, custom fields, payment proof); withdrawals from the grant and/or deposit balance; optional approval note | Built and tested 2026-11-04 (`work.md` §16), committed `e183fb3`; deployed 2026-11-05 at `dc386f9` (migration 0009 + Supabase 0004) |
-| 11 | Grant plans: admin-made plans (industry, award, application fee, logo, own application form with file uploads); industries (admin-managed, chosen at sign-up, drive recommendations); the application fee is charged on approval and may take the account balance below $0; matchmaking, the sample grants and the free-form application removed | **Built and tested 2026-11-05** (`work.md` §20, migration 0011 + Supabase 0005); not committed |
+| 11 | Grant plans: admin-made plans (industry, award, application fee, logo, own application form with file uploads); industries (admin-managed, chosen at sign-up, drive recommendations); the application fee is charged on approval and may take the account balance below $0; matchmaking, the sample grants and the free-form application removed | **Built and tested 2026-11-05** (`work.md` §20, migration 0011 + Supabase 0005); committed `010d4b9`, not deployed |
 | 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin layout, admin tables on phones, applicant fixes (review scored the UI 67/100) | Done: 7.1 on 2026-10-31, 7.2–7.7 on 2026-11-01 ([`work.md`](../work.md) §13 and the log after it) |
 
 What still needs you is listed in §12 (go-live checklist) and §15 (open items).
@@ -562,7 +562,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | (this commit) | `server.md` deployment record for `1b2a4c0` |
 | `5766d1f` | `server.md` deployment record for `a1072f6` |
 | `f7436f7` | Dashboard cards: Account balance, Grant balance, Successful deposit; eligible amount removed; "deposit balance" renamed "account balance" (8.2) |
-| (next) | Grant plans, industries and application fees; matchmaking and sample grants removed (Phase 11) |
+| `010d4b9` | Grant plans, industries and application fees; matchmaking and sample grants removed (Phase 11) |
 
 ---
 
@@ -604,7 +604,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 - 9.4 tier rules: **waits for your answer** to §15f question 4 (which rules, and thresholds for automatic tier changes)
 
 **Phase 11 (grant plans)**, plan and log in `work.md` §20:
-- ~~11.1 industries · 11.2 grant plans (admin) · 11.3 applying · 11.4 approval and the fee · 11.5 removing matchmaking and the sample grants~~: built and tested 2026-11-05, not committed. **To deploy:** `deploy.sh` applies app migration **0011** and Supabase **0005**. Then create grant plans in Admin → Grant Plans: until then applicants see "No grants are open right now". Existing users are asked for their industry by a setup card on their dashboard.
+- ~~11.1 industries · 11.2 grant plans (admin) · 11.3 applying · 11.4 approval and the fee · 11.5 removing matchmaking and the sample grants~~: built and tested 2026-11-05, committed `010d4b9`, not deployed. **To deploy:** `deploy.sh` applies app migration **0011** and Supabase **0005**. Then create grant plans in Admin → Grant Plans: until then applicants see "No grants are open right now". Existing users are asked for their industry by a setup card on their dashboard.
 - Not tested here: the sign-up form's Industry dropdown end to end (needs Supabase sign-up); `phase4-auth` was updated to apply through a plan but needs the Supabase settings to run.
 
 **Phase 10 (payment gateway)**, plan in `work.md` §16:

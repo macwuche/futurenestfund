@@ -2554,4 +2554,4 @@ phase4-email needs Supabase keys and was not rerun in full; the email wording is
 - removed: phase6-matchmaking, phase6-matchmaking-ui
 - not run here: phase4-auth (updated; needs Supabase), the sign-up Industry dropdown end to end (needs Supabase sign-up)
 
-**Still to do:** commit; deploy (`deploy.sh` applies 0011 and Supabase 0005); then create grant plans in Admin → Grant Plans (until then applicants see "No grants are open right now").
+**Committed** `010d4b9`. **Still to do:** deploy (`deploy.sh` applies 0011 and Supabase 0005); then create grant plans in Admin → Grant Plans (until then applicants see "No grants are open right now").
