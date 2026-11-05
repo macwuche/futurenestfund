@@ -554,7 +554,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | `3f7ef8a` | Shared rate limits through Redis, optional (9.2) |
 | `a5b7ac2`, `c65cf9d`, `5b2d5c9`, `160646a` | `server.md` deployment records for `a82a158`, `d9f2edc`, `62ec3aa`, `dc386f9` |
 | `5766d1f` | `server.md` deployment record for `a1072f6` |
-| (next) | Dashboard cards: Account balance, Grant balance, Successful deposit; eligible amount removed; "deposit balance" renamed "account balance" (8.2) |
+| `f7436f7` | Dashboard cards: Account balance, Grant balance, Successful deposit; eligible amount removed; "deposit balance" renamed "account balance" (8.2) |
 
 ---
 
