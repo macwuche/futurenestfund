@@ -550,7 +550,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | `e183fb3` | Payment Gateway: admin-made deposit and withdrawal methods; withdrawals from the grant and/or deposit balance (Phase 10) |
 | `4300a48` | Admin queue for physical-card activation requests (9.1) |
 | `711ec58` | Fees on payment methods, card types sold for price + fee, card top-ups from the deposit balance (9.3) |
-| (not committed yet) | Shared rate limits through Redis, optional (9.2) |
+| `3f7ef8a` | Shared rate limits through Redis, optional (9.2) |
 | `a5b7ac2`, `c65cf9d`, `5b2d5c9` | `server.md` deployment records for `a82a158`, `d9f2edc`, `62ec3aa` |
 | (this commit) | `server.md` deployment record for `dc386f9` |
 
