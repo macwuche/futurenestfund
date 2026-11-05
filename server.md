@@ -1,6 +1,6 @@
 # GrantApp deployment tracker (server.md)
 
-_Deployment only. Last updated 2026-11-01._
+_Deployment only. Last updated 2026-11-05._
 
 - **Exact commands:** [`docs/DEPLOY.md`](docs/DEPLOY.md).
 - **This file:** the record of what's decided, done, not done yet and still to do.
@@ -116,7 +116,8 @@ Step 6.5 counts as **done** when steps 1–9 have been followed once end to end.
 These were found during the checks and **aren't part of GrantApp's deployment**:
 - **Firewall off.** noveriqgroups listens on `0.0.0.0:4001`, so it's reachable without nginx. Enabling `ufw` (allow 22, 80, 443) would close that. Allow SSH first, or you lock yourself out.
 - fail2ban isn't installed; SSH sees constant login attempts (key-only, so they fail).
-- Package updates waiting (`apt upgrade`): 7 on 2026-10-18, **29** on 2026-10-31.
+- Package updates waiting (`apt upgrade`): 7 on 2026-10-18, **29** on 2026-10-31, 21 on 2026-11-05.
+- **"System restart required"** shown at login on 2026-11-05 (a kernel or library update is waiting for a reboot). A reboot restarts all four apps; GrantApp comes back by itself through `pm2-futurenestfund.service`. Pick a quiet time.
 
 ## 8. Later (Phase 6, after go-live)
 
@@ -159,3 +160,4 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 | 2026-11-01 | Admin Settings → Email said keys couldn't be saved (`SETTINGS_ENCRYPTION_KEY` not set). Changed so the API creates its own master key file `/var/lib/futurenestfund/settings.key` (mode 600, outside the uploads folder, so not in the nightly backup) when the variable isn't set; the admin can now save the Resend key without server changes. Needs a `deploy.sh`. |
 | 2026-11-01 | Deployed **d9f2edc** (no migrations: 0 applied, 8 recorded; health check OK). `/var/lib/futurenestfund/settings.key` created by the API: `-rw------- futurenestfund futurenestfund`, 45 bytes. |
 | 2026-11-02 | Deployed **62ec3aa** (8.1: dashboard balance cards, eligible amount per tier and per user, "Level" → "Tier"). Builds OK; app migrations: 1 applied (**0008** eligible amounts), 9 recorded; Supabase migrations all skipped. API reloaded, health OK. RAM 53.8% right after the build. Next: set the tier amounts in Admin → Settings → Money (until then every dashboard shows $0.00). |
+| 2026-11-05 | Deployed **dc386f9** (9.1 card activation queue, Phase 10 payment gateway, 9.3 fees / card types / card purchases; up from `62ec3aa`). Builds OK; app migrations: 2 applied (**0009** payment methods, **0010** fees and card types), 11 recorded; Supabase **0004_payment_methods** applied, 0001–0003 skipped. API reloaded, health OK, `futurenestfund-api` online (125 MB). `free -m` at rest: 1028 MB available of 1839, swap 547 MB used: too little for ClamAV (~1–1.2 GB), so step 11 stays off. Login banner: 21 updates, system restart required (§7). Next: create the deposit and withdrawal methods in Payment Gateway (until then applicants can't place requests), set card types and prices in Settings → Cards, tier amounts in Settings → Money. |

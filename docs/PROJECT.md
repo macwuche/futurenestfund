@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-11-05 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1 done, 9.3 built; Phase 10 built · **live at https://access.futurenestfund.org** (`62ec3aa` deployed; 9.1, 9.3 and Phase 10 not deployed yet)._
+_Last updated 2026-11-05 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1 and 9.3 done; Phase 10 done · **live at https://access.futurenestfund.org** (`dc386f9` deployed 2026-11-05)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -18,8 +18,8 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
 | 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.5 done 2026-10-30/31; **6.5: deployed on the EU VPS at https://access.futurenestfund.org on 2026-10-31** ([`docs/DEPLOY.md`](DEPLOY.md), record in [`server.md`](../server.md)); **6.6 virus scanning of uploads: code done 2026-11-01**, off until ClamAV is installed on the server (DEPLOY step 11, memory decision); 6.7 shared rate limits (only with several servers) |
 | 8 | User dashboard: balance cards, eligible amounts per tier and per user | 8.1 done 2026-11-02, deployed at `62ec3aa` (`work.md` §14) |
-| 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), fees and card sales (9.3), tier rules (9.4) | **9.1 done 2026-11-04** (`4300a48`); **9.3 built and tested 2026-11-05** (`work.md` §17, migration 0010, committed); neither deployed; 9.2 not started; 9.4 waits for decisions |
-| 10 | Payment gateway: admin-made deposit and withdrawal methods (logo, amount rule, custom fields, payment proof); withdrawals from the grant and/or deposit balance; optional approval note | Built and tested 2026-11-04 (`work.md` §16), committed `e183fb3`; not deployed yet (migration 0009 + Supabase 0004) |
+| 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), fees and card sales (9.3), tier rules (9.4) | **9.1 done 2026-11-04** (`4300a48`); **9.3 built and tested 2026-11-05** (`711ec58`, `work.md` §17, migration 0010); both deployed 2026-11-05 at `dc386f9`; 9.2 not started; 9.4 waits for decisions |
+| 10 | Payment gateway: admin-made deposit and withdrawal methods (logo, amount rule, custom fields, payment proof); withdrawals from the grant and/or deposit balance; optional approval note | Built and tested 2026-11-04 (`work.md` §16), committed `e183fb3`; deployed 2026-11-05 at `dc386f9` (migration 0009 + Supabase 0004) |
 | 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin layout, admin tables on phones, applicant fixes (review scored the UI 67/100) | Done: 7.1 on 2026-10-31, 7.2–7.7 on 2026-11-01 ([`work.md`](../work.md) §13 and the log after it) |
 
 What still needs you is listed in §12 (go-live checklist) and §15 (open items).
@@ -548,12 +548,13 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | `4300a48` | Admin queue for physical-card activation requests (9.1) |
 | `711ec58` | Fees on payment methods, card types sold for price + fee, card top-ups from the deposit balance (9.3) |
 | `a5b7ac2`, `c65cf9d`, `5b2d5c9` | `server.md` deployment records for `a82a158`, `d9f2edc`, `62ec3aa` |
+| (this commit) | `server.md` deployment record for `dc386f9` |
 
 ---
 
 ## 15. Open items and next steps
 
-**Deploy next:** `e183fb3` (Phase 10) and `4300a48` (9.1) are committed but not live (`62ec3aa` is). Push, then `deploy.sh` on the VPS applies app migration **0009** and Supabase **0004**. Then create and enable at least one method in Admin → Payment Gateway (Deposit and Withdrawal): until then applicants can't place deposit or withdrawal requests.
+**Deployed 2026-11-05:** `dc386f9` (9.1, Phase 10, 9.3; migrations 0009, 0010 and Supabase 0004 applied). **Needs you now, in the admin area:** create and enable at least one method in Payment Gateway (Deposit and Withdrawal), or applicants can't place deposit or withdrawal requests; set card types and prices in Settings → Cards (until then "No cards are on sale right now"); set the tier amounts in Settings → Money. The server also asks for a restart (`server.md` §7).
 
 **Needs you** (unchanged since `a82a158`): the open §12 items: rotate the secrets pasted in chat, email through Resend (step 10 in `docs/DEPLOY.md`), minimum password length 8, off-server backup copies; and the ClamAV memory decision (step 11). Shared-server housekeeping (firewall, fail2ban, 29 package updates) is listed in `server.md` §7.
 
@@ -582,13 +583,13 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 - ~~8.1 balance cards, eligible amount per tier and per user~~: done 2026-11-02, deployed at `62ec3aa`. **Needs you:** set the tier amounts in Admin → Settings → Money (until then every dashboard shows $0.00).
 
 **Phase 9 (remaining backlog)**, plan in `work.md` §15:
-- ~~9.1 admin queue for card activation requests~~: done 2026-11-04 (`4300a48`), not deployed yet
+- ~~9.1 admin queue for card activation requests~~: done 2026-11-04 (`4300a48`), deployed 2026-11-05
 - 9.2 shared rate limits (Redis, was 6.7): next to build; only matters with more than one API server, so it stays off on the VPS
-- ~~9.3 fees, card types and card purchases~~: built and tested 2026-11-05 (plan and log in `work.md` §17), committed, not deployed. Provisional choices still to confirm are in `work.md` §17h
+- ~~9.3 fees, card types and card purchases~~: built and tested 2026-11-05 (plan and log in `work.md` §17), `711ec58`, deployed 2026-11-05. Provisional choices still to confirm are in `work.md` §17h
 - 9.4 tier rules: **waits for your answer** to §15f question 4 (which rules, and thresholds for automatic tier changes)
 
 **Phase 10 (payment gateway)**, plan in `work.md` §16:
-- ~~10.1–10.4 methods, admin pages, applicant forms, queues~~: done 2026-11-04 (`e183fb3`), not deployed yet. Not done as planned: no separate method column in CSV export / search (the ledger reason names the method).
+- ~~10.1–10.4 methods, admin pages, applicant forms, queues~~: done 2026-11-04 (`e183fb3`), deployed 2026-11-05. Not done as planned: no separate method column in CSV export / search (the ledger reason names the method).
 
 **Limits worth knowing:**
 - The API can't sign anyone in by itself if Supabase is down; requests answer 503 until it's back.
