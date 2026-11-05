@@ -2354,3 +2354,32 @@ Every step: typecheck and `pnpm test`; one commit when 9.3 is green. Deploy appl
 - The suites were run back to back, so the test API ran with `RATE_LIMIT_*` raised. With the default 60 writes a minute they trip the limit (429).
 
 **Deployed 2026-11-05** at `dc386f9` (0010 applied). **Still to do:** set the card types and prices in Admin → Settings → Cards, and fees on the methods. Until a card type is on sale, applicants see "No cards are on sale right now". The provisional choices in §17h are waiting for the user's answers.
+
+---
+
+## 18. Step 9.2: shared rate limits (2026-11-05)
+
+**Request (user, 2026-11-05):** start on 9.2 (plan §15c).
+
+**What it is for.** The API limits how fast one caller can hit it: 600 requests a minute per IP address, 60 changes a minute and 20 uploads per 10 minutes per account, 120 email-hook calls a minute, 20 crash reports a minute. Until now each API process kept those counts in its own memory. That's exact with one server, which is what the VPS runs. With two servers behind nginx (or PM2 cluster mode), each would count on its own, so a caller could make twice as many requests. 9.2 lets every server keep the counts in one shared place, Redis, so the limits hold across all of them.
+
+**Built:**
+- `lib/rateLimit.ts`: the limiters take a counter store.
+  - `MemoryStore` (default, same behaviour as before)
+  - `RedisStore`: one Lua script per request (`INCR`, then `PEXPIRE` on the first hit, returns the count and the time left), so two servers counting at the same moment can't both slip under the limit. Keys `fnf:rl:<limiter>:<who>` (prefix `RATE_LIMIT_REDIS_PREFIX`), and they expire with their window.
+  - `FallbackStore`: Redis first. If Redis errors or doesn't answer within 250 ms (`RATE_LIMIT_REDIS_TIMEOUT_MS`), that request is counted in memory instead, and one warning is logged per minute. **Traffic is never refused because Redis is down.**
+  - A malformed `RATE_LIMIT_REDIS_URL` doesn't stop the API: it runs on memory and says why in the log and in Settings.
+- `lib/redisClient.ts`: a minimal Redis client (RESP2, TCP or TLS, `AUTH` with or without a username, `SELECT`, pipelined on one connection). No new dependency, like the ClamAV and Sentry code. While disconnected, commands fail at once, and it reconnects after 1 s, 2 s, 4 s … up to 10 s. A command with no answer drops the connection, so a late reply is never read as the answer to a later command.
+- **Admin → Settings → Monitoring → Rate limits:** *This server* / *Shared (Redis)* with the address (never the password) / *Redis not answering* with the error. `GET /admin/monitoring` → `rateLimits { store, ok, address, error }`; Redis is asked with a `PING`.
+- Docs: DEPLOY step 12 (optional Redis install), `api.env.example`, PROJECT §8, §9, §11, §15.
+
+**Not changed:** the limits themselves, the 429 answer, `Retry-After` and the `RateLimit-*` headers. The VPS keeps memory counts, because it has one API server and no Redis.
+
+**Tests (2026-11-05):**
+- typecheck clean; `pnpm test` 125/125 (+1 skipped without Redis). 11 new tests in `rateLimit.test.ts`: limiters kept apart; two servers on one store; fallback with one warning a minute; status; the Redis protocol and URL parsing; against a Redis stand-in (password, database, atomic shared counts, timeout in 100 ms and no waiting while reconnecting, cut connection, closed port)
+- with a real Redis 6.2.5 (nix) and `TEST_REDIS_URL`: 15/15, including 20 hits at once from two clients counted 1–20 and the window expiring
+- new `.unlazy/phase92-redis.mjs` 13/13: two real API servers on one Redis share one limit; a burst of 40 at once lets exactly 10 through; Redis killed → still answered (8 ms for 4), each server limits on its own, Settings says *Redis not answering*, one warning; Redis restarted → back on shared counts
+- regressions in memory mode: phase3-api 24/24, smoke 23+23, phase5-limits 10/10, phase6-mobile 42/42 with 0 problems; Rate limits card checked on desktop and phone
+
+**Still to do:** commit; deploy. Nothing changes on the server unless `RATE_LIMIT_REDIS_URL` is set.
+

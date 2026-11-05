@@ -289,6 +289,34 @@ export interface VirusScanStatus {
   error: string | null;
 }
 
+/**
+ * memory = counted by each API server on its own; redis = shared through RATE_LIMIT_REDIS_URL
+ */
+export type RateLimitStatusStore = typeof RateLimitStatusStore[keyof typeof RateLimitStatusStore];
+
+
+export const RateLimitStatusStore = {
+  memory: 'memory',
+  redis: 'redis',
+} as const;
+
+/**
+ * Where the rate-limit counters live (Phase 9.2)
+ */
+export interface RateLimitStatus {
+  /** memory = counted by each API server on its own; redis = shared through RATE_LIMIT_REDIS_URL */
+  store: RateLimitStatusStore;
+  /** redis: Redis answered just now. memory: false only when RATE_LIMIT_REDIS_URL is set but unusable */
+  ok: boolean;
+  /**
+     * Redis address without the password
+     * @nullable
+     */
+  address: string | null;
+  /** @nullable */
+  error: string | null;
+}
+
 export interface MonitoringStatus {
   /** Whether errors are also sent to Sentry (SENTRY_DSN is set and valid) */
   sentry: boolean;
@@ -298,6 +326,7 @@ export interface MonitoringStatus {
   /** @nullable */
   release: string | null;
   virusScan: VirusScanStatus;
+  rateLimits: RateLimitStatus;
 }
 
 export type ApplicantTransactionType = typeof ApplicantTransactionType[keyof typeof ApplicantTransactionType];

@@ -15,7 +15,7 @@ import { AccountSecurity } from '@/components/security';
 import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
 import { GlobalTierAmounts, UserEligibleAmount } from '@/components/eligible-amount';
 import { UserWithdrawalSources } from '@/components/withdrawal-sources';
-import { MonitoringSettings, VirusScanSettings } from '@/components/monitoring-settings';
+import { MonitoringSettings, RateLimitSettings, VirusScanSettings } from '@/components/monitoring-settings';
 import { EmailSettingsCard } from '@/components/email-settings';
 import { CardControls } from '@/components/card-controls';
 import { CardTypeSettings } from '@/components/card-type-settings';
@@ -470,7 +470,7 @@ const SETTINGS_SECTIONS = [
   { id: 'email', label: 'Email', icon: Mail, hint: 'Resend key, sender, signature and health checks' },
   { id: 'limits', label: 'Money', icon: Gauge, hint: 'Withdrawal limits and the eligible amount per tier' },
   { id: 'cards', label: 'Cards', icon: CreditCard, hint: 'The card types applicants can buy, with their prices and fees' },
-  { id: 'monitoring', label: 'Monitoring', icon: Activity, hint: 'Where errors go, and upload virus scanning' },
+  { id: 'monitoring', label: 'Monitoring', icon: Activity, hint: 'Where errors go, upload virus scanning and rate limits' },
   { id: 'audit', label: 'Audit log', icon: ScrollText, hint: 'Every recorded change, searchable' },
   { id: 'account', label: 'Your account', icon: UserRound, hint: 'Your photo, password and sessions' },
 ] as const;
@@ -506,7 +506,7 @@ export function AdminSettingsPage() {
           {current.id === 'email' && <EmailSettingsCard />}
           {current.id === 'limits' && <><GlobalWithdrawalLimits /><GlobalTierAmounts /></>}
           {current.id === 'cards' && <CardTypeSettings />}
-          {current.id === 'monitoring' && <><MonitoringSettings /><VirusScanSettings /></>}
+          {current.id === 'monitoring' && <><MonitoringSettings /><VirusScanSettings /><RateLimitSettings /></>}
           {current.id === 'audit' && <AuditSettings />}
           {current.id === 'account' && <><AdminPhotoSettings /><AccountSecurity tone="admin" /></>}
         </div>

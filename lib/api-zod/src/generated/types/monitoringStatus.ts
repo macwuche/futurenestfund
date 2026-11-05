@@ -5,6 +5,7 @@
  * Grant applicant and administration dashboard API
  * OpenAPI spec version: 0.1.0
  */
+import type { RateLimitStatus } from './rateLimitStatus';
 import type { VirusScanStatus } from './virusScanStatus';
 
 export interface MonitoringStatus {
@@ -16,4 +17,5 @@ export interface MonitoringStatus {
   /** @nullable */
   release: string | null;
   virusScan: VirusScanStatus;
+  rateLimits: RateLimitStatus;
 }

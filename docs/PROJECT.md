@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-11-05 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1 and 9.3 done; Phase 10 done · **live at https://access.futurenestfund.org** (`dc386f9` deployed 2026-11-05)._
+_Last updated 2026-11-05 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1, 9.2 and 9.3 done (9.2 not deployed); Phase 10 done · **live at https://access.futurenestfund.org** (`dc386f9` deployed 2026-11-05)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -18,7 +18,7 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
 | 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.5 done 2026-10-30/31; **6.5: deployed on the EU VPS at https://access.futurenestfund.org on 2026-10-31** ([`docs/DEPLOY.md`](DEPLOY.md), record in [`server.md`](../server.md)); **6.6 virus scanning of uploads: code done 2026-11-01**, off until ClamAV is installed on the server (DEPLOY step 11, memory decision); 6.7 shared rate limits (only with several servers) |
 | 8 | User dashboard: balance cards, eligible amounts per tier and per user | 8.1 done 2026-11-02, deployed at `62ec3aa` (`work.md` §14) |
-| 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), fees and card sales (9.3), tier rules (9.4) | **9.1 done 2026-11-04** (`4300a48`); **9.3 built and tested 2026-11-05** (`711ec58`, `work.md` §17, migration 0010); both deployed 2026-11-05 at `dc386f9`; 9.2 not started; 9.4 waits for decisions |
+| 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), fees and card sales (9.3), tier rules (9.4) | **9.1 done 2026-11-04** (`4300a48`); **9.3 built and tested 2026-11-05** (`711ec58`, `work.md` §17, migration 0010); both deployed 2026-11-05 at `dc386f9`; **9.2 built and tested 2026-11-05** (`work.md` §18, not deployed; off on the VPS unless Redis is set up); 9.4 waits for decisions |
 | 10 | Payment gateway: admin-made deposit and withdrawal methods (logo, amount rule, custom fields, payment proof); withdrawals from the grant and/or deposit balance; optional approval note | Built and tested 2026-11-04 (`work.md` §16), committed `e183fb3`; deployed 2026-11-05 at `dc386f9` (migration 0009 + Supabase 0004) |
 | 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin layout, admin tables on phones, applicant fixes (review scored the UI 67/100) | Done: 7.1 on 2026-10-31, 7.2–7.7 on 2026-11-01 ([`work.md`](../work.md) §13 and the log after it) |
 
@@ -110,7 +110,7 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, Payment Ga
   - **Email:** Resend key, sender, signature, health checks, test email (§7)
   - **Money** (`/admin/settings/limits`): the platform-wide withdrawal limits and the **eligible amount per tier**
   - **Cards** (`/admin/settings/cards`, 9.3): switch each card type on or off (Visa Debit, Visa Credit, Mastercard Debit, Mastercard Credit, Amex Platinum) and set its virtual and physical price and fee (fixed or %), with the total the user pays. Empty price = that kind isn't sold; 0 = free. Audited. Credit cards are a name only: no credit line, they spend what's topped up
-  - **Monitoring:** where errors go (server log, plus Sentry when configured), a "Send test errors" button that raises one server and one browser error and shows their references, and **upload virus scanning** status (Scanning / Not answering / Off, with the ClamAV version)
+  - **Monitoring:** where errors go (server log, plus Sentry when configured), a "Send test errors" button that raises one server and one browser error and shows their references, **upload virus scanning** status (Scanning / Not answering / Off, with the ClamAV version) and **rate limits** (This server / Shared (Redis) / Redis not answering)
   - **Audit log:** a link to the full log
   - **Your account:** the admin's own profile photo (shown in the sidebar and as the header avatar, which links here) and **Sign-in & security**
 - **Audit log** (`/admin/audit`, from Settings, the dashboard and each user's audit trail): every recorded change, searchable and filterable by user (or platform-wide), who did it and date, 25 per page, with CSV export.
@@ -321,7 +321,7 @@ All email goes through **Resend** (`lib/email.ts`). Email is off until there's a
 | RLS + least-privilege `app_api` role + revoked Data API grants | §6 |
 | Verified database TLS (pinned CA) | `lib/db/src/connection.ts` |
 | Append-only audit / ledger / history (database triggers) | migration 0002 |
-| Rate limits: per IP 600/min, per-account writes 60/min, uploads 20/10 min, email hook 120/min → 429 + Retry-After (in memory; several servers would need Redis) | `api-server/src/lib/rateLimit.ts` |
+| Rate limits: per IP 600/min, per-account writes 60/min, uploads 20/10 min, email hook 120/min → 429 + Retry-After. Counted in memory (one server), or shared through Redis with `RATE_LIMIT_REDIS_URL` (9.2: one atomic Lua step per request; if Redis is down, memory counts for that request and one warning a minute, never a refusal) | `api-server/src/lib/rateLimit.ts`, `redisClient.ts` |
 | API headers: `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `X-Frame-Options: DENY`, nosniff, `Cross-Origin-Resource-Policy: same-origin`, Permissions-Policy, Referrer-Policy, HSTS in production; JSON bodies ≤ 100 kB | `api-server/src/app.ts` |
 | Web app Content-Security-Policy (production build): scripts only from the site; network only to the site and `*.supabase.co` | `grant-platform/vite.config.ts` |
 | Upload checks (real type from the bytes, re-encoded images, PDF/DOCX structure checks, size and count caps, owner-only download, sandbox CSP) | `api-server/src/lib/uploads.ts` |
@@ -332,7 +332,7 @@ All email goes through **Resend** (`lib/email.ts`). Email is off until there's a
 | Error monitoring: a random request id on every response and log line; 500s show only a short reference; browser crashes reported to `/api/client-errors` (no sign-in, 20/min per IP, 1 kB message / 8 kB stack caps); optional Sentry forwarding via the envelope API with no user, cookies, headers, IP or query strings, and emails / long numbers / tokens scrubbed | `api-server/src/lib/monitoring.ts`, `grant-platform/src/lib/monitoring.ts` |
 
 Known limits:
-- Rate limits are per process.
+- Rate limits are per process unless `RATE_LIMIT_REDIS_URL` is set (not on the VPS: one server).
 - Uploads live on the VPS's own disk (`/var/lib/futurenestfund/uploads`): survives deploys, backed up nightly, but only on that one server.
 - PDF/DOCX checks are structural; virus scanning only runs once ClamAV is installed on the server (DEPLOY step 11).
 - The minimum password length is 6 until changed in the dashboard.
@@ -366,6 +366,8 @@ Put these in **Replit Secrets** (development) and the **VPS environment** (produ
 | `TRUST_PROXY` | VPS | `1` | Number of proxies in front (nginx), for real client IPs and `req.secure` |
 | `UPLOAD_DIR` | no | default `artifacts/api-server/uploads/`; VPS: `/var/lib/futurenestfund/uploads` | Must be persistent disk |
 | `RATE_LIMIT_IP_PER_MIN`, `RATE_LIMIT_WRITES_PER_MIN`, `RATE_LIMIT_UPLOADS_PER_10MIN`, `RATE_LIMIT_HOOK_PER_MIN`, `RATE_LIMIT_CLIENT_ERRORS_PER_MIN` | no | defaults 600 / 60 / 20 / 120 / 20 | |
+| `RATE_LIMIT_REDIS_URL` | no | `redis://:<password>@127.0.0.1:6379[/db]` or `rediss://…` | **Secret** (has the Redis password). Shares the rate-limit counts between API servers (9.2, DEPLOY step 12). Unset: counted in memory |
+| `RATE_LIMIT_REDIS_PREFIX`, `RATE_LIMIT_REDIS_TIMEOUT_MS` | no | defaults `fnf:rl:` / `250` | Key prefix; how long a request waits for Redis before counting in memory |
 | `SENTRY_DSN` | no | e.g. `https://<key>@o<org>.ingest.de.sentry.io/<project>` (EU region), or a GlitchTip DSN | **Secret-ish** (lets anyone send events). Unset → errors go to the log only |
 | `SENTRY_ENVIRONMENT` | no | default `NODE_ENV` | e.g. `production`, `staging` |
 | `APP_RELEASE` | no | e.g. the git commit | Tags each error report with the release |
@@ -395,7 +397,7 @@ No secrets. `PORT` and `BASE_PATH` for Vite; everything else comes from `GET /ap
 | Command | What it does |
 |---|---|
 | `pnpm run typecheck` | Type-check every package |
-| `pnpm test` | Vitest unit tests (101) |
+| `pnpm test` | Vitest unit tests (125; one more runs against a real Redis with `TEST_REDIS_URL`) |
 | `pnpm --filter @workspace/api-spec run codegen` | Regenerate API hooks / validators after editing `openapi.yaml` |
 | `pnpm --filter @workspace/db run generate` | Write a new migration from schema changes |
 | `pnpm --filter @workspace/scripts run db:migrate` | Apply pending migrations (`-- --baseline` once for a database built with push) |
@@ -410,11 +412,11 @@ On Replit, restart the existing workflows instead of starting extra servers.
 
 ## 11. Testing
 
-**Committed:** `pnpm test`, 101 Vitest tests.
+**Committed:** `pnpm test`, 125 Vitest tests (+1 with `TEST_REDIS_URL`).
 - Token verification: valid, expired, other project, wrong audience, anonymous, forged key, tampered payload, `alg: none`, HS256 algorithm confusion, key server down/timeout → 503.
 - Standard Webhooks signatures.
 - Email link mapping (including the reversed email-change fields) and HTML escaping.
-- Rate limiter.
+- Rate limiter: windows, per account / per IP, limiters kept apart, two servers sharing one store, fallback to memory with one warning a minute; the Redis protocol, URL parsing (password never shown), against a Redis stand-in (password, database, shared atomic counts, no answer → gives up in 100 ms and doesn't wait while reconnecting, cut connection, closed port) and, with `TEST_REDIS_URL`, a real Redis.
 - `safeNext`.
 - Error wording.
 - Matchmaking rules (scores, reasons, closed and not-eligible grants).
@@ -439,6 +441,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 | `phase10-methods`, `phase10-ui` | Payment Gateway: methods, logos (upload and link), requests through a method (amounts, fields, proof, no orphan files), copies kept, queue details, approval note, withdrawal sources, limits on top, concurrency (18); admin menu, method form, applicant deposit / withdrawal, queue, inspector (11 + 11). Older suites place requests through a plain test method (`.unlazy/methods.mjs`) |
 | `phase93-fees`, `phase93-cards`, `phase93-ui` | Fees on methods, holds, approval, decline, deposit net, placed requests keep their fee, concurrency (8); card types, buying, one per kind, can't afford, free cards, admin issue / free of charge, old cards, top-ups both sides, freezes, concurrency (12); method fee, applicant fee summary, queue, Settings → Cards, buy, top-ups, issue dialog, dashboard (8 + 8) |
 | `phase9-cards`, `phase9-cards-ui` | Card Requests queue: tabs, order, decline with reason, ask again, activate, frozen account, concurrent decisions (9); dashboard KPI and list, menu badge, applicant view (6 + 6) |
+| `phase92-redis` | Two real API servers on one Redis (`REDIS_SERVER=` path to `redis-server`): status in Settings, password never shown, one shared limit, Retry-After, key names and expiry, a burst of 40 at once lets exactly the limit through, Redis killed (still answered, quickly, limited per server, status, one warning), Redis back (reconnects) (13) |
 | `phase6-mobile` | Phone audit at 390 px of every page, menu, panel, main dialogs and the sign-in pages: zoom-out, overflow, boxes sticking out, 44 px targets, bell / menu / search reachable; full-page screenshots with `SHOTS=` (35). Sign-in pages need `AUTH_WEB`: a proxy to a signed-out Supabase-mode API |
 
 Full run on 2026-10-29: all green on the dev frontend, on the **production build with its CSP**, and **on Supabase as `app_api`**.
@@ -547,6 +550,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | `e183fb3` | Payment Gateway: admin-made deposit and withdrawal methods; withdrawals from the grant and/or deposit balance (Phase 10) |
 | `4300a48` | Admin queue for physical-card activation requests (9.1) |
 | `711ec58` | Fees on payment methods, card types sold for price + fee, card top-ups from the deposit balance (9.3) |
+| (not committed yet) | Shared rate limits through Redis, optional (9.2) |
 | `a5b7ac2`, `c65cf9d`, `5b2d5c9` | `server.md` deployment records for `a82a158`, `d9f2edc`, `62ec3aa` |
 | (this commit) | `server.md` deployment record for `dc386f9` |
 
@@ -573,7 +577,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 - ~~6.4 error monitoring~~: done 2026-10-31 (own logs with request ids; optional Sentry via `SENTRY_DSN`)
 - ~~6.5 deployment~~: done 2026-10-31 (runbook [`docs/DEPLOY.md`](DEPLOY.md) followed end to end; live at https://access.futurenestfund.org; record in [`server.md`](../server.md))
 - ~~6.6 virus scanning of uploads~~: code done 2026-11-01 (ClamAV through `CLAMAV_SOCKET`, fail closed, tested with the EICAR string against a stand-in). **Needs you:** install ClamAV on the server (DEPLOY step 11) once there's memory for it (~1–1.2 GB; the server has 1.8 GB for four apps).
-- 6.7 a Redis-backed rate limiter, only if there's more than one API server
+- ~~6.7 a Redis-backed rate limiter~~: became 9.2, built 2026-11-05
 
 **Phase 7 (UI overhaul)**, full review and plan in `work.md` §13:
 - ~~7.1 email settings and health checks in Admin Settings~~: done 2026-10-31 (since 2026-11-01 the API creates its own encryption key, so keys can be saved there with no server change)
@@ -584,7 +588,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 
 **Phase 9 (remaining backlog)**, plan in `work.md` §15:
 - ~~9.1 admin queue for card activation requests~~: done 2026-11-04 (`4300a48`), deployed 2026-11-05
-- 9.2 shared rate limits (Redis, was 6.7): next to build; only matters with more than one API server, so it stays off on the VPS
+- ~~9.2 shared rate limits (Redis, was 6.7)~~: built and tested 2026-11-05 (`work.md` §18), not deployed. Only matters with more than one API server, so it stays off on the VPS (DEPLOY step 12 when needed)
 - ~~9.3 fees, card types and card purchases~~: built and tested 2026-11-05 (plan and log in `work.md` §17), `711ec58`, deployed 2026-11-05. Provisional choices still to confirm are in `work.md` §17h
 - 9.4 tier rules: **waits for your answer** to §15f question 4 (which rules, and thresholds for automatic tier changes)
 
@@ -595,4 +599,4 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 - The API can't sign anyone in by itself if Supabase is down; requests answer 503 until it's back.
 - Grants, balances and cards are sample data; nothing moves real money.
 - A deposit is still a declaration checked by an admin against the proof: no payment processor is connected.
-- Uploads live on one server's disk (backed up nightly on that same server) and are virus-scanned only once ClamAV is installed (6.6); rate limits are in memory, fine for one server (6.7).
+- Uploads live on one server's disk (backed up nightly on that same server) and are virus-scanned only once ClamAV is installed (6.6); rate limits are in memory, fine for one server (shared through Redis when configured, 9.2).

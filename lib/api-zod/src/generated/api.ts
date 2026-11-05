@@ -48,7 +48,13 @@ export const GetMonitoringStatusResponse = zod.object({
   "failOpen": zod.boolean().describe('CLAMAV_FAIL_OPEN=1: uploads are accepted unscanned while the scanner is down'),
   "version": zod.string().nullable().describe('ClamAV version / signature version / signature date'),
   "error": zod.string().nullable()
-}).describe('Upload virus scanning through a ClamAV daemon (CLAMAV_SOCKET or CLAMAV_HOST)')
+}).describe('Upload virus scanning through a ClamAV daemon (CLAMAV_SOCKET or CLAMAV_HOST)'),
+  "rateLimits": zod.object({
+  "store": zod.enum(['memory', 'redis']).describe('memory = counted by each API server on its own; redis = shared through RATE_LIMIT_REDIS_URL'),
+  "ok": zod.boolean().describe('redis: Redis answered just now. memory: false only when RATE_LIMIT_REDIS_URL is set but unusable'),
+  "address": zod.string().nullable().describe('Redis address without the password'),
+  "error": zod.string().nullable()
+}).describe('Where the rate-limit counters live (Phase 9.2)')
 })
 
 

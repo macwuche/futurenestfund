@@ -225,6 +225,29 @@ While the scanner is down, uploads answer "try again in a few minutes" (503) and
 
 ---
 
+### Step 12. Shared rate limits with Redis (only with a second API server)
+
+Not needed today. With one API server the limits are counted in its memory, which is exact. A second API server (or PM2 cluster mode) would count separately, so each limit would double; Redis gives them one shared count (Phase 9.2). Redis uses a few MB here.
+
+```bash
+apt install -y redis-server
+grep -E '^(bind|port|protected-mode)' /etc/redis/redis.conf
+openssl rand -hex 24
+nano /etc/redis/redis.conf
+systemctl restart redis-server
+nano /etc/futurenestfund/api.env
+fnf-pm2 restart futurenestfund-api --update-env
+```
+- Keep Redis on `bind 127.0.0.1 -::1` (the default) so only this server reaches it, and set `requirepass <the random value>` in `redis.conf`.
+- In `api.env`: `RATE_LIMIT_REDIS_URL=redis://:<password>@127.0.0.1:6379` (add `/1` at the end to use database 1). Optional: `RATE_LIMIT_REDIS_PREFIX` (default `fnf:rl:`) and `RATE_LIMIT_REDIS_TIMEOUT_MS` (default 250).
+- With API servers on several machines, Redis must be reachable from all of them: use a private network or `rediss://` (TLS), never an open port.
+
+Check: **Admin → Settings → Monitoring → Rate limits** says **Shared (Redis)** with the address (never the password).
+
+If Redis stops, nothing is refused because of it: each API server counts in its own memory, Settings shows **Redis not answering**, and the log has one warning a minute. The API reconnects by itself (within 10 s) once Redis is back.
+
+---
+
 ## Everyday operations
 
 | Task | Command |

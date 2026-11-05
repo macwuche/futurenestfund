@@ -1898,7 +1898,17 @@ components:
         environment: { type: string }
         release: { type: [string, "null"] }
         virusScan: { $ref: "#/components/schemas/VirusScanStatus" }
-      required: [sentry, sentryHost, environment, release, virusScan]
+        rateLimits: { $ref: "#/components/schemas/RateLimitStatus" }
+      required: [sentry, sentryHost, environment, release, virusScan, rateLimits]
+    RateLimitStatus:
+      type: object
+      description: Where the rate-limit counters live (Phase 9.2)
+      properties:
+        store: { type: string, enum: [memory, redis], description: "memory = counted by each API server on its own; redis = shared through RATE_LIMIT_REDIS_URL" }
+        ok: { type: boolean, description: "redis: Redis answered just now. memory: false only when RATE_LIMIT_REDIS_URL is set but unusable" }
+        address: { type: [string, "null"], description: "Redis address without the password" }
+        error: { type: [string, "null"] }
+      required: [store, ok, address, error]
     VirusScanStatus:
       type: object
       description: Upload virus scanning through a ClamAV daemon (CLAMAV_SOCKET or CLAMAV_HOST)

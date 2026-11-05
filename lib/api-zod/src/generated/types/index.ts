@@ -187,6 +187,8 @@ export * from './paymentMethodProofMode';
 export * from './paymentMethodUpdate';
 export * from './paymentMethodUpdateAmountMode';
 export * from './paymentMethodUpdateProofMode';
+export * from './rateLimitStatus';
+export * from './rateLimitStatusStore';
 export * from './reasonInput';
 export * from './requestDetail';
 export * from './requestMethod';

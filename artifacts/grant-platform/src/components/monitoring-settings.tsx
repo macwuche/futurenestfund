@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGetMonitoringStatus, useTriggerMonitoringTestError } from '@workspace/api-client-react';
-import { Activity, Loader2, ShieldCheck } from 'lucide-react';
+import { Activity, Gauge, Loader2, ShieldCheck } from 'lucide-react';
 import { StatusBadge, cx } from '@/components/bits';
 import { card, dark, SectionTitle } from '@/components/admin-bits';
 import { reportClientError } from '@/lib/monitoring';
@@ -70,6 +70,28 @@ export function VirusScanSettings() {
           : v.ok ? <>Every upload is scanned by ClamAV before it's saved; a flagged file is refused and the attempt is logged. <span className="text-slate-500">{v.version}</span></>
           : v.failOpen ? <>The scanner isn't answering, and <code className="rounded bg-slate-100 px-1">CLAMAV_FAIL_OPEN=1</code> is set, so uploads are being accepted <b>unscanned</b>. {v.error}</>
           : <>The scanner isn't answering, so uploads are refused until it's back. {v.error}</>}
+      </p>
+    </section>
+  );
+}
+
+/** Admin settings: where the rate-limit counters live (Phase 9.2): this server's memory, or shared through Redis. */
+export function RateLimitSettings() {
+  const status = useGetMonitoringStatus();
+  const r = status.data?.rateLimits;
+  const state = !r ? null : r.ok ? 'Active' : 'Degraded';
+  const label = !r ? '' : r.store === 'memory' ? (r.ok ? 'This server' : 'Setting not usable') : r.ok ? 'Shared (Redis)' : 'Redis not answering';
+  return (
+    <section className={cx(card, 'p-5')} data-testid="card-rate-limits">
+      <SectionTitle action={state && <StatusBadge status={state} label={label} testid="status-rate-limits" />}>
+        <span className="inline-flex items-center gap-2"><Gauge className="h-4 w-4" />Rate limits</span>
+      </SectionTitle>
+      <p className="text-sm text-slate-600" data-testid="text-rate-limits">
+        {!r ? 'Checking…'
+          : r.store === 'memory' && r.ok ? <>Requests are counted in this API server's memory (per address, and per account for changes and uploads). That's right for one server. With several, set <code className="rounded bg-slate-100 px-1">RATE_LIMIT_REDIS_URL</code> so they share one count.</>
+          : r.store === 'memory' ? <><code className="rounded bg-slate-100 px-1">RATE_LIMIT_REDIS_URL</code> is set but can't be used, so requests are counted in this server's memory. {r.error}</>
+          : r.ok ? <>Every API server counts requests in Redis at <span className="font-medium">{r.address}</span>, so the limits hold across all of them.</>
+          : <>Redis at <span className="font-medium">{r.address}</span> isn't answering, so each server counts in its own memory until it's back. Nothing is refused because of this. {r.error}</>}
       </p>
     </section>
   );
