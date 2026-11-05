@@ -161,7 +161,7 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, Payment Ga
 | Path | What |
 |---|---|
 | `artifacts/grant-platform/` | Web app. `src/App.tsx` (routes + `AuthGate`), `src/lib/auth.tsx` (Supabase session ↔ API), `src/pages/auth.tsx` (sign-in / sign-up / forgot / reset / `/auth/confirm`), `src/pages/applicant*.tsx`, `src/pages/admin*.tsx`, `src/components/shell.tsx` (layouts), `src/components/security.tsx` (Sign-in & security), `src/components/card-self-service.tsx` (applicant card controls), `src/lib/monitoring.ts` (browser crash reports) |
-| `artifacts/api-server/` | API. `src/lib/auth.ts` (authentication middleware), `tokens.ts` (token verification), `rateLimit.ts`, `email.ts` / `emailTemplates.ts` / `sendEmailHook.ts` / `notificationMailer.ts`, `adminOps.ts`, `applicantRecords.ts`, `demoWorkspace.ts`, `cards.ts`, `grantCatalog.ts` (matchmaking rules), `monitoring.ts` (scrubbing + Sentry), `uploads.ts` / `kyc.ts` / `avatars.ts`, `demoSeed.ts` |
+| `artifacts/api-server/` | API. `src/lib/auth.ts` (authentication middleware), `tokens.ts` (token verification), `rateLimit.ts`, `email.ts` / `emailTemplates.ts` / `sendEmailHook.ts` / `notificationMailer.ts`, `adminOps.ts`, `applicantRecords.ts`, `demoWorkspace.ts`, `cards.ts`, `grantPlans.ts` / `grantPlanRules.ts` / `planApplications.ts` / `industries.ts` (grant plans, applying, industries), `monitoring.ts` (scrubbing + Sentry), `uploads.ts` / `kyc.ts` / `avatars.ts`, `demoSeed.ts` |
 | `lib/db/` | Drizzle schema (`src/schema`), connection choice + pinned CA (`src/connection.ts`, `src/supabaseCa.ts`), **migrations** (`migrations/`, `supabase/migrations/`) |
 | `lib/api-spec/`, `lib/api-zod/`, `lib/api-client-react/` | OpenAPI contract and generated code (`pnpm --filter @workspace/api-spec run codegen`) |
 | `scripts/` | `db:migrate`, `db:app-role`, `seed:admin` |
@@ -563,7 +563,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | `3f7ef8a` | Shared rate limits through Redis, optional (9.2) |
 | `a5b7ac2`, `c65cf9d`, `5b2d5c9`, `160646a` | `server.md` deployment records for `a82a158`, `d9f2edc`, `62ec3aa`, `dc386f9` |
 | `5cf0d8e` | `server.md` deployment record for `1b2a4c0` |
-| (this commit) | `server.md` deployment record for `f39c238` |
+| `bbc026b` | `server.md` deployment record for `f39c238` |
 | `5766d1f` | `server.md` deployment record for `a1072f6` |
 | `f7436f7` | Dashboard cards: Account balance, Grant balance, Successful deposit; eligible amount removed; "deposit balance" renamed "account balance" (8.2) |
 | `010d4b9` | Grant plans, industries and application fees; matchmaking and sample grants removed (Phase 11) |
