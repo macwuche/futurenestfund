@@ -2459,4 +2459,4 @@ Each approved deposit is already listed under Transactions (ledger kind `Deposit
 
 phase4-email needs Supabase keys and was not rerun in full; the email wording is covered by `emailTemplates.test.ts`.
 
-**Committed** `f7436f7`. **Still to do:** deploy (no migration).
+**Committed** `f7436f7`. **Deployed** 2026-11-05 at `1b2a4c0` (no migration).

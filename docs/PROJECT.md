@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-11-05 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1, 9.2 and 9.3 done; Phase 10 done · **live at https://access.futurenestfund.org** (`a1072f6` deployed 2026-11-05)._
+_Last updated 2026-11-05 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1, 9.2 and 9.3 done; Phase 10 done · **live at https://access.futurenestfund.org** (`1b2a4c0` deployed 2026-11-05)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -17,7 +17,7 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 4 | Real accounts on Supabase: sign-in, API auth, email through Resend, Settings security; then a hardening pass (RLS, `app_api` role, migrations, CSP, rate limits, unit tests) | Done (4.5 two-factor dropped by decision) |
 | 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
 | 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.5 done 2026-10-30/31; **6.5: deployed on the EU VPS at https://access.futurenestfund.org on 2026-10-31** ([`docs/DEPLOY.md`](DEPLOY.md), record in [`server.md`](../server.md)); **6.6 virus scanning of uploads: code done 2026-11-01**, off until ClamAV is installed on the server (DEPLOY step 11, memory decision); 6.7 shared rate limits (only with several servers) |
-| 8 | User dashboard: balance cards | 8.1 done 2026-11-02, deployed at `62ec3aa` (`work.md` §14); **8.2 built and tested 2026-11-05** (`work.md` §19): Account balance / Grant balance / Successful deposit, eligible amount removed, "deposit balance" renamed "account balance" everywhere users see it; not deployed |
+| 8 | User dashboard: balance cards | 8.1 done 2026-11-02, deployed at `62ec3aa` (`work.md` §14); **8.2 built and tested 2026-11-05** (`work.md` §19): Account balance / Grant balance / Successful deposit, eligible amount removed, "deposit balance" renamed "account balance" everywhere users see it; deployed at `1b2a4c0` |
 | 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), fees and card sales (9.3), tier rules (9.4) | **9.1 done 2026-11-04** (`4300a48`); **9.3 built and tested 2026-11-05** (`711ec58`, `work.md` §17, migration 0010); both deployed 2026-11-05 at `dc386f9`; **9.2 built and tested 2026-11-05** (`3f7ef8a`, `work.md` §18, deployed at `a1072f6`; off on the VPS unless Redis is set up); 9.4 waits for decisions |
 | 10 | Payment gateway: admin-made deposit and withdrawal methods (logo, amount rule, custom fields, payment proof); withdrawals from the grant and/or deposit balance; optional approval note | Built and tested 2026-11-04 (`work.md` §16), committed `e183fb3`; deployed 2026-11-05 at `dc386f9` (migration 0009 + Supabase 0004) |
 | 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin layout, admin tables on phones, applicant fixes (review scored the UI 67/100) | Done: 7.1 on 2026-10-31, 7.2–7.7 on 2026-11-01 ([`work.md`](../work.md) §13 and the log after it) |
@@ -553,6 +553,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | `711ec58` | Fees on payment methods, card types sold for price + fee, card top-ups from the deposit balance (9.3) |
 | `3f7ef8a` | Shared rate limits through Redis, optional (9.2) |
 | `a5b7ac2`, `c65cf9d`, `5b2d5c9`, `160646a` | `server.md` deployment records for `a82a158`, `d9f2edc`, `62ec3aa`, `dc386f9` |
+| (this commit) | `server.md` deployment record for `1b2a4c0` |
 | `5766d1f` | `server.md` deployment record for `a1072f6` |
 | `f7436f7` | Dashboard cards: Account balance, Grant balance, Successful deposit; eligible amount removed; "deposit balance" renamed "account balance" (8.2) |
 
@@ -587,7 +588,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 
 **Phase 8 (dashboard balances)**, plan in `work.md` §14:
 - ~~8.1 balance cards, eligible amount per tier and per user~~: done 2026-11-02, deployed at `62ec3aa`.
-- ~~8.2 balance cards rework~~: built and tested 2026-11-05 (`work.md` §19), not deployed. No migration. "Deposit balance" is called "Account balance" everywhere users see it (the API and database keep the key `deposit`)
+- ~~8.2 balance cards rework~~: built and tested 2026-11-05 (`work.md` §19), deployed at `1b2a4c0`. No migration. "Deposit balance" is called "Account balance" everywhere users see it (the API and database keep the key `deposit`)
 
 **Phase 9 (remaining backlog)**, plan in `work.md` §15:
 - ~~9.1 admin queue for card activation requests~~: done 2026-11-04 (`4300a48`), deployed 2026-11-05
