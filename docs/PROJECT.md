@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-11-06 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1, 9.2 and 9.3 done; Phase 10 done; Phase 11 (grant plans, industries, application fees) done (`010d4b9`); 9.4 tier rules built and tested 2026-11-06 (not deployed yet) · **live at https://access.futurenestfund.org** (`f39c238` deployed 2026-11-05)._
+_Last updated 2026-11-06 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1, 9.2 and 9.3 done; Phase 10 done; Phase 11 (grant plans, industries, application fees) done (`010d4b9`); 9.4 tier rules done (`924fffb`) · **live at https://access.futurenestfund.org** (`2ad3f00` deployed 2026-11-06)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -18,7 +18,7 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
 | 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.5 done 2026-10-30/31; **6.5: deployed on the EU VPS at https://access.futurenestfund.org on 2026-10-31** ([`docs/DEPLOY.md`](DEPLOY.md), record in [`server.md`](../server.md)); **6.6 virus scanning of uploads: code done 2026-11-01**, off until ClamAV is installed on the server (DEPLOY step 11, memory decision); 6.7 shared rate limits (only with several servers) |
 | 8 | User dashboard: balance cards | 8.1 done 2026-11-02, deployed at `62ec3aa` (`work.md` §14); **8.2 built and tested 2026-11-05** (`work.md` §19): Account balance / Grant balance / Successful deposit, eligible amount removed, "deposit balance" renamed "account balance" everywhere users see it; deployed at `1b2a4c0` |
-| 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), fees and card sales (9.3), tier rules (9.4) | **9.1 done 2026-11-04** (`4300a48`); **9.3 built and tested 2026-11-05** (`711ec58`, `work.md` §17, migration 0010); both deployed 2026-11-05 at `dc386f9`; **9.2 built and tested 2026-11-05** (`3f7ef8a`, `work.md` §18, deployed at `a1072f6`; off on the VPS unless Redis is set up); **9.4 tier rules built and tested 2026-11-06** (`work.md` §22, migration 0012 + Supabase 0006; not deployed yet) |
+| 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), fees and card sales (9.3), tier rules (9.4) | **9.1 done 2026-11-04** (`4300a48`); **9.3 built and tested 2026-11-05** (`711ec58`, `work.md` §17, migration 0010); both deployed 2026-11-05 at `dc386f9`; **9.2 built and tested 2026-11-05** (`3f7ef8a`, `work.md` §18, deployed at `a1072f6`; off on the VPS unless Redis is set up); **9.4 tier rules built and tested 2026-11-06** (`work.md` §22, `924fffb`); **deployed 2026-11-06 at `2ad3f00`** (migration 0012 + Supabase 0006) |
 | 10 | Payment gateway: admin-made deposit and withdrawal methods (logo, amount rule, custom fields, payment proof); withdrawals from the grant and/or deposit balance; optional approval note | Built and tested 2026-11-04 (`work.md` §16), committed `e183fb3`; deployed 2026-11-05 at `dc386f9` (migration 0009 + Supabase 0004) |
 | 11 | Grant plans: admin-made plans (industry, award, application fee, logo, own application form with file uploads); industries (admin-managed, chosen at sign-up, drive recommendations); the application fee is charged on approval and may take the account balance below $0; matchmaking, the sample grants and the free-form application removed | **Built and tested 2026-11-05** (`work.md` §20, migration 0011 + Supabase 0005); committed `010d4b9`; deployed 2026-11-05 at `f39c238` |
 | 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin layout, admin tables on phones, applicant fixes (review scored the UI 67/100) | Done: 7.1 on 2026-10-31, 7.2–7.7 on 2026-11-01 ([`work.md`](../work.md) §13 and the log after it) |
@@ -583,7 +583,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 
 ## 15. Open items and next steps
 
-**Live:** `f39c238` (deployed 2026-11-05). Today's deploys: `dc386f9` (9.1, Phase 10, 9.3; migrations 0009, 0010, Supabase 0004), `a1072f6` (9.2), `1b2a4c0` (8.2), `f39c238` (Phase 11; migration 0011, Supabase 0005). Records in `server.md` §10.
+**Live:** `2ad3f00` (9.4 tier rules; deployed 2026-11-06, migration 0012, Supabase 0006). Before that, on 2026-11-05: `dc386f9` (9.1, Phase 10, 9.3; migrations 0009, 0010, Supabase 0004), `a1072f6` (9.2), `1b2a4c0` (8.2), `f39c238` (Phase 11; migration 0011, Supabase 0005). Records in `server.md` §10.
 
 **Needs you now, in the admin area** (nothing below works for applicants until it's set up):
 1. **Grant Plans:** create at least one plan (until then applicants see "No grants are open right now").
@@ -593,7 +593,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 
 **Waiting for your answers:** the provisional 9.3 choices in `work.md` §17h.
 
-**9.4 tier rules:** built and tested 2026-11-06, committed, **not deployed yet**. `deploy.sh` applies migration 0012 and Supabase 0006. Then, in the admin area: Settings → Tiers (limits, cards per tier, the Tier 2 and Tier 3 upgrade forms; until a form is saved nobody can ask to move up). The server asks for a restart (`server.md` §7).
+**9.4 tier rules:** deployed 2026-11-06 at `2ad3f00` (0012 and Supabase 0006 applied). **Needs you** in the admin area: Settings → Tiers (limits, cards per tier, the Tier 2 and Tier 3 upgrade forms; until a form is saved nobody can ask to move up). The server asks for a restart (`server.md` §7).
 
 **Needs you** (unchanged since `a82a158`): the open §12 items: rotate the secrets pasted in chat, email through Resend (step 10 in `docs/DEPLOY.md`), minimum password length 8, off-server backup copies; and the ClamAV memory decision (step 11). Shared-server housekeeping (firewall, fail2ban, 29 package updates) is listed in `server.md` §7.
 
@@ -626,7 +626,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 - ~~9.1 admin queue for card activation requests~~: done 2026-11-04 (`4300a48`), deployed 2026-11-05
 - ~~9.2 shared rate limits (Redis, was 6.7)~~: built and tested 2026-11-05 (`work.md` §18), deployed at `a1072f6`. Only matters with more than one API server, so it stays off on the VPS (DEPLOY step 12 when needed)
 - ~~9.3 fees, card types and card purchases~~: built and tested 2026-11-05 (plan and log in `work.md` §17), `711ec58`, deployed 2026-11-05. Provisional choices still to confirm are in `work.md` §17h
-- ~~9.4 tier rules~~: built and tested 2026-11-06 (plan, answers and log in `work.md` §22), not deployed yet. Not done: per-tier fees (not asked for); browser push notifications (decided against: on-screen message + bell + email)
+- ~~9.4 tier rules~~: built and tested 2026-11-06 (plan, answers and log in `work.md` §22), deployed at `2ad3f00`. Not done: per-tier fees (not asked for); browser push notifications (decided against: on-screen message + bell + email)
 
 **Phase 11 (grant plans)**, plan and log in `work.md` §20:
 - ~~11.1 industries · 11.2 grant plans (admin) · 11.3 applying · 11.4 approval and the fee · 11.5 removing matchmaking and the sample grants~~: built and tested 2026-11-05, committed `010d4b9`, deployed at `f39c238` (0011 and Supabase 0005 applied). **Needs you:** create grant plans in Admin → Grant Plans: until then applicants see "No grants are open right now". Existing users are asked for their industry by a setup card on their dashboard.

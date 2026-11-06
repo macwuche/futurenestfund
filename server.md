@@ -113,7 +113,7 @@ Step 6.5 counts as **done** when steps 1–9 have been followed once end to end.
 
 ## 6b. After deploying (in the admin area)
 
-The app is live at `f39c238` (2026-11-05). These need you in the admin area, or applicants can't use the matching feature:
+The app is live at `2ad3f00` (2026-11-06, 9.4 tier rules). These need you in the admin area, or applicants can't use the matching feature:
 
 | What | Where | Until it's done |
 |---|---|---|
@@ -121,9 +121,9 @@ The app is live at `f39c238` (2026-11-05). These need you in the admin area, or 
 | Create and enable a Deposit and a Withdrawal method | Admin → Payment Gateway | No deposit or withdrawal requests |
 | Switch card types on and set prices | Admin → Settings → Cards | "No cards are on sale right now" |
 | Check the 40 starting industries | Admin → Settings → Industries | The starting list is used |
-| After deploying 9.4: set each tier's limits and cards, and the Tier 2 / Tier 3 upgrade forms | Admin → Settings → Tiers | Every tier has the old platform-wide withdrawal limits, no top-up limits, every card; nobody can ask to move up |
+| Set each tier's limits and cards, and the Tier 2 / Tier 3 upgrade forms | Admin → Settings → Tiers | Every tier has the old platform-wide withdrawal limits, no top-up limits, every card; nobody can ask to move up |
 
-**Next deploy (9.4 tier rules):** app migration **0012** (`demo_tier_requests`, `demo_settings.tier_rules`, copying today's platform-wide withdrawal limits into every tier) and Supabase **0006** (its `app_api_all` policy). Both only add, so rolling back to `f39c238` works; older code would just ignore the tier rules and use the old platform-wide limit columns again.
+9.4 is deployed (`2ad3f00`, migration 0012 and Supabase 0006 applied). Rolling back to `f39c238` works: the migrations only add, and older code ignores the tier rules and uses the old platform-wide limit columns again.
 
 Memory readings: 1,028 MB available at rest on 2026-11-05 (before Phase 11); RAM 70.8% right after the Phase 11 build (earlier builds 47–57%). Check `free -m` again once it settles.
 
@@ -181,3 +181,4 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 | 2026-11-05 | Deployed **a1072f6** (9.2 shared rate limits, optional; up from `dc386f9`). Builds OK; no migrations (0 applied, 11 recorded; Supabase all skipped). API reloaded, health OK. `RATE_LIMIT_REDIS_URL` not set, so limits stay in memory (one API server); Settings → Monitoring → Rate limits should read *This server*. RAM 56.6% right after the build. |
 | 2026-11-05 | Deployed **1b2a4c0** (8.2: dashboard cards Account balance / Grant balance / Successful deposit, eligible amount removed, "deposit balance" renamed "account balance"; up from `a1072f6`). Builds OK; no migrations (0 applied, 11 recorded; Supabase all skipped). API reloaded, health OK, `futurenestfund-api` online. RAM 46.8% after the build. Login banner still says system restart required (§7). The tier amounts in Settings → Money are gone, so that step is no longer needed. |
 | 2026-11-05 | Deployed **f39c238** (Phase 11: grant plans, industries, application fees; matchmaking and sample grants removed; up from `1b2a4c0`). Builds OK; app migrations: 1 applied (**0011** grant plans: `demo_industries` with 40 industries, `demo_grant_plans`, profile industry, application plan/answers/fee), 12 recorded; Supabase **0005_grant_plans** applied, 0001–0004 skipped. API reloaded, health OK. RAM 70.8% right after the build (higher than the 47–57% of earlier builds; check `free -m` once it settles). Next: create grant plans in Admin → Grant Plans (until then applicants see "No grants are open right now"). |
+| 2026-11-06 | Deployed **2ad3f00** (9.4 tier rules: withdrawal and top-up limits and cards per tier, upgrade forms, Tier Upgrades queue; up from `f39c238`). Builds OK; app migrations: 1 applied (**0012** tier rules: `demo_tier_requests`, `demo_settings.tier_rules` with the platform-wide withdrawal limits copied into every tier), 13 recorded; Supabase **0006_tier_requests** applied, 0001–0005 skipped. API reloaded, health OK, `futurenestfund-api` online. RAM 59.5% right after the build. Next: Admin → Settings → Tiers (limits, cards, Tier 2 / Tier 3 upgrade forms). |

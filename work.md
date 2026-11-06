@@ -2673,4 +2673,4 @@ One commit when 9.4 is green. `deploy.sh` applies 0012 and Supabase 0006.
 - unchanged and passing: phase3-api 24, phase5-cards 9, -users 7, -audit 9, -withdrawals 11, -debits 8 (with mock Resend), -cards-ui 5 + 5, -users-ui 6 + 6, phase6-cards 7, -cards-ui 6 + 6, phase8-balances 8, phase9-cards 9, -cards-ui 6 + 6, phase93-fees 8, -ui 8 + 8, phase10-ui 11 + 11, phase11-plans 17, -ui 9 + 9, smoke 22 + 22
 - not run here: phase4-* (need Supabase keys)
 
-**Committed** `924fffb`. **Deploy:** `deploy.sh` applies 0012 and Supabase 0006. Then Admin → Settings → Tiers: set the limits, cards and the Tier 2 / Tier 3 forms.
+**Committed** `924fffb`. **Deployed** 2026-11-06 at `2ad3f00` (0012 and Supabase 0006 applied). **Still to do:** Admin → Settings → Tiers: set the limits, cards and the Tier 2 / Tier 3 forms.
