@@ -2748,3 +2748,5 @@ One commit when green; `deploy.sh` applies 0014. **Parked 2026-11-06** while bra
 **Tests (2026-11-06, test API on :8099 via the proxy):**
 - typecheck clean; `pnpm test` 140/140 (+1 skipped without Redis): new `brandColors.test.ts` (5) and a branded email test
 - new `phase-branding.mjs`: API 4/4 (defaults, save + refusals + audit, logo upload served publicly, logo from a link replacing the old file, remove); browser 7 + 7 (live preview on the admin's screen, saving, **another open user screen following in under 16 s**, unsaved changes discarded on leaving, reload remembers, logo in the menu and tab)
+
+**Committed** `1c4b760`. **Deployed** 2026-11-06 at `1c4b760` (0013 applied). **Still to do:** Admin → Settings → Branding (name, colour, logo).
