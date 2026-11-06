@@ -577,7 +577,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | `5766d1f` | `server.md` deployment record for `a1072f6` |
 | `f7436f7` | Dashboard cards: Account balance, Grant balance, Successful deposit; eligible amount removed; "deposit balance" renamed "account balance" (8.2) |
 | `010d4b9` | Grant plans, industries and application fees; matchmaking and sample grants removed (Phase 11) |
-| (this commit) | Tier rules: withdrawal and top-up limits and cards per tier, upgrade forms and the Tier Upgrades queue (9.4) |
+| `924fffb` | Tier rules: withdrawal and top-up limits and cards per tier, upgrade forms and the Tier Upgrades queue (9.4) |
 
 ---
 
