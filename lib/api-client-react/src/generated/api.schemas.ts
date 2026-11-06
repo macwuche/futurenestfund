@@ -61,10 +61,255 @@ export interface Session {
   expiresAt: string | null;
 }
 
+export interface TierLimits {
+  /**
+     * USD; null = no limit
+     * @nullable
+     */
+  maxPerRequest: number | null;
+  /**
+     * USD over any 24 hours; null = no limit
+     * @nullable
+     */
+  dailyTotal: number | null;
+}
+
+export type CardTypeKey = typeof CardTypeKey[keyof typeof CardTypeKey];
+
+
+export const CardTypeKey = {
+  'visa-debit': 'visa-debit',
+  'visa-credit': 'visa-credit',
+  'mastercard-debit': 'mastercard-debit',
+  'mastercard-credit': 'mastercard-credit',
+  'amex-platinum': 'amex-platinum',
+} as const;
+
+export interface TierCardRule {
+  key: CardTypeKey;
+  name: string;
+  virtual: boolean;
+  physical: boolean;
+}
+
+export interface TierRule {
+  /**
+     * @minimum 1
+     * @maximum 3
+     */
+  tier: number;
+  withdrawal: TierLimits;
+  topUp: TierLimits;
+  cards: TierCardRule[];
+}
+
+export type PlanFieldType = typeof PlanFieldType[keyof typeof PlanFieldType];
+
+
+export const PlanFieldType = {
+  text: 'text',
+  textarea: 'textarea',
+  number: 'number',
+  email: 'email',
+  phone: 'phone',
+  date: 'date',
+  select: 'select',
+  file: 'file',
+} as const;
+
+/**
+ * A field on a grant plan's application form; like PaymentField, plus the file type
+ */
+export interface PlanField {
+  /** Kept across edits; new fields get one from the server */
+  id?: string;
+  /** @maxLength 60 */
+  label: string;
+  type: PlanFieldType;
+  required: boolean;
+  /** @maxLength 80 */
+  placeholder?: string;
+  /** @maxLength 200 */
+  help?: string;
+  options?: string[];
+}
+
+export interface TierUpgradeForm {
+  /** @maxLength 2000 */
+  intro: string;
+  /** @maxItems 30 */
+  fields: PlanField[];
+}
+
+export type AdminTierSetting = TierRule & ({
+  /** The form to move up to this tier; null = upgrades to it are off (always null for Tier 1) */
+  upgradeForm: TierUpgradeForm | null;
+});
+
+export interface AdminTierSettings {
+  tiers: AdminTierSetting[];
+  /** Setup problems, e.g. a tier that may buy a physical card but no virtual card */
+  warnings: string[];
+}
+
+export type TierSettingsUpdateTiersItemCardsItem = {
+  key: CardTypeKey;
+  virtual: boolean;
+  physical: boolean;
+};
+
+export type TierSettingsUpdateTiersItem = {
+  /**
+     * @minimum 1
+     * @maximum 3
+     */
+  tier: number;
+  withdrawal: TierLimits;
+  topUp: TierLimits;
+  /** @maxItems 10 */
+  cards: TierSettingsUpdateTiersItemCardsItem[];
+  upgradeForm?: TierUpgradeForm | null;
+};
+
+export interface TierSettingsUpdate {
+  /**
+     * @minItems 1
+     * @maxItems 3
+     */
+  tiers: TierSettingsUpdateTiersItem[];
+}
+
+export type TierRequestStatus = typeof TierRequestStatus[keyof typeof TierRequestStatus];
+
+
+export const TierRequestStatus = {
+  Pending: 'Pending',
+  Approved: 'Approved',
+  Declined: 'Declined',
+} as const;
+
+export interface StoredDocument {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+  uploadedAt: string;
+}
+
+export interface ApplicationAnswer {
+  fieldId: string;
+  label: string;
+  type: string;
+  /** The answer; for a file field, the file's name */
+  value: string;
+  file?: StoredDocument;
+  required: boolean;
+  placeholder?: string;
+  help?: string;
+  options?: string[];
+}
+
+export interface TierRequest {
+  id: string;
+  fromTier: number;
+  toTier: number;
+  status: TierRequestStatus;
+  submittedAt: string;
+  decidedAt?: string;
+  /** Decline reason, or the note added on approval */
+  decisionNote?: string;
+  intro: string;
+  answers: ApplicationAnswer[];
+}
+
+/**
+ * The tier the user can ask for next, with its form; null = none open (or already on Tier 3)
+ */
+export type ApplicantTierNext = {
+  /**
+     * @minimum 2
+     * @maximum 3
+     */
+  tier: number;
+  intro: string;
+  fields: PlanField[];
+} | null;
+
+export interface ApplicantTier {
+  /**
+     * @minimum 1
+     * @maximum 3
+     */
+  tier: number;
+  /** An admin set this user's own withdrawal limits; they replace the tier's */
+  customWithdrawalLimits: boolean;
+  tiers: TierRule[];
+  /** The tier the user can ask for next, with its form; null = none open (or already on Tier 3) */
+  next: ApplicantTierNext;
+  /** The latest upgrade request, if any */
+  request: TierRequest | null;
+}
+
+export interface TierRequestForm {
+  /** JSON object of answers by field id (file fields are sent in files) */
+  answers: string;
+  /** JSON array: the field id each file in files is for, in the same order */
+  fileFields?: string;
+  files?: Blob[];
+}
+
+export type AdminTierRequestUserVerificationLevel = typeof AdminTierRequestUserVerificationLevel[keyof typeof AdminTierRequestUserVerificationLevel];
+
+
+export const AdminTierRequestUserVerificationLevel = {
+  Verified: 'Verified',
+  Pending: 'Pending',
+  Rejected: 'Rejected',
+  Unsubmitted: 'Unsubmitted',
+} as const;
+
+export type AdminTierRequestUser = {
+  id: string;
+  name: string;
+  email: string;
+  tier: number;
+  verificationLevel: AdminTierRequestUserVerificationLevel;
+  avatarUrl?: string;
+};
+
+export type AdminTierRequest = TierRequest & {
+  decidedBy?: string;
+  user: AdminTierRequestUser;
+};
+
+export type TierDecisionInputDecision = typeof TierDecisionInputDecision[keyof typeof TierDecisionInputDecision];
+
+
+export const TierDecisionInputDecision = {
+  approve: 'approve',
+  decline: 'decline',
+} as const;
+
+export interface TierDecisionInput {
+  decision: TierDecisionInputDecision;
+  /**
+     * Required (5+ characters) to decline; optional note when approving
+     * @maxLength 500
+     */
+  note?: string;
+}
+
 export interface ErrorMessage {
   error: string;
   /** Only on 500 errors: the request id in the server log (the message quotes its first 8 characters) */
   requestId?: string;
+  /**
+     * Step 9.4: refused by a tier limit; upgrading to this tier would raise it (show an Upgrade button)
+     * @minimum 2
+     * @maximum 3
+     */
+  upgradeTier?: number;
 }
 
 export type ClientErrorReportKind = typeof ClientErrorReportKind[keyof typeof ClientErrorReportKind];
@@ -481,17 +726,6 @@ export const UserCardNetwork = {
   Amex: 'Amex',
 } as const;
 
-export type CardTypeKey = typeof CardTypeKey[keyof typeof CardTypeKey];
-
-
-export const CardTypeKey = {
-  'visa-debit': 'visa-debit',
-  'visa-credit': 'visa-credit',
-  'mastercard-debit': 'mastercard-debit',
-  'mastercard-credit': 'mastercard-credit',
-  'amex-platinum': 'amex-platinum',
-} as const;
-
 export type UserCardKind = typeof UserCardKind[keyof typeof UserCardKind];
 
 
@@ -548,7 +782,7 @@ export interface UserCard {
 }
 
 export interface EffectiveWithdrawalLimits {
-  /** Whether these are the user's own limits rather than the global ones */
+  /** Whether these are the user's own limits rather than their tier's */
   custom: boolean;
   /** @nullable */
   maxPerRequest: number | null;
@@ -792,37 +1026,6 @@ export interface HealthStatus {
   status: string;
 }
 
-export type PlanFieldType = typeof PlanFieldType[keyof typeof PlanFieldType];
-
-
-export const PlanFieldType = {
-  text: 'text',
-  textarea: 'textarea',
-  number: 'number',
-  email: 'email',
-  phone: 'phone',
-  date: 'date',
-  select: 'select',
-  file: 'file',
-} as const;
-
-/**
- * A field on a grant plan's application form; like PaymentField, plus the file type
- */
-export interface PlanField {
-  /** Kept across edits; new fields get one from the server */
-  id?: string;
-  /** @maxLength 60 */
-  label: string;
-  type: PlanFieldType;
-  required: boolean;
-  /** @maxLength 80 */
-  placeholder?: string;
-  /** @maxLength 200 */
-  help?: string;
-  options?: string[];
-}
-
 /**
  * A grant plan (Phase 11)
  */
@@ -1000,28 +1203,6 @@ export interface ApplicationPlan {
   industry: string;
   initials: string;
   logoUrl?: string;
-}
-
-export interface StoredDocument {
-  id: string;
-  name: string;
-  mimeType: string;
-  sizeBytes: number;
-  url: string;
-  uploadedAt: string;
-}
-
-export interface ApplicationAnswer {
-  fieldId: string;
-  label: string;
-  type: string;
-  /** The answer; for a file field, the file's name */
-  value: string;
-  file?: StoredDocument;
-  required: boolean;
-  placeholder?: string;
-  help?: string;
-  options?: string[];
 }
 
 export type ApplicationDetail = ApplicantApplication & {
@@ -1212,6 +1393,8 @@ export interface AdminDashboard {
   pendingWithdrawals: number;
   /** Physical cards whose holder asked for activation */
   pendingCardActivations: number;
+  /** Step 9.4: tier upgrade requests waiting for a decision */
+  pendingTierRequests: number;
   /** Fees charged (withdrawal, deposit and card fees) */
   feesCollected: AdminDashboardFeesCollected;
   totalGrantBalances: number;
@@ -1474,7 +1657,7 @@ export interface WithdrawalLimits {
 }
 
 export interface UserWithdrawalLimitsUpdate {
-  /** false = use the global limits; true = the limits below replace them for this user */
+  /** false = use the tier's limits; true = the limits below replace them for this user */
   custom: boolean;
   /** @nullable */
   maxPerRequest?: number | null;
@@ -1552,12 +1735,25 @@ export const ApplicantCardTypeNetwork = {
   Amex: 'Amex',
 } as const;
 
+/**
+ * Step 9.4: present when the user's tier can't buy this kind
+ */
+export interface CardTierLock {
+  /**
+     * The lowest higher tier that may buy it; null = no tier may
+     * @nullable
+     */
+  tierNeeded: number | null;
+}
+
 export interface ApplicantCardType {
   key: CardTypeKey;
   name: string;
   network: ApplicantCardTypeNetwork;
   virtual?: CardKindPrice;
   physical?: CardKindPrice;
+  virtualLock?: CardTierLock;
+  physicalLock?: CardTierLock;
 }
 
 export interface CardKindPriceInput {
@@ -2030,6 +2226,18 @@ export type ListAdminCardRequestsStatus = typeof ListAdminCardRequestsStatus[key
 export const ListAdminCardRequestsStatus = {
   requested: 'requested',
   awaiting: 'awaiting',
+} as const;
+
+export type ListAdminTierRequestsParams = {
+status?: ListAdminTierRequestsStatus;
+};
+
+export type ListAdminTierRequestsStatus = typeof ListAdminTierRequestsStatus[keyof typeof ListAdminTierRequestsStatus];
+
+
+export const ListAdminTierRequestsStatus = {
+  pending: 'pending',
+  decided: 'decided',
 } as const;
 
 export type SearchAdminParams = {

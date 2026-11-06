@@ -19,7 +19,7 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_FILES_PER_USER = 200;
 const MAX_INPUT_PIXELS = 50_000_000; // guards against decompression bombs
 
-export type Purpose = "avatar" | "kyc" | "proposal" | "logo" | "proof" | "application";
+export type Purpose = "avatar" | "kyc" | "proposal" | "logo" | "proof" | "application" | "tier";
 const IMAGE = ["image/jpeg", "image/png", "image/webp"] as const;
 const PDF = "application/pdf";
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -31,6 +31,8 @@ const ACCEPTS: Record<Purpose, { types: readonly string[]; label: string }> = {
   proof: { types: [...IMAGE, PDF], label: "a JPG, PNG or WebP image, or a PDF" },
   /** Phase 11: a file field on a grant plan's application form. */
   application: { types: [...IMAGE, PDF, DOCX], label: "a JPG, PNG or WebP image, a PDF or a Word (.docx) document" },
+  /** Step 9.4: a file field on a tier upgrade form. */
+  tier: { types: [...IMAGE, PDF, DOCX], label: "a JPG, PNG or WebP image, a PDF or a Word (.docx) document" },
 };
 
 await mkdir(UPLOAD_DIR, { recursive: true, mode: 0o700 });

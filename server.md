@@ -1,6 +1,6 @@
 # GrantApp deployment tracker (server.md)
 
-_Deployment only. Last updated 2026-11-05._
+_Deployment only. Last updated 2026-11-06._
 
 - **Exact commands:** [`docs/DEPLOY.md`](docs/DEPLOY.md).
 - **This file:** the record of what's decided, done, not done yet and still to do.
@@ -121,6 +121,9 @@ The app is live at `f39c238` (2026-11-05). These need you in the admin area, or 
 | Create and enable a Deposit and a Withdrawal method | Admin → Payment Gateway | No deposit or withdrawal requests |
 | Switch card types on and set prices | Admin → Settings → Cards | "No cards are on sale right now" |
 | Check the 40 starting industries | Admin → Settings → Industries | The starting list is used |
+| After deploying 9.4: set each tier's limits and cards, and the Tier 2 / Tier 3 upgrade forms | Admin → Settings → Tiers | Every tier has the old platform-wide withdrawal limits, no top-up limits, every card; nobody can ask to move up |
+
+**Next deploy (9.4 tier rules):** app migration **0012** (`demo_tier_requests`, `demo_settings.tier_rules`, copying today's platform-wide withdrawal limits into every tier) and Supabase **0006** (its `app_api_all` policy). Both only add, so rolling back to `f39c238` works; older code would just ignore the tier rules and use the old platform-wide limit columns again.
 
 Memory readings: 1,028 MB available at rest on 2026-11-05 (before Phase 11); RAM 70.8% right after the Phase 11 build (earlier builds 47–57%). Check `free -m` again once it settles.
 

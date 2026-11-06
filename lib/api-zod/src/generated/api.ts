@@ -1159,7 +1159,7 @@ export const GetApplicantAccountResponse = zod.object({
   "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the account balance; deposits: out of the amount)')
 })),
   "withdrawalLimits": zod.object({
-  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than their tier\'s'),
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
@@ -1197,9 +1197,185 @@ export const ListApplicantCardTypesResponseItem = zod.object({
 }).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
   "feeText": zod.string(),
   "total": zod.number().nullable().describe('Price + fee, what the user pays')
-}).optional()
+}).optional(),
+  "virtualLock": zod.object({
+  "tierNeeded": zod.number().int().nullable().describe('The lowest higher tier that may buy it; null = no tier may')
+}).optional().describe('Step 9.4: present when the user\'s tier can\'t buy this kind'),
+  "physicalLock": zod.object({
+  "tierNeeded": zod.number().int().nullable().describe('The lowest higher tier that may buy it; null = no tier may')
+}).optional().describe('Step 9.4: present when the user\'s tier can\'t buy this kind')
 })
 export const ListApplicantCardTypesResponse = zod.array(ListApplicantCardTypesResponseItem)
+
+
+/**
+ * @summary Step 9.4: the user's tier, what each tier allows, the next tier's upgrade form and the latest request
+ */
+export const getApplicantTierResponseTierMax = 3;
+
+export const getApplicantTierResponseTiersItemTierMax = 3;
+
+export const getApplicantTierResponseNextOneTierMin = 2;
+export const getApplicantTierResponseNextOneTierMax = 3;
+
+export const getApplicantTierResponseNextOneFieldsItemLabelMax = 60;
+
+export const getApplicantTierResponseNextOneFieldsItemPlaceholderMax = 80;
+
+export const getApplicantTierResponseNextOneFieldsItemHelpMax = 200;
+
+
+
+export const GetApplicantTierResponse = zod.object({
+  "tier": zod.number().int().min(1).max(getApplicantTierResponseTierMax),
+  "customWithdrawalLimits": zod.boolean().describe('An admin set this user\'s own withdrawal limits; they replace the tier\'s'),
+  "tiers": zod.array(zod.object({
+  "tier": zod.number().int().min(1).max(getApplicantTierResponseTiersItemTierMax),
+  "withdrawal": zod.object({
+  "maxPerRequest": zod.number().nullable().describe('USD; null = no limit'),
+  "dailyTotal": zod.number().nullable().describe('USD over any 24 hours; null = no limit')
+}),
+  "topUp": zod.object({
+  "maxPerRequest": zod.number().nullable().describe('USD; null = no limit'),
+  "dailyTotal": zod.number().nullable().describe('USD over any 24 hours; null = no limit')
+}),
+  "cards": zod.array(zod.object({
+  "key": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "name": zod.string(),
+  "virtual": zod.boolean(),
+  "physical": zod.boolean()
+}))
+})),
+  "next": zod.union([zod.object({
+  "tier": zod.number().int().min(getApplicantTierResponseNextOneTierMin).max(getApplicantTierResponseNextOneTierMax),
+  "intro": zod.string(),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(getApplicantTierResponseNextOneFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(getApplicantTierResponseNextOneFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(getApplicantTierResponseNextOneFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type'))
+}),zod.null()]).describe('The tier the user can ask for next, with its form; null = none open (or already on Tier 3)'),
+  "request": zod.union([zod.object({
+  "id": zod.string(),
+  "fromTier": zod.number().int(),
+  "toTier": zod.number().int(),
+  "status": zod.enum(['Pending', 'Approved', 'Declined']),
+  "submittedAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().optional(),
+  "decisionNote": zod.string().optional().describe('Decline reason, or the note added on approval'),
+  "intro": zod.string(),
+  "answers": zod.array(zod.object({
+  "fieldId": zod.string(),
+  "label": zod.string(),
+  "type": zod.string(),
+  "value": zod.string().describe('The answer; for a file field, the file\'s name'),
+  "file": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+}).optional(),
+  "required": zod.boolean(),
+  "placeholder": zod.string().optional(),
+  "help": zod.string().optional(),
+  "options": zod.array(zod.string()).optional()
+}))
+}),zod.null()]).describe('The latest upgrade request, if any')
+})
+
+
+/**
+ * @summary Ask to move up one tier by sending the next tier's upgrade form
+ */
+export const CreateApplicantTierRequestBody = zod.object({
+  "answers": zod.string().describe('JSON object of answers by field id (file fields are sent in files)'),
+  "fileFields": zod.string().optional().describe('JSON array: the field id each file in files is for, in the same order'),
+  "files": zod.array(zod.instanceof(Blob)).optional()
+})
+
+export const createApplicantTierRequestResponseTierMax = 3;
+
+export const createApplicantTierRequestResponseTiersItemTierMax = 3;
+
+export const createApplicantTierRequestResponseNextOneTierMin = 2;
+export const createApplicantTierRequestResponseNextOneTierMax = 3;
+
+export const createApplicantTierRequestResponseNextOneFieldsItemLabelMax = 60;
+
+export const createApplicantTierRequestResponseNextOneFieldsItemPlaceholderMax = 80;
+
+export const createApplicantTierRequestResponseNextOneFieldsItemHelpMax = 200;
+
+
+
+export const CreateApplicantTierRequestResponse = zod.object({
+  "tier": zod.number().int().min(1).max(createApplicantTierRequestResponseTierMax),
+  "customWithdrawalLimits": zod.boolean().describe('An admin set this user\'s own withdrawal limits; they replace the tier\'s'),
+  "tiers": zod.array(zod.object({
+  "tier": zod.number().int().min(1).max(createApplicantTierRequestResponseTiersItemTierMax),
+  "withdrawal": zod.object({
+  "maxPerRequest": zod.number().nullable().describe('USD; null = no limit'),
+  "dailyTotal": zod.number().nullable().describe('USD over any 24 hours; null = no limit')
+}),
+  "topUp": zod.object({
+  "maxPerRequest": zod.number().nullable().describe('USD; null = no limit'),
+  "dailyTotal": zod.number().nullable().describe('USD over any 24 hours; null = no limit')
+}),
+  "cards": zod.array(zod.object({
+  "key": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "name": zod.string(),
+  "virtual": zod.boolean(),
+  "physical": zod.boolean()
+}))
+})),
+  "next": zod.union([zod.object({
+  "tier": zod.number().int().min(createApplicantTierRequestResponseNextOneTierMin).max(createApplicantTierRequestResponseNextOneTierMax),
+  "intro": zod.string(),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(createApplicantTierRequestResponseNextOneFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(createApplicantTierRequestResponseNextOneFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(createApplicantTierRequestResponseNextOneFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type'))
+}),zod.null()]).describe('The tier the user can ask for next, with its form; null = none open (or already on Tier 3)'),
+  "request": zod.union([zod.object({
+  "id": zod.string(),
+  "fromTier": zod.number().int(),
+  "toTier": zod.number().int(),
+  "status": zod.enum(['Pending', 'Approved', 'Declined']),
+  "submittedAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().optional(),
+  "decisionNote": zod.string().optional().describe('Decline reason, or the note added on approval'),
+  "intro": zod.string(),
+  "answers": zod.array(zod.object({
+  "fieldId": zod.string(),
+  "label": zod.string(),
+  "type": zod.string(),
+  "value": zod.string().describe('The answer; for a file field, the file\'s name'),
+  "file": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+}).optional(),
+  "required": zod.boolean(),
+  "placeholder": zod.string().optional(),
+  "help": zod.string().optional(),
+  "options": zod.array(zod.string()).optional()
+}))
+}),zod.null()]).describe('The latest upgrade request, if any')
+})
 
 
 /**
@@ -1279,7 +1455,7 @@ export const BuyApplicantCardResponse = zod.object({
   "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the account balance; deposits: out of the amount)')
 })),
   "withdrawalLimits": zod.object({
-  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than their tier\'s'),
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
@@ -1372,7 +1548,7 @@ export const TopUpApplicantCardResponse = zod.object({
   "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the account balance; deposits: out of the amount)')
 })),
   "withdrawalLimits": zod.object({
-  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than their tier\'s'),
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
@@ -1460,7 +1636,7 @@ export const ChangeApplicantCardResponse = zod.object({
   "fee": zod.number().optional().describe('Deposit and withdrawal requests: the method\'s fee (withdrawals: from the account balance; deposits: out of the amount)')
 })),
   "withdrawalLimits": zod.object({
-  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than their tier\'s'),
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
@@ -2287,6 +2463,7 @@ export const GetAdminDashboardResponse = zod.object({
   "pendingDeposits": zod.number().int(),
   "pendingWithdrawals": zod.number().int(),
   "pendingCardActivations": zod.number().int().describe('Physical cards whose holder asked for activation'),
+  "pendingTierRequests": zod.number().int().describe('Step 9.4: tier upgrade requests waiting for a decision'),
   "feesCollected": zod.object({
   "thisMonth": zod.number().describe('This calendar month, UTC'),
   "allTime": zod.number()
@@ -2434,7 +2611,7 @@ export const GetAdminUserResponse = zod.object({
   "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }),
   "withdrawalLimits": zod.object({
-  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than their tier\'s'),
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
@@ -2543,7 +2720,7 @@ export const UpdateAdminUserResponse = zod.object({
   "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }),
   "withdrawalLimits": zod.object({
-  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than their tier\'s'),
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
@@ -2692,7 +2869,7 @@ export const UploadAdminUserAvatarResponse = zod.object({
   "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }),
   "withdrawalLimits": zod.object({
-  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than their tier\'s'),
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
@@ -2775,7 +2952,7 @@ export const DeleteAdminUserAvatarResponse = zod.object({
   "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }),
   "withdrawalLimits": zod.object({
-  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than their tier\'s'),
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
@@ -2973,7 +3150,7 @@ export const TopUpUserCardResponse = zod.object({
   "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }),
   "withdrawalLimits": zod.object({
-  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than their tier\'s'),
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
@@ -3063,7 +3240,7 @@ export const IssueUserCardResponse = zod.object({
   "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }),
   "withdrawalLimits": zod.object({
-  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than their tier\'s'),
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
@@ -3156,7 +3333,7 @@ export const ChangeUserCardResponse = zod.object({
   "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }),
   "withdrawalLimits": zod.object({
-  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than their tier\'s'),
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
@@ -3286,7 +3463,7 @@ export const DeclineAdminCardRequestResponse = zod.object({
   "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }),
   "withdrawalLimits": zod.object({
-  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than their tier\'s'),
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
@@ -3302,14 +3479,14 @@ export const DeclineAdminCardRequestResponse = zod.object({
 
 
 /**
- * @summary Use the global withdrawal limits for this user, or set custom ones that replace them
+ * @summary Use the tier's withdrawal limits for this user, or set custom ones that replace them
  */
 export const UpdateUserWithdrawalLimitsParams = zod.object({
   "userId": zod.coerce.string()
 })
 
 export const UpdateUserWithdrawalLimitsBody = zod.object({
-  "custom": zod.boolean().describe('false = use the global limits; true = the limits below replace them for this user'),
+  "custom": zod.boolean().describe('false = use the tier\'s limits; true = the limits below replace them for this user'),
   "maxPerRequest": zod.number().nullish(),
   "dailyTotal": zod.number().nullish()
 })
@@ -3375,7 +3552,7 @@ export const UpdateUserWithdrawalLimitsResponse = zod.object({
   "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }),
   "withdrawalLimits": zod.object({
-  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than their tier\'s'),
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')
@@ -3391,26 +3568,262 @@ export const UpdateUserWithdrawalLimitsResponse = zod.object({
 
 
 /**
- * @summary The global withdrawal limits
+ * @summary Step 9.4: each tier's withdrawal and top-up limits, the cards it may buy and its upgrade form, with setup warnings
  */
-export const GetWithdrawalLimitsResponse = zod.object({
-  "maxPerRequest": zod.number().nullable().describe('Largest single withdrawal in USD; null = no limit'),
-  "dailyTotal": zod.number().nullable().describe('Most that can be withdrawn in any 24 hours (under review + approved); null = no limit')
+export const getAdminTierSettingsResponseTiersItemOneTierMax = 3;
+
+export const getAdminTierSettingsResponseTiersItemTwoUpgradeFormOneIntroMax = 2000;
+
+export const getAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsItemLabelMax = 60;
+
+export const getAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsItemPlaceholderMax = 80;
+
+export const getAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsItemHelpMax = 200;
+
+export const getAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsMax = 30;
+
+
+
+export const GetAdminTierSettingsResponse = zod.object({
+  "tiers": zod.array(zod.object({
+  "tier": zod.number().int().min(1).max(getAdminTierSettingsResponseTiersItemOneTierMax),
+  "withdrawal": zod.object({
+  "maxPerRequest": zod.number().nullable().describe('USD; null = no limit'),
+  "dailyTotal": zod.number().nullable().describe('USD over any 24 hours; null = no limit')
+}),
+  "topUp": zod.object({
+  "maxPerRequest": zod.number().nullable().describe('USD; null = no limit'),
+  "dailyTotal": zod.number().nullable().describe('USD over any 24 hours; null = no limit')
+}),
+  "cards": zod.array(zod.object({
+  "key": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "name": zod.string(),
+  "virtual": zod.boolean(),
+  "physical": zod.boolean()
+}))
+}).and(zod.object({
+  "upgradeForm": zod.union([zod.object({
+  "intro": zod.string().max(getAdminTierSettingsResponseTiersItemTwoUpgradeFormOneIntroMax),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(getAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(getAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(getAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type')).max(getAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsMax)
+}),zod.null()]).describe('The form to move up to this tier; null = upgrades to it are off (always null for Tier 1)')
+}))),
+  "warnings": zod.array(zod.string()).describe('Setup problems, e.g. a tier that may buy a physical card but no virtual card')
 })
 
 
 /**
- * @summary Set the global withdrawal limits
+ * @summary Save the tier settings (tiers not sent keep theirs)
  */
-export const UpdateWithdrawalLimitsBody = zod.object({
-  "maxPerRequest": zod.number().nullable().describe('Largest single withdrawal in USD; null = no limit'),
-  "dailyTotal": zod.number().nullable().describe('Most that can be withdrawn in any 24 hours (under review + approved); null = no limit')
+export const updateAdminTierSettingsBodyTiersItemTierMax = 3;
+
+export const updateAdminTierSettingsBodyTiersItemCardsMax = 10;
+
+export const updateAdminTierSettingsBodyTiersItemUpgradeFormOneIntroMax = 2000;
+
+export const updateAdminTierSettingsBodyTiersItemUpgradeFormOneFieldsItemLabelMax = 60;
+
+export const updateAdminTierSettingsBodyTiersItemUpgradeFormOneFieldsItemPlaceholderMax = 80;
+
+export const updateAdminTierSettingsBodyTiersItemUpgradeFormOneFieldsItemHelpMax = 200;
+
+export const updateAdminTierSettingsBodyTiersItemUpgradeFormOneFieldsMax = 30;
+
+export const updateAdminTierSettingsBodyTiersMax = 3;
+
+
+
+export const UpdateAdminTierSettingsBody = zod.object({
+  "tiers": zod.array(zod.object({
+  "tier": zod.number().int().min(1).max(updateAdminTierSettingsBodyTiersItemTierMax),
+  "withdrawal": zod.object({
+  "maxPerRequest": zod.number().nullable().describe('USD; null = no limit'),
+  "dailyTotal": zod.number().nullable().describe('USD over any 24 hours; null = no limit')
+}),
+  "topUp": zod.object({
+  "maxPerRequest": zod.number().nullable().describe('USD; null = no limit'),
+  "dailyTotal": zod.number().nullable().describe('USD over any 24 hours; null = no limit')
+}),
+  "cards": zod.array(zod.object({
+  "key": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "virtual": zod.boolean(),
+  "physical": zod.boolean()
+})).max(updateAdminTierSettingsBodyTiersItemCardsMax),
+  "upgradeForm": zod.union([zod.object({
+  "intro": zod.string().max(updateAdminTierSettingsBodyTiersItemUpgradeFormOneIntroMax),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(updateAdminTierSettingsBodyTiersItemUpgradeFormOneFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(updateAdminTierSettingsBodyTiersItemUpgradeFormOneFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(updateAdminTierSettingsBodyTiersItemUpgradeFormOneFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type')).max(updateAdminTierSettingsBodyTiersItemUpgradeFormOneFieldsMax)
+}),zod.null()]).optional()
+})).min(1).max(updateAdminTierSettingsBodyTiersMax)
 })
 
-export const UpdateWithdrawalLimitsResponse = zod.object({
-  "maxPerRequest": zod.number().nullable().describe('Largest single withdrawal in USD; null = no limit'),
-  "dailyTotal": zod.number().nullable().describe('Most that can be withdrawn in any 24 hours (under review + approved); null = no limit')
+export const updateAdminTierSettingsResponseTiersItemOneTierMax = 3;
+
+export const updateAdminTierSettingsResponseTiersItemTwoUpgradeFormOneIntroMax = 2000;
+
+export const updateAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsItemLabelMax = 60;
+
+export const updateAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsItemPlaceholderMax = 80;
+
+export const updateAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsItemHelpMax = 200;
+
+export const updateAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsMax = 30;
+
+
+
+export const UpdateAdminTierSettingsResponse = zod.object({
+  "tiers": zod.array(zod.object({
+  "tier": zod.number().int().min(1).max(updateAdminTierSettingsResponseTiersItemOneTierMax),
+  "withdrawal": zod.object({
+  "maxPerRequest": zod.number().nullable().describe('USD; null = no limit'),
+  "dailyTotal": zod.number().nullable().describe('USD over any 24 hours; null = no limit')
+}),
+  "topUp": zod.object({
+  "maxPerRequest": zod.number().nullable().describe('USD; null = no limit'),
+  "dailyTotal": zod.number().nullable().describe('USD over any 24 hours; null = no limit')
+}),
+  "cards": zod.array(zod.object({
+  "key": zod.enum(['visa-debit', 'visa-credit', 'mastercard-debit', 'mastercard-credit', 'amex-platinum']),
+  "name": zod.string(),
+  "virtual": zod.boolean(),
+  "physical": zod.boolean()
+}))
+}).and(zod.object({
+  "upgradeForm": zod.union([zod.object({
+  "intro": zod.string().max(updateAdminTierSettingsResponseTiersItemTwoUpgradeFormOneIntroMax),
+  "fields": zod.array(zod.object({
+  "id": zod.string().optional().describe('Kept across edits; new fields get one from the server'),
+  "label": zod.string().max(updateAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsItemLabelMax),
+  "type": zod.enum(['text', 'textarea', 'number', 'email', 'phone', 'date', 'select', 'file']),
+  "required": zod.boolean(),
+  "placeholder": zod.string().max(updateAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsItemPlaceholderMax).optional(),
+  "help": zod.string().max(updateAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsItemHelpMax).optional(),
+  "options": zod.array(zod.string()).optional()
+}).describe('A field on a grant plan\'s application form; like PaymentField, plus the file type')).max(updateAdminTierSettingsResponseTiersItemTwoUpgradeFormOneFieldsMax)
+}),zod.null()]).describe('The form to move up to this tier; null = upgrades to it are off (always null for Tier 1)')
+}))),
+  "warnings": zod.array(zod.string()).describe('Setup problems, e.g. a tier that may buy a physical card but no virtual card')
 })
+
+
+/**
+ * @summary Tier upgrade requests, pending (oldest first) or decided (latest first)
+ */
+export const listAdminTierRequestsQueryStatusDefault = `pending`;
+
+export const ListAdminTierRequestsQueryParams = zod.object({
+  "status": zod.enum(['pending', 'decided']).default(listAdminTierRequestsQueryStatusDefault)
+})
+
+export const ListAdminTierRequestsResponseItem = zod.object({
+  "id": zod.string(),
+  "fromTier": zod.number().int(),
+  "toTier": zod.number().int(),
+  "status": zod.enum(['Pending', 'Approved', 'Declined']),
+  "submittedAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().optional(),
+  "decisionNote": zod.string().optional().describe('Decline reason, or the note added on approval'),
+  "intro": zod.string(),
+  "answers": zod.array(zod.object({
+  "fieldId": zod.string(),
+  "label": zod.string(),
+  "type": zod.string(),
+  "value": zod.string().describe('The answer; for a file field, the file\'s name'),
+  "file": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+}).optional(),
+  "required": zod.boolean(),
+  "placeholder": zod.string().optional(),
+  "help": zod.string().optional(),
+  "options": zod.array(zod.string()).optional()
+}))
+}).and(zod.object({
+  "decidedBy": zod.string().optional(),
+  "user": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "tier": zod.number().int(),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "avatarUrl": zod.string().optional()
+})
+}))
+export const ListAdminTierRequestsResponse = zod.array(ListAdminTierRequestsResponseItem)
+
+
+/**
+ * @summary Approve (the user moves up a tier) or decline with a reason the user sees
+ */
+export const DecideAdminTierRequestParams = zod.object({
+  "requestId": zod.coerce.string()
+})
+
+export const decideAdminTierRequestBodyNoteMax = 500;
+
+
+
+export const DecideAdminTierRequestBody = zod.object({
+  "decision": zod.enum(['approve', 'decline']),
+  "note": zod.string().max(decideAdminTierRequestBodyNoteMax).optional().describe('Required (5+ characters) to decline; optional note when approving')
+})
+
+export const DecideAdminTierRequestResponse = zod.object({
+  "id": zod.string(),
+  "fromTier": zod.number().int(),
+  "toTier": zod.number().int(),
+  "status": zod.enum(['Pending', 'Approved', 'Declined']),
+  "submittedAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().optional(),
+  "decisionNote": zod.string().optional().describe('Decline reason, or the note added on approval'),
+  "intro": zod.string(),
+  "answers": zod.array(zod.object({
+  "fieldId": zod.string(),
+  "label": zod.string(),
+  "type": zod.string(),
+  "value": zod.string().describe('The answer; for a file field, the file\'s name'),
+  "file": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+}).optional(),
+  "required": zod.boolean(),
+  "placeholder": zod.string().optional(),
+  "help": zod.string().optional(),
+  "options": zod.array(zod.string()).optional()
+}))
+}).and(zod.object({
+  "decidedBy": zod.string().optional(),
+  "user": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "tier": zod.number().int(),
+  "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
+  "avatarUrl": zod.string().optional()
+})
+}))
 
 
 /**
@@ -4248,7 +4661,7 @@ export const UpdateUserWithdrawalSourcesResponse = zod.object({
   "inAppOverride": zod.boolean().nullish().describe('Set by an administrator: false hides in-app notifications from the user; null/true shows them')
 }),
   "withdrawalLimits": zod.object({
-  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than the global ones'),
+  "custom": zod.boolean().describe('Whether these are the user\'s own limits rather than their tier\'s'),
   "maxPerRequest": zod.number().nullable(),
   "dailyTotal": zod.number().nullable(),
   "usedLast24h": zod.number().describe('Withdrawals under review or approved in the last 24 hours')

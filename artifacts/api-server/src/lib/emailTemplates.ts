@@ -159,6 +159,40 @@ export function moneyEmail(kind: MoneyEmailKind, to: string, name: string, d: Mo
   }
 }
 
+/** Step 9.4: tier emails. `tier_upgrade_needed` goes out (at most once a day) when a tier limit stops a withdrawal or top-up. */
+export type TierEmailKind = "tier_upgrade_needed" | "tier_upgrade_approved" | "tier_upgrade_declined";
+export type TierEmailData = {
+  tier: number; nextTier: number;
+  /** upgrade_needed: what was refused and why, e.g. "a withdrawal of $800.00: Tier 1 allows up to $500.00 per request". */
+  blocked?: string;
+  /** declined: the administrator's reason. */
+  reason?: string;
+};
+export const isTierEmailKind = (k: unknown): k is TierEmailKind => k === "tier_upgrade_needed" || k === "tier_upgrade_approved" || k === "tier_upgrade_declined";
+
+export function tierEmail(kind: TierEmailKind, to: string, name: string, d: TierEmailData, url: string): OutgoingEmail {
+  const footer = { kind: "small" as const, text: "Questions? Reply to your administrator or visit the Help Centre in GrantApp. Never share your password with anyone, including our team." };
+  switch (kind) {
+    case "tier_upgrade_needed": return render(to, `Upgrade your account to Tier ${d.nextTier}`, "Upgrade your account", [
+      { kind: "p", text: greeting(name) },
+      { kind: "p", text: `We couldn't complete ${d.blocked ?? "your request"}. That's above what Tier ${d.tier} accounts can do.` },
+      { kind: "p", text: `Upgrade to Tier ${d.nextTier} to raise your limits: fill in the short verification form, and we'll review it. Your current limits stay in place until then.` },
+      { kind: "rows", rows: [["Your tier", `Tier ${d.tier}`], ["Upgrade to", `Tier ${d.nextTier}`]] },
+      { kind: "button", label: "Upgrade your account", href: url }, footer]);
+    case "tier_upgrade_approved": return render(to, `Your account is now Tier ${d.nextTier}`, `Welcome to Tier ${d.nextTier}`, [
+      { kind: "p", text: greeting(name) },
+      { kind: "p", text: `Good news: we approved your upgrade. Your account is now Tier ${d.nextTier}, and its limits and cards apply straight away.` },
+      ...(d.reason ? [{ kind: "rows" as const, rows: [["Note", d.reason]] as [string, string][] }] : []),
+      { kind: "button", label: "See what's included", href: url }, footer]);
+    case "tier_upgrade_declined": return render(to, `Your Tier ${d.nextTier} upgrade wasn't approved`, "Upgrade not approved", [
+      { kind: "p", text: greeting(name) },
+      { kind: "p", text: `We reviewed your request to move to Tier ${d.nextTier} and couldn't approve it this time. Your account stays on Tier ${d.tier}.` },
+      { kind: "rows", rows: [["Reason", d.reason || "Not given"]] },
+      { kind: "p", text: "You can fix what's mentioned and send the form again at any time." },
+      { kind: "button", label: "Send the form again", href: url }, footer]);
+  }
+}
+
 /** The "Send test email" button in Admin Settings → Email. */
 export function testEmail(to: string, from: string, sentBy: string): OutgoingEmail {
   return render(to, "GrantApp: test email", "Your email settings work", [

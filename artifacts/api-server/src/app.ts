@@ -5,6 +5,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { DemoInputError } from "./lib/demoWorkspace";
 import { RecordInputError } from "./lib/applicantRecords";
+import { TierLimitError } from "./lib/tierRules";
 import { UploadError } from "./lib/uploads";
 import { ScanUnavailableError } from "./lib/virusScan";
 import { sendEmailHook } from "./lib/sendEmailHook";
@@ -61,6 +62,10 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (err instanceof TierLimitError) {
+    res.status(400).json({ error: err.message, ...(err.upgradeTier ? { upgradeTier: err.upgradeTier } : {}) });
+    return;
+  }
   if (err instanceof DemoInputError || err instanceof RecordInputError || err instanceof UploadError) {
     res.status(400).json({ error: err.message });
     return;

@@ -4,7 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 export const demoSettingsTable = pgTable("demo_settings", {
   id: text("id").primaryKey(),
   frozen: boolean("frozen").notNull().default(false),
-  /** Global withdrawal limits in cents; null = no limit. A user's custom limits replace these. */
+  /** Before Step 9.4: the platform-wide withdrawal limits in cents. Replaced by the tier rules (migration 0012 copied them into every tier); unused. */
   withdrawalMaxCents: integer("withdrawal_max_cents"),
   withdrawalDailyCents: integer("withdrawal_daily_cents"),
   /** Eligible amount per tier in cents ("Largest open award at Tier N"); null = not set. A user's custom amount replaces it. */
@@ -13,6 +13,8 @@ export const demoSettingsTable = pgTable("demo_settings", {
   tier3EligibleCents: integer("tier3_eligible_cents"),
   /** Step 9.3: the card types users can buy, with a price and a fee per kind (see api-server lib/cardTypes.ts); null = none set up. */
   cardTypes: jsonb("card_types"),
+  /** Step 9.4: per tier, withdrawal and card top-up limits, the card types it may buy and its upgrade form (see api-server lib/tierRules.ts). */
+  tierRules: jsonb("tier_rules"),
   /** Email settings made in Admin Settings (sender, reply-to, signature, support address); they win over the env vars. */
   emailConfig: jsonb("email_config"),
   /** Email secrets (Resend API key, Send Email Hook secret), each AES-256-GCM encrypted with SETTINGS_ENCRYPTION_KEY. */

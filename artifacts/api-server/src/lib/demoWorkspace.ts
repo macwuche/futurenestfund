@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gte, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
-import { db, demoProfilesTable, demoAuditTable, demoLedgerTable, demoSettingsTable, demoRequestsTable, demoApplicationsTable, demoPaymentMethodsTable, type DemoProfile } from "@workspace/db";
+import { db, demoProfilesTable, demoAuditTable, demoLedgerTable, demoSettingsTable, demoRequestsTable, demoApplicationsTable, demoPaymentMethodsTable, demoTierRequestsTable, type DemoProfile } from "@workspace/db";
 import { notifyUser, requestEmailData, requestReference } from "./notifications";
 import { activeApplicationsFilter, applicationSummary } from "./applicantRecords";
 import { currentKycDocuments } from "./kyc";
@@ -8,7 +8,9 @@ import { findMethod, methodLogoUrl, methodRules } from "./paymentMethods";
 import { amountProblem, describeAmountRule, parseAnswers, sourceAllowed, SOURCE_LABEL, SOURCES_LABEL, toCents, type BalanceSource, type WithdrawalSources } from "./paymentRules";
 import { APPEND_ONLY_TRIGGERS } from "./demoSeed";
 import { GetAdminUserResponse } from "@workspace/api-zod";
-import { effectiveLimits, limitProblem, limitsOut, withdrawnLast24h } from "./withdrawalLimits";
+import { effectiveLimits, limitHit, limitProblem, limitsOut, withdrawnLast24h } from "./withdrawalLimits";
+import { countTierRequests, loadTierRules, promptTierUpgrade, rulesOfSettings, tierLimitError } from "./tiers";
+import { nextTier, TierLimitError, tierOf, withdrawalLimitsOf } from "./tierRules";
 import { countCardRequests } from "./cards";
 import { describeFee, feeCents } from "./fees";
 import { findIndustry } from "./industries";
@@ -19,11 +21,12 @@ export class DemoInputError extends Error {}
 /** Ledger kinds that add to the dashboard's "Successful deposit" total: approved deposits, admin top-ups and the opening balance. */
 export const SUCCESSFUL_DEPOSIT_KINDS = ["Deposit", "Top-up", "Opening balance"] as const;
 
-/** A user's effective withdrawal limits plus what they withdrew in the last 24 hours, in API shape. */
+/** A user's effective withdrawal limits (custom, or their tier's) plus what they withdrew in the last 24 hours, in API shape. */
 export async function userWithdrawalLimits(profile: DemoProfile) {
   const [settings] = await db.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
   const used = (await withdrawnLast24h([profile.id])).get(profile.id) ?? 0;
-  return { custom: profile.withdrawalLimitCustom, ...limitsOut(effectiveLimits(profile, settings)), usedLast24h: used / 100 };
+  const tierRule = rulesOfSettings(settings)[tierOf(profile.tier)];
+  return { custom: profile.withdrawalLimitCustom, ...limitsOut(effectiveLimits(profile, withdrawalLimitsOf(tierRule))), usedLast24h: used / 100 };
 }
 
 export function summary(person: DemoProfile, pendingKycDocuments = 0) {
@@ -132,6 +135,14 @@ export async function applicantDashboard(profileId: string, monthly: boolean) {
   const [deposits] = await db.select({ total: sql<number>`coalesce(sum(${demoLedgerTable.amountCents}), 0)::bigint`, n: sql<number>`count(*)::int` })
     .from(demoLedgerTable)
     .where(and(eq(demoLedgerTable.profileId, person.id), eq(demoLedgerTable.account, "deposit"), inArray(demoLedgerTable.kind, [...SUCCESSFUL_DEPOSIT_KINDS])));
+  // Step 9.4: while a higher tier is open for upgrade, a setup card leads to "Your tier".
+  const up = nextTier(await loadTierRules(), person.tier);
+  const [openTierRequest] = up ? await db.select({ id: demoTierRequestsTable.id }).from(demoTierRequestsTable)
+    .where(and(eq(demoTierRequestsTable.profileId, person.id), eq(demoTierRequestsTable.status, "Pending"))) : [];
+  const tierCard = up ? [{
+    id: "tier", title: `Upgrade to Tier ${up}`, actionLabel: openTierRequest ? "View request" : "See your tier", complete: false,
+    description: openTierRequest ? `Your Tier ${up} upgrade is being reviewed. We'll let you know as soon as it's decided.` : `You're on Tier ${person.tier}. Send a short verification form to raise your withdrawal and card limits.`,
+  }] : [];
   return {
     profile: applicantProfile(person),
     totalBudget: 50000, allocatedFunds: person.grantCents / 100, remainingFunds: 50000 - person.grantCents / 100,
@@ -139,6 +150,7 @@ export async function applicantDashboard(profileId: string, monthly: boolean) {
     setupCards: [
       { id: "industry", title: "Choose your industry", description: person.industryId ? "Done. We recommend the grants for your industry; you can change it in Settings." : "We use it to recommend the grants that fit you.", actionLabel: "Choose industry", complete: person.industryId !== null },
       { id: "apply", title: "Apply for a grant", description: "Pick a grant, fill in its form and follow your application from review to decision.", actionLabel: "Browse grants", complete: submittedAny },
+      ...tierCard,
     ],
     highlights: apps.slice(0, 5).map(applicationSummary),
     applicationCount: apps.length,
@@ -167,6 +179,7 @@ export async function adminDashboard() {
     pendingKyc: people.filter(p => p.verificationLevel === "Pending" || pendingKyc.has(p.id)).length,
     pendingDeposits: pendingOf("Deposit"), pendingWithdrawals: pendingOf("Withdrawal"),
     pendingCardActivations: await countCardRequests(),
+    pendingTierRequests: await countTierRequests(),
     feesCollected: await feesCollected(),
     totalGrantBalances: people.reduce((sum, p) => sum + p.grantCents, 0) / 100,
     totalDepositBalances: people.reduce((sum, p) => sum + p.depositCents, 0) / 100,
@@ -448,8 +461,17 @@ export async function createApplicantRequest(profileId: string, input: RequestIn
         if (fee > main) throw new DemoInputError(`The ${dollars(fee)} fee is paid from your account balance, which has ${dollars(main)} available. Add funds first.`);
       }
       // The profile row is locked above, so two quick requests can't both fit under the daily total.
-      const problem = limitProblem(effectiveLimits(profile, settings), (await withdrawnLast24h([profile.id], tx)).get(profile.id) ?? 0, cents);
-      if (problem) throw new DemoInputError(problem);
+      // The limits are the user's tier's (Step 9.4), unless an admin set custom ones for them.
+      const rules = rulesOfSettings(settings);
+      const limits = effectiveLimits(profile, withdrawalLimitsOf(rules[tierOf(profile.tier)]));
+      const used = (await withdrawnLast24h([profile.id], tx)).get(profile.id) ?? 0;
+      const problem = limitProblem(limits, used, cents);
+      if (problem) {
+        const hit = limitHit(limits, used, cents);
+        const why = profile.withdrawalLimitCustom ? "your limit" : `the Tier ${profile.tier} limit`;
+        const blocked = `a withdrawal of ${dollars(cents)} (${why} is ${hit === "max" ? `${dollars(limits.maxCents!)} per request` : `${dollars(limits.dailyCents!)} per 24 hours`})`;
+        throw tierLimitError(rules, profile.tier, problem, blocked, profile.withdrawalLimitCustom);
+      }
     }
     const [row] = await tx.insert(demoRequestsTable).values({
       profileId: profile.id, kind, amountCents: cents, note, source, methodId: method.id, methodSnapshot: snapshot, fieldValues: answers, proofFileId, feeCents: fee,
@@ -463,6 +485,15 @@ export async function createApplicantRequest(profileId: string, input: RequestIn
     return row!;
   };
 
-  const row = hasFile ? await storeUpload(profileId, "proof", file, (stored, tx) => place(tx, stored.id)) : await db.transaction(tx => place(tx, null));
-  return requestTransaction(row, await methodLogos([row.methodId], "applicant"));
+  try {
+    const row = hasFile ? await storeUpload(profileId, "proof", file, (stored, tx) => place(tx, stored.id)) : await db.transaction(tx => place(tx, null));
+    return requestTransaction(row, await methodLogos([row.methodId], "applicant"));
+  } catch (err) {
+    // Over a tier limit: the refusal rolled back, so the upgrade prompt (bell + email, once a day) is written on its own.
+    if (err instanceof TierLimitError) {
+      const [p] = await db.select({ tier: demoProfilesTable.tier }).from(demoProfilesTable).where(eq(demoProfilesTable.id, profileId));
+      await promptTierUpgrade(profileId, p?.tier ?? 1, err);
+    }
+    throw err;
+  }
 }

@@ -26,3 +26,4 @@ export * from "./demo-files";
 export * from "./demo-admins";
 export * from "./demo-payment-methods";
 export * from "./demo-grant-plans";
+export * from "./demo-tiers";

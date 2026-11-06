@@ -19,6 +19,8 @@ import { AdminAuditPage, AdminTransactionsPage, AdminDepositsPage, AdminWithdraw
 import { AdminDepositMethodsPage, AdminWithdrawalMethodsPage } from '@/pages/admin-gateway';
 import { AdminGrantPlansPage } from '@/pages/admin-plans';
 import { AdminCardRequestsPage } from '@/pages/admin-cards';
+import { AdminTierRequestsPage } from '@/pages/admin-tiers';
+import { TierPage } from '@/pages/applicant-tier';
 import {
   Redirect,
   Route,
@@ -48,6 +50,7 @@ function Router() {
         <Route path="/withdrawals" component={WithdrawalsPage} />
         <Route path="/deposits" component={DepositsPage} />
         <Route path="/settings" component={SettingsPage} />
+        <Route path="/tier" component={TierPage} />
         <Route path="/grant-search">{() => <Redirect to="/grants" replace />}</Route>
         <Route path="/funding-tracker" component={FundingTrackerPage} />
         <Route path="/reports" component={ReportsPage} />
@@ -63,6 +66,7 @@ function Router() {
         <Route path="/admin/withdrawals" component={AdminWithdrawalsPage} />
         <Route path="/admin/kyc" component={AdminKycPage} />
         <Route path="/admin/cards" component={AdminCardRequestsPage} />
+        <Route path="/admin/tiers" component={AdminTierRequestsPage} />
         <Route path="/admin/grant-plans" component={AdminGrantPlansPage} />
         <Route path="/admin/payment-gateway/deposit" component={AdminDepositMethodsPage} />
         <Route path="/admin/payment-gateway/withdrawal" component={AdminWithdrawalMethodsPage} />

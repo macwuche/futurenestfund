@@ -11,8 +11,9 @@ import {
 import {
   LayoutDashboard, FileText, CreditCard, ArrowLeftRight, ArrowUpFromLine, PlusCircle, Settings, Bell, Search, Plus, Menu, X,
   Users, ArrowDownToLine, Snowflake, Building2, ScanLine, House, ClipboardList, ChartPie, Milestone,
-  MessageCircleQuestion, Ellipsis, BadgeCheck, Upload, ArrowLeftRight as SwitchIcon, LogOut, Wallet, ChevronDown, Award,
+  MessageCircleQuestion, Ellipsis, BadgeCheck, Upload, ArrowLeftRight as SwitchIcon, LogOut, Wallet, ChevronDown, Award, Gauge,
 } from 'lucide-react';
+import { usePendingTierRequests } from '@/lib/tier-requests';
 import { Avatar, checkFile, cx, Field, FILE_RULES, fileSize, inputCls, Modal, money, Skel, useDismiss } from '@/components/bits';
 import { CATEGORIES, apiError, useApplicantDashboard, useDemo, useNotifications, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
@@ -56,6 +57,7 @@ const adminNav: NavItem[] = [
   { href: '/admin/payment-gateway', label: 'Payment Gateway', icon: Wallet },
   { href: '/admin/kyc', label: 'KYC Page', icon: ScanLine },
   { href: '/admin/cards', label: 'Card Requests', icon: CreditCard },
+  { href: '/admin/tiers', label: 'Tier Upgrades', icon: Gauge },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 /** Payment Gateway is a group: its pages are the method settings for each kind (the request queues stay on their own pages). */
@@ -435,6 +437,7 @@ function AdminNavList({ onNav }: { onNav?: () => void }) {
   useEffect(() => { if (inGateway) setOpen(true); }, [inGateway]);
   // Activation requests waiting (the same query the Card Requests page uses, so deciding one updates the badge).
   const cardRequests = useListAdminCardRequests({ status: 'requested' }, { query: { queryKey: getListAdminCardRequestsQueryKey({ status: 'requested' }), refetchInterval: 60_000 } }).data?.requested ?? 0;
+  const tierRequests = usePendingTierRequests(60_000).data?.length ?? 0;
   const row = (active: boolean) => cx('group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
     active ? 'bg-[#C6F432] text-[#111] font-semibold' : 'text-slate-300 hover:bg-white/10 hover:text-white hover:translate-x-0.5');
   return (
@@ -469,6 +472,9 @@ function AdminNavList({ onNav }: { onNav?: () => void }) {
           <Link key={i.href} href={i.href} onClick={onNav} aria-current={active ? 'page' : undefined} data-testid={testId(i.href)} className={row(active)}>
             <i.icon className="h-[18px] w-[18px]" />
             <span className="flex-1">{i.label}</span>
+            {i.href === '/admin/tiers' && tierRequests > 0 && (
+              <span data-testid="badge-tier-requests" aria-label={`${tierRequests} waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[#C6F432]' : 'bg-[#C6F432] text-[#111]')}>{tierRequests}</span>
+            )}
             {i.href === '/admin/cards' && cardRequests > 0 && (
               <span data-testid="badge-card-requests" aria-label={`${cardRequests} waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[#C6F432]' : 'bg-[#C6F432] text-[#111]')}>{cardRequests}</span>
             )}

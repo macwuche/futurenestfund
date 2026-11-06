@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { authEmail, escapeHtml, moneyEmail, notificationEmail, setEmailBranding, testEmail } from "./emailTemplates";
+import { authEmail, escapeHtml, moneyEmail, notificationEmail, setEmailBranding, testEmail, tierEmail } from "./emailTemplates";
 import { parseFrom } from "./email";
 
 describe("email templates", () => {
@@ -17,6 +17,24 @@ describe("email templates", () => {
     expect(m.html).toContain('href="https://app.example.org/a?b=1&amp;c=2"');
     expect(m.html).not.toContain("<b>");
     expect(m.subject).toBe('GrantApp: Approved <b>"$5"</b>'); // subjects are plain text, not HTML
+  });
+  describe("tier emails (9.4)", () => {
+    const url = "https://app.example.org/tier";
+    it("upgrade needed: what was refused, both tiers and an Upgrade button to /tier", () => {
+      const m = tierEmail("tier_upgrade_needed", "ada@x.org", "Ada", { tier: 1, nextTier: 2, blocked: "a withdrawal of $800.00 (the Tier 1 limit is $500.00 per request)" }, url);
+      expect(m.subject).toBe("Upgrade your account to Tier 2");
+      expect(m.text).toContain("We couldn't complete a withdrawal of $800.00 (the Tier 1 limit is $500.00 per request).");
+      expect(m.html).toContain('href="https://app.example.org/tier"');
+      expect(m.html).toContain("Upgrade your account");
+    });
+    it("approved and declined, with the admin's note or reason escaped", () => {
+      const ok = tierEmail("tier_upgrade_approved", "ada@x.org", "Ada", { tier: 1, nextTier: 2 }, url);
+      expect(ok.subject).toBe("Your account is now Tier 2");
+      const no = tierEmail("tier_upgrade_declined", "ada@x.org", "Ada", { tier: 2, nextTier: 3, reason: "Statement <older> than 3 months" }, url);
+      expect(no.subject).toBe("Your Tier 3 upgrade wasn't approved");
+      expect(no.html).toContain("Statement &lt;older&gt; than 3 months");
+      expect(no.text).toContain("Your account stays on Tier 2.");
+    });
   });
   describe("money emails", () => {
     const data = { request: "Withdrawal" as const, amountCents: 123456, reference: "AB12CD34", date: "30 Oct 2026" };

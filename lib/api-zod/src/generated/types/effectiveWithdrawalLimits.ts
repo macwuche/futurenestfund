@@ -7,7 +7,7 @@
  */
 
 export interface EffectiveWithdrawalLimits {
-  /** Whether these are the user's own limits rather than the global ones */
+  /** Whether these are the user's own limits rather than their tier's */
   custom: boolean;
   /** @nullable */
   maxPerRequest: number | null;

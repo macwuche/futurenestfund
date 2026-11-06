@@ -15,7 +15,7 @@ import {
 import {
   ArrowDownToLine, Briefcase, Check, ChevronDown, ChevronRight, Layers, CircleCheck, CircleX, Clock, FileText, PenLine, Sparkles,
   Search, ArrowDownLeft, Undo2, ArrowLeft, ArrowUpRight, Snowflake, Landmark, Wallet,
-  CreditCard, BadgeCheck, Lock, Camera, Upload, Download, Trash2, IdCard, House as HouseIcon, Loader2, Nfc, type LucideIcon,
+  CreditCard, BadgeCheck, Lock, Camera, Upload, Download, Trash2, IdCard, House as HouseIcon, Loader2, Nfc, Gauge, type LucideIcon,
 } from 'lucide-react';
 import { Shell } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
@@ -26,7 +26,8 @@ import { IndustryDialog, IndustrySettings } from '@/components/industry-picker';
 import { PlanLogo } from '@/components/grant-plan';
 import { PlanAnswers, PlanResubmit, feeStatus } from '@/components/plan-application';
 import { Avatar, Empty, ErrorState, Field, FILE_RULES, Modal, PageSkeleton, Skel, StatusBadge, checkFile, cx, dateFmt, fileSize, inputCls, money, statusLabel } from '@/components/bits';
-import { apiError, matchesSearch, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useRefreshApplicant } from '@/lib/demo-state';
+import { UpgradeHint } from '@/components/upgrade-hint';
+import { apiError, upgradeTierOf, matchesSearch, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 import { FixedAmountChoices, MethodFieldInputs, MethodInstructions, MethodLogo, ProofInput, RequestDetails, checkFieldValues, type FieldValues } from '@/components/payment-method';
 
@@ -124,13 +125,13 @@ function BalanceCards({ d }: { d: ApplicantDashboard }) {
   );
 }
 
-const setupIcon: Record<string, LucideIcon> = { industry: Briefcase, apply: FileText };
+const setupIcon: Record<string, LucideIcon> = { industry: Briefcase, apply: FileText, tier: Gauge };
 
 function SetupCards({ d }: { d: ApplicantDashboard }) {
   const [, navigate] = useLocation();
   const [choosing, setChoosing] = useState(false);
   // Completion comes from the server (Phase 11): the industry once chosen, applying once an application is submitted.
-  const act = (id: string) => (id === 'industry' ? setChoosing(true) : navigate('/grants'));
+  const act = (id: string) => (id === 'industry' ? setChoosing(true) : navigate(id === 'tier' ? '/tier' : '/grants'));
   if (d.setupCards.length === 0) return null;
   return (
     <section aria-labelledby="setup-heading">
@@ -648,6 +649,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
   const [proofErr, setProofErr] = useState('');
   const [note, setNote] = useState('');
   const [err, setErr] = useState('');
+  const [upgradeTier, setUpgradeTier] = useState<number | null>(null);
   const [placed, setPlaced] = useState<Tx | null>(null);
   const paused = a.status === 'Frozen' || a.platformFrozen;
   const method = methods.data?.find((x) => x.id === methodId);
@@ -681,8 +683,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
     if (!isDeposit && source === 'deposit' && fee > 0 && n + fee > a.availableToWithdraw.deposit) return setErr(`This withdrawal and its ${money(fee)} fee come to ${money(n + fee)}, more than the ${money(a.availableToWithdraw.deposit)} available in your account balance.`);
     if (!isDeposit && source === 'grant' && fee > a.availableToWithdraw.deposit) return setErr(`The ${money(fee)} fee is paid from your account balance, which has ${money(a.availableToWithdraw.deposit)} available. Add funds first.`);
     if (!isDeposit && available !== null && n > available) return setErr(`You can withdraw up to ${money(available)} from your ${sourceName[source as Source].toLowerCase()}.`);
-    if (!isDeposit && lim.maxPerRequest !== null && n > lim.maxPerRequest) return setErr(`You can withdraw up to ${money(lim.maxPerRequest)} per request.`);
-    if (!isDeposit && leftToday !== null && n > leftToday) return setErr(leftToday <= 0 ? `You've reached your ${money(lim.dailyTotal!)} daily withdrawal limit.` : `You have ${money(leftToday)} left of your ${money(lim.dailyTotal!)} daily withdrawal limit.`);
+    // Withdrawal limits are checked by the server (Step 9.4): a refusal there also tells the user how to upgrade, in the bell and by email.
     const fe = checkFieldValues(method.fields, values);
     setFieldErrors(fe);
     if (method.proofMode === 'required' && !proof) setProofErr('Attach your payment proof.');
@@ -698,7 +699,13 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
         setPlaced(r as Tx);
         toast({ title: `${kind} request placed`, description: `Reference ${r.reference}. We've sent you a notification${emailed ? ' and an email' : ''}.` });
       },
-      onError: (e2) => setErr(apiError(e2, 'The request could not be submitted. Please try again.')),
+      onError: (e2) => {
+        const message = apiError(e2, 'The request could not be submitted. Please try again.');
+        const up = upgradeTierOf(e2);
+        setErr(message); setUpgradeTier(up);
+        // A tier limit: say so on screen at once, with the way out (the form below shows the Upgrade button too).
+        if (up) toast({ title: 'Above your tier limit', description: `Upgrade to Tier ${up} to withdraw more. We've also sent you a notification.` });
+      },
     });
   };
 
@@ -734,9 +741,10 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
           )}
           {!isDeposit && (lim.maxPerRequest !== null || lim.dailyTotal !== null) && (
             <p className="rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-600" data-testid="text-withdrawal-limits">
-              <span className="font-semibold text-slate-900">Your limits: </span>
+              <span className="font-semibold text-slate-900">{lim.custom ? 'Your limits' : `Your Tier ${a.tier} limits`}: </span>
               {[lim.maxPerRequest !== null && `up to ${money(lim.maxPerRequest)} per request`,
                 lim.dailyTotal !== null && `${money(lim.dailyTotal)} per 24 hours (${money(leftToday!)} left)`].filter(Boolean).join(' · ')}
+              {!lim.custom && a.tier < 3 && <> · <Link href="/tier" className="font-semibold text-[#1E3A8A] underline" data-testid="link-raise-limits">Raise your limits</Link></>}
             </p>
           )}
 
@@ -787,6 +795,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
             </div>
           )}
           {err && <p role="alert" className="rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-money-error">{err}</p>}
+          {err && <UpgradeHint tier={upgradeTier} />}
           <button data-testid="button-submit-money" type="submit" disabled={paused || m.isPending || !method} className="press min-h-11 w-full rounded-full bg-[#1E3A8A] py-2.5 text-[15px] font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60">
             {m.isPending ? 'Submitting…' : isDeposit ? 'Request deposit' : 'Request withdrawal'}
           </button>
@@ -913,7 +922,7 @@ function SettingsBody({ d }: { d: ApplicantDashboard }) {
               <dl className="divide-y divide-slate-100 text-sm">
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Identity verification</dt><dd><StatusBadge status={a.verificationLevel} dot={false} testid="badge-verification" /></dd></div>
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Account status</dt><dd><StatusBadge status={a.status} dot={false} testid="badge-account-status" /></dd></div>
-                <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Account tier</dt><dd className="font-semibold text-slate-900" data-testid="text-tier">Tier {a.tier}</dd></div>
+                <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Account tier</dt><dd className="flex items-center gap-3"><span className="font-semibold text-slate-900" data-testid="text-tier">Tier {a.tier}</span><Link href="/tier" className="inline-flex min-h-11 items-center text-sm font-semibold text-[#1E3A8A] underline" data-testid="link-settings-tier">{a.tier < 3 ? 'Limits and upgrade' : 'Limits'}</Link></dd></div>
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600" id="label-email-notifications">Email notifications</dt><dd><EmailNotificationsSwitch on={a.permissions.emailOverride ?? a.permissions.emailNotifications} locked={typeof a.permissions.emailOverride === 'boolean'} /></dd></div>
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Verification needed to withdraw</dt><dd className="font-semibold text-slate-900">{a.permissions.withdrawalKycRequired ? 'Yes' : 'No'}</dd></div>
                 <p className="pt-3 text-xs text-slate-500">{signedIn ? 'Email notifications are yours to change; the other settings are managed by your administrator.' : 'These settings are managed by your administrator.'}</p>

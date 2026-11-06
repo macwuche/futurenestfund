@@ -10,7 +10,9 @@ import { fileUrl, type DbTx } from "./uploads";
 import { DemoInputError, getUser, methodLogos, requestDetails, type LogoMap } from "./demoWorkspace";
 import { sourceAllowed, SOURCE_LABEL, SOURCES_LABEL, type BalanceSource, type WithdrawalSources } from "./paymentRules";
 import { looseDocuments, planParts } from "./planAnswers";
-import { describeLimits, effectiveLimits, limitsOut, parseLimits, withdrawnLast24h, type Limits } from "./withdrawalLimits";
+import { describeLimits, effectiveLimits, parseLimits, withdrawnLast24h, type Limits } from "./withdrawalLimits";
+import { rulesOfSettings } from "./tiers";
+import { tierOf, withdrawalLimitsOf } from "./tierRules";
 
 /*
  * Administrator actions on what applicants submit. Every action that moves money locks rows in the same
@@ -167,8 +169,9 @@ export async function listAdminRequests(kind: "Deposit" | "Withdrawal", status: 
   // Limits are checked when a request is placed; flag any that the user's *current* limits wouldn't allow (e.g. lowered since).
   const [settings] = await db.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
   const used = await withdrawnLast24h([...new Set(rows.map(({ p }) => p.id))]);
+  const rules = rulesOfSettings(settings);
   return rows.map(({ r, p }) => {
-    const warning = limitWarning(effectiveLimits(p, settings), used.get(p.id) ?? 0, r.amountCents);
+    const warning = limitWarning(effectiveLimits(p, withdrawalLimitsOf(rules[tierOf(p.tier)])), used.get(p.id) ?? 0, r.amountCents);
     return { ...adminRequest(r, p, logos), ...(warning ? { limitWarning: warning } : {}) };
   });
 }
@@ -179,26 +182,9 @@ function limitWarning(l: Limits, usedCents: number, amountCents: number) {
   return undefined;
 }
 
-/* ---------- withdrawal limits ---------- */
+/* ---------- withdrawal limits (the tier's, Step 9.4, or custom per user) ---------- */
 
-export async function globalWithdrawalLimits() {
-  const [settings] = await db.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
-  return limitsOut({ maxCents: settings?.withdrawalMaxCents ?? null, dailyCents: settings?.withdrawalDailyCents ?? null });
-}
-
-export async function changeGlobalWithdrawalLimits(input: { maxPerRequest: number | null; dailyTotal: number | null }, actor: string) {
-  const limits = parseLimits(input);
-  if (typeof limits === "string") throw new DemoInputError(limits);
-  await db.transaction(async tx => {
-    const [before] = await tx.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform")).for("update");
-    if (before?.withdrawalMaxCents === limits.maxCents && before?.withdrawalDailyCents === limits.dailyCents) return;
-    await tx.update(demoSettingsTable).set({ withdrawalMaxCents: limits.maxCents, withdrawalDailyCents: limits.dailyCents }).where(eq(demoSettingsTable.id, "platform"));
-    await tx.insert(demoAuditTable).values({ actor, action: `Global withdrawal limits set: ${describeLimits(limits)}` });
-  });
-  return limitsOut(limits);
-}
-
-/** custom = false: the user follows the global limits. custom = true: the given limits replace them (null = no limit). */
+/** custom = false: the user follows their tier's limits. custom = true: the given limits replace them (null = no limit). */
 export async function changeUserWithdrawalLimits(id: string, input: { custom: boolean; maxPerRequest?: number | null; dailyTotal?: number | null }, actor: string) {
   const limits = input.custom ? parseLimits(input) : { maxCents: null, dailyCents: null };
   if (typeof limits === "string") throw new DemoInputError(limits);
@@ -209,8 +195,8 @@ export async function changeUserWithdrawalLimits(id: string, input: { custom: bo
     const next = { withdrawalLimitCustom: input.custom, withdrawalMaxCents: limits.maxCents, withdrawalDailyCents: limits.dailyCents };
     if (profile.withdrawalLimitCustom === next.withdrawalLimitCustom && profile.withdrawalMaxCents === next.withdrawalMaxCents && profile.withdrawalDailyCents === next.withdrawalDailyCents) return true;
     await tx.update(demoProfilesTable).set(next).where(eq(demoProfilesTable.id, id));
-    const effective = effectiveLimits(next, settings);
-    await tx.insert(demoAuditTable).values({ profileId: id, actor, action: input.custom ? `Custom withdrawal limits set: ${describeLimits(limits)}` : "Withdrawal limits set to follow the global limits" });
+    const effective = effectiveLimits(next, withdrawalLimitsOf(rulesOfSettings(settings)[tierOf(profile.tier)]));
+    await tx.insert(demoAuditTable).values({ profileId: id, actor, action: input.custom ? `Custom withdrawal limits set: ${describeLimits(limits)}` : `Withdrawal limits set to follow the Tier ${profile.tier} limits` });
     await notifyUser(id, `Your withdrawal limits have changed: ${describeLimits(effective)}.`, "/withdrawals", tx);
     return true;
   });

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useChangeUserCard, useIssueUserCard, useListAdminCardTypes, useTopUpUserCard, type AdminUserProfile, type CardActionInputAction, type CardTypeKey, type UserCard } from '@workspace/api-client-react';
+import { useChangeUserCard, useGetAdminTierSettings, useIssueUserCard, useListAdminCardTypes, useTopUpUserCard, type AdminUserProfile, type CardActionInputAction, type CardTypeKey, type UserCard } from '@workspace/api-client-react';
 import { CreditCard, Loader2, Plus } from 'lucide-react';
 import { Empty, Field, Modal, StatusBadge, cx, dateFmt, money } from '@/components/bits';
 import { ainput, dark, ghost, lime, ReasonModal, useAdminRefresh } from '@/components/admin-bits';
@@ -100,11 +100,16 @@ function IssueCardModal({ open, onClose, u }: { open: boolean; onClose: () => vo
   const chosen = types.data?.find((t) => t.key === type);
   const price = chosen ? (kind === 'Virtual' ? chosen.virtual : chosen.physical) : undefined;
   const charge = !free && price?.total ? price.total : 0;
+  // Step 9.4: tiers limit what users buy; an admin may issue any card, but should know when it's outside the user's tier.
+  const tierRule = useGetAdminTierSettings().data?.tiers.find((t) => t.tier === u.tier);
+  const allowed = tierRule?.cards.find((c) => c.key === type)?.[kind === 'Virtual' ? 'virtual' : 'physical'];
+  const needsVirtual = kind === 'Physical' && !taken('Virtual');
   return (
     <Modal open={open} onClose={() => { setError(''); onClose(); }} title="Issue a card" testid="dialog-issue-card">
       <form className="space-y-3" noValidate onSubmit={(e) => {
         e.preventDefault();
         if (taken(kind)) return setError(`${u.name} already has a ${kind.toLowerCase()} card. Cancel it before issuing another.`);
+        if (needsVirtual) return setError('Issue a virtual card first: nobody can get a physical card without a virtual card.');
         if (charge > u.balances.deposit) return setError(`This card costs ${money(charge)} and ${u.name}'s account balance is ${money(u.balances.deposit)}. Tick "Free of charge" to issue it without charging.`);
         setError('');
         issue.mutate({ userId: u.id, data: { kind, type, ...(free ? { freeOfCharge: true } : {}) } }, {
@@ -124,6 +129,8 @@ function IssueCardModal({ open, onClose, u }: { open: boolean; onClose: () => vo
             : free ? `Free of charge (price ${money(price.total ?? 0)} waived).`
             : `${money(price.price)}${price.total !== price.price ? ` + fee ${money((price.total ?? 0) - price.price)}` : ''} = ${money(price.total ?? 0)}, charged to ${u.name}'s account balance (${money(u.balances.deposit)}).`}
         </p>
+        {allowed === false && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="text-issue-outside-tier">Tier {u.tier} users can't buy this card themselves. You can still issue it.</p>}
+        {needsVirtual && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="text-issue-needs-virtual">{u.name} has no virtual card. A physical card needs a virtual card first, so issue a virtual card before this one.</p>}
         <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold">
           <input type="checkbox" checked={free} onChange={(e) => { setFree(e.target.checked); setError(''); }} className="h-5 w-5 accent-[#111]" data-testid="check-issue-free" />
           Free of charge (don't charge the user)

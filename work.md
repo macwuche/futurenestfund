@@ -2574,3 +2574,103 @@ phase4-email needs Supabase keys and was not rerun in full; the email wording is
 **Waiting for answers:** 9.4 tier rules (what tiers should control, beyond what's built); confirmation of the 9.3 provisional choices (§17h).
 
 **Server and dashboards (unchanged):** rotate the secrets pasted in chat and delete the GitHub token; Resend email (DEPLOY step 10); Supabase minimum password length 8; off-server backup copies; ClamAV only if memory allows; reboot at a quiet time (21 updates waiting, "System restart required").
+
+---
+
+## 22. Step 9.4 build plan: tier rules (2026-11-05)
+
+**Request (user, 2026-11-05):** a user's tier decides how much they can withdraw, how much they can put on a card, and which cards they can buy (an Amex needs Tier 3). To move up a tier, the user fills in a verification form the admin built for that tier, and an admin approves it. Plan first, then build.
+
+### 22a. What exists already
+- **Tier** (1–3, `demo_profiles.tier`): set by hand in the user inspector; shown in the applicant's Settings → Account. Since 8.2 it controls nothing.
+- **Withdrawal limits** (`lib/withdrawalLimits.ts`, 5.2): platform-wide (Settings → Money: max per request, daily total over 24 h) or custom per user (inspector), checked when a withdrawal is placed (`demoWorkspace.ts`, under the profile row lock). The payment method's own min / max also applies.
+- **Cards** (`lib/cards.ts`, `lib/cardTypes.ts`, 9.3): 5 types, each with a virtual and a physical kind, switched on and priced in Settings → Cards. One virtual and one physical card at a time. Top-ups move money from the account balance to the card account, with no limit except the balance.
+- **Identity verification** (`lib/kyc.ts`): government ID + proof of address, reviewed in the KYC queue. It doesn't affect the tier.
+- **Form builder** (`components/field-builder.tsx`, `paymentRules.ts`): shared by Payment Gateway and Grant Plans, with a File type on plans (Phase 11). Plan answers and files are stored with the application (`planApplications.ts`).
+- **Notifications**: the bell (polled every 30 s) and an email for each notification (outbox, `notificationMailer.ts`). There is no browser push yet.
+
+### 22b. Decisions (user's answers, 2026-11-05)
+| # | Topic | Decision |
+|---|---|---|
+| 1 | What tiers control | Withdrawal limits, how much a user can put on their cards, and which card types and kinds they can buy |
+| 2 | Where it's set | Admin → Settings → **Tiers**, one block per tier |
+| 3 | Moving up | The user asks: they fill in the verification form the admin made for the next tier. **An admin confirms** (no automatic tier changes) |
+| 4 | Withdrawal over the tier limit | Refused, with a message saying what went wrong and how to upgrade, an in-app notification, and an email with a button that opens the upgrade page |
+| 5 | Cards | A tier can buy only the cards the admin allowed it (e.g. Tier 1: Visa; Tier 3: Amex). **No physical card without a virtual card** |
+| 6 | Visibility | Users see their tier, what the next tier unlocks and how to reach it |
+
+### 22c. How it works
+
+**Admin → Settings → Tiers** (`/admin/settings/tiers`), one block per tier:
+- **Withdrawals:** max per request and daily total (empty = no limit). These **replace** the platform-wide limits (Settings → Money's form is removed); a user's custom limits still override them (answer 5).
+- **Card funding:** max per top-up and daily total of top-ups over 24 h (empty = no limit), like withdrawals (answer 1).
+- **Cards:** a grid of the 5 card types × virtual / physical, ticked = this tier may buy it. Settings → Cards still decides whether a type is on sale and its price; the tier only narrows it.
+- **Warning while setting it up:** if a tier may buy a physical card but no virtual card at all, the page warns (and still saves): "Tier 1 can buy the Visa Debit physical card, but no virtual card, so nobody on Tier 1 can get it" (answer 2). The same warning shows when a type is switched off in Settings → Cards and that leaves a tier without a virtual card.
+- **Upgrade form** (Tier 2 and Tier 3 blocks only): an introduction and the fields, same builder as Grant Plans (text, number, date, dropdown, **file**, …). Without a saved form, users can't ask for that tier yet. Saving is audited.
+
+**Applicant side:**
+- **Your tier** page (`/tier`, linked from Settings, the dashboard and every "upgrade" message): current tier and what it allows (limits, cards, card funding), the next tier and what it unlocks, and **Upgrade to Tier N** → the form → a summary → submit. Then the status: *Under review* · *Declined: <reason>* (fill it in again) · *Approved*.
+- **Dashboard:** the tier on the Account balance card and a setup card "Upgrade to Tier 2" while a higher tier has a form.
+- **Over a tier limit** (withdrawal or card top-up):
+  1. the request is refused: "Tier 1 accounts can withdraw up to $500 per request. Upgrade to Tier 2 to withdraw up to $5,000." with an **Upgrade your account** button in the form
+  2. a notification in the bell, plus an on-screen message in the app at that moment (answer 4: no browser push)
+  3. an email "Upgrade your account to withdraw more" with a button to `<APP_URL>/tier`, **at most one a day per user**, so retries don't flood their inbox
+  - The refused request isn't stored, so the notification is written on its own after the refusal.
+  - If the limit is the user's **custom** limit (set by an admin) or they're already on Tier 3, upgrading won't help: they get the plain limit message and no upgrade email.
+- **Card shop:** cards their tier can't buy show as locked with "Tier 3", and the button opens the upgrade page. A physical card needs **any** virtual card the user holds (not cancelled; answer 2), otherwise: "Get a virtual card first".
+
+**Admin side:**
+- **Tier Upgrades** page (`/admin/tiers`, menu after KYC Page, with the waiting count; a dashboard KPI): requests oldest first. Opening one shows the user, Tier 1 → 2, their answers and files (open in a new tab), and, for information only, their identity-verification status (it stays separate from tiers, answer 3). **Approve** (sets the tier, audited, notified and emailed) or **Decline** with a reason ≥ 5 characters (the user sees it and can apply again).
+- The inspector still lets an admin set any tier by hand, up or down (audited, notified).
+
+**What doesn't change:** pending withdrawals and cards a user already holds stay as they are when the rules or their tier change; tier rules apply to new requests and purchases.
+
+### 22d. Data (migration 0012 + Supabase migration 0006)
+- `demo_settings.tier_rules` jsonb: per tier `{ withdrawalMaxCents, withdrawalDailyCents, topUpMaxCents, topUpDailyCents, cards: { "<type>": { virtual, physical } }, upgradeForm: { intro, fields } | null }`.
+- New table `demo_tier_requests` (id, profile_id, from_tier, to_tier, status `Pending|Approved|Declined`, form_snapshot jsonb, answers jsonb, decision_note, decided_by, decided_at, created_at), RLS on, `app_api_all` policy in Supabase 0006. Files are stored like plan application files (purpose `tier`).
+- One pending request per user at a time.
+- New email kinds: `tier_upgrade_needed`, `tier_upgrade_approved`, `tier_upgrade_declined`.
+
+### 22e. Steps
+| Step | What | Done when |
+|---|---|---|
+| 9.4.1 | `lib/tierRules.ts` (pure: parse, effective limits, card allowed, physical-needs-virtual, warnings) + Vitest; migration 0012 + Supabase 0006; Settings → Tiers (API + page) | unit tests; API tests for saving and refusals |
+| 9.4.2 | Withdrawals: tier limits in the check, upgrade message, notification, daily-capped email | `.unlazy/phase94-tiers.mjs` withdrawal cases |
+| 9.4.3 | Cards: allowed types per tier, physical needs virtual, funding limit on top-ups; card shop locks | card cases + UI |
+| 9.4.4 | Upgrade form: `/tier` page, submit with files, status | applicant cases + UI desktop / phone |
+| 9.4.5 | Tier Upgrades queue, approve / decline, dashboard KPI, menu badge, emails | queue cases + UI |
+| 9.4.6 | Help Centre answers; regressions (phase5-limits, phase5-withdrawals, phase93-cards, phase6-cards, phase10, phase11, phase6-mobile) | all green; typecheck, `pnpm test` |
+
+One commit when 9.4 is green. `deploy.sh` applies 0012 and Supabase 0006.
+
+### 22f. Answers (user, 2026-11-05)
+1. **Card funding:** max per top-up **and** a daily total (24 h), like withdrawals.
+2. **Physical needs virtual:** **any** virtual card the user holds. Settings → Tiers **warns** when a tier allows a physical card but no virtual card, and saves anyway.
+3. **Identity verification** (ID + proof of address) **stays separate** from tier upgrades; each tier's form asks for whatever it needs.
+4. **"Push notification"** = an **on-screen message in the app + the bell** (and the email). No browser push.
+
+**Confirmed (user, 2026-11-05):**
+5. **Tier limits replace the platform-wide withdrawal limits**, in the UI and in the checks: the tier is the default for everyone on it, and a user's custom limits (inspector) override it for that user. Settings → Money's limit form goes; migration 0012 copies today's platform-wide values into all three tiers, so nobody's limit changes on deploy. The old `demo_settings.withdrawal_max_cents` / `withdrawal_daily_cents` columns stay, unused (like 0008's). Order: **custom (per user) → tier**; the payment method's min / max still applies on top.
+6. Upgrades go **one tier at a time** (1 → 2 → 3).
+7. An admin issuing a card from the inspector may issue **any** type (the tier only limits purchases), with a note when it's outside the user's tier.
+8. Every tier starts with **no top-up limits and every card allowed** (withdrawal limits = today's platform-wide values), so nothing changes until the admin fills in Settings → Tiers. Cards and pending withdrawals users already hold stay.
+
+### 2026-11-06: Step 9.4 built and tested (tier rules)
+
+**Built** (plan 22c–22d; migration **0012**, Supabase **0006**):
+- **Rules** (`lib/tierRules.ts`, pure): per tier, withdrawal limits, card top-up limits, cards it may buy, and the upgrade form (Tier 2 and 3). Stored in `demo_settings.tier_rules`; until saved, every tier reads the old platform-wide withdrawal limits (migration 0012 also copies them in), with no top-up limits and every card. `tierWarnings` flags a tier that may buy a physical card on sale but no virtual card.
+- **Withdrawals:** the tier's limits replace the platform-wide ones (`effectiveLimits(profile, tier)`); custom limits still win. The platform-wide endpoints (`/admin/system/withdrawal-limits`) and Settings → Money's form are gone; `/admin/settings/limits` redirects to Tiers. The Withdraw form no longer checks limits in the browser, so the server's refusal can prompt the upgrade.
+- **Over a limit** (withdrawal or own card top-up): `TierLimitError` → 400 with `upgradeTier`; the message ends "Upgrade to Tier N to raise your limits."; the app shows an Upgrade button and a toast; `promptTierUpgrade` writes one bell entry + email (`tier_upgrade_needed`, button to `/tier`) per 24 h, after the refused transaction rolled back. No upgrade offered with custom limits, on Tier 3, or when the next tier has no form.
+- **Cards:** applicants buy only what their tier allows (locked kinds show "Tier N" in the shop, `virtualLock` / `physicalLock`); nobody (users or admins) gets a physical card without a non-cancelled virtual card; admins may issue any type (the issue dialog says when it's outside the tier). Top-ups follow the tier's per-top-up and 24-hour limits; an admin's top-ups aren't limited but count toward the 24 hours.
+- **Upgrades:** `/tier` page (what each tier includes, the next tier's form → summary → send, status); `demo_tier_requests` (one pending per user, unique index; files purpose `tier`, stored before the row and removed if it fails). Admin → **Tier Upgrades** (`/admin/tiers`, menu badge, dashboard KPI and queue): approve (optional note; refused if the user's tier changed since) or decline (reason ≥ 5); emails `tier_upgrade_approved` / `tier_upgrade_declined`. Dashboard setup card "Upgrade to Tier N" while a higher tier has a form. Help Centre answers.
+
+**Found and fixed while testing:** two upgrade forms sent at once: the unique index let one through, but Drizzle wraps the Postgres error (`cause.code`), so the other answered 500 instead of "already being reviewed".
+
+**Tests (2026-11-06, test API on :8099 via the proxy, demo data restored before each suite):**
+- typecheck clean; `pnpm test` 134/134 (+1 skipped without Redis): new `tierRules.test.ts` (11) and tier email tests (2)
+- new `phase94-tiers.mjs` 16/16 and `phase94-ui.mjs` 9 + 9 (screenshots checked at 1440 and 390 px)
+- updated for 9.4 and passing: phase5-limits 10/10, phase5-limits-ui 6 + 6, phase10-methods 18/18, phase93-cards 12/12, phase8-balances-ui 6 + 6, phase6-mobile 45/45 with 0 problems (Your tier, Tier Upgrades and Settings → Tiers added)
+- unchanged and passing: phase3-api 24, phase5-cards 9, -users 7, -audit 9, -withdrawals 11, -debits 8 (with mock Resend), -cards-ui 5 + 5, -users-ui 6 + 6, phase6-cards 7, -cards-ui 6 + 6, phase8-balances 8, phase9-cards 9, -cards-ui 6 + 6, phase93-fees 8, -ui 8 + 8, phase10-ui 11 + 11, phase11-plans 17, -ui 9 + 9, smoke 22 + 22
+- not run here: phase4-* (need Supabase keys)
+
+**Deploy:** `deploy.sh` applies 0012 and Supabase 0006. Then Admin → Settings → Tiers: set the limits, cards and the Tier 2 / Tier 3 forms.

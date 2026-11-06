@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-11-05 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1, 9.2 and 9.3 done; Phase 10 done; Phase 11 (grant plans, industries, application fees) done (`010d4b9`) · **live at https://access.futurenestfund.org** (`f39c238` deployed 2026-11-05)._
+_Last updated 2026-11-06 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1, 9.2 and 9.3 done; Phase 10 done; Phase 11 (grant plans, industries, application fees) done (`010d4b9`); 9.4 tier rules built and tested 2026-11-06 (not deployed yet) · **live at https://access.futurenestfund.org** (`f39c238` deployed 2026-11-05)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -18,7 +18,7 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 5 | Admin controls: withdrawal emails, limits, audit-log viewer, users directory, debits, card controls, profile photos | Done (5.1–5.7) |
 | 6 | Finish and harden: matchmaking, applicant card controls, phone polish, error monitoring | 6.1–6.5 done 2026-10-30/31; **6.5: deployed on the EU VPS at https://access.futurenestfund.org on 2026-10-31** ([`docs/DEPLOY.md`](DEPLOY.md), record in [`server.md`](../server.md)); **6.6 virus scanning of uploads: code done 2026-11-01**, off until ClamAV is installed on the server (DEPLOY step 11, memory decision); 6.7 shared rate limits (only with several servers) |
 | 8 | User dashboard: balance cards | 8.1 done 2026-11-02, deployed at `62ec3aa` (`work.md` §14); **8.2 built and tested 2026-11-05** (`work.md` §19): Account balance / Grant balance / Successful deposit, eligible amount removed, "deposit balance" renamed "account balance" everywhere users see it; deployed at `1b2a4c0` |
-| 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), fees and card sales (9.3), tier rules (9.4) | **9.1 done 2026-11-04** (`4300a48`); **9.3 built and tested 2026-11-05** (`711ec58`, `work.md` §17, migration 0010); both deployed 2026-11-05 at `dc386f9`; **9.2 built and tested 2026-11-05** (`3f7ef8a`, `work.md` §18, deployed at `a1072f6`; off on the VPS unless Redis is set up); 9.4 waits for decisions |
+| 9 | Remaining backlog: card activation queue (9.1), shared rate limits (9.2, was 6.7), fees and card sales (9.3), tier rules (9.4) | **9.1 done 2026-11-04** (`4300a48`); **9.3 built and tested 2026-11-05** (`711ec58`, `work.md` §17, migration 0010); both deployed 2026-11-05 at `dc386f9`; **9.2 built and tested 2026-11-05** (`3f7ef8a`, `work.md` §18, deployed at `a1072f6`; off on the VPS unless Redis is set up); **9.4 tier rules built and tested 2026-11-06** (`work.md` §22, migration 0012 + Supabase 0006; not deployed yet) |
 | 10 | Payment gateway: admin-made deposit and withdrawal methods (logo, amount rule, custom fields, payment proof); withdrawals from the grant and/or deposit balance; optional approval note | Built and tested 2026-11-04 (`work.md` §16), committed `e183fb3`; deployed 2026-11-05 at `dc386f9` (migration 0009 + Supabase 0004) |
 | 11 | Grant plans: admin-made plans (industry, award, application fee, logo, own application form with file uploads); industries (admin-managed, chosen at sign-up, drive recommendations); the application fee is charged on approval and may take the account balance below $0; matchmaking, the sample grants and the free-form application removed | **Built and tested 2026-11-05** (`work.md` §20, migration 0011 + Supabase 0005); committed `010d4b9`; deployed 2026-11-05 at `f39c238` |
 | 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin layout, admin tables on phones, applicant fixes (review scored the UI 67/100) | Done: 7.1 on 2026-10-31, 7.2–7.7 on 2026-11-01 ([`work.md`](../work.md) §13 and the log after it) |
@@ -71,6 +71,8 @@ Menu in groups: **Overview** (Dashboard, My Applications (+ detail page), Milest
   - **buying cards (9.3):** Cards → *Get a card* lists the card types the admin put on sale, with each kind's total (price + fee, e.g. $10 + 1% = $10.10), paid from the account balance. One virtual and one physical card at a time. **Top up** an active card from the account balance, no fee
   - transactions list (real ledger entries plus requests; filters include fees, card purchases and card top-ups)
   - balances and sample cards: the applicant can freeze and unfreeze their own card (a card an administrator froze stays locked to them), see card details, and say a physical card has arrived to ask for it to be activated (if an admin declines, the card shows why and they can ask again)
+- **Your tier** (`/tier`, 9.4; from Settings, the dashboard's **Upgrade to Tier N** setup card and every upgrade message): what the user's tier allows and what each tier includes, then the next tier's upgrade form → summary → send, and the request's status (being reviewed / approved with the note / declined with the reason, send again). One tier at a time, one open request at a time.
+- **Tier limits** (9.4): a withdrawal or card top-up over the tier's limit is refused with a message saying which limit and "Upgrade to Tier N to raise your limits", an **Upgrade your account** button and an on-screen message; the bell gets a notification and an email with a button to `/tier` (at most once a day). No upgrade is offered when the user has custom limits or no higher tier has a form. The card shop shows cards the tier can't buy as locked with the tier that can, and a physical card asks for a virtual card first.
 - **Milestones:** add, tick, delete (stored per user).
 - **Notifications:** the bell (polled every 30 s), plus an **email** for each notification when enabled. Deposit and withdrawal requests get dedicated emails when placed, approved and declined (with a reference, and the reason for a decline). An admin can override a user's email and in-app notifications (always on / always off).
 - **Settings:**
@@ -78,11 +80,12 @@ Menu in groups: **Overview** (Dashboard, My Applications (+ detail page), Milest
   - **identity verification**: upload a government ID and proof of address, see status and rejection reasons
   - account panel with an **email-notifications switch**
   - **Your industry** (Phase 11): change it at any time; it decides which grants are recommended
+  - **Account tier**, linking to **Your tier**
   - **Sign-in & security**: change password, sign out of other devices, sign out everywhere
 - **Funding Tracker, Reports** (with CSV downloads) and a **Help Centre** FAQ. (Grant matchmaking, Grant categories and Grant Search, with their 12 sample grants, were removed in Phase 11.)
 
 ### Admin workspace (black / lime "command center")
-Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, Payment Gateway, KYC Page, Card Requests, Settings (the written admin spec's menu plus later additions). Application review lives under Users (`/admin/users/:userId/applications/:id`).
+Pages: Dashboard, Users, Grant Plans, Transactions, Deposit Page, Withdrawal Page, Payment Gateway, KYC Page, Card Requests, Tier Upgrades, Settings (the written admin spec's menu plus later additions). Application review lives under Users (`/admin/users/:userId/applications/:id`).
 
 - **Dashboard:**
   - KPIs: pending applications, KYC, deposits, withdrawals, card activations, **fees this month** (and all time; links to the ledger filtered to fees)
@@ -102,15 +105,17 @@ Pages: Dashboard, Users, Transactions, Deposit Page, Withdrawal Page, Payment Ga
 - **Deposit / Withdrawal queues:** approve (with an optional note shown to the applicant) or decline (decline needs a reason). Each request shows its method, the applicant's answers, the payment proof (preview / download) and, for withdrawals, the balance it's paid from. Freezes, balances, KYC and the user's open withdrawal balances are re-checked at approval time. A pending withdrawal above the user's current limit is flagged.
 - **Payment Gateway** (menu group → Deposit / Withdrawal, `/admin/payment-gateway/deposit|withdrawal`): create, edit, enable / disable, reorder and delete methods. A method has a logo (uploaded, or downloaded once from an `https://` link with private / internal addresses refused, re-encoded to WebP), a name (unique per kind), an amount rule (minimum and maximum, either optional, or up to 10 fixed amounts), instructions, up to 20 fields (short / long text, number, email, phone, date, dropdown; required or optional; placeholder and help) and, for deposits, payment proof required / optional / off, and a **fee** (fixed or %, never negative; 9.3). A live preview shows the applicant's form. Requests keep a copy of the method as it was, so edits never change them; a used method can only be disabled. Every change is audited.
 - **Withdraw from** (inspector → Limits): grant balance / account balance / both, per user; audited, the user is notified. A debit can't eat into what pending withdrawals from that balance hold.
-- ~~Eligible amount~~: removed in 8.2 (2026-11-05). Its columns from migration 0008 stay in the database, unused, for the tier rules (9.4).
-- **Withdrawal limits:** a global max per request and daily total (last 24 h, under review + approved) in Settings, and optional custom limits per user that replace them. Enforced when the applicant places a request.
+- ~~Eligible amount~~: removed in 8.2 (2026-11-05). Its columns from migration 0008 stay in the database, unused.
+- **Withdrawal limits:** each **tier's** max per request and daily total (last 24 h, under review + approved), set in Settings → Tiers (9.4; they replaced the platform-wide limits), and optional custom limits per user that replace their tier's. Enforced by the server when the applicant places a request.
+- **Tier Upgrades** (`/admin/tiers`, 9.4; menu after Card Requests, with the waiting count; a dashboard KPI and queue): users' upgrade forms, oldest first, with their answers and files and their identity-verification status (for information). **Approve** (the tier goes up at once; optional note) or **decline** with a reason the user sees (they can send the form again). Approving is refused if the user's tier changed since they asked. Audited; the user is notified in the app and by email.
+- **Cards and tiers** (9.4): an admin may issue any card type from the inspector (a note says when it's outside the user's tier), but nobody gets a physical card without a virtual card first.
 - **Transactions:** the full ledger with filters, search, pagination, totals and **CSV export** (spreadsheet-formula injection neutralised).
 - **Card Requests** (`/admin/cards`, 9.1): physical cards still being issued, in two tabs: *Activation requested* (the user says it arrived; oldest first, with how long it's waited) and *Awaiting delivery*. Activate, or decline with a reason the user sees (the card stays pending and they can ask again). The menu item shows how many requests are waiting. Audited; the user is notified.
 - **KYC:** a document queue with previews; approve or reject (with a reason). The verification level is recomputed.
 - **Settings** (`/admin/settings/<section>`, side menu on desktop, tabs on phones):
   - **General:** global freeze (with a confirmation and a reason) and the security rules
   - **Email:** Resend key, sender, signature, health checks, test email (§7)
-  - **Money** (`/admin/settings/limits`): the platform-wide withdrawal limits
+  - **Tiers** (`/admin/settings/tiers`, 9.4; the old `/admin/settings/limits` redirects here): per tier (1–3), the withdrawal limits (per request, per 24 h), card top-up limits (per top-up, per 24 h), which card types it may buy (virtual / physical, on top of what Settings → Cards puts on sale), and for Tiers 2 and 3 the **upgrade form** (introduction + fields, same builder as Grant Plans, file uploads included; off = nobody can ask for that tier). A live warning when a tier may buy a physical card but no virtual card. Audited
   - **Cards** (`/admin/settings/cards`, 9.3): switch each card type on or off (Visa Debit, Visa Credit, Mastercard Debit, Mastercard Credit, Amex Platinum) and set its virtual and physical price and fee (fixed or %), with the total the user pays. Empty price = that kind isn't sold; 0 = free. Audited. Credit cards are a name only: no credit line, they spend what's topped up
   - **Industries** (`/admin/settings/industries`, Phase 11): the list users choose from (40 to start), with how many plans and users use each; add, rename, remove (not while a plan uses it; its users are asked to choose again)
   - **Monitoring:** where errors go (server log, plus Sentry when configured), a "Send test errors" button that raises one server and one browser error and shows their references, **upload virus scanning** status (Scanning / Not answering / Off, with the ClamAV version) and **rate limits** (This server / Shared (Redis) / Redis not answering)
@@ -270,12 +275,14 @@ Dashboard settings (see §12): Site URL and Redirect URLs are set to `https://ac
 | `lib/db/migrations/0010_fees_and_card_types.sql` | `demo_payment_methods.fee_mode`, `fee_value`; `demo_requests.fee_cents`; `demo_settings.card_types` (no new tables, so no Supabase migration) |
 | `lib/db/migrations/0009_payment_methods.sql` | `demo_payment_methods`; `demo_requests.source`, `method_id`, `method_snapshot`, `field_values`, `proof_file_id` (old withdrawals backfilled to `grant`); `demo_profiles.withdrawal_sources` |
 | `lib/db/migrations/0011_grant_plans.sql` | `demo_industries` (seeded with 40), `demo_grant_plans`; `demo_profiles.industry_id`; `demo_applications.plan_id`, `plan_snapshot`, `answers`, `fee_cents` |
+| `lib/db/migrations/0012_tier_rules.sql` | `demo_tier_requests`; `demo_settings.tier_rules` (copies the platform-wide withdrawal limits into every tier; those columns stay, unused) |
 | `lib/db/migrations/0007_email_settings.sql` | `demo_settings.email_config`, `email_secrets`, `email_hook_seen_at`, `email_hook_result`; `demo_notifications.email_last_error` |
 | `lib/db/supabase/migrations/0001_user_roles.sql` | `user_roles` (Supabase only) |
 | `lib/db/supabase/migrations/0002_app_api_role.sql` | `app_api` role, grants, `app_api_all` policies, revoked Data API grants |
 | `lib/db/supabase/migrations/0003_admin_profiles.sql` | `app_api_all` policy for `demo_admin_profiles`; no Data API grants |
 | `lib/db/supabase/migrations/0004_payment_methods.sql` | `app_api_all` policy for `demo_payment_methods`; no Data API grants |
 | `lib/db/supabase/migrations/0005_grant_plans.sql` | `app_api_all` policies for `demo_industries` and `demo_grant_plans`; no Data API grants |
+| `lib/db/supabase/migrations/0006_tier_requests.sql` | `app_api_all` policy for `demo_tier_requests`; no Data API grants |
 
 Changing the schema: edit `lib/db/src/schema` → `pnpm --filter @workspace/db run generate` → review the new SQL → `pnpm --filter @workspace/scripts run db:migrate`. A new table also needs an `app_api_all` policy in a new Supabase migration. Both existing databases were "baselined" once on 2026-10-29 (`db:migrate -- --baseline`), because they had been built with `drizzle-kit push`.
 
@@ -402,7 +409,7 @@ No secrets. `PORT` and `BASE_PATH` for Vite; everything else comes from `GET /ap
 | Command | What it does |
 |---|---|
 | `pnpm run typecheck` | Type-check every package |
-| `pnpm test` | Vitest unit tests (125; one more runs against a real Redis with `TEST_REDIS_URL`) |
+| `pnpm test` | Vitest unit tests (134; one more runs against a real Redis with `TEST_REDIS_URL`) |
 | `pnpm --filter @workspace/api-spec run codegen` | Regenerate API hooks / validators after editing `openapi.yaml` |
 | `pnpm --filter @workspace/db run generate` | Write a new migration from schema changes |
 | `pnpm --filter @workspace/scripts run db:migrate` | Apply pending migrations (`-- --baseline` once for a database built with push) |
@@ -417,7 +424,8 @@ On Replit, restart the existing workflows instead of starting extra servers.
 
 ## 11. Testing
 
-**Committed:** `pnpm test`, 125 Vitest tests (+1 with `TEST_REDIS_URL`).
+**Committed:** `pnpm test`, 134 Vitest tests (+1 with `TEST_REDIS_URL`).
+- Tier rules (9.4): stored rules and the fallback to the old platform-wide limits, saving and refusals, upgrade forms, cards per tier, the next tier, custom limits over the tier's, top-up wording, the physical-without-virtual warning; the three tier emails.
 - Token verification: valid, expired, other project, wrong audience, anonymous, forged key, tampered payload, `alg: none`, HS256 algorithm confusion, key server down/timeout → 503.
 - Standard Webhooks signatures.
 - Email link mapping (including the reversed email-change fields) and HTML escaping.
@@ -448,6 +456,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 | `phase93-fees`, `phase93-cards`, `phase93-ui` | Fees on methods, holds, approval, decline, deposit net, placed requests keep their fee, concurrency (8); card types, buying, one per kind, can't afford, free cards, admin issue / free of charge, old cards, top-ups both sides, freezes, concurrency (12); method fee, applicant fee summary, queue, Settings → Cards, buy, top-ups, issue dialog, dashboard (8 + 8) |
 | `phase9-cards`, `phase9-cards-ui` | Card Requests queue: tabs, order, decline with reason, ask again, activate, frozen account, concurrent decisions (9); dashboard KPI and list, menu badge, applicant view (6 + 6) |
 | `phase92-redis` | Two real API servers on one Redis (`REDIS_SERVER=` path to `redis-server`): status in Settings, password never shown, one shared limit, Retry-After, key names and expiry, a burst of 40 at once lets exactly the limit through, Redis killed (still answered, quickly, limited per server, status, one warning), Redis back (reconnects) (13) |
+| `phase94-tiers`, `phase94-ui` | Settings (old limits copied to every tier, cents, refusals, audit, warning), withdrawals over the tier limit (message, upgradeTier, nothing stored, bell + email once a day, none without a form or with custom limits), queue flag, card locks, physical needs virtual (users and admins), top-up limits, the upgrade form (required files, refused forms leave no files, two at once → one), queue, decline, approve, tier changed meanwhile (16); Settings → Tiers, inspector, refused withdrawal with Upgrade button, card shop, Your tier, Tier Upgrades approve (9 + 9). `phase5-limits(-ui)`, `phase10-methods` and `phase93-cards` were updated for tier limits and the virtual-first rule |
 | `phase6-mobile` | Phone audit at 390 px of every page, menu, panel, main dialogs and the sign-in pages: zoom-out, overflow, boxes sticking out, 44 px targets, bell / menu / search reachable; full-page screenshots with `SHOTS=` (35). Sign-in pages need `AUTH_WEB`: a proxy to a signed-out Supabase-mode API |
 
 Full run on 2026-10-29: all green on the dev frontend, on the **production build with its CSP**, and **on Supabase as `app_api`**.
@@ -514,6 +523,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | 2026-11-05 | Dashboard cards (8.2): **Account balance** = the deposit balance; **Successful deposit** = lifetime approved deposits at their full amount (a $100 deposit with a $2 fee counts $100) plus admin top-ups; **Grant balance** = awards minus withdrawals from it. The eligible amount is removed; tiers stay and will drive rules in 9.4. The deposit balance is called **account balance** everywhere users see it |
 | 2026-11-05 | **Grant plans** (Phase 11) replace the sample grants and matchmaking: each plan has its own application form (fields differ per plan, files included); users apply only through a plan; the same plan can be applied to again, and several at once. Plans stay open until switched off (no deadline) |
 | 2026-11-05 | **The application fee is charged only on approval** (never on submit, decline or withdrawal), fixed or a % of the award as the admin decides, and it is **the only charge that can take the account balance below $0**. No withdrawal from a balance at $0 or below; a fee-free withdrawal from a positive grant balance is still allowed |
+| 2026-11-05 | **Tier rules (9.4)**: a tier sets withdrawal limits, card top-up limits (per top-up and per 24 h) and which cards a user can buy (e.g. Amex only on Tier 3). **Tier limits replace the platform-wide limits**; a user's custom limits override their tier's. Users move up **one tier at a time** by sending the next tier's admin-made form; **an admin approves**. Over a limit: a message, the bell and an email with an Upgrade button (no browser push). **No physical card without a virtual card**, for users and admins (any virtual card counts; Settings → Tiers warns about a tier that can't meet it). Admins may issue any card type. Identity verification stays separate |
 | 2026-11-05 | **Industries** are admin-managed (40 to start); required at sign-up; plans for the user's industry (and all-industry plans) are recommended, but any plan can be applied to |
 
 ---
@@ -567,6 +577,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | `5766d1f` | `server.md` deployment record for `a1072f6` |
 | `f7436f7` | Dashboard cards: Account balance, Grant balance, Successful deposit; eligible amount removed; "deposit balance" renamed "account balance" (8.2) |
 | `010d4b9` | Grant plans, industries and application fees; matchmaking and sample grants removed (Phase 11) |
+| (this commit) | Tier rules: withdrawal and top-up limits and cards per tier, upgrade forms and the Tier Upgrades queue (9.4) |
 
 ---
 
@@ -580,7 +591,9 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 3. **Settings → Cards:** switch card types on and set their prices (until then "No cards are on sale right now").
 4. **Settings → Industries:** check the starting list of 40; add or remove as you like.
 
-**Waiting for your answers:** 9.4 tier rules (what tiers should control); the provisional 9.3 choices in `work.md` §17h. The server asks for a restart (`server.md` §7).
+**Waiting for your answers:** the provisional 9.3 choices in `work.md` §17h.
+
+**9.4 tier rules:** built and tested 2026-11-06, committed, **not deployed yet**. `deploy.sh` applies migration 0012 and Supabase 0006. Then, in the admin area: Settings → Tiers (limits, cards per tier, the Tier 2 and Tier 3 upgrade forms; until a form is saved nobody can ask to move up). The server asks for a restart (`server.md` §7).
 
 **Needs you** (unchanged since `a82a158`): the open §12 items: rotate the secrets pasted in chat, email through Resend (step 10 in `docs/DEPLOY.md`), minimum password length 8, off-server backup copies; and the ClamAV memory decision (step 11). Shared-server housekeeping (firewall, fail2ban, 29 package updates) is listed in `server.md` §7.
 
@@ -613,7 +626,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 - ~~9.1 admin queue for card activation requests~~: done 2026-11-04 (`4300a48`), deployed 2026-11-05
 - ~~9.2 shared rate limits (Redis, was 6.7)~~: built and tested 2026-11-05 (`work.md` §18), deployed at `a1072f6`. Only matters with more than one API server, so it stays off on the VPS (DEPLOY step 12 when needed)
 - ~~9.3 fees, card types and card purchases~~: built and tested 2026-11-05 (plan and log in `work.md` §17), `711ec58`, deployed 2026-11-05. Provisional choices still to confirm are in `work.md` §17h
-- 9.4 tier rules: **waits for your answer** to §15f question 4 (which rules, and thresholds for automatic tier changes)
+- ~~9.4 tier rules~~: built and tested 2026-11-06 (plan, answers and log in `work.md` §22), not deployed yet. Not done: per-tier fees (not asked for); browser push notifications (decided against: on-screen message + bell + email)
 
 **Phase 11 (grant plans)**, plan and log in `work.md` §20:
 - ~~11.1 industries · 11.2 grant plans (admin) · 11.3 applying · 11.4 approval and the fee · 11.5 removing matchmaking and the sample grants~~: built and tested 2026-11-05, committed `010d4b9`, deployed at `f39c238` (0011 and Supabase 0005 applied). **Needs you:** create grant plans in Admin → Grant Plans: until then applicants see "No grants are open right now". Existing users are asked for their industry by a setup card on their dashboard.

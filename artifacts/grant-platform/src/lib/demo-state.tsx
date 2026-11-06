@@ -2,7 +2,7 @@ import { createContext, useCallback, useEffect, useContext, useMemo, useState, t
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useGetApplicantDashboard, getGetApplicantDashboardQueryKey, useGetApplicantAccount, getGetApplicantAccountQueryKey,
-  useListApplicantApplications, getListApplicantApplicationsQueryKey, useListApplicantMilestones, getListApplicantMilestonesQueryKey, getListApplicantGrantPlansQueryKey,
+  useListApplicantApplications, getListApplicantApplicationsQueryKey, useListApplicantMilestones, getListApplicantMilestonesQueryKey, getListApplicantGrantPlansQueryKey, getGetApplicantTierQueryKey, getListApplicantCardTypesQueryKey,
   useListApplicantNotifications, getListApplicantNotificationsQueryKey,
   type ApplicantApplication, type ApplicantDashboard, type ApplicantAccount, type Milestone, type NotificationList,
 } from '@workspace/api-client-react';
@@ -51,7 +51,7 @@ export function useNotifications() {
 export function useRefreshApplicant() {
   const qc = useQueryClient();
   return useCallback(() => {
-    for (const key of [getListApplicantApplicationsQueryKey(), getGetApplicantDashboardQueryKey(), getGetApplicantAccountQueryKey(), getListApplicantNotificationsQueryKey(), getListApplicantMilestonesQueryKey(), getListApplicantGrantPlansQueryKey()]) {
+    for (const key of [getListApplicantApplicationsQueryKey(), getGetApplicantDashboardQueryKey(), getGetApplicantAccountQueryKey(), getListApplicantNotificationsQueryKey(), getListApplicantMilestonesQueryKey(), getListApplicantGrantPlansQueryKey(), getGetApplicantTierQueryKey(), getListApplicantCardTypesQueryKey()]) {
       qc.invalidateQueries({ queryKey: key });
     }
   }, [qc]);
@@ -60,6 +60,12 @@ export function useRefreshApplicant() {
 /** Pull the API's `{ error }` message out of a failed request. */
 export const apiError = (e: unknown, fallback: string) =>
   (e as { data?: { error?: string } } | null)?.data?.error ?? fallback;
+
+/** Step 9.4: the tier that would lift the limit a request was refused for (the app shows an Upgrade button); null otherwise. */
+export const upgradeTierOf = (e: unknown): number | null => {
+  const t = (e as { data?: { upgradeTier?: unknown } } | null)?.data?.upgradeTier;
+  return typeof t === 'number' ? t : null;
+};
 
 export const matchesSearch = (a: { title: string; category: string }, s: string) => {
   const q = s.trim().toLowerCase();

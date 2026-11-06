@@ -6,8 +6,7 @@ import {
   GetAdminDashboardResponse, ListAdminUsersQueryParams, ListAdminUsersResponse,
   GetAdminUserParams, GetAdminUserResponse, UpdateAdminUserBody, UpdateAdminUserParams, UpdateAdminUserResponse,
   CreateUserBalanceAdjustmentBody, CreateUserBalanceAdjustmentParams, CreateUserBalanceAdjustmentResponse,
-  UpdateGlobalFreezeBody, UpdateGlobalFreezeResponse, GetWithdrawalLimitsResponse, UpdateWithdrawalLimitsBody, UpdateWithdrawalLimitsResponse,
-  ListAdminAuditQueryParams, ListAdminAuditResponse, ExportAdminAuditQueryParams,
+  UpdateGlobalFreezeBody, UpdateGlobalFreezeResponse, ListAdminAuditQueryParams, ListAdminAuditResponse, ExportAdminAuditQueryParams,
   ListApplicantCardTypesResponse, BuyApplicantCardBody, BuyApplicantCardResponse, TopUpApplicantCardParams, TopUpApplicantCardBody, TopUpApplicantCardResponse,
   ListAdminCardTypesResponse, UpdateAdminCardTypesBody, UpdateAdminCardTypesResponse, TopUpUserCardParams, TopUpUserCardBody, TopUpUserCardResponse,
   ListAdminCardRequestsQueryParams, ListAdminCardRequestsResponse, DeclineAdminCardRequestParams, DeclineAdminCardRequestBody, DeclineAdminCardRequestResponse,
@@ -38,11 +37,12 @@ import {
 } from "@workspace/api-zod";
 import { db, demoProfilesTable } from "@workspace/db";
 import { changeCard, changeOwnCard, declineCardActivation, issueCard, listCardRequests, topUpCard } from "../lib/cards";
-import { adminCardTypes, applicantCardTypes, changeCardTypes } from "../lib/cardTypes";
+import { adminCardTypes, changeCardTypes } from "../lib/cardTypes";
+import { applicantCardTypesFor } from "../lib/tiers";
 import {
   adminSearch, listAdminApplications, adminApplicationDetail, decideApplication, listAdminRequests, approveRequest, rejectRequest,
   listLedger, exportLedgerCsv, adminKycQueue, reviewKycDocument,
-  globalWithdrawalLimits, changeGlobalWithdrawalLimits, changeUserWithdrawalLimits, listAudit, exportAuditCsv,
+  changeUserWithdrawalLimits, listAudit, exportAuditCsv,
 } from "../lib/adminOps";
 import { receiveFile, receiveRequestForm, receiveApplicationForm, findFile, sendFile } from "../lib/uploads";
 import { createPlanApplication, resubmitPlanApplication } from "../lib/planApplications";
@@ -89,8 +89,8 @@ router.get("/applicant/account", async (req, res): Promise<void> => {
   res.json(GetApplicantAccountResponse.parse(await applicantAccount(currentUserId(req))));
 });
 
-router.get("/applicant/card-types", async (_req, res): Promise<void> => {
-  res.json(ListApplicantCardTypesResponse.parse(await applicantCardTypes()));
+router.get("/applicant/card-types", async (req, res): Promise<void> => {
+  res.json(ListApplicantCardTypesResponse.parse(await applicantCardTypesFor(currentUserId(req))));
 });
 
 router.post("/applicant/cards", async (req, res): Promise<void> => {
@@ -316,16 +316,6 @@ router.patch("/admin/system/freeze", async (req, res): Promise<void> => {
   const input = UpdateGlobalFreezeBody.safeParse(req.body);
   if (!input.success) { res.status(400).json({ error: "Invalid freeze request." }); return; }
   res.json(UpdateGlobalFreezeResponse.parse(await changeGlobalFreeze(input.data.frozen, currentAdmin(req), input.data.reason)));
-});
-
-router.get("/admin/system/withdrawal-limits", async (_req, res): Promise<void> => {
-  res.json(GetWithdrawalLimitsResponse.parse(await globalWithdrawalLimits()));
-});
-
-router.put("/admin/system/withdrawal-limits", async (req, res): Promise<void> => {
-  const input = UpdateWithdrawalLimitsBody.safeParse(req.body);
-  if (!input.success) { res.status(400).json({ error: "Enter each limit as an amount, or leave it empty for no limit." }); return; }
-  res.json(UpdateWithdrawalLimitsResponse.parse(await changeGlobalWithdrawalLimits(input.data, currentAdmin(req))));
 });
 
 router.post("/admin/users/:userId/cards", async (req, res): Promise<void> => {

@@ -4,6 +4,9 @@ import { db, demoAuditTable, demoLedgerTable, demoProfilesTable, demoSettingsTab
 import { availableCents, DemoInputError, getUser } from "./demoWorkspace";
 import { notifyUser } from "./notifications";
 import { cardTypeInfo, cardTypeSettings, isCardType, priceOf, typeOfCard, type CardNetwork, type CardTypeKey } from "./cardTypes";
+import { promptTierUpgrade, rulesOfSettings, tierLimitError, toppedUpLast24h } from "./tiers";
+import { cardAllowed, nextTier, TierLimitError, tierNeededFor, tierOf, topUpLimitsOf } from "./tierRules";
+import { limitHit, limitProblem, TOP_UP } from "./withdrawalLimits";
 
 /** A sample card as stored in `demo_profiles.cards`. No card network is connected; numbers are a random last four. */
 export type StoredCard = {
@@ -73,6 +76,20 @@ export async function issueCard(userId: string, o: IssueOptions) {
     const locked = await lockCards(tx, userId, o.by === "applicant" ? "Your account is frozen. Contact support to make changes." : undefined);
     if (!locked) return false;
     const { profile, cards } = locked;
+    // Step 9.4: users buy only the cards their tier allows (an admin may issue any type), and nobody gets a physical card
+    // without a virtual one first.
+    const rules = rulesOfSettings(settings);
+    if (o.by === "applicant" && !cardAllowed(rules, profile.tier, o.type, o.kind)) {
+      const needed = tierNeededFor(rules, profile.tier, o.type, o.kind);
+      const up = nextTier(rules, profile.tier);
+      const what = `The ${info.name} ${o.kind.toLowerCase()} card`;
+      throw new TierLimitError(!needed ? `${what} isn't available on Tier ${profile.tier}.`
+        : up ? `${what} is for Tier ${needed} accounts. Upgrade to Tier ${up}${needed > up ? ` first; this card comes with Tier ${needed}` : " to buy it"}.`
+        : `${what} is for Tier ${needed} accounts.`, needed ? up : null);
+    }
+    if (o.kind === "Physical" && !cards.some(c => c.kind === "Virtual" && c.status !== "Cancelled")) {
+      throw new DemoInputError(o.by === "applicant" ? "Get a virtual card first: a physical card needs a virtual card." : "Issue a virtual card first: nobody can get a physical card without a virtual card.");
+    }
     if (cards.some(c => c.kind === o.kind && c.status !== "Cancelled")) {
       throw new DemoInputError(o.by === "applicant"
         ? `You already have a ${o.kind.toLowerCase()} card. You can hold one ${o.kind.toLowerCase()} card at a time.`
@@ -116,7 +133,7 @@ export async function topUpCard(userId: string, cardId: string, amount: number, 
   if (!Number.isSafeInteger(cents) || cents < 1 || cents > 100_000_000 || Math.abs(amount * 100 - cents) > 0.00001) {
     throw new DemoInputError("Enter an amount between $0.01 and $1,000,000 with at most two decimals.");
   }
-  const found = await db.transaction(async tx => {
+  const run = () => db.transaction(async tx => {
     const [settings] = await tx.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform")).for("update");
     if (settings?.frozen) throw new DemoInputError("Top-ups are paused while the platform is frozen.");
     const locked = await lockCards(tx, userId, by === "applicant" ? "Your account is frozen. Contact support to make changes." : "Unfreeze the account before topping up its cards.");
@@ -132,6 +149,17 @@ export async function topUpCard(userId: string, cardId: string, amount: number, 
         : `The user's account balance has ${usd(available)} available${available < profile.depositCents ? " after pending withdrawals" : ""}, less than ${usd(cents)}.`);
     }
     if (profile.cardCents + cents > 2_000_000_000) throw new DemoInputError("This would exceed the demo account limit.");
+    // Step 9.4: a user's own top-ups follow their tier's limits (the profile row is locked, so two at once can't both fit).
+    if (by === "applicant") {
+      const rules = rulesOfSettings(settings);
+      const limits = topUpLimitsOf(rules[tierOf(profile.tier)]);
+      const used = await toppedUpLast24h(userId, tx);
+      const problem = limitProblem(limits, used, cents, TOP_UP);
+      if (problem) {
+        const hit = limitHit(limits, used, cents);
+        throw tierLimitError(rules, profile.tier, problem, `a card top-up of ${usd(cents)} (the Tier ${profile.tier} limit is ${hit === "max" ? `${usd(limits.maxCents!)} per top-up` : `${usd(limits.dailyCents!)} per 24 hours`})`);
+      }
+    }
     await tx.update(demoProfilesTable).set({ depositCents: profile.depositCents - cents, cardCents: profile.cardCents + cents }).where(eq(demoProfilesTable.id, userId));
     const what = `${cardTypeInfo(typeOfCard(card)).name} card •• ${card.lastFour}`;
     await tx.insert(demoLedgerTable).values([
@@ -142,6 +170,17 @@ export async function topUpCard(userId: string, cardId: string, amount: number, 
     await notifyUser(userId, `${usd(cents)} was moved from your account balance to your ${what}.`, "/cards", tx);
     return true;
   });
+  let found: boolean;
+  try {
+    found = await run();
+  } catch (err) {
+    // Over a tier limit: the refusal rolled back, so the upgrade prompt (bell + email, once a day) is written on its own.
+    if (err instanceof TierLimitError) {
+      const [p] = await db.select({ tier: demoProfilesTable.tier }).from(demoProfilesTable).where(eq(demoProfilesTable.id, userId));
+      await promptTierUpgrade(userId, p?.tier ?? 1, err);
+    }
+    throw err;
+  }
   return found ? getUser(userId) : undefined;
 }
 

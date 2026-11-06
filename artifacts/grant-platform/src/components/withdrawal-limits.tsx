@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  useGetWithdrawalLimits, useUpdateWithdrawalLimits, useUpdateUserWithdrawalLimits, type AdminUserProfile, type WithdrawalLimits,
+  useGetAdminTierSettings, useUpdateUserWithdrawalLimits, type AdminUserProfile, type WithdrawalLimits,
 } from '@workspace/api-client-react';
 import { Loader2 } from 'lucide-react';
 import { Field, cx, money } from '@/components/bits';
@@ -46,40 +46,10 @@ function LimitFields({ max, daily, setMax, setDaily, disabled, prefix }: {
   );
 }
 
-/** Admin Settings: the global limits every user follows unless they have custom ones. */
-export function GlobalWithdrawalLimits() {
-  const q = useGetWithdrawalLimits();
-  const m = useUpdateWithdrawalLimits();
-  const refresh = useAdminRefresh();
-  const { toast } = useToast();
-  const [max, setMax] = useState(''), [daily, setDaily] = useState(''), [err, setErr] = useState('');
-  useEffect(() => { if (q.data) { setMax(toInput(q.data.maxPerRequest)); setDaily(toInput(q.data.dailyTotal)); } }, [q.data]);
-  const save = (e: React.FormEvent) => {
-    e.preventDefault();
-    const data = parse(max, daily);
-    if (typeof data === 'string') return setErr(data);
-    setErr('');
-    m.mutate({ data }, {
-      onSuccess: (r) => { refresh(); toast({ title: 'Global withdrawal limits saved', description: limitsText(r) }); },
-      onError: (e2) => setErr(apiError(e2, 'The limits could not be saved. Please try again.')),
-    });
-  };
-  return (
-    <form noValidate onSubmit={save} className={cx(card, 'space-y-3 p-5')} data-testid="form-global-limits">
-      <SectionTitle>Platform-wide limits</SectionTitle>
-      <p className="text-sm text-slate-600">Apply to every user unless their profile has custom limits. Checked when an applicant places a withdrawal; the daily total counts requests under review or approved in the last 24 hours. Leave a field empty for no limit.</p>
-      <LimitFields prefix="global" max={max} daily={daily} setMax={(v) => { setMax(v); setErr(''); }} setDaily={(v) => { setDaily(v); setErr(''); }} disabled={!q.data} />
-      {err && <p role="alert" className="text-sm text-red-700" data-testid="error-global-limits">{err}</p>}
-      <button data-testid="button-save-global-limits" disabled={m.isPending || !q.data} className={cx(lime, 'inline-flex items-center gap-2')}>
-        {m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}{m.isPending ? 'Saving…' : 'Save limits'}
-      </button>
-    </form>
-  );
-}
-
-/** Admin user profile: follow the global limits, or custom ones that replace them for this user. */
+/** Admin user profile: follow the user's tier limits (Step 9.4), or custom ones that replace them for this user. */
 export function UserWithdrawalLimits({ u }: { u: AdminUserProfile }) {
-  const global = useGetWithdrawalLimits();
+  const tiers = useGetAdminTierSettings();
+  const tierLimits = tiers.data?.tiers.find((t) => t.tier === u.tier)?.withdrawal;
   const m = useUpdateUserWithdrawalLimits();
   const refresh = useAdminRefresh();
   const { toast } = useToast();
@@ -110,10 +80,10 @@ export function UserWithdrawalLimits({ u }: { u: AdminUserProfile }) {
         <h3 className="font-display font-bold">Withdrawal limits</h3>
         <span className="text-xs text-slate-500" data-testid="text-user-limits-used">{money(l.usedLast24h)} withdrawn in the last 24 hours</span>
       </div>
-      <p className="text-sm text-slate-700" data-testid="text-user-limits-current">Now: {limitsText(l)}{l.custom ? ' (custom)' : ' (global)'}</p>
+      <p className="text-sm text-slate-700" data-testid="text-user-limits-current">Now: {limitsText(l)}{l.custom ? ' (custom)' : ` (Tier ${u.tier})`}</p>
       <div role="radiogroup" aria-label="Withdrawal limits" className="grid gap-2 sm:grid-cols-2">
-        {option(false, 'Use global limits', global.data ? limitsText(global.data) : 'Set in Settings')}
-        {option(true, 'Custom for this user', 'Replaces the global limits. Empty = no limit.')}
+        {option(false, `Use Tier ${u.tier} limits`, tierLimits ? limitsText(tierLimits) : 'Set in Settings → Tiers')}
+        {option(true, 'Custom for this user', `Replaces the Tier ${u.tier} limits. Empty = no limit.`)}
       </div>
       {custom && <LimitFields prefix="user" max={max} daily={daily} setMax={(v) => { setMax(v); setErr(''); }} setDaily={(v) => { setDaily(v); setErr(''); }} />}
       {err && <p role="alert" className="text-sm text-red-700" data-testid="error-user-limits">{err}</p>}

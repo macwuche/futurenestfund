@@ -7,7 +7,7 @@
  */
 
 export interface UserWithdrawalLimitsUpdate {
-  /** false = use the global limits; true = the limits below replace them for this user */
+  /** false = use the tier's limits; true = the limits below replace them for this user */
   custom: boolean;
   /** @nullable */
   maxPerRequest?: number | null;

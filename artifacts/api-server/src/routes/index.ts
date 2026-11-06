@@ -7,6 +7,7 @@ import { clientErrorsRouter, monitoringAdminRouter } from "./monitoring";
 import emailSettingsRouter from "./emailSettings";
 import paymentMethodsRouter from "./paymentMethods";
 import grantPlansRouter, { publicIndustriesRouter } from "./grantPlans";
+import tiersRouter from "./tiers";
 import { authenticate, requireAdmin, requireApplicant } from "../lib/auth";
 import { perIp, perUserUploads, perUserWrites } from "../lib/rateLimit";
 
@@ -27,6 +28,7 @@ router.use(monitoringAdminRouter);
 router.use(emailSettingsRouter);
 router.use(paymentMethodsRouter);
 router.use(grantPlansRouter);
+router.use(tiersRouter);
 router.use(workspaceRouter);
 
 export default router;

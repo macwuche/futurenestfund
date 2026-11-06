@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { EmailError, emailConfigured, sendEmail } from "./email";
-import { isMoneyEmailKind, moneyEmail, notificationEmail, type MoneyEmailData } from "./emailTemplates";
+import { isMoneyEmailKind, isTierEmailKind, moneyEmail, notificationEmail, tierEmail, type MoneyEmailData, type TierEmailData } from "./emailTemplates";
 import { logger } from "./logger";
 import { scrub } from "./monitoring";
 
@@ -46,7 +46,9 @@ export async function sendPendingNotificationEmails(limit = 20): Promise<number>
     try {
       const message = isMoneyEmailKind(row.email_kind) && row.email_data
         ? moneyEmail(row.email_kind, row.email, row.name, row.email_data, url)
-        : notificationEmail(row.email, row.name, row.message, url);
+        : isTierEmailKind(row.email_kind) && row.email_data
+          ? tierEmail(row.email_kind, row.email, row.name, row.email_data as unknown as TierEmailData, url)
+          : notificationEmail(row.email, row.name, row.message, url);
       await sendEmail(message, `notification:${row.id}`);
       await db.execute(sql`update demo_notifications set emailed_at = now(), email_claimed_until = null, email_last_error = null where id = ${row.id}`);
       sent++;

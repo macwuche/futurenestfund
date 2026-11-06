@@ -1,9 +1,9 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db, demoNotificationsTable } from "@workspace/db";
-import type { MoneyEmailData, MoneyEmailKind } from "./emailTemplates";
+import type { MoneyEmailData, MoneyEmailKind, TierEmailData, TierEmailKind } from "./emailTemplates";
 
 type Tx = Pick<typeof db, "insert">;
-export type NotificationEmail = { kind: MoneyEmailKind; data: MoneyEmailData };
+export type NotificationEmail = { kind: MoneyEmailKind; data: MoneyEmailData } | { kind: TierEmailKind; data: TierEmailData };
 
 /**
  * Queue a notification for a user (inside the caller's transaction when given). `email` picks a dedicated email template.

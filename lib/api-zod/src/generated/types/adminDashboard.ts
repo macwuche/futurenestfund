@@ -20,6 +20,8 @@ export interface AdminDashboard {
   pendingWithdrawals: number;
   /** Physical cards whose holder asked for activation */
   pendingCardActivations: number;
+  /** Step 9.4: tier upgrade requests waiting for a decision */
+  pendingTierRequests: number;
   /** Fees charged (withdrawal, deposit and card fees) */
   feesCollected: AdminDashboardFeesCollected;
   totalGrantBalances: number;

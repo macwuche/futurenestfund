@@ -7,6 +7,7 @@
  */
 import type { ApplicantCardTypeNetwork } from './applicantCardTypeNetwork';
 import type { CardKindPrice } from './cardKindPrice';
+import type { CardTierLock } from './cardTierLock';
 import type { CardTypeKey } from './cardTypeKey';
 
 export interface ApplicantCardType {
@@ -15,4 +16,6 @@ export interface ApplicantCardType {
   network: ApplicantCardTypeNetwork;
   virtual?: CardKindPrice;
   physical?: CardKindPrice;
+  virtualLock?: CardTierLock;
+  physicalLock?: CardTierLock;
 }

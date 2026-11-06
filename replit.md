@@ -59,10 +59,14 @@ The supplied documents contain generic Next.js instructions, but the user's expl
 - No payment processor or card network is connected. Any card, confidence score, grant/application, chart or document shown is sample data.
 - Do not describe a demonstration confidence score as real OCR or the preview role switch as sign-in.
 
+## Tiers (Step 9.4)
+
+`lib/tierRules.ts` (pure, unit-tested) and `lib/tiers.ts`; rules in `demo_settings.tier_rules`, requests in `demo_tier_requests`. Each tier sets withdrawal limits (they replaced the platform-wide limits; a user's custom limits still win), card top-up limits, and the card types it may buy; a refusal over a tier limit is a `TierLimitError` (API sends `upgradeTier`) and `promptTierUpgrade` writes the bell + email (once a day) outside the rolled-back transaction. No physical card without a virtual card. Upgrades: one tier at a time through the admin-made form, approved in Admin → Tier Upgrades.
+
 ## UI source requirements
 
 The preserved brief files are under `.local/conversation-workspace/files/attached_assets/`:
 - `Pasted--User-Dashboard-Profile-UI-Specification-user-dashboard_1792092005165.txt`
 - `Pasted--Admin-Dashboard-User-Profile-UI-Specification-admin-da_1792095537728.txt`
 
-Applicant navigation is grouped: Overview (Dashboard, My Applications, Milestones), Find funding (Grants), Track (Funding Tracker, Reports), Money (Cards, Transactions, Withdrawals, Add funds), then Settings and Help Centre; phones have a bottom bar (Dashboard, Grants, Apps, Cards, Settings). Applications are made to an admin-made grant plan through its own form (Phase 11, `lib/grantPlans.ts`, `lib/planApplications.ts`); the application fee is charged from the account balance only on approval and may take it below $0. Admin navigation is Dashboard, Users, Grant Plans, Transactions, Deposit Page, Withdrawal Page, Payment Gateway (Deposit / Withdrawal method settings), KYC Page, Card Requests, Settings (the written admin spec is the admin design source; application review lives under Users at `/admin/users/:userId/applications/:id`, reached from the inspector and the dashboard queue).
+Applicant navigation is grouped: Overview (Dashboard, My Applications, Milestones), Find funding (Grants), Track (Funding Tracker, Reports), Money (Cards, Transactions, Withdrawals, Add funds), then Settings and Help Centre (Your tier at `/tier`, from Settings and the dashboard); phones have a bottom bar (Dashboard, Grants, Apps, Cards, Settings). Applications are made to an admin-made grant plan through its own form (Phase 11, `lib/grantPlans.ts`, `lib/planApplications.ts`); the application fee is charged from the account balance only on approval and may take it below $0. Admin navigation is Dashboard, Users, Grant Plans, Transactions, Deposit Page, Withdrawal Page, Payment Gateway (Deposit / Withdrawal method settings), KYC Page, Card Requests, Tier Upgrades, Settings (the written admin spec is the admin design source; application review lives under Users at `/admin/users/:userId/applications/:id`, reached from the inspector and the dashboard queue).

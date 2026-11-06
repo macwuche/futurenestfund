@@ -20,7 +20,7 @@ import { removeFile, storeUpload, UploadError } from "./uploads";
  * The uploads by field id. Files come as `files` (in order) with `fileFields`, a JSON list naming the field each one is
  * for; anything not for one of the plan's file fields is refused.
  */
-function filesByField(fields: MethodField[], files: Express.Multer.File[] = [], fileFieldsRaw?: unknown) {
+export function filesByField(fields: MethodField[], files: Express.Multer.File[] = [], fileFieldsRaw?: unknown) {
   const fileFields = new Map(fields.filter(f => f.type === "file").map(f => [f.id, f]));
   const uploads = files.filter(f => f.fieldname === "files");
   if (uploads.length !== files.length) throw new RecordInputError("The application form could not be read. Reload the page and try again.");
@@ -38,7 +38,7 @@ function filesByField(fields: MethodField[], files: Express.Multer.File[] = [], 
 }
 
 /** The answers as sent: a JSON object (multipart sends it as a string). */
-function readAnswers(raw: unknown): unknown {
+export function readAnswers(raw: unknown): unknown {
   if (typeof raw !== "string") return raw ?? {};
   try { return JSON.parse(raw); } catch { throw new RecordInputError("The form answers couldn't be read. Reload the page and try again."); }
 }

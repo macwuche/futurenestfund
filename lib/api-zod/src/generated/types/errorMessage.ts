@@ -10,4 +10,10 @@ export interface ErrorMessage {
   error: string;
   /** Only on 500 errors: the request id in the server log (the message quotes its first 8 characters) */
   requestId?: string;
+  /**
+     * Step 9.4: refused by a tier limit; upgrading to this tier would raise it (show an Upgrade button)
+     * @minimum 2
+     * @maximum 3
+     */
+  upgradeTier?: number;
 }

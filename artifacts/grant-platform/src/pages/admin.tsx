@@ -12,7 +12,8 @@ import { keepPreviousData } from '@tanstack/react-query';
 import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck, Mail, Gauge, Activity, ScrollText, UserRound, CreditCard, Briefcase } from 'lucide-react';
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
-import { GlobalWithdrawalLimits, UserWithdrawalLimits } from '@/components/withdrawal-limits';
+import { UserWithdrawalLimits } from '@/components/withdrawal-limits';
+import { TierSettings } from '@/components/tier-settings';
 import { UserWithdrawalSources } from '@/components/withdrawal-sources';
 import { MonitoringSettings, RateLimitSettings, VirusScanSettings } from '@/components/monitoring-settings';
 import { EmailSettingsCard } from '@/components/email-settings';
@@ -20,6 +21,7 @@ import { CardControls } from '@/components/card-controls';
 import { CardTypeSettings } from '@/components/card-type-settings';
 import { IndustrySettings } from '@/components/industry-settings';
 import { CardActivationQueue } from '@/pages/admin-cards';
+import { TierRequestQueue } from '@/pages/admin-tiers';
 import { AdminPhotoSettings, UserPhotoControl } from '@/components/admin-photo';
 import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, initials, money, useAnimateOnce } from '@/components/bits';
 import { card, ainput, lime, dark, ghost, danger, Stat, SectionTitle, useAdminRefresh, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
@@ -37,7 +39,7 @@ export const appReviewHref = (a: { id: string; userId: string }) => `/admin/user
 export function AdminOverviewPage() {
   return <DashGate title="Dashboard">{(d) => (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
         <Stat id="total-users" label="Total users" value={d.totalUsers} accent hint={`${d.activeUsers} active`} href="/admin/users" />
         <Stat id="grant-balances" label="Grant balances" value={money(d.totalGrantBalances)} />
         <Stat id="deposit-balances" label="Account balances" value={money(d.totalDepositBalances)} />
@@ -47,7 +49,8 @@ export function AdminOverviewPage() {
         <Stat id="pending-deposits" label="Pending deposits" value={d.pendingDeposits} href="/admin/deposits" />
         <Stat id="pending-withdrawals" label="Pending withdrawals" value={d.pendingWithdrawals} href="/admin/withdrawals" />
         <Stat id="pending-card-activations" label="Card activations" value={d.pendingCardActivations} hint="Physical cards the user says arrived" href="/admin/cards" />
-        <div className="md:col-span-3 xl:col-span-1"><Stat id="fees-collected" label="Fees this month" value={money(d.feesCollected.thisMonth)} hint={`${money(d.feesCollected.allTime)} all time`} href="/admin/transactions?type=Fee" /></div>
+        <Stat id="pending-tier-requests" label="Tier upgrades" value={d.pendingTierRequests} hint="Upgrade forms to review" href="/admin/tiers" />
+        <div className="col-span-2"><Stat id="fees-collected" label="Fees this month" value={money(d.feesCollected.thisMonth)} hint={`${money(d.feesCollected.allTime)} all time`} href="/admin/transactions?type=Fee" /></div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -71,6 +74,7 @@ export function AdminOverviewPage() {
         <div className="min-w-0 space-y-4 lg:col-span-2 lg:self-start">
           <ReviewQueue />
           <CardActivationQueue />
+          <TierRequestQueue />
         </div>
         <div className="min-w-0 space-y-4">
           <section className={cx(card, 'p-5')} data-testid="card-status-groups">
@@ -468,7 +472,7 @@ function UserApplications({ userId }: { userId: string }) {
 const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: Snowflake, hint: 'Global freeze and the rules every approval follows' },
   { id: 'email', label: 'Email', icon: Mail, hint: 'Resend key, sender, signature and health checks' },
-  { id: 'limits', label: 'Money', icon: Gauge, hint: 'Platform-wide withdrawal limits' },
+  { id: 'tiers', label: 'Tiers', icon: Gauge, hint: 'What each tier allows: withdrawal and top-up limits, cards, and the upgrade forms' },
   { id: 'cards', label: 'Cards', icon: CreditCard, hint: 'The card types applicants can buy, with their prices and fees' },
   { id: 'industries', label: 'Industries', icon: Briefcase, hint: 'The industries users choose from and grant plans belong to' },
   { id: 'monitoring', label: 'Monitoring', icon: Activity, hint: 'Where errors go, upload virus scanning and rate limits' },
@@ -480,6 +484,8 @@ export const settingsHref = (s: SettingsSection) => (s === 'general' ? '/admin/s
 
 export function AdminSettingsPage() {
   const { section: raw } = useParams<{ section?: string }>();
+  // The old Money section (platform-wide withdrawal limits) became Tiers in Step 9.4.
+  if (raw === 'limits') return <Redirect to="/admin/settings/tiers" replace />;
   const current = SETTINGS_SECTIONS.find((x) => x.id === (raw ?? 'general'));
   if (!current) return <Redirect to="/admin/settings" replace />;
   return (
@@ -505,7 +511,7 @@ export function AdminSettingsPage() {
           </header>
           {current.id === 'general' && <GeneralSettings />}
           {current.id === 'email' && <EmailSettingsCard />}
-          {current.id === 'limits' && <GlobalWithdrawalLimits />}
+          {current.id === 'tiers' && <TierSettings />}
           {current.id === 'cards' && <CardTypeSettings />}
           {current.id === 'industries' && <IndustrySettings />}
           {current.id === 'monitoring' && <><MonitoringSettings /><VirusScanSettings /><RateLimitSettings /></>}

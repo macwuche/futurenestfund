@@ -33,6 +33,8 @@ import type {
   AdminLedgerPage,
   AdminRequest,
   AdminSearchResults,
+  AdminTierRequest,
+  AdminTierSettings,
   AdminUserProfile,
   AdminUserUpdate,
   AdminUsersPage,
@@ -46,6 +48,7 @@ import type {
   ApplicantProfile,
   ApplicantProfileUpdate,
   ApplicantRequestForm,
+  ApplicantTier,
   ApplicantTransaction,
   ApplicationDecisionInput,
   ApplicationDetail,
@@ -87,6 +90,7 @@ import type {
   ListAdminCardRequestsParams,
   ListAdminPaymentMethodsParams,
   ListAdminRequestsParams,
+  ListAdminTierRequestsParams,
   ListAdminTransactionsParams,
   ListAdminUsersParams,
   ListApplicantPaymentMethodsParams,
@@ -106,9 +110,11 @@ import type {
   ReasonInput,
   SearchAdminParams,
   Session,
+  TierDecisionInput,
+  TierRequestForm,
+  TierSettingsUpdate,
   UserBalances,
   UserWithdrawalLimitsUpdate,
-  WithdrawalLimits,
   WithdrawalSourcesUpdate
 } from './api.schemas';
 
@@ -2942,6 +2948,165 @@ export function useListApplicantCardTypes<TData = Awaited<ReturnType<typeof list
 
 
 
+
+export const getGetApplicantTierUrl = () => {
+
+
+
+
+  return `/api/applicant/tier`
+}
+
+/**
+ * @summary Step 9.4: the user's tier, what each tier allows, the next tier's upgrade form and the latest request
+ */
+export const getApplicantTier = async ( options?: Parameters<typeof customFetch>[1]): Promise<ApplicantTier> => {
+
+  return customFetch<ApplicantTier>(getGetApplicantTierUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetApplicantTierQueryKey = () => {
+    return [
+    `/api/applicant/tier`
+    ] as const;
+    }
+
+
+export const getGetApplicantTierQueryOptions = <TData = Awaited<ReturnType<typeof getApplicantTier>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantTier>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApplicantTierQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApplicantTier>>> = ({ signal }) => getApplicantTier({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApplicantTier>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetApplicantTierQueryResult = NonNullable<Awaited<ReturnType<typeof getApplicantTier>>>
+export type GetApplicantTierQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Step 9.4: the user's tier, what each tier allows, the next tier's upgrade form and the latest request
+ */
+
+export function useGetApplicantTier<TData = Awaited<ReturnType<typeof getApplicantTier>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicantTier>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetApplicantTierQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateApplicantTierRequestUrl = () => {
+
+
+
+
+  return `/api/applicant/tier/requests`
+}
+
+/**
+ * @summary Ask to move up one tier by sending the next tier's upgrade form
+ */
+export const createApplicantTierRequest = async (tierRequestForm: TierRequestForm, options?: Parameters<typeof customFetch>[1]): Promise<ApplicantTier> => {
+    const formData = new FormData();
+formData.append(`answers`, tierRequestForm.answers);
+if(tierRequestForm.fileFields !== undefined) {
+ formData.append(`fileFields`, tierRequestForm.fileFields);
+ }
+if(tierRequestForm.files !== undefined) {
+ tierRequestForm.files.forEach(value => formData.append(`files`, value));
+ }
+
+  return customFetch<ApplicantTier>(getCreateApplicantTierRequestUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getCreateApplicantTierRequestMutationKey = () => ['createApplicantTierRequest'] as const;
+
+export const getCreateApplicantTierRequestMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApplicantTierRequest>>, TError,CreateApplicantTierRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createApplicantTierRequest>>, TError,CreateApplicantTierRequestMutationVariables, TContext> => {
+
+const mutationKey = getCreateApplicantTierRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createApplicantTierRequest>>, CreateApplicantTierRequestMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createApplicantTierRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateApplicantTierRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createApplicantTierRequest>>>
+    export type CreateApplicantTierRequestMutationBody = BodyType<TierRequestForm>
+    export type CreateApplicantTierRequestMutationError = ErrorType<ErrorMessage>
+    export type CreateApplicantTierRequestMutationVariables = {data: BodyType<TierRequestForm>}
+
+    /**
+ * @summary Ask to move up one tier by sending the next tier's upgrade form
+ */
+export const useCreateApplicantTierRequest = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApplicantTierRequest>>, TError,CreateApplicantTierRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createApplicantTierRequest>>,
+        TError,
+        CreateApplicantTierRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateApplicantTierRequestMutationOptions(options));
+    }
 
 export const getBuyApplicantCardUrl = () => {
 
@@ -6373,7 +6538,7 @@ export const getUpdateUserWithdrawalLimitsUrl = (userId: string,) => {
 }
 
 /**
- * @summary Use the global withdrawal limits for this user, or set custom ones that replace them
+ * @summary Use the tier's withdrawal limits for this user, or set custom ones that replace them
  */
 export const updateUserWithdrawalLimits = async (userId: string,
     userWithdrawalLimitsUpdate: UserWithdrawalLimitsUpdate, options?: Parameters<typeof customFetch>[1]): Promise<AdminUserProfile> => {
@@ -6440,7 +6605,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateUserWithdrawalLimitsMutationVariables = {userId: string;data: BodyType<UserWithdrawalLimitsUpdate>}
 
     /**
- * @summary Use the global withdrawal limits for this user, or set custom ones that replace them
+ * @summary Use the tier's withdrawal limits for this user, or set custom ones that replace them
  */
 export const useUpdateUserWithdrawalLimits = <TError = ErrorType<ErrorMessage | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserWithdrawalLimits>>, TError,UpdateUserWithdrawalLimitsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -6453,20 +6618,20 @@ export const useUpdateUserWithdrawalLimits = <TError = ErrorType<ErrorMessage | 
       return useMutation(getUpdateUserWithdrawalLimitsMutationOptions(options));
     }
 
-export const getGetWithdrawalLimitsUrl = () => {
+export const getGetAdminTierSettingsUrl = () => {
 
 
 
 
-  return `/api/admin/system/withdrawal-limits`
+  return `/api/admin/tiers`
 }
 
 /**
- * @summary The global withdrawal limits
+ * @summary Step 9.4: each tier's withdrawal and top-up limits, the cards it may buy and its upgrade form, with setup warnings
  */
-export const getWithdrawalLimits = async ( options?: Parameters<typeof customFetch>[1]): Promise<WithdrawalLimits> => {
+export const getAdminTierSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminTierSettings> => {
 
-  return customFetch<WithdrawalLimits>(getGetWithdrawalLimitsUrl(),
+  return customFetch<AdminTierSettings>(getGetAdminTierSettingsUrl(),
   {
     ...options,
     method: 'GET'
@@ -6479,45 +6644,45 @@ export const getWithdrawalLimits = async ( options?: Parameters<typeof customFet
 
 
 
-export const getGetWithdrawalLimitsQueryKey = () => {
+export const getGetAdminTierSettingsQueryKey = () => {
     return [
-    `/api/admin/system/withdrawal-limits`
+    `/api/admin/tiers`
     ] as const;
     }
 
 
-export const getGetWithdrawalLimitsQueryOptions = <TData = Awaited<ReturnType<typeof getWithdrawalLimits>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWithdrawalLimits>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetAdminTierSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminTierSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminTierSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetWithdrawalLimitsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminTierSettingsQueryKey();
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWithdrawalLimits>>> = ({ signal }) => getWithdrawalLimits({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminTierSettings>>> = ({ signal }) => getAdminTierSettings({ signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWithdrawalLimits>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminTierSettings>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetWithdrawalLimitsQueryResult = NonNullable<Awaited<ReturnType<typeof getWithdrawalLimits>>>
-export type GetWithdrawalLimitsQueryError = ErrorType<unknown>
+export type GetAdminTierSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminTierSettings>>>
+export type GetAdminTierSettingsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary The global withdrawal limits
+ * @summary Step 9.4: each tier's withdrawal and top-up limits, the cards it may buy and its upgrade form, with setup warnings
  */
 
-export function useGetWithdrawalLimits<TData = Awaited<ReturnType<typeof getWithdrawalLimits>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWithdrawalLimits>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useGetAdminTierSettings<TData = Awaited<ReturnType<typeof getAdminTierSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminTierSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetWithdrawalLimitsQueryOptions(options)
+  const queryOptions = getGetAdminTierSettingsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -6530,18 +6695,18 @@ export function useGetWithdrawalLimits<TData = Awaited<ReturnType<typeof getWith
 
 
 
-export const getUpdateWithdrawalLimitsUrl = () => {
+export const getUpdateAdminTierSettingsUrl = () => {
 
 
 
 
-  return `/api/admin/system/withdrawal-limits`
+  return `/api/admin/tiers`
 }
 
 /**
- * @summary Set the global withdrawal limits
+ * @summary Save the tier settings (tiers not sent keep theirs)
  */
-export const updateWithdrawalLimits = async (withdrawalLimits: WithdrawalLimits, options?: Parameters<typeof customFetch>[1]): Promise<WithdrawalLimits> => {
+export const updateAdminTierSettings = async (tierSettingsUpdate: TierSettingsUpdate, options?: Parameters<typeof customFetch>[1]): Promise<AdminTierSettings> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -6557,12 +6722,12 @@ export const updateWithdrawalLimits = async (withdrawalLimits: WithdrawalLimits,
     }
     return headers;
   };
-return customFetch<WithdrawalLimits>(getUpdateWithdrawalLimitsUrl(),
+return customFetch<AdminTierSettings>(getUpdateAdminTierSettingsUrl(),
   {
     ...options,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(withdrawalLimits)
+    body: JSON.stringify(tierSettingsUpdate)
   }
 );}
 
@@ -6570,13 +6735,13 @@ return customFetch<WithdrawalLimits>(getUpdateWithdrawalLimitsUrl(),
 
 
 
-export const getUpdateWithdrawalLimitsMutationKey = () => ['updateWithdrawalLimits'] as const;
+export const getUpdateAdminTierSettingsMutationKey = () => ['updateAdminTierSettings'] as const;
 
-export const getUpdateWithdrawalLimitsMutationOptions = <TError = ErrorType<ErrorMessage>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWithdrawalLimits>>, TError,UpdateWithdrawalLimitsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateWithdrawalLimits>>, TError,UpdateWithdrawalLimitsMutationVariables, TContext> => {
+export const getUpdateAdminTierSettingsMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminTierSettings>>, TError,UpdateAdminTierSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminTierSettings>>, TError,UpdateAdminTierSettingsMutationVariables, TContext> => {
 
-const mutationKey = getUpdateWithdrawalLimitsMutationKey();
+const mutationKey = getUpdateAdminTierSettingsMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -6586,10 +6751,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateWithdrawalLimits>>, UpdateWithdrawalLimitsMutationVariables> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminTierSettings>>, UpdateAdminTierSettingsMutationVariables> = (props) => {
           const {data} = props ?? {};
 
-          return  updateWithdrawalLimits(data,requestOptions)
+          return  updateAdminTierSettings(data,requestOptions)
         }
 
 
@@ -6599,23 +6764,196 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type UpdateWithdrawalLimitsMutationResult = NonNullable<Awaited<ReturnType<typeof updateWithdrawalLimits>>>
-    export type UpdateWithdrawalLimitsMutationBody = BodyType<WithdrawalLimits>
-    export type UpdateWithdrawalLimitsMutationError = ErrorType<ErrorMessage>
-    export type UpdateWithdrawalLimitsMutationVariables = {data: BodyType<WithdrawalLimits>}
+    export type UpdateAdminTierSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminTierSettings>>>
+    export type UpdateAdminTierSettingsMutationBody = BodyType<TierSettingsUpdate>
+    export type UpdateAdminTierSettingsMutationError = ErrorType<ErrorMessage>
+    export type UpdateAdminTierSettingsMutationVariables = {data: BodyType<TierSettingsUpdate>}
 
     /**
- * @summary Set the global withdrawal limits
+ * @summary Save the tier settings (tiers not sent keep theirs)
  */
-export const useUpdateWithdrawalLimits = <TError = ErrorType<ErrorMessage>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWithdrawalLimits>>, TError,UpdateWithdrawalLimitsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useUpdateAdminTierSettings = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminTierSettings>>, TError,UpdateAdminTierSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof updateWithdrawalLimits>>,
+        Awaited<ReturnType<typeof updateAdminTierSettings>>,
         TError,
-        UpdateWithdrawalLimitsMutationVariables,
+        UpdateAdminTierSettingsMutationVariables,
         TContext
       > => {
-      return useMutation(getUpdateWithdrawalLimitsMutationOptions(options));
+      return useMutation(getUpdateAdminTierSettingsMutationOptions(options));
+    }
+
+export const getListAdminTierRequestsUrl = (params?: ListAdminTierRequestsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/tier-requests?${stringifiedParams}` : `/api/admin/tier-requests`
+}
+
+/**
+ * @summary Tier upgrade requests, pending (oldest first) or decided (latest first)
+ */
+export const listAdminTierRequests = async (params?: ListAdminTierRequestsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminTierRequest[]> => {
+
+  return customFetch<AdminTierRequest[]>(getListAdminTierRequestsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminTierRequestsQueryKey = (params?: ListAdminTierRequestsParams,) => {
+    return [
+    `/api/admin/tier-requests`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminTierRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminTierRequests>>, TError = ErrorType<unknown>>(params?: ListAdminTierRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminTierRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminTierRequestsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminTierRequests>>> = ({ signal }) => listAdminTierRequests(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminTierRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminTierRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminTierRequests>>>
+export type ListAdminTierRequestsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Tier upgrade requests, pending (oldest first) or decided (latest first)
+ */
+
+export function useListAdminTierRequests<TData = Awaited<ReturnType<typeof listAdminTierRequests>>, TError = ErrorType<unknown>>(
+ params?: ListAdminTierRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminTierRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminTierRequestsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDecideAdminTierRequestUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/admin/tier-requests/${requestId}/decision`
+}
+
+/**
+ * @summary Approve (the user moves up a tier) or decline with a reason the user sees
+ */
+export const decideAdminTierRequest = async (requestId: string,
+    tierDecisionInput: TierDecisionInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminTierRequest> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminTierRequest>(getDecideAdminTierRequestUrl(requestId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(tierDecisionInput)
+  }
+);}
+
+
+
+
+
+export const getDecideAdminTierRequestMutationKey = () => ['decideAdminTierRequest'] as const;
+
+export const getDecideAdminTierRequestMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideAdminTierRequest>>, TError,DecideAdminTierRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideAdminTierRequest>>, TError,DecideAdminTierRequestMutationVariables, TContext> => {
+
+const mutationKey = getDecideAdminTierRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideAdminTierRequest>>, DecideAdminTierRequestMutationVariables> = (props) => {
+          const {requestId,data} = props ?? {};
+
+          return  decideAdminTierRequest(requestId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideAdminTierRequestMutationResult = NonNullable<Awaited<ReturnType<typeof decideAdminTierRequest>>>
+    export type DecideAdminTierRequestMutationBody = BodyType<TierDecisionInput>
+    export type DecideAdminTierRequestMutationError = ErrorType<ErrorMessage>
+    export type DecideAdminTierRequestMutationVariables = {requestId: string;data: BodyType<TierDecisionInput>}
+
+    /**
+ * @summary Approve (the user moves up a tier) or decline with a reason the user sees
+ */
+export const useDecideAdminTierRequest = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideAdminTierRequest>>, TError,DecideAdminTierRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideAdminTierRequest>>,
+        TError,
+        DecideAdminTierRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDecideAdminTierRequestMutationOptions(options));
     }
 
 export const getGetAdminFileUrl = (fileId: string,) => {
