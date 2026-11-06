@@ -33,7 +33,7 @@ export function PlanAnswers({ a, testid = 'section-plan-answers', fileLabel = 'D
             <dt className="text-sm text-slate-500">{x.label}</dt>
             <dd className="min-w-0 break-words text-sm" data-testid={`text-answer-${i}`}>
               {x.file ? (
-                <a href={x.file.url} download={x.file.name} data-testid={`link-answer-file-${i}`} className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-[#1E3A8A] underline sm:min-h-0" aria-label={`${fileLabel} ${x.file.name}`}>
+                <a href={x.file.url} download={x.file.name} data-testid={`link-answer-file-${i}`} className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-[var(--brand-ink)] underline sm:min-h-0" aria-label={`${fileLabel} ${x.file.name}`}>
                   <Paperclip className="h-4 w-4 shrink-0" aria-hidden />{x.file.name}<Download className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 </a>
               ) : x.value ? <span className="font-medium text-slate-900">{x.value}</span> : <span className="text-slate-400">Not given</span>}
@@ -75,7 +75,7 @@ export function PlanResubmit({ a, onDone }: { a: ApplicationDetail; onDone: (d: 
         onChange={setValues} onFile={(k, f) => setFiles((x) => ({ ...x, [k]: f }))} />
       <Field label="Note to the reviewer (optional)"><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={1000} placeholder="What you changed" className={cx(inputCls, 'resize-y')} data-testid="input-resubmit-note" /></Field>
       {error && <p role="alert" className="text-sm text-[#991B1B]" data-testid="text-resubmit-error">{error}</p>}
-      <button type="submit" disabled={m.isPending} className="press rounded-full bg-[#1E3A8A] px-5 py-2.5 text-[15px] font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60" data-testid="button-resubmit-plan">
+      <button type="submit" disabled={m.isPending} className="press rounded-full bg-[var(--brand)] px-5 py-2.5 text-[15px] font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)] disabled:opacity-60" data-testid="button-resubmit-plan">
         {m.isPending ? 'Resubmitting…' : 'Resubmit application'}
       </button>
     </form>

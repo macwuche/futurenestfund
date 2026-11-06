@@ -8,7 +8,7 @@ export default function NotFound() {
   return (
     <Shell title="Page not found">
       <Empty title="We couldn't find that page" hint="The link may be outdated, or the page may have moved.">
-        <Link href={admin ? '/admin' : '/dashboard'} data-testid="link-home" className="inline-flex rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0F172A]">Back to dashboard</Link>
+        <Link href={admin ? '/admin' : '/dashboard'} data-testid="link-home" className="inline-flex rounded-full bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)]">Back to dashboard</Link>
       </Empty>
     </Shell>
   );

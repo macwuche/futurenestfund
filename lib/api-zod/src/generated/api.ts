@@ -320,6 +320,186 @@ export const GetAuthConfigResponse = zod.object({
 
 
 /**
+ * @summary The application's name, brand colour (with the shades the app uses) and logo; public: the sign-in pages need it
+ */
+export const GetBrandingResponse = zod.object({
+  "appName": zod.string(),
+  "color": zod.string().describe('#RRGGBB'),
+  "palette": zod.object({
+  "brand": zod.string(),
+  "fg": zod.string().describe('Text on the brand colour'),
+  "ink": zod.string().describe('The brand as text on white'),
+  "glow": zod.string().describe('The brand as text on the admin\'s black'),
+  "dark": zod.string(),
+  "light": zod.string(),
+  "soft": zod.string(),
+  "soft2": zod.string()
+}),
+  "logoUrl": zod.string().nullable()
+})
+
+
+/**
+ * @summary The application's logo image (public)
+ */
+export const GetBrandingLogoResponse = zod.unknown()
+
+
+/**
+ * @summary Branding with where the logo came from and the defaults
+ */
+export const GetAdminBrandingResponse = zod.object({
+  "appName": zod.string(),
+  "color": zod.string().describe('#RRGGBB'),
+  "palette": zod.object({
+  "brand": zod.string(),
+  "fg": zod.string().describe('Text on the brand colour'),
+  "ink": zod.string().describe('The brand as text on white'),
+  "glow": zod.string().describe('The brand as text on the admin\'s black'),
+  "dark": zod.string(),
+  "light": zod.string(),
+  "soft": zod.string(),
+  "soft2": zod.string()
+}),
+  "logoUrl": zod.string().nullable()
+}).and(zod.object({
+  "logoSource": zod.string().nullable().describe('upload, or the host the logo was taken from'),
+  "defaults": zod.object({
+  "appName": zod.string(),
+  "color": zod.string()
+})
+}))
+
+
+/**
+ * @summary Set the application's name and brand colour
+ */
+export const updateAdminBrandingBodyAppNameMin = 2;
+export const updateAdminBrandingBodyAppNameMax = 40;
+
+export const updateAdminBrandingBodyColorMax = 7;
+
+
+
+export const UpdateAdminBrandingBody = zod.object({
+  "appName": zod.string().min(updateAdminBrandingBodyAppNameMin).max(updateAdminBrandingBodyAppNameMax),
+  "color": zod.string().max(updateAdminBrandingBodyColorMax)
+})
+
+export const UpdateAdminBrandingResponse = zod.object({
+  "appName": zod.string(),
+  "color": zod.string().describe('#RRGGBB'),
+  "palette": zod.object({
+  "brand": zod.string(),
+  "fg": zod.string().describe('Text on the brand colour'),
+  "ink": zod.string().describe('The brand as text on white'),
+  "glow": zod.string().describe('The brand as text on the admin\'s black'),
+  "dark": zod.string(),
+  "light": zod.string(),
+  "soft": zod.string(),
+  "soft2": zod.string()
+}),
+  "logoUrl": zod.string().nullable()
+}).and(zod.object({
+  "logoSource": zod.string().nullable().describe('upload, or the host the logo was taken from'),
+  "defaults": zod.object({
+  "appName": zod.string(),
+  "color": zod.string()
+})
+}))
+
+
+/**
+ * @summary Upload the logo (PNG, JPEG or WebP, up to 2 MB; re-encoded)
+ */
+export const UploadAdminBrandingLogoBody = zod.object({
+  "file": zod.instanceof(Blob)
+})
+
+export const UploadAdminBrandingLogoResponse = zod.object({
+  "appName": zod.string(),
+  "color": zod.string().describe('#RRGGBB'),
+  "palette": zod.object({
+  "brand": zod.string(),
+  "fg": zod.string().describe('Text on the brand colour'),
+  "ink": zod.string().describe('The brand as text on white'),
+  "glow": zod.string().describe('The brand as text on the admin\'s black'),
+  "dark": zod.string(),
+  "light": zod.string(),
+  "soft": zod.string(),
+  "soft2": zod.string()
+}),
+  "logoUrl": zod.string().nullable()
+}).and(zod.object({
+  "logoSource": zod.string().nullable().describe('upload, or the host the logo was taken from'),
+  "defaults": zod.object({
+  "appName": zod.string(),
+  "color": zod.string()
+})
+}))
+
+
+/**
+ * @summary Remove the logo (the name's first letter shows instead)
+ */
+export const DeleteAdminBrandingLogoResponse = zod.object({
+  "appName": zod.string(),
+  "color": zod.string().describe('#RRGGBB'),
+  "palette": zod.object({
+  "brand": zod.string(),
+  "fg": zod.string().describe('Text on the brand colour'),
+  "ink": zod.string().describe('The brand as text on white'),
+  "glow": zod.string().describe('The brand as text on the admin\'s black'),
+  "dark": zod.string(),
+  "light": zod.string(),
+  "soft": zod.string(),
+  "soft2": zod.string()
+}),
+  "logoUrl": zod.string().nullable()
+}).and(zod.object({
+  "logoSource": zod.string().nullable().describe('upload, or the host the logo was taken from'),
+  "defaults": zod.object({
+  "appName": zod.string(),
+  "color": zod.string()
+})
+}))
+
+
+/**
+ * @summary Take the logo from an https:// link (downloaded once and stored, never hot-linked)
+ */
+export const setAdminBrandingLogoUrlBodyUrlMax = 2000;
+
+
+
+export const SetAdminBrandingLogoUrlBody = zod.object({
+  "url": zod.string().max(setAdminBrandingLogoUrlBodyUrlMax)
+})
+
+export const SetAdminBrandingLogoUrlResponse = zod.object({
+  "appName": zod.string(),
+  "color": zod.string().describe('#RRGGBB'),
+  "palette": zod.object({
+  "brand": zod.string(),
+  "fg": zod.string().describe('Text on the brand colour'),
+  "ink": zod.string().describe('The brand as text on white'),
+  "glow": zod.string().describe('The brand as text on the admin\'s black'),
+  "dark": zod.string(),
+  "light": zod.string(),
+  "soft": zod.string(),
+  "soft2": zod.string()
+}),
+  "logoUrl": zod.string().nullable()
+}).and(zod.object({
+  "logoSource": zod.string().nullable().describe('upload, or the host the logo was taken from'),
+  "defaults": zod.object({
+  "appName": zod.string(),
+  "color": zod.string()
+})
+}))
+
+
+/**
  * @summary The signed-in caller
  */
 export const GetMeResponse = zod.object({

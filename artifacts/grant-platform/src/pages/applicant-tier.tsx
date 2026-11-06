@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
  */
 
 const card = 'rounded-2xl border border-slate-200 bg-white shadow-sm';
-const primary = 'press inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#1E3A8A] px-5 text-sm font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60';
+const primary = 'press inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[var(--brand)] px-5 text-sm font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)] disabled:opacity-60';
 const outline = 'press inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60';
 
 const limitText = (l: TierLimits, unit: string) => [
@@ -40,7 +40,7 @@ function TierView({ t }: { t: ApplicantTier }) {
     <div className="mx-auto max-w-3xl space-y-4">
       <section className={cx(card, 'p-5')} data-testid="section-current-tier">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#1E3A8A] text-white"><Gauge className="h-6 w-6" aria-hidden /></span>
+          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--brand)] text-[var(--brand-fg)]"><Gauge className="h-6 w-6" aria-hidden /></span>
           <div className="min-w-0 flex-1">
             <p className="text-sm text-slate-500">Your account is on</p>
             <h2 className="text-2xl font-bold text-slate-900" data-testid="text-current-tier">Tier {t.tier}</h2>
@@ -61,8 +61,8 @@ function TierView({ t }: { t: ApplicantTier }) {
         <h2 className="mb-3 text-lg font-semibold text-slate-900">What each tier includes</h2>
         <ol className="grid gap-3 md:grid-cols-3">
           {t.tiers.map((r) => (
-            <li key={r.tier} className={cx('rounded-xl border p-4', r.tier === t.tier ? 'border-[#1E3A8A] bg-[#EEF4FB]' : 'border-slate-200')} data-testid={`card-tier-${r.tier}`}>
-              <p className="flex items-center justify-between font-semibold text-slate-900">Tier {r.tier}{r.tier === t.tier && <span className="rounded-full bg-[#1E3A8A] px-2 py-0.5 text-xs font-semibold text-white">You</span>}</p>
+            <li key={r.tier} className={cx('rounded-xl border p-4', r.tier === t.tier ? 'border-[var(--brand-ink)] bg-[var(--brand-soft)]' : 'border-slate-200')} data-testid={`card-tier-${r.tier}`}>
+              <p className="flex items-center justify-between font-semibold text-slate-900">Tier {r.tier}{r.tier === t.tier && <span className="rounded-full bg-[var(--brand)] px-2 py-0.5 text-xs font-semibold text-[var(--brand-fg)]">You</span>}</p>
               <TierFacts r={r} compact />
             </li>
           ))}
@@ -146,11 +146,11 @@ function UpgradeFlow({ t, next }: { t: ApplicantTier; next: TierRule }) {
       {step === 'intro' && (
         <>
           <dl className="mt-3 grid gap-3 sm:grid-cols-2" data-testid="list-upgrade-unlocks">
-            <div className="rounded-xl bg-[#EEF4FB] p-4"><dt className="text-xs text-slate-600">Withdrawals</dt><dd className="mt-1 text-sm font-semibold text-slate-900">{limitText(next.withdrawal, 'request')}</dd>
+            <div className="rounded-xl bg-[var(--brand-soft)] p-4"><dt className="text-xs text-slate-600">Withdrawals</dt><dd className="mt-1 text-sm font-semibold text-slate-900">{limitText(next.withdrawal, 'request')}</dd>
               {t.customWithdrawalLimits && <dd className="mt-1 text-xs text-slate-500">Your account has its own limits, set by our team; they stay in place.</dd>}</div>
-            <div className="rounded-xl bg-[#EEF4FB] p-4"><dt className="text-xs text-slate-600">Card top-ups</dt><dd className="mt-1 text-sm font-semibold text-slate-900">{limitText(next.topUp, 'top-up')}</dd></div>
+            <div className="rounded-xl bg-[var(--brand-soft)] p-4"><dt className="text-xs text-slate-600">Card top-ups</dt><dd className="mt-1 text-sm font-semibold text-slate-900">{limitText(next.topUp, 'top-up')}</dd></div>
             {newCards.length > 0 && (
-              <div className="rounded-xl bg-[#EEF4FB] p-4 sm:col-span-2"><dt className="flex items-center gap-1.5 text-xs text-slate-600"><CreditCard className="h-3.5 w-3.5" aria-hidden />New cards you can buy</dt>
+              <div className="rounded-xl bg-[var(--brand-soft)] p-4 sm:col-span-2"><dt className="flex items-center gap-1.5 text-xs text-slate-600"><CreditCard className="h-3.5 w-3.5" aria-hidden />New cards you can buy</dt>
                 <dd className="mt-1 text-sm font-semibold text-slate-900">{newCards.map((c) => c.name).join(', ')}</dd></div>
             )}
           </dl>

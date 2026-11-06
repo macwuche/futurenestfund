@@ -5,7 +5,7 @@ import { Modal, cx, dateFmt, statusLabel } from '@/components/bits';
 import { apiError, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
-const primary = 'press inline-flex min-h-11 items-center gap-1.5 rounded-full bg-[#1E3A8A] px-4 text-sm font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60';
+const primary = 'press inline-flex min-h-11 items-center gap-1.5 rounded-full bg-[var(--brand)] px-4 text-sm font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)] disabled:opacity-60';
 const outline = 'press inline-flex min-h-11 items-center gap-1.5 rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60';
 const sentence = (s: string) => `${s}${/[.!?]$/.test(s) ? '' : '.'}`;
 

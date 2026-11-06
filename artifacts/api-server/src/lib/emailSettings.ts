@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { db, demoAuditTable, demoSettingsTable } from "@workspace/db";
 import { EmailError, emailConfigured, emailRuntime, envEmailRuntime, onHookCall, parseFrom, resendApiUrl, sendEmail, setEmailRuntime } from "./email";
-import { setEmailBranding, testEmail } from "./emailTemplates";
+import { appName, setEmailBranding, testEmail } from "./emailTemplates";
 import { DemoInputError } from "./demoWorkspace";
 import { logger } from "./logger";
 import { scrub } from "./monitoring";
@@ -54,7 +54,7 @@ function effective() {
     apiKey: pick(opened.resendApiKey, env.apiKey),
     hookSecret: pick(opened.hookSecret, env.hookSecret),
     fromName, fromAddress,
-    from: fromAddress.value ? formatFrom(fromName.value ?? "GrantApp", fromAddress.value) : null,
+    from: fromAddress.value ? formatFrom(fromName.value ?? appName(), fromAddress.value) : null,
     replyTo: pick(config.replyTo, env.replyTo),
     signature: pick(config.signature, null),
     supportEmail: pick(config.supportEmail, envSupport()),

@@ -9,11 +9,12 @@ import {
   getGetAdminUserQueryKey, getListAdminUsersQueryKey, type ListAdminUsersSort, type ListAdminUsersDir, type AdminDashboard, type AdminUserProfile, type AdminUserSummary,
 } from '@workspace/api-client-react';
 import { keepPreviousData } from '@tanstack/react-query';
-import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck, Mail, Gauge, Activity, ScrollText, UserRound, CreditCard, Briefcase } from 'lucide-react';
+import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck, Mail, Gauge, Activity, ScrollText, UserRound, CreditCard, Briefcase, Palette } from 'lucide-react';
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { UserWithdrawalLimits } from '@/components/withdrawal-limits';
 import { TierSettings } from '@/components/tier-settings';
+import { BrandingSettings } from '@/components/branding-settings';
 import { UserWithdrawalSources } from '@/components/withdrawal-sources';
 import { MonitoringSettings, RateLimitSettings, VirusScanSettings } from '@/components/monitoring-settings';
 import { EmailSettingsCard } from '@/components/email-settings';
@@ -93,7 +94,7 @@ export function AdminOverviewPage() {
             <SectionTitle action={<Link href="/admin/audit" data-testid="link-activity-audit" className="text-xs font-semibold hover:underline">View full audit log</Link>}>Recent activity</SectionTitle>
             {d.recentActivity.length === 0 ? <Empty title="No activity" /> : (
               <ul className="space-y-3">{d.recentActivity.map((a) => (
-                <li key={a.id} data-testid={`row-activity-${a.id}`} className="border-l-2 border-[#C6F432] pl-3 text-sm"><p className="break-words font-semibold">{a.action}</p><p className="text-xs text-slate-500">{a.subject} · {dateFmt(a.createdAt)}</p></li>
+                <li key={a.id} data-testid={`row-activity-${a.id}`} className="border-l-2 border-[var(--brand)] pl-3 text-sm"><p className="break-words font-semibold">{a.action}</p><p className="text-xs text-slate-500">{a.subject} · {dateFmt(a.createdAt)}</p></li>
               ))}</ul>
             )}
           </section>
@@ -133,7 +134,7 @@ function ReviewQueue() {
         : (
           <ul className="divide-y" data-testid="list-review-queue">{q.data.map((a) => (
             <li key={a.id}>
-              <Link href={appReviewHref(a)} data-testid={`link-review-app-${a.id}`} className="group flex flex-wrap items-center gap-x-3 gap-y-1 py-3 hover:bg-[#F7FADC] sm:flex-nowrap sm:px-2">
+              <Link href={appReviewHref(a)} data-testid={`link-review-app-${a.id}`} className="group flex flex-wrap items-center gap-x-3 gap-y-1 py-3 hover:bg-[var(--brand-soft)] sm:flex-nowrap sm:px-2">
                 <span className="min-w-0 basis-full sm:flex-1 sm:basis-0"><span className="block truncate font-semibold">{a.title}</span><span className="block text-xs text-slate-500 sm:truncate">{a.userName} · {a.organization} · {a.id} · {dateFmt(a.submittedAt)}</span></span>
                 <span className="font-num text-sm font-semibold">{money(a.amount)}</span>
                 <StatusBadge status={a.status} />
@@ -165,8 +166,8 @@ function UserTable({ items, sort, dir, onSort }: { items: AdminUserSummary[]; so
     <>
       {/* Phones: one card per user, so nothing scrolls sideways. */}
       <ul className="space-y-2 md:hidden" data-testid="list-users">{items.map((u) => (
-        <li key={u.id}><Link href={`/admin/users/${u.id}`} data-testid={`card-user-${u.id}`} className="flex items-center gap-3 rounded-xl border p-3 hover:bg-[#F7FADC]">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#111] text-xs font-bold text-[#C6F432]">{initials(u.name)}</span>
+        <li key={u.id}><Link href={`/admin/users/${u.id}`} data-testid={`card-user-${u.id}`} className="flex items-center gap-3 rounded-xl border p-3 hover:bg-[var(--brand-soft)]">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#111] text-xs font-bold text-[var(--brand-glow)]">{initials(u.name)}</span>
           <span className="min-w-0 flex-1">
             <span className="block truncate font-semibold">{u.name}</span>
             <span className="block truncate text-xs text-slate-500">{u.organization}</span>
@@ -184,9 +185,9 @@ function UserTable({ items, sort, dir, onSort }: { items: AdminUserSummary[]; so
           </tr></thead>
           <tbody>
             {items.map((u) => (
-              <tr key={u.id} data-testid={`row-user-${u.id}`} className="group border-b transition hover:bg-[#F7FADC]">
+              <tr key={u.id} data-testid={`row-user-${u.id}`} className="group border-b transition hover:bg-[var(--brand-soft)]">
                 <td className="py-3 pr-3"><Link href={`/admin/users/${u.id}`} data-testid={`link-user-${u.id}`} className="flex items-center gap-3">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#111] text-xs font-bold text-[#C6F432]">{initials(u.name)}</span>
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#111] text-xs font-bold text-[var(--brand-glow)]">{initials(u.name)}</span>
                   <span><span className="block font-semibold">{u.name}</span><span className="block text-xs text-slate-500">{u.email} · {u.organization} · <span className="font-num">{u.id}</span></span></span></Link></td>
                 <td className="whitespace-nowrap text-xs text-slate-600">{joinedFmt(u.joinedAt)}</td>
                 <td className="font-num">Tier {u.tier}</td>
@@ -244,7 +245,7 @@ export function AdminUsersPage() {
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <input data-testid="input-user-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, organization" aria-label="Search users" className={cx(ainput, 'sm:max-w-xs')} />
           <div role="group" aria-label="Status filter" className="flex rounded-lg bg-slate-100 p-0.5 text-xs font-semibold">
-            {STATUSES.map((k) => <button key={k} aria-pressed={status === k} data-testid={`filter-status-${k}`} onClick={() => go({ status: k })} className={cx('press rounded-md px-3 py-1.5 capitalize transition', status === k ? 'bg-[#111] text-[#C6F432]' : 'text-slate-600')}>{k}</button>)}
+            {STATUSES.map((k) => <button key={k} aria-pressed={status === k} data-testid={`filter-status-${k}`} onClick={() => go({ status: k })} className={cx('press rounded-md px-3 py-1.5 capitalize transition', status === k ? 'bg-[#111] text-[var(--brand-glow)]' : 'text-slate-600')}>{k}</button>)}
           </div>
           <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 md:hidden">Sort by
             <select data-testid="select-user-sort" value={`${sort}:${dir}`} onChange={(e) => { const [k, d] = e.target.value.split(':'); go({ sort: k!, dir: d! }); }} className={cx(ainput, '!w-auto !py-1.5 text-sm')}>
@@ -316,7 +317,7 @@ function NotificationOverride({ u, perms, k, label, userChoice }: {
         {options.map(([v, text]) => (
           <button key={String(v)} type="button" role="radio" aria-checked={value === v} data-testid={`button-${k}-${v === null ? 'user' : v ? 'on' : 'off'}`} disabled={perms.pending}
             onClick={() => value !== v && perms.run({ permissions: { ...u.permissions, [k]: v } }, `${label}: ${v === null ? "left to the user" : v ? 'always on' : 'always off'}`)}
-            className={cx('press min-h-11 rounded-lg border px-2 py-1.5 text-xs font-semibold leading-tight transition', value === v ? 'border-[#111] bg-[#111] text-[#C6F432]' : 'border-slate-300 hover:border-[#111]')}>{text}</button>
+            className={cx('press min-h-11 rounded-lg border px-2 py-1.5 text-xs font-semibold leading-tight transition', value === v ? 'border-[#111] bg-[#111] text-[var(--brand-glow)]' : 'border-slate-300 hover:border-[#111]')}>{text}</button>
         ))}
       </div>
     </div>
@@ -350,7 +351,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
             <span className="break-all" data-testid="text-user-email">{u.email}</span><span aria-hidden="true" className="text-slate-300">·</span><span>{u.organization}</span>
           </div>
         </div>
-        <button data-testid="button-toggle-freeze" disabled={freeze.pending} onClick={() => freeze.run({ status: frozen ? 'Active' : 'Frozen' }, frozen ? 'Account unfrozen' : 'Account frozen')} className={cx('press inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60', frozen ? 'bg-[#C6F432] text-[#111]' : 'bg-red-700 text-white')}>
+        <button data-testid="button-toggle-freeze" disabled={freeze.pending} onClick={() => freeze.run({ status: frozen ? 'Active' : 'Frozen' }, frozen ? 'Account unfrozen' : 'Account frozen')} className={cx('press inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60', frozen ? 'bg-[var(--brand)] text-[var(--brand-fg)]' : 'bg-red-700 text-white')}>
           {freeze.pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Snowflake className="h-4 w-4" />}{frozen ? 'Unfreeze account' : 'Freeze account'}
         </button>
       </section>
@@ -377,7 +378,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
           <div role="radiogroup" aria-label="Tier" className="grid grid-cols-3 gap-2" data-testid="group-tier">
             {[1, 2, 3].map((t) => {
               const saving = tier.pending && tier.variables?.data.tier === t;
-              return <button key={t} role="radio" aria-checked={u.tier === t} data-testid={`button-tier-${t}`} disabled={tier.pending} onClick={() => u.tier !== t && tier.run({ tier: t }, `Set to Tier ${t}`)} className={cx('press inline-flex items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-semibold transition', u.tier === t ? 'border-[#111] bg-[#111] text-[#C6F432]' : 'border-slate-300 hover:border-[#111]')}>{saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Tier {t}</button>;
+              return <button key={t} role="radio" aria-checked={u.tier === t} data-testid={`button-tier-${t}`} disabled={tier.pending} onClick={() => u.tier !== t && tier.run({ tier: t }, `Set to Tier ${t}`)} className={cx('press inline-flex items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-semibold transition', u.tier === t ? 'border-[#111] bg-[#111] text-[var(--brand-glow)]' : 'border-slate-300 hover:border-[#111]')}>{saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Tier {t}</button>;
             })}
           </div>
           {permList.map(([k, label]) => (
@@ -386,7 +387,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
               {/* All switches wait while one saves: each update sends the full permission set. */}
               <button type="button" role="switch" aria-checked={u.permissions[k]} aria-labelledby={`label-${k}`} data-testid={`switch-${k}`} disabled={perms.pending} onClick={() => perms.run({ permissions: { ...u.permissions, [k]: !u.permissions[k] } }, `${label} ${u.permissions[k] ? 'off' : 'on'}`)}
                 className={cx('relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-70', u.permissions[k] ? 'bg-[#111]' : 'bg-slate-300')}>
-                <span className={cx('absolute top-0.5 h-5 w-5 rounded-full transition-all', u.permissions[k] ? 'left-[22px] bg-[#C6F432]' : 'left-0.5 bg-white')} />
+                <span className={cx('absolute top-0.5 h-5 w-5 rounded-full transition-all', u.permissions[k] ? 'left-[22px] bg-[var(--brand)]' : 'left-0.5 bg-white')} />
               </button>
             </div>
           ))}
@@ -432,7 +433,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
         </section>
         <section id="sec-audit" className={cx(card, 'scroll-mt-32 p-5')} data-testid="section-audit">
           <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-display font-bold">Audit trail</h3><Link href={`/admin/audit?userId=${encodeURIComponent(u.id)}`} data-testid="link-user-audit" className="text-xs font-semibold hover:underline">View all</Link></div>
-          {u.audit.length === 0 ? <Empty title="No audit entries" /> : <ul className="max-h-[28rem] space-y-3 overflow-y-auto">{u.audit.map((a) => <li key={a.id} data-testid={`row-audit-${a.id}`} className="border-l-2 border-[#C6F432] pl-3 text-sm"><p className="break-words font-semibold">{a.action}</p><p className="text-xs text-slate-500">{a.actor} · {dateFmt(a.createdAt)}</p></li>)}</ul>}
+          {u.audit.length === 0 ? <Empty title="No audit entries" /> : <ul className="max-h-[28rem] space-y-3 overflow-y-auto">{u.audit.map((a) => <li key={a.id} data-testid={`row-audit-${a.id}`} className="border-l-2 border-[var(--brand)] pl-3 text-sm"><p className="break-words font-semibold">{a.action}</p><p className="text-xs text-slate-500">{a.actor} · {dateFmt(a.createdAt)}</p></li>)}</ul>}
         </section>
       </div>
 
@@ -455,7 +456,7 @@ function UserApplications({ userId }: { userId: string }) {
         : (
           <ul className="divide-y">{q.data.map((a) => (
             <li key={a.id}>
-              <Link href={appReviewHref(a)} data-testid={`link-user-app-${a.id}`} className="group flex flex-wrap items-center gap-x-3 gap-y-1 py-3 hover:bg-[#F7FADC] sm:flex-nowrap sm:px-2">
+              <Link href={appReviewHref(a)} data-testid={`link-user-app-${a.id}`} className="group flex flex-wrap items-center gap-x-3 gap-y-1 py-3 hover:bg-[var(--brand-soft)] sm:flex-nowrap sm:px-2">
                 <span className="min-w-0 basis-full sm:flex-1 sm:basis-0"><span className="block truncate font-semibold">{a.title}</span><span className="block text-xs text-slate-500">{a.category} · {a.id} · {dateFmt(a.submittedAt)}</span></span>
                 <span className="font-num text-sm font-semibold">{money(a.amount)}</span>
                 <StatusBadge status={a.status} />
@@ -471,6 +472,7 @@ function UserApplications({ userId }: { userId: string }) {
 /* ---------- Settings ---------- */
 const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: Snowflake, hint: 'Global freeze and the rules every approval follows' },
+  { id: 'branding', label: 'Branding', icon: Palette, hint: 'The application name, brand colour and logo, on both sides and in every email' },
   { id: 'email', label: 'Email', icon: Mail, hint: 'Resend key, sender, signature and health checks' },
   { id: 'tiers', label: 'Tiers', icon: Gauge, hint: 'What each tier allows: withdrawal and top-up limits, cards, and the upgrade forms' },
   { id: 'cards', label: 'Cards', icon: CreditCard, hint: 'The card types applicants can buy, with their prices and fees' },
@@ -498,7 +500,7 @@ export function AdminSettingsPage() {
             return (
               <Link key={x.id} href={settingsHref(x.id)} aria-current={active ? 'page' : undefined} data-testid={`tab-settings-${x.id}`}
                 className={cx('press flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3.5 py-2 text-sm font-semibold transition lg:rounded-xl lg:border-transparent lg:px-3 lg:py-2.5',
-                  active ? 'border-[#111] bg-[#111] text-[#C6F432]' : 'border-slate-300 bg-white text-slate-700 hover:border-[#111] lg:bg-transparent lg:hover:border-transparent lg:hover:bg-white')}>
+                  active ? 'border-[#111] bg-[#111] text-[var(--brand-glow)]' : 'border-slate-300 bg-white text-slate-700 hover:border-[#111] lg:bg-transparent lg:hover:border-transparent lg:hover:bg-white')}>
                 <x.icon className="h-4 w-4 shrink-0" />{x.label}
               </Link>
             );
@@ -510,6 +512,7 @@ export function AdminSettingsPage() {
             <p className="text-sm text-slate-500">{current.hint}</p>
           </header>
           {current.id === 'general' && <GeneralSettings />}
+          {current.id === 'branding' && <BrandingSettings />}
           {current.id === 'email' && <EmailSettingsCard />}
           {current.id === 'tiers' && <TierSettings />}
           {current.id === 'cards' && <CardTypeSettings />}

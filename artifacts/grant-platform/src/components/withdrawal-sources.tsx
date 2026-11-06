@@ -33,7 +33,7 @@ export function UserWithdrawalSources({ u }: { u: AdminUserProfile }) {
       <div role="radiogroup" aria-label="Withdraw from" className="grid gap-2 sm:grid-cols-3">
         {OPTIONS.map((o) => (
           <button key={o.value} type="button" role="radio" aria-checked={value === o.value} data-testid={`button-sources-${o.value}`} onClick={() => { setValue(o.value); setErr(''); }}
-            className={cx('press min-h-11 rounded-lg border px-3 py-2 text-left text-sm transition', value === o.value ? 'border-[#111] bg-[#111] text-[#C6F432]' : 'border-slate-300 hover:border-[#111]')}>
+            className={cx('press min-h-11 rounded-lg border px-3 py-2 text-left text-sm transition', value === o.value ? 'border-[#111] bg-[#111] text-[var(--brand-glow)]' : 'border-slate-300 hover:border-[#111]')}>
             <span className="block font-semibold">{o.title}</span><span className={cx('block text-xs', value === o.value ? 'text-white/80' : 'text-slate-500')}>{o.text(u)}</span>
           </button>
         ))}

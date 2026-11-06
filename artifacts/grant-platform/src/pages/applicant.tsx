@@ -27,12 +27,13 @@ import { PlanLogo } from '@/components/grant-plan';
 import { PlanAnswers, PlanResubmit, feeStatus } from '@/components/plan-application';
 import { Avatar, Empty, ErrorState, Field, FILE_RULES, Modal, PageSkeleton, Skel, StatusBadge, checkFile, cx, dateFmt, fileSize, inputCls, money, statusLabel } from '@/components/bits';
 import { UpgradeHint } from '@/components/upgrade-hint';
+import { useBranding } from '@/lib/branding';
 import { apiError, upgradeTierOf, matchesSearch, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 import { FixedAmountChoices, MethodFieldInputs, MethodInstructions, MethodLogo, ProofInput, RequestDetails, checkFieldValues, type FieldValues } from '@/components/payment-method';
 
 export const card = 'rounded-2xl border border-[#E5E7EB] bg-white shadow-sm';
-export const NAVY = '#1E3A8A';
+export const NAVY = 'var(--brand)';
 export const GREY = '#B8C0CC';
 
 export function Gate({ title, children }: { title: string; children: (d: ApplicantDashboard) => ReactNode }) {
@@ -70,13 +71,14 @@ export function Legend({ className }: { className?: string }) {
 }
 
 /**
- * The three balance cards at the top of the dashboard (Phase 8, meanings from 8.2): three shades of the brand navy, darkest first.
- * Muted text is blue-100 on the two dark cards and white on the brighter one, so every line stays ≥ 4.5:1.
+ * The three balance cards at the top of the dashboard (Phase 8, meanings from 8.2): three shades of the brand colour
+ * (Admin Settings → Branding), darkest first. Text uses the brand's own text colour (white or near-black, whichever
+ * reads better), so any colour the admin picks stays readable.
  */
 const balanceTones = [
-  { bg: 'bg-[linear-gradient(135deg,#0B1739_0%,#172554_100%)]', muted: 'text-blue-100' },
-  { bg: 'bg-[linear-gradient(135deg,#1E3A8A_0%,#1E40AF_100%)]', muted: 'text-blue-100' },
-  { bg: 'bg-[linear-gradient(135deg,#1D4ED8_0%,#2563EB_100%)]', muted: 'text-white' },
+  { bg: 'bg-[linear-gradient(135deg,var(--brand-dark)_0%,var(--brand)_100%)]', muted: 'text-[var(--brand-fg)]/85' },
+  { bg: 'bg-[linear-gradient(135deg,var(--brand)_0%,var(--brand-light)_100%)]', muted: 'text-[var(--brand-fg)]/85' },
+  { bg: 'bg-[linear-gradient(135deg,var(--brand-light)_0%,var(--brand)_100%)]', muted: 'text-[var(--brand-fg)]' },
 ] as const;
 
 function BalanceCard({ tone, href, label, icon: Icon, value, valueTestid, wide, testid, children }: {
@@ -85,7 +87,7 @@ function BalanceCard({ tone, href, label, icon: Icon, value, valueTestid, wide, 
   const t = balanceTones[tone];
   return (
     <Link href={href} data-testid={testid}
-      className={cx('press group relative isolate flex min-w-0 flex-col overflow-hidden rounded-2xl p-4 text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1E3A8A]/30 sm:p-5', t.bg, wide && 'col-span-2 md:col-span-1')}>
+      className={cx('press group relative isolate flex min-w-0 flex-col overflow-hidden rounded-2xl p-4 text-[var(--brand-fg)] shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--brand-ink)]/30 sm:p-5', t.bg, wide && 'col-span-2 md:col-span-1')}>
       {/* Decorative rings, behind the text */}
       <span aria-hidden="true" className="absolute -right-10 -top-12 -z-10 h-36 w-36 rounded-full border-[18px] border-white/[0.06]" />
       <span aria-hidden="true" className="absolute -bottom-16 right-10 -z-10 h-28 w-28 rounded-full bg-white/[0.04]" />
@@ -140,9 +142,9 @@ function SetupCards({ d }: { d: ApplicantDashboard }) {
         {d.setupCards.map((c) => {
           const Icon = setupIcon[c.id] ?? Sparkles;
           return (
-            <div key={c.id} data-testid={`card-setup-${c.id}`} className="flex min-w-[85%] snap-start flex-col rounded-2xl border border-[#DBEAFE] bg-[#EEF4FB] p-5 sm:min-w-[60%] md:min-w-0">
+            <div key={c.id} data-testid={`card-setup-${c.id}`} className="flex min-w-[85%] snap-start flex-col rounded-2xl border border-[var(--brand-soft2)] bg-[var(--brand-soft)] p-5 sm:min-w-[60%] md:min-w-0">
               <div className="flex items-start justify-between gap-2">
-                <span className="grid h-11 w-11 place-items-center rounded-xl bg-white text-[#1E3A8A] shadow-sm"><Icon className="h-5 w-5" /></span>
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-white text-[var(--brand-ink)] shadow-sm"><Icon className="h-5 w-5" /></span>
                 {!c.complete && <StatusBadge status="Recommended" dot={false} />}
               </div>
               <h3 className="mt-4 text-lg font-semibold text-slate-900">{c.title}</h3>
@@ -150,7 +152,7 @@ function SetupCards({ d }: { d: ApplicantDashboard }) {
               {c.complete ? (
                 <span data-testid={`status-setup-${c.id}`} className="mt-4 inline-flex items-center gap-1.5 self-start rounded-full bg-[#DCFCE7] px-4 py-2 text-sm font-semibold text-[#166534]"><Check className="h-4 w-4" />Complete</span>
               ) : (
-                <button data-testid={`button-setup-${c.id}`} onClick={() => act(c.id)} className="press mt-4 self-start rounded-full bg-[#1E3A8A] px-5 py-2.5 text-[15px] font-semibold text-white hover:bg-[#0F172A]">{c.actionLabel || 'Complete Setup'}</button>
+                <button data-testid={`button-setup-${c.id}`} onClick={() => act(c.id)} className="press mt-4 self-start rounded-full bg-[var(--brand)] px-5 py-2.5 text-[15px] font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)]">{c.actionLabel || 'Complete Setup'}</button>
               )}
             </div>
           );
@@ -180,7 +182,7 @@ function Highlights({ d }: { d: ApplicantDashboard }) {
         <h2 id="highlights-heading" className="text-lg font-semibold text-slate-900 lg:text-xl"><span className="lg:hidden">My Applications</span><span className="hidden lg:inline">Grant Highlights</span></h2>
         <label className="relative hidden sm:block">
           <span className="sr-only">Filter by amount</span>
-          <select data-testid="select-revenue" value={range} onChange={(e) => setRange(e.target.value as typeof range)} className="appearance-none rounded-lg border border-slate-200 bg-white py-1.5 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20">
+          <select data-testid="select-revenue" value={range} onChange={(e) => setRange(e.target.value as typeof range)} className="appearance-none rounded-lg border border-slate-200 bg-white py-1.5 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none focus:border-[var(--brand-ink)] focus:ring-2 focus:ring-[var(--brand-ink)]/20">
             {revenueRanges.map((r) => <option key={r.k} value={r.k}>{r.label}</option>)}
           </select>
           <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
@@ -193,7 +195,7 @@ function Highlights({ d }: { d: ApplicantDashboard }) {
             return (
               <li key={a.id}>
                 <Link href={`/applications/${a.id}`} data-testid={`row-application-${a.id}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-slate-300 hover:bg-slate-50 sm:px-4">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#EEF4FB] text-[#1E3A8A]"><Icon className="h-5 w-5" /></span>
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--brand-soft)] text-[var(--brand-ink)]"><Icon className="h-5 w-5" /></span>
                   <span className="min-w-0 flex-1">
                     <span className="line-clamp-2 block font-semibold text-slate-900" data-testid={`text-app-title-${a.id}`}>{a.title}</span>
                     <span className="block text-sm text-slate-500" data-testid={`text-app-meta-${a.id}`}>{a.category} · <span className="tabular-nums">{money(a.amount)}</span> · {dateFmt(a.submittedAt)}</span>
@@ -255,12 +257,12 @@ function AppsBody() {
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input data-testid="input-search-applications" type="search" aria-label="Search applications" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by title or category" className={cx(inputCls, 'pl-9')} />
         </div>
-        <Link href="/grants" data-testid="button-new-application-page" className="press inline-flex items-center rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0F172A] sm:ml-auto">New application</Link>
+        <Link href="/grants" data-testid="button-new-application-page" className="press inline-flex items-center rounded-full bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)] sm:ml-auto">New application</Link>
       </div>
       <div className="noscroll -mx-1 mb-3 flex gap-2 overflow-x-auto px-1" role="group" aria-label="Filter by status">
         {appFilters.map((k) => (
           <button key={k} aria-pressed={filter === k} data-testid={`filter-app-${k.toLowerCase().replace(/\s/g, '-')}`} onClick={() => setFilter(k)}
-            className={cx('press whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold', filter === k ? 'border-[#1E3A8A] bg-[#1E3A8A] text-white' : 'border-slate-300 bg-white text-slate-600 hover:border-[#1E3A8A]')}>{k === 'Changes requested' ? 'Needs changes' : k}</button>
+            className={cx('press whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold', filter === k ? 'border-[var(--brand-ink)] bg-[var(--brand)] text-[var(--brand-fg)]' : 'border-slate-300 bg-white text-slate-600 hover:border-[var(--brand-ink)]')}>{k === 'Changes requested' ? 'Needs changes' : k}</button>
         ))}
       </div>
       <p className="mb-2 text-xs text-slate-500" data-testid="text-application-total">{list.length} shown · {q.data.length} total</p>
@@ -274,7 +276,7 @@ const respondSchema = z.object({
   note: z.string().trim().min(5, 'Write at least 5 characters').max(1000, 'Keep it under 1,000 characters'),
   amount: z.coerce.number().min(100, 'Minimum is $100').max(10_000_000, 'Maximum is $10,000,000'),
 });
-const eventDot: Record<string, string> = { Submitted: '#16A34A', Review: '#F59E0B', Approved: '#1E3A8A', 'Changes requested': '#A855F7', Declined: '#DC2626', Withdrawn: '#94A3B8' };
+const eventDot: Record<string, string> = { Submitted: '#16A34A', Review: '#F59E0B', Approved: 'var(--brand)', 'Changes requested': '#A855F7', Declined: '#DC2626', Withdrawn: '#94A3B8' };
 const dateTime = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
 export function ApplicationDetailPage() {
@@ -283,7 +285,7 @@ export function ApplicationDetailPage() {
   const notFound = (q.error as { status?: number } | null)?.status === 404;
   return (
     <Shell title={q.data?.title ?? 'Application'}>
-      <Link href="/applications" data-testid="link-back-applications" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#1E3A8A] hover:underline"><ArrowLeft className="h-4 w-4" />My Applications</Link>
+      <Link href="/applications" data-testid="link-back-applications" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--brand-ink)] hover:underline"><ArrowLeft className="h-4 w-4" />My Applications</Link>
       {q.isLoading ? <PageSkeleton />
         : notFound ? <Empty title="Application not found" hint="It may have been removed, or the link is wrong." />
         : q.isError || !q.data ? <ErrorState onRetry={() => q.refetch()} />
@@ -309,7 +311,7 @@ function AppDetail({ a }: { a: ApplicationDetail }) {
       <section className={cx(card, 'p-5')} data-testid="section-application-header">
         <div className="flex flex-wrap items-start gap-4">
           {a.plan ? <PlanLogo url={a.plan.logoUrl} name={a.plan.name} initials={a.plan.initials} className="h-12 w-12" />
-            : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#EEF4FB] text-[#1E3A8A]"><Icon className="h-6 w-6" /></span>}
+            : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand-ink)]"><Icon className="h-6 w-6" /></span>}
           <div className="min-w-0 flex-1">
             <h2 className="text-xl font-semibold text-slate-900" data-testid="text-application-title">{a.title}</h2>
             <p className="text-sm text-slate-500">{a.id} · {a.category}</p>
@@ -349,7 +351,7 @@ function AppDetail({ a }: { a: ApplicationDetail }) {
             <Field label="Your reply" error={f.formState.errors.note?.message}><textarea data-testid="input-respond-note" rows={4} placeholder="Explain what you changed…" className={cx(inputCls, 'resize-y')} {...f.register('note')} /></Field>
             <Field label="Requested amount (USD)" error={f.formState.errors.amount?.message}><input data-testid="input-respond-amount" type="number" inputMode="decimal" step="0.01" className={cx(inputCls, 'tabular-nums sm:max-w-xs')} {...f.register('amount')} /></Field>
             {err && <p role="alert" className="text-sm text-[#991B1B]">{err}</p>}
-            <button data-testid="button-resubmit" type="submit" disabled={respond.isPending} className="press rounded-full bg-[#1E3A8A] px-5 py-2.5 text-[15px] font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60">{respond.isPending ? 'Resubmitting…' : 'Resubmit application'}</button>
+            <button data-testid="button-resubmit" type="submit" disabled={respond.isPending} className="press rounded-full bg-[var(--brand)] px-5 py-2.5 text-[15px] font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)] disabled:opacity-60">{respond.isPending ? 'Resubmitting…' : 'Resubmit application'}</button>
           </form>
         </section>
       )}
@@ -414,7 +416,7 @@ function AppDocuments({ a, onChange }: { a: ApplicationDetail; onChange: (d: App
         <h2 id="docs-heading" className="text-lg font-semibold text-slate-900">Documents</h2>
         {canAdd && (
           <button data-testid="button-attach-document" onClick={() => input.current?.click()} disabled={upload.isPending}
-            className="press inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-[#1E3A8A] hover:border-[#1E3A8A] hover:bg-[#EEF4FB] disabled:opacity-60">
+            className="press inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-[var(--brand-ink)] hover:border-[var(--brand-ink)] hover:bg-[var(--brand-soft)] disabled:opacity-60">
             {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}{upload.isPending ? 'Uploading…' : 'Attach document'}
           </button>
         )}
@@ -427,7 +429,7 @@ function AppDocuments({ a, onChange }: { a: ApplicationDetail; onChange: (d: App
         <ul className="space-y-2" data-testid="list-documents">
           {a.documents.map((d) => (
             <li key={d.id} data-testid={`row-document-${d.id}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#EEF4FB] text-[#1E3A8A]"><FileText className="h-5 w-5" /></span>
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--brand-soft)] text-[var(--brand-ink)]"><FileText className="h-5 w-5" /></span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold text-slate-900">{d.name}</span>
                 <span className="block text-xs text-slate-500">{fileSize(d.sizeBytes)} · {dateFmt(d.uploadedAt)}</span>
@@ -479,7 +481,7 @@ function FrozenNotice({ a }: { a: Account }) {
 function StatTile({ label, value, icon: Icon, testid }: { label: string; value: number; icon: LucideIcon; testid: string }) {
   return (
     <div className={cx(card, 'flex items-center gap-3 p-4')}>
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#EEF4FB] text-[#1E3A8A]"><Icon className="h-5 w-5" /></span>
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand-ink)]"><Icon className="h-5 w-5" /></span>
       <div className="min-w-0">
         <p className="text-sm text-slate-500">{label}</p>
         <p className="truncate text-xl font-bold tabular-nums text-slate-900" data-testid={testid}>{money(value)}</p>
@@ -511,6 +513,7 @@ function NetworkMark({ network }: { network: string }) {
 }
 function CardsBody({ a }: { a: Account }) {
   const { data: d } = useApplicantDashboard();
+  const { appName } = useBranding();
   const live = a.cards.filter((c) => c.status !== 'Cancelled');
   const cancelled = a.cards.filter((c) => c.status === 'Cancelled');
   return (
@@ -523,22 +526,22 @@ function CardsBody({ a }: { a: Account }) {
           <div className="grid gap-4 md:grid-cols-2" data-testid="list-cards">
             {live.map((c) => (
               <div key={c.id} className={cx(card, 'p-4')} data-testid={`card-payment-${c.id}`}>
-                <div className={cx('relative flex aspect-[1.586/1] flex-col overflow-hidden rounded-xl p-5 text-white',
-                  c.kind === 'Physical' ? 'bg-gradient-to-br from-[#0F172A] to-[#334155]' : 'bg-gradient-to-br from-[#1E3A8A] to-[#3B63C4]',
+                <div className={cx('relative flex aspect-[1.586/1] flex-col overflow-hidden rounded-xl p-5', c.kind === 'Physical' ? 'text-white' : 'text-[var(--brand-fg)]',
+                  c.kind === 'Physical' ? 'bg-gradient-to-br from-[#0F172A] to-[#334155]' : 'bg-gradient-to-br from-[var(--brand)] to-[var(--brand-light)]',
                   c.status === 'Frozen' && 'opacity-60 grayscale')}>
                   {c.status === 'Frozen' && <span className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/90 px-3 py-1 text-xs font-bold uppercase tracking-widest text-slate-900" data-testid={`label-card-frozen-${c.id}`}>Frozen</span>}
                   <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-white/10" />
                   <div className="flex items-center justify-between">
-                    <span className="text-base font-bold tracking-tight">GrantApp</span>
-                    <span className="text-xs font-semibold uppercase tracking-widest text-white/80">{c.typeName.replace(/^(Visa|Mastercard|Amex) /, '')} · {c.kind}</span>
+                    <span className="max-w-[60%] truncate text-base font-bold tracking-tight">{appName}</span>
+                    <span className="text-xs font-semibold uppercase tracking-widest opacity-80">{c.typeName.replace(/^(Visa|Mastercard|Amex) /, '')} · {c.kind}</span>
                   </div>
                   <span className="mt-4 flex items-center gap-2" aria-hidden="true">
                     <span className="relative h-8 w-11 overflow-hidden rounded-md bg-gradient-to-br from-amber-200 to-amber-400"><i className="absolute inset-x-0 top-1/2 h-px bg-amber-600/40" /><i className="absolute inset-y-0 left-1/2 w-px bg-amber-600/40" /></span>
-                    <Nfc className="h-6 w-6 text-white/80" />
+                    <Nfc className="h-6 w-6 opacity-80" />
                   </span>
                   <p className="mt-auto text-lg tracking-[0.2em] tabular-nums sm:text-xl">•••• •••• •••• {c.lastFour}</p>
                   <div className="mt-3 flex items-end justify-between">
-                    <span className="text-sm font-medium uppercase tracking-wide text-white/85">{d?.profile.name ?? ''}</span>
+                    <span className="text-sm font-medium uppercase tracking-wide opacity-85">{d?.profile.name ?? ''}</span>
                     <NetworkMark network={c.network} />
                   </div>
                 </div>
@@ -585,7 +588,7 @@ export function TxRow({ t, showDetails = false }: { t: Tx; showDetails?: boolean
   return (
     <li data-testid={`row-transaction-${t.id}`} className="rounded-xl border border-slate-200 p-3 sm:px-4">
     <div className="flex items-center gap-3">
-      <span className={cx('grid h-10 w-10 shrink-0 place-items-center rounded-lg', incoming ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#EEF4FB] text-[#1E3A8A]')}><Icon className="h-5 w-5" /></span>
+      <span className={cx('grid h-10 w-10 shrink-0 place-items-center rounded-lg', incoming ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[var(--brand-soft)] text-[var(--brand-ink)]')}><Icon className="h-5 w-5" /></span>
       <span className="min-w-0 flex-1">
         <span className="line-clamp-2 block font-semibold text-slate-900">{t.description}</span>
         <span className="block truncate text-sm text-slate-500">{t.type}{t.reference && <> · <span data-testid={`text-transaction-ref-${t.id}`}>Ref {t.reference}</span></>}<span className="hidden sm:inline"> · {accountLabel[t.account]}</span> · {dateFmt(t.createdAt)}</span>
@@ -615,7 +618,7 @@ function TxBody({ a }: { a: Account }) {
         <div className="noscroll -mx-1 flex gap-2 overflow-x-auto px-1" role="group" aria-label="Filter by type">
           {txTypes.map((k) => (
             <button key={k} aria-pressed={type === k} data-testid={`filter-tx-${k.toLowerCase().replace(' ', '-')}`} onClick={() => setType(k)}
-              className={cx('press whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-semibold', type === k ? 'border-[#1E3A8A] bg-[#1E3A8A] text-white' : 'border-slate-300 bg-white text-slate-600 hover:border-[#1E3A8A]')}>{txFilterLabel[k]}</button>
+              className={cx('press whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-semibold', type === k ? 'border-[var(--brand-ink)] bg-[var(--brand)] text-[var(--brand-fg)]' : 'border-slate-300 bg-white text-slate-600 hover:border-[var(--brand-ink)]')}>{txFilterLabel[k]}</button>
           ))}
         </div>
       </div>
@@ -717,7 +720,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
       <div className="grid gap-5 lg:grid-cols-5">
         <form noValidate onSubmit={submit} className={cx(card, 'min-w-0 space-y-4 p-5 lg:col-span-2 lg:self-start')} data-testid="form-money">
           {isDeposit || sources.length === 1 ? (
-            <div className="rounded-xl bg-[#EEF4FB] p-4">
+            <div className="rounded-xl bg-[var(--brand-soft)] p-4">
               <p className="text-sm text-slate-600">{isDeposit ? 'Account balance' : `Available to withdraw · ${sourceName[sources[0]!].toLowerCase()}`}</p>
               <p className="text-2xl font-bold tabular-nums text-slate-900" data-testid="text-source-balance">{money(isDeposit ? a.balances.deposit : a.availableToWithdraw[sources[0]!])}</p>
               {!isDeposit && a.availableToWithdraw[sources[0]!] < a.balances[sources[0]!] && (
@@ -730,7 +733,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
               <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Withdraw from">
                 {sources.map((s) => (
                   <button key={s} type="button" role="radio" aria-checked={source === s} disabled={paused} data-testid={`button-source-${s}`} onClick={() => { setSource(s); setErr(''); }}
-                    className={cx('press min-h-11 rounded-xl border p-3 text-left', source === s ? 'border-[#1E3A8A] bg-[#EEF4FB] ring-2 ring-[#1E3A8A]/20' : 'border-slate-300 bg-white hover:border-[#1E3A8A]')}>
+                    className={cx('press min-h-11 rounded-xl border p-3 text-left', source === s ? 'border-[var(--brand-ink)] bg-[var(--brand-soft)] ring-2 ring-[var(--brand-ink)]/20' : 'border-slate-300 bg-white hover:border-[var(--brand-ink)]')}>
                     <span className="block text-sm text-slate-600">{sourceName[s]}</span>
                     <span className="block text-lg font-bold tabular-nums text-slate-900" data-testid={`text-available-${s}`}>{money(a.availableToWithdraw[s])}</span>
                     <span className="block text-xs text-slate-500">available</span>
@@ -744,7 +747,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
               <span className="font-semibold text-slate-900">{lim.custom ? 'Your limits' : `Your Tier ${a.tier} limits`}: </span>
               {[lim.maxPerRequest !== null && `up to ${money(lim.maxPerRequest)} per request`,
                 lim.dailyTotal !== null && `${money(lim.dailyTotal)} per 24 hours (${money(leftToday!)} left)`].filter(Boolean).join(' · ')}
-              {!lim.custom && a.tier < 3 && <> · <Link href="/tier" className="font-semibold text-[#1E3A8A] underline" data-testid="link-raise-limits">Raise your limits</Link></>}
+              {!lim.custom && a.tier < 3 && <> · <Link href="/tier" className="font-semibold text-[var(--brand-ink)] underline" data-testid="link-raise-limits">Raise your limits</Link></>}
             </p>
           )}
 
@@ -757,10 +760,10 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
                 <div className="grid gap-2" role="radiogroup" aria-label={`${kind} method`} data-testid="list-methods">
                   {methods.data!.map((x) => (
                     <button key={x.id} type="button" role="radio" aria-checked={methodId === x.id} disabled={paused} onClick={() => choose(x.id)} data-testid={`button-method-${x.id}`}
-                      className={cx('press flex min-h-11 items-center gap-3 rounded-xl border p-3 text-left', methodId === x.id ? 'border-[#1E3A8A] bg-[#EEF4FB] ring-2 ring-[#1E3A8A]/20' : 'border-slate-300 bg-white hover:border-[#1E3A8A]')}>
+                      className={cx('press flex min-h-11 items-center gap-3 rounded-xl border p-3 text-left', methodId === x.id ? 'border-[var(--brand-ink)] bg-[var(--brand-soft)] ring-2 ring-[var(--brand-ink)]/20' : 'border-slate-300 bg-white hover:border-[var(--brand-ink)]')}>
                       <MethodLogo url={x.logoUrl} name={x.name} />
                       <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-slate-900">{x.name}</span><span className="block text-xs tabular-nums text-slate-500">{x.amountRule}{x.feeText !== 'No fee' ? ` · ${x.feeText}` : ''}</span></span>
-                      {methodId === x.id && <CircleCheck className="h-5 w-5 shrink-0 text-[#1E3A8A]" aria-hidden />}
+                      {methodId === x.id && <CircleCheck className="h-5 w-5 shrink-0 text-[var(--brand-ink)]" aria-hidden />}
                     </button>
                   ))}
                 </div>
@@ -773,7 +776,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
               {method.amountMode === 'fixed' ? (
                 <div>
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Amount</span>
-                  <FixedAmountChoices amounts={method.fixedAmounts} value={amt} disabled={paused} onChange={(v) => { setAmt(v); setErr(''); }} activeClass="border-[#1E3A8A] bg-[#1E3A8A] text-white" />
+                  <FixedAmountChoices amounts={method.fixedAmounts} value={amt} disabled={paused} onChange={(v) => { setAmt(v); setErr(''); }} activeClass="border-[var(--brand-ink)] bg-[var(--brand)] text-[var(--brand-fg)]" />
                 </div>
               ) : (
                 <Field label={`Amount (USD)${method.amountRule !== 'Any amount' ? ` · ${method.amountRule}` : ''}`}>
@@ -796,7 +799,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
           )}
           {err && <p role="alert" className="rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-money-error">{err}</p>}
           {err && <UpgradeHint tier={upgradeTier} />}
-          <button data-testid="button-submit-money" type="submit" disabled={paused || m.isPending || !method} className="press min-h-11 w-full rounded-full bg-[#1E3A8A] py-2.5 text-[15px] font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60">
+          <button data-testid="button-submit-money" type="submit" disabled={paused || m.isPending || !method} className="press min-h-11 w-full rounded-full bg-[var(--brand)] py-2.5 text-[15px] font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)] disabled:opacity-60">
             {m.isPending ? 'Submitting…' : isDeposit ? 'Request deposit' : 'Request withdrawal'}
           </button>
           {/* What happens after "Request" (finding U8). No payment processor is connected, so no timings are promised. */}
@@ -910,7 +913,7 @@ function SettingsBody({ d }: { d: ApplicantDashboard }) {
           </div>
           <p className="text-xs text-slate-500">Email and organization are locked. Contact support to change them.</p>
           <div className="flex items-center gap-3">
-            <button data-testid="button-save-profile" type="submit" disabled={m.isPending || !f.formState.isDirty} className="press inline-flex items-center gap-2 rounded-full bg-[#1E3A8A] px-5 py-2.5 text-[15px] font-semibold text-white hover:bg-[#0F172A] disabled:opacity-50">{m.isPending ? 'Saving…' : 'Save changes'}</button>
+            <button data-testid="button-save-profile" type="submit" disabled={m.isPending || !f.formState.isDirty} className="press inline-flex items-center gap-2 rounded-full bg-[var(--brand)] px-5 py-2.5 text-[15px] font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)] disabled:opacity-50">{m.isPending ? 'Saving…' : 'Save changes'}</button>
             {f.formState.isDirty && !m.isPending && <button type="button" onClick={() => f.reset(values)} className="text-sm font-semibold text-slate-600 hover:text-slate-900">Cancel</button>}
           </div>
         </form>
@@ -922,7 +925,7 @@ function SettingsBody({ d }: { d: ApplicantDashboard }) {
               <dl className="divide-y divide-slate-100 text-sm">
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Identity verification</dt><dd><StatusBadge status={a.verificationLevel} dot={false} testid="badge-verification" /></dd></div>
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Account status</dt><dd><StatusBadge status={a.status} dot={false} testid="badge-account-status" /></dd></div>
-                <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Account tier</dt><dd className="flex items-center gap-3"><span className="font-semibold text-slate-900" data-testid="text-tier">Tier {a.tier}</span><Link href="/tier" className="inline-flex min-h-11 items-center text-sm font-semibold text-[#1E3A8A] underline" data-testid="link-settings-tier">{a.tier < 3 ? 'Limits and upgrade' : 'Limits'}</Link></dd></div>
+                <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Account tier</dt><dd className="flex items-center gap-3"><span className="font-semibold text-slate-900" data-testid="text-tier">Tier {a.tier}</span><Link href="/tier" className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--brand-ink)] underline" data-testid="link-settings-tier">{a.tier < 3 ? 'Limits and upgrade' : 'Limits'}</Link></dd></div>
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600" id="label-email-notifications">Email notifications</dt><dd><EmailNotificationsSwitch on={a.permissions.emailOverride ?? a.permissions.emailNotifications} locked={typeof a.permissions.emailOverride === 'boolean'} /></dd></div>
                 <div className="flex items-center justify-between gap-3 py-3"><dt className="text-slate-600">Verification needed to withdraw</dt><dd className="font-semibold text-slate-900">{a.permissions.withdrawalKycRequired ? 'Yes' : 'No'}</dd></div>
                 <p className="pt-3 text-xs text-slate-500">{signedIn ? 'Email notifications are yours to change; the other settings are managed by your administrator.' : 'These settings are managed by your administrator.'}</p>
@@ -962,7 +965,7 @@ function EmailNotificationsSwitch({ on, locked }: { on: boolean; locked: boolean
     <button type="button" role="switch" aria-checked={on} aria-labelledby="label-email-notifications" data-testid="switch-email-notifications" disabled={m.isPending} onClick={toggle}
       className="group relative -my-2 inline-flex h-11 w-14 shrink-0 items-center justify-end disabled:opacity-60">
       {m.isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin text-slate-400" aria-label="Saving" />}
-      <span className={cx('relative inline-flex h-7 w-12 items-center rounded-full transition-colors group-focus-visible:ring-2 group-focus-visible:ring-[#1E3A8A]/40', on ? 'bg-[#1E3A8A]' : 'bg-slate-300')}>
+      <span className={cx('relative inline-flex h-7 w-12 items-center rounded-full transition-colors group-focus-visible:ring-2 group-focus-visible:ring-[var(--brand-ink)]/40', on ? 'bg-[var(--brand)]' : 'bg-slate-300')}>
         <span className={cx('absolute h-5 w-5 rounded-full bg-white shadow transition-all', on ? 'left-6' : 'left-1')} />
       </span>
     </button>
@@ -994,7 +997,7 @@ function ProfileHeader({ d }: { d: ApplicantDashboard }) {
           <Avatar name={d.profile.name} url={d.profile.avatarUrl} className="h-16 w-16 text-2xl" testid="avatar-settings" />
           {busy && <span className="absolute inset-0 grid place-items-center rounded-full bg-black/40"><Loader2 className="h-6 w-6 animate-spin text-white" /></span>}
           <button aria-label={d.profile.avatarUrl ? 'Change profile photo' : 'Add profile photo'} data-testid="button-avatar-upload" disabled={busy} onClick={() => input.current?.click()}
-            className="press absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full bg-white text-[#1E3A8A] shadow ring-1 ring-slate-200 hover:bg-[#EEF4FB] disabled:opacity-60"><Camera className="h-4 w-4" /></button>
+            className="press absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full bg-white text-[var(--brand-ink)] shadow ring-1 ring-slate-200 hover:bg-[var(--brand-soft)] disabled:opacity-60"><Camera className="h-4 w-4" /></button>
           <input ref={input} type="file" accept={FILE_RULES.image.accept} hidden data-testid="input-avatar-file" onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
         </div>
         <div className="min-w-0 flex-1">
@@ -1071,7 +1074,7 @@ function KycRow({ kind, hint, icon: Icon, doc }: { kind: KycDocumentKind; hint: 
   return (
     <li className="rounded-xl border border-slate-200 p-3 sm:p-4" data-testid={`row-kyc-${slug}`}>
       <div className="flex flex-wrap items-center gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#EEF4FB] text-[#1E3A8A]"><Icon className="h-5 w-5" /></span>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--brand-soft)] text-[var(--brand-ink)]"><Icon className="h-5 w-5" /></span>
         <span className="min-w-0 flex-1">
           <span className="block font-semibold text-slate-900">{kind}</span>
           <span className="block truncate text-sm text-slate-500" data-testid={`text-kyc-${slug}-file`}>
@@ -1082,7 +1085,7 @@ function KycRow({ kind, hint, icon: Icon, doc }: { kind: KycDocumentKind; hint: 
         <div className="flex w-full items-center gap-2 sm:w-auto">
           {doc?.url && <a href={doc.url} target="_blank" rel="noopener" data-testid={`link-kyc-${slug}`} className="rounded-full px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">View</a>}
           <button data-testid={`button-kyc-${slug}`} disabled={upload.isPending} onClick={() => input.current?.click()}
-            className="press ml-auto inline-flex items-center gap-1.5 rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60 sm:ml-0">
+            className="press ml-auto inline-flex items-center gap-1.5 rounded-full bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)] disabled:opacity-60 sm:ml-0">
             {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}{upload.isPending ? 'Uploading…' : doc ? 'Replace' : 'Upload'}
           </button>
           <input ref={input} type="file" accept={FILE_RULES.identity.accept} hidden data-testid={`input-kyc-${slug}`} onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />

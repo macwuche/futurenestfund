@@ -2305,6 +2305,8 @@ Migration 0009 therefore also adds `demo_profiles.withdrawal_sources` and `demo_
 4. Can a user hold more than one card of a kind (e.g. a Visa Debit virtual and an Amex Platinum virtual)? Provisional: keep today's rule (one per kind).
 5. Fees per tier (9.4), and whether "Credit" needs anything beyond a name.
 
+**Answers (user, 2026-11-06):** 1 refused: **kept**. 2 fee held on placing, taken on approval, released on decline: **kept**. 3 a new card after cancelling is charged again: **kept**. 4 **no limit** on cards held (was one per kind). 5 **fees per tier: yes**, checked against 9.4 so nothing breaks (plan in §23). "Credit" stays a name.
+
 ### 17i. Steps
 | Step | What | Done when |
 |---|---|---|
@@ -2674,3 +2676,75 @@ One commit when 9.4 is green. `deploy.sh` applies 0012 and Supabase 0006.
 - not run here: phase4-* (need Supabase keys)
 
 **Committed** `924fffb`. **Deployed** 2026-11-06 at `2ad3f00` (0012 and Supabase 0006 applied). **Still to do:** Admin → Settings → Tiers: set the limits, cards and the Tier 2 / Tier 3 forms.
+
+---
+
+## 23. Step 9.5 build plan: any number of cards, fees per tier (2026-11-06)
+
+**Request (user, 2026-11-06):** the answers to §17h: users may hold any number of cards; fees can differ by tier. Check it against today's 9.4 work so nothing breaks. Plan first.
+
+### 23a. What exists (after 9.4)
+- **One card per kind:** one server check (`cards.ts` `issueCard`, users and admins), the card shop's "You have one", the admin issue dialog ("already has one"), and the shop / Help / dialog wording.
+- **Fees** come from three places, each worked out when the user acts and then stored with what they did:
+  - payment methods (deposit and withdrawal): `demo_payment_methods.fee_mode / fee_value` → `demo_requests.fee_cents` and the method snapshot's fee text
+  - card types: each kind's price + fee in `demo_settings.card_types` → the `Card purchase` and `Fee` ledger rows and the card's `feePaidCents`
+  - grant plans: the application fee → `demo_applications.fee_cents`, charged on approval
+- So a tier change (an upgrade, or an admin moving someone) only affects **new** requests, purchases and applications; anything already placed keeps its fee.
+
+### 23b. Any number of cards
+- Remove the one-per-kind check for users and admins, with a **ceiling of 20 cards that aren't cancelled** per user (answer 3), so a mistake or a script can't buy hundreds; cancelled cards don't count. Kept: the tier decides which cards a user can buy (9.4); a physical card needs a virtual card (any one not cancelled); each purchase is charged; a frozen account can't buy.
+- All cards share the one card account, as today, so top-ups, tier top-up limits (9.4) and the card balance don't change.
+- App: the shop always offers Buy (no "You have one"); the admin dialog drops "already has one"; wording in the shop, Help and dialog updated. The Cards page and Card Requests already list every card.
+
+### 23c. Withdrawal fees per tier (answers 1 and 2)
+- Only **withdrawal** method fees differ by tier. Deposit fees, card fees and grant application fees stay one fee for everyone.
+- **Admin → Settings → Withdrawal fees** (new section, `/admin/settings/withdrawal-fees`): a row per withdrawal method, with a Tier 1, Tier 2 and Tier 3 fee (fixed $ or %, same input as today). Empty = that tier pays the method's own fee from Payment Gateway, so nothing changes until the admin fills it in. Shows each tier's fee on a sample amount (e.g. "$100 → $2.00"). Audited.
+- Stored with the method: `demo_payment_methods.tier_fees` jsonb (`{ "1": FeeRule, … }`, missing tier = the method's fee). Migration 0014 (0013 went to branding, §24), no new table, so no Supabase migration.
+- Payment Gateway's withdrawal form keeps the method fee, labelled "Default fee (tiers without their own fee in Settings → Withdrawal fees)".
+- Worked out from the user's tier when they place a withdrawal; stored on the request (`fee_cents`, snapshot fee text) as today, so held fees, approvals, declines, emails and reports work unchanged.
+- The applicant's withdrawal form shows **their** tier's fee for each method; "Your tier" lists the withdrawal fee per method for each tier, so an upgrade shows what it saves.
+
+### 23d. What must keep working (9.4 and earlier)
+- Fees already placed or charged never change: pending withdrawals keep their held fee; the approval takes the stored `fee_cents`.
+- Withdrawal fee hold and release (9.3), the deposit fee out of the amount, refusal when the account balance can't cover (choice 1), the application fee still the only charge that may go below $0 (Phase 11).
+- Tier limits, card locks, upgrade prompts (9.4); the fee and total the user sees before they commit are their own tier's.
+- Audit wording, emails (fee lines), Transactions filters, CSV export, the dashboard's fees total.
+- Tests: `phase93-fees`, `phase93-cards`, `phase93-ui`, `phase10-*`, `phase11-*`, `phase94-*`, `phase6-mobile` re-run; new cases for per-tier fees and several cards.
+
+### 23e. Answers (user, 2026-11-06)
+1. Fees per tier: **withdrawal method fees only**.
+2. Set in **a new menu item in Admin Settings** (Withdrawal fees).
+3. Cards: **a ceiling of 20** cards that aren't cancelled.
+
+### 23f. Steps
+| Step | What | Done when |
+|---|---|---|
+| 9.5.1 | Cards: no one-per-kind, ceiling 20; shop, admin dialog, wording | API + UI tests (several cards, the 21st refused, physical still needs a virtual) |
+| 9.5.2 | Migration 0014, `tier_fees` rules (pure, unit-tested), Settings → Withdrawal fees | API tests (save, refuse, audit, empty = method fee) |
+| 9.5.3 | Placing a withdrawal uses the tier's fee; applicant form, Your tier | fee per tier held, approved, declined; upgrade changes only new requests |
+| 9.5.4 | Regressions (23d) and the phone audit | all green; typecheck, `pnpm test` |
+
+One commit when green; `deploy.sh` applies 0014. **Parked 2026-11-06** while branding (§24) was built; waits for the user's go.
+
+---
+
+## 24. Branding: application name, brand colour and logo (2026-11-06)
+
+**Request (user, 2026-11-06):** a Branding option in Admin Settings: the admin sets the app's colour (colour picker, e.g. green) and changes the application name; it shows on the admin and user sides in real time. Replace the hardcoded "GrantApp".
+
+**Answers (user, 2026-11-06):** one colour drives both sides (the admin keeps its black menu; its lime accents follow the brand colour); replace the app name everywhere (sample-data notices stay, since nothing real is connected); a logo by upload **or** from an external link; other open screens follow within ~15 seconds (no live connection needed).
+
+### 2026-11-06: built and tested
+
+**Built** (migration **0013**: `demo_settings.branding`; no new table, so no Supabase migration):
+- **Colour maths** (`api-server lib/brandColors.ts`, pure, unit-tested; copy in `grant-platform lib/brand-colors.ts` for the live preview): from one colour, the text on it (white or near-black, whichever reads better), the brand as text on white (`ink`) and on the admin's black (`glow`), each nudged until it reaches 4.5:1, a hover shade, a lighter end and soft tints.
+- **API** (`lib/branding.ts`, `routes/branding.ts`): public `GET /api/branding` and `/api/branding/logo` (the sign-in pages need them; mounted before sign-in), admin `GET|PUT /admin/branding`, `POST /admin/branding/logo` (upload, re-encoded), `POST /admin/branding/logo-url` (downloaded once and stored; https only, private addresses refused, like method logos), `DELETE /admin/branding/logo`. Name 2–40 characters, colour #RRGGBB. Audited ("Branding: name … → …, colour … → …").
+- **Emails:** every template takes the name and colour (button in the brand colour with readable text, links in `ink`, "Sent by <name>"); the default sender name follows the app name. Pushed into the templates at start-up and re-read every minute (`startBrandingRefresh`).
+- **Web app:** `lib/branding.tsx` provider: applies the palette as CSS variables (`--brand`, `--brand-fg`, `--brand-ink`, `--brand-glow`, `--brand-dark`, `--brand-light`, `--brand-soft`, `--brand-soft2`), the tab title and favicon (logo, or the first letter on the colour), re-reads every 15 s and on tab focus, remembers the last branding in localStorage so a reload paints straight away. `BrandMark` (logo or letter) in both menus and the sign-in pages.
+- **Colours:** about 290 fixed navy / lime codes in 28 files became the variables; where a button is filled with the brand colour, its text follows `--brand-fg`. The dashboard balance cards are three shades of the brand; the virtual card face too (physical cards keep their dark look). Status colours (green approved, amber review, red declined) don't change.
+- **Admin → Settings → Branding** (`/admin/settings/branding`): name, 13 swatches, any colour (picker or hex), Defaults, a preview of both sides, Undo; the screen previews changes live before saving, and leaving without saving puts the saved branding back. Logo card: upload, link, remove.
+- The name replaced "GrantApp" in the menus, sign-in pages, tab titles, the virtual card face, Email settings' preview and every email. Kept: `index.html`'s first-paint title (replaced as soon as the app loads; link previews on other sites still read "GrantApp").
+
+**Tests (2026-11-06, test API on :8099 via the proxy):**
+- typecheck clean; `pnpm test` 140/140 (+1 skipped without Redis): new `brandColors.test.ts` (5) and a branded email test
+- new `phase-branding.mjs`: API 4/4 (defaults, save + refusals + audit, logo upload served publicly, logo from a link replacing the old file, remove); browser 7 + 7 (live preview on the admin's screen, saving, **another open user screen following in under 16 s**, unsaved changes discarded on leaving, reload remembers, logo in the menu and tab)

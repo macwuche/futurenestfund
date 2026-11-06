@@ -52,7 +52,7 @@ export function CardControls({ u }: { u: AdminUserProfile }) {
                   <StatusBadge status={c.status} testid={`badge-card-${c.id}`} />
                   {c.statusReason && <p className="mt-1 break-words text-xs text-white/80" data-testid={`text-card-reason-${c.id}`}>{c.statusReason}</p>}
                   {c.status === 'Frozen' && c.frozenBy === 'user' && <p className="mt-1 text-xs text-white/80" data-testid={`text-card-frozen-by-${c.id}`}>Frozen by the user. Freeze it yourself to lock it.</p>}
-                  {c.status === 'Pending' && c.activationRequestedAt && <p className="mt-1 text-xs font-semibold text-[#C6F432]" data-testid={`text-card-activation-requested-${c.id}`}>User says it arrived · activation requested {dateFmt(c.activationRequestedAt)}</p>}
+                  {c.status === 'Pending' && c.activationRequestedAt && <p className="mt-1 text-xs font-semibold text-[var(--brand-glow)]" data-testid={`text-card-activation-requested-${c.id}`}>User says it arrived · activation requested {dateFmt(c.activationRequestedAt)}</p>}
                   {c.status === 'Pending' && !c.activationRequestedAt && c.activationDeclinedReason && <p className="mt-1 text-xs text-slate-300" data-testid={`text-card-activation-declined-${c.id}`}>Last activation request declined{c.activationDeclinedAt ? ` ${dateFmt(c.activationDeclinedAt)}` : ''}: {c.activationDeclinedReason}</p>}
                 </div>
                 <CreditCard className="h-5 w-5 shrink-0 opacity-60" />
@@ -117,7 +117,7 @@ function IssueCardModal({ open, onClose, u }: { open: boolean; onClose: () => vo
           onError: (e2) => setError(apiError(e2, 'The card could not be issued.')),
         });
       }}>
-        <p className="rounded-lg bg-[#F7FADC] p-3 text-xs text-slate-700">Sample card: no card network is connected and the number is random. A virtual card is active at once; a physical card stays pending until you mark it as issued. One card of each kind per user.</p>
+        <p className="rounded-lg bg-[var(--brand-soft)] p-3 text-xs text-slate-700">Sample card: no card network is connected and the number is random. A virtual card is active at once; a physical card stays pending until you mark it as issued. One card of each kind per user.</p>
         <Field label="Virtual or physical"><select data-testid="select-card-kind" value={kind} onChange={(e) => { setKind(e.target.value as typeof kind); setError(''); }} className={ainput}>
           <option value="Virtual">Virtual{taken('Virtual') ? ' (already has one)' : ''}</option><option value="Physical">Physical{taken('Physical') ? ' (already has one)' : ''}</option>
         </select></Field>

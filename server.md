@@ -121,7 +121,10 @@ The app is live at `2ad3f00` (2026-11-06, 9.4 tier rules). These need you in the
 | Create and enable a Deposit and a Withdrawal method | Admin → Payment Gateway | No deposit or withdrawal requests |
 | Switch card types on and set prices | Admin → Settings → Cards | "No cards are on sale right now" |
 | Check the 40 starting industries | Admin → Settings → Industries | The starting list is used |
+| After deploying branding: set the application name, colour and logo | Admin → Settings → Branding | The app is called "GrantApp" in navy; the admin side's accents turn navy too (they were lime) |
 | Set each tier's limits and cards, and the Tier 2 / Tier 3 upgrade forms | Admin → Settings → Tiers | Every tier has the old platform-wide withdrawal limits, no top-up limits, every card; nobody can ask to move up |
+
+**Next deploy (branding):** app migration **0013** (`demo_settings.branding`); no Supabase migration. It only adds a column, so rolling back works (older code shows "GrantApp" in navy / lime again).
 
 9.4 is deployed (`2ad3f00`, migration 0012 and Supabase 0006 applied). Rolling back to `f39c238` works: the migrations only add, and older code ignores the tier rules and uses the old platform-wide limit columns again.
 

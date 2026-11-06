@@ -15,6 +15,8 @@ export const demoSettingsTable = pgTable("demo_settings", {
   cardTypes: jsonb("card_types"),
   /** Step 9.4: per tier, withdrawal and card top-up limits, the card types it may buy and its upgrade form (see api-server lib/tierRules.ts). */
   tierRules: jsonb("tier_rules"),
+  /** Branding (Admin Settings → Branding): { appName, color, logoFileId }; null = the defaults (see api-server lib/branding.ts). */
+  branding: jsonb("branding"),
   /** Email settings made in Admin Settings (sender, reply-to, signature, support address); they win over the env vars. */
   emailConfig: jsonb("email_config"),
   /** Email secrets (Resend API key, Send Email Hook secret), each AES-256-GCM encrypted with SETTINGS_ENCRYPTION_KEY. */

@@ -8,11 +8,12 @@ import { Eye, EyeOff, Loader2, MailCheck } from 'lucide-react';
 import { cx, Field, inputCls } from '@/components/bits';
 import { appUrl, useAuth } from '@/lib/auth';
 import { authErrorMessage } from '@/lib/auth-errors';
+import { BrandMark, useBranding } from '@/lib/branding';
 import { safeNext } from '@/lib/safe-next';
 import { useToast } from '@/hooks/use-toast';
 
-const primaryBtn = 'press inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#1E3A8A] px-5 py-3 text-[15px] font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60';
-const linkCls = 'font-semibold text-[#1E3A8A] hover:underline';
+const primaryBtn = 'press inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--brand)] px-5 py-3 text-[15px] font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)] disabled:opacity-60';
+const linkCls = 'font-semibold text-[var(--brand-ink)] hover:underline';
 
 const email = z.string().trim().min(1, 'Enter your email address.').email('Enter a valid email address.').max(254);
 // Supabase hashes passwords with bcrypt, which only reads the first 72 bytes.
@@ -20,19 +21,18 @@ const newPassword = z.string().min(8, 'Use at least 8 characters.').max(72, 'Use
 
 
 function Mark() {
+  const { appName } = useBranding();
   return (
-    <div className="mb-8 flex items-center justify-center gap-1" aria-label="GrantApp">
-      <svg viewBox="0 0 28 24" className="h-7 w-8" aria-hidden="true">
-        <path d="M1 3h6l6 13L22.5 1H27L14.5 23h-3z" fill="#1E3A8A" />
-        <path d="M7 3h3.5l5 10.5-2 3.5z" fill="#3B82F6" />
-      </svg>
-      <span className="text-2xl font-bold tracking-tight text-slate-900">GrantApp</span>
+    <div className="mb-8 flex items-center justify-center gap-2" aria-label={appName}>
+      <BrandMark className="h-9 w-9 text-lg" />
+      <span className="text-2xl font-bold tracking-tight text-slate-900" data-testid="text-auth-app-name">{appName}</span>
     </div>
   );
 }
 
 export function AuthFrame({ title, subtitle, children, footer }: { title: string; subtitle?: ReactNode; children: ReactNode; footer?: ReactNode }) {
-  useEffect(() => { document.title = `${title} · GrantApp`; }, [title]);
+  const { appName } = useBranding();
+  useEffect(() => { document.title = `${title} · ${appName}`; }, [title, appName]);
   return (
     <div className="theme-user flex min-h-[100dvh] flex-col items-center justify-center bg-[#F3F4F6] px-4 py-10">
       <main id="main" className="w-full max-w-[420px]">
@@ -78,6 +78,7 @@ function Submit({ busy, children, testid }: { busy: boolean; children: ReactNode
 const signInSchema = z.object({ email, password: z.string().min(1, 'Enter your password.') });
 
 export function SignInPage() {
+  const { appName } = useBranding();
   const { client } = useAuth();
   const search = useSearch();
   const params = new URLSearchParams(search);
@@ -105,7 +106,7 @@ export function SignInPage() {
   const add = (href: string) => (next ? `${href}?next=${encodeURIComponent(next)}` : href);
   return (
     <AuthFrame title="Sign in" subtitle={next?.startsWith('/admin') ? 'Sign in with your administrator account.' : 'Welcome back. Sign in to your grant workspace.'}
-      footer={<>New to GrantApp? <Link href={add('/sign-up')} className={linkCls} data-testid="link-sign-up">Create an account</Link></>}>
+      footer={<>New to {appName}? <Link href={add('/sign-up')} className={linkCls} data-testid="link-sign-up">Create an account</Link></>}>
       <form onSubmit={submit} noValidate className="space-y-4" data-testid="form-sign-in">
         <FormError message={error} />
         {unconfirmed && (resent
@@ -161,7 +162,7 @@ export function SignUpPage() {
     return (
       <AuthFrame title="Check your email" footer={<Link href="/sign-in" className={linkCls} data-testid="link-sign-in">Back to sign in</Link>}>
         <div className="text-center" data-testid="panel-check-email">
-          <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-[#EEF4FB] text-[#1E3A8A]"><MailCheck className="h-7 w-7" /></span>
+          <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-[var(--brand-soft)] text-[var(--brand-ink)]"><MailCheck className="h-7 w-7" /></span>
           <p className="text-sm text-slate-600">We've sent a confirmation link to <strong className="text-slate-900" data-testid="text-sent-to">{sentTo}</strong>. Open it to activate your account, then sign in.</p>
           <p className="mt-3 text-xs text-slate-500">Nothing there? Check your spam folder, or try signing in to get a new link.</p>
         </div>
@@ -321,14 +322,15 @@ export function ConfirmPage() {
 export function AuthLoading() {
   return (
     <div className="grid min-h-[100dvh] place-items-center bg-[#F3F4F6]" data-testid="state-auth-loading" aria-busy="true">
-      <Loader2 className="h-7 w-7 animate-spin text-[#1E3A8A]" aria-label="Loading" />
+      <Loader2 className="h-7 w-7 animate-spin text-[var(--brand-ink)]" aria-label="Loading" />
     </div>
   );
 }
 
 export function AuthUnavailable({ onRetry }: { onRetry: () => void }) {
+  const { appName } = useBranding();
   return (
-    <AuthFrame title="Can't reach GrantApp">
+    <AuthFrame title={`Can't reach ${appName}`}>
       <p className="text-sm text-slate-600" data-testid="text-auth-unavailable">We couldn't check your sign-in. Check your connection and try again.</p>
       <button onClick={onRetry} className={cx(primaryBtn, 'mt-5')} data-testid="button-auth-retry">Try again</button>
     </AuthFrame>

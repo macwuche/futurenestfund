@@ -35,7 +35,7 @@ export function CardActivationQueue() {
         : (
           <ul className="divide-y" data-testid="list-dashboard-card-requests">{q.data.items.slice(0, 5).map((r) => (
             <li key={r.card.id}>
-              <Link href="/admin/cards" data-testid={`link-dashboard-card-${r.card.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 hover:bg-[#F7FADC] sm:flex-nowrap sm:px-2">
+              <Link href="/admin/cards" data-testid={`link-dashboard-card-${r.card.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 hover:bg-[var(--brand-soft)] sm:flex-nowrap sm:px-2">
                 <CreditCard className="hidden h-4 w-4 shrink-0 text-slate-400 sm:block" />
                 <span className="min-w-0 basis-full sm:flex-1 sm:basis-0"><span className="block truncate font-semibold">{r.userName}</span><span className="block text-xs text-slate-500 sm:truncate">{cardLabel(r)} · {r.organization}</span></span>
                 {r.card.activationRequestedAt && <span className="text-xs text-slate-500">waiting {waited(r.card.activationRequestedAt)}</span>}
@@ -71,7 +71,7 @@ export function AdminCardRequestsPage() {
                 onClick={() => navigate(t.key === 'requested' ? '/admin/cards' : '/admin/cards?tab=awaiting', { replace: true })}
                 className={cx('press inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold', tab === t.key ? 'bg-[#111] text-white' : 'border border-[#E2E8F0] bg-white text-slate-700 hover:bg-slate-50')}>
                 {t.label}
-                {counts && <span className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px]', tab === t.key ? 'bg-[#C6F432] text-[#111]' : 'bg-slate-100 text-slate-700')}>{counts[t.key]}</span>}
+                {counts && <span className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px]', tab === t.key ? 'bg-[var(--brand)] text-[var(--brand-fg)]' : 'bg-slate-100 text-slate-700')}>{counts[t.key]}</span>}
               </button>
             ))}
           </div>

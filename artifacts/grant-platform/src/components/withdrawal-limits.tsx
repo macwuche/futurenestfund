@@ -70,7 +70,7 @@ export function UserWithdrawalLimits({ u }: { u: AdminUserProfile }) {
   const dirty = custom !== l.custom || (custom && (max !== toInput(l.maxPerRequest) || daily !== toInput(l.dailyTotal)));
   const option = (value: boolean, title: string, text: string) => (
     <button type="button" role="radio" aria-checked={custom === value} data-testid={`button-limits-${value ? 'custom' : 'global'}`} onClick={() => { setCustom(value); setErr(''); }}
-      className={cx('press min-h-11 rounded-lg border px-3 py-2 text-left text-sm transition', custom === value ? 'border-[#111] bg-[#111] text-[#C6F432]' : 'border-slate-300 hover:border-[#111]')}>
+      className={cx('press min-h-11 rounded-lg border px-3 py-2 text-left text-sm transition', custom === value ? 'border-[#111] bg-[#111] text-[var(--brand-glow)]' : 'border-slate-300 hover:border-[#111]')}>
       <span className="block font-semibold">{title}</span><span className={cx('block text-xs', custom === value ? 'text-white/80' : 'text-slate-500')}>{text}</span>
     </button>
   );

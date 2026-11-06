@@ -300,6 +300,58 @@ export interface TierDecisionInput {
   note?: string;
 }
 
+export interface BrandPalette {
+  brand: string;
+  /** Text on the brand colour */
+  fg: string;
+  /** The brand as text on white */
+  ink: string;
+  /** The brand as text on the admin's black */
+  glow: string;
+  dark: string;
+  light: string;
+  soft: string;
+  soft2: string;
+}
+
+export interface Branding {
+  appName: string;
+  /** #RRGGBB */
+  color: string;
+  palette: BrandPalette;
+  /** @nullable */
+  logoUrl: string | null;
+}
+
+export type AdminBrandingDefaults = {
+  appName: string;
+  color: string;
+};
+
+export type AdminBranding = Branding & ({
+  /**
+     * upload, or the host the logo was taken from
+     * @nullable
+     */
+  logoSource: string | null;
+  defaults: AdminBrandingDefaults;
+});
+
+export interface BrandingUpdate {
+  /**
+     * @minLength 2
+     * @maxLength 40
+     */
+  appName: string;
+  /** @maxLength 7 */
+  color: string;
+}
+
+export interface LogoUrlInput {
+  /** @maxLength 2000 */
+  url: string;
+}
+
 export interface ErrorMessage {
   error: string;
   /** Only on 500 errors: the request id in the server log (the message quotes its first 8 characters) */
@@ -1007,11 +1059,6 @@ export const PaymentMethodMoveDirection = {
 
 export interface PaymentMethodMove {
   direction: PaymentMethodMoveDirection;
-}
-
-export interface LogoUrlInput {
-  /** @maxLength 2000 */
-  url: string;
 }
 
 export interface ApproveInput {

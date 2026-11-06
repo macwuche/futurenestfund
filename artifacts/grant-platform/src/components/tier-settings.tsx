@@ -141,7 +141,7 @@ export function TierSettings() {
       <div role="tablist" aria-label="Tiers" className="flex flex-wrap gap-2">
         {drafts.map((x) => (
           <button key={x.tier} type="button" role="tab" aria-selected={active === x.tier} onClick={() => setActive(x.tier)} data-testid={`tab-tier-${x.tier}`}
-            className={cx('press min-h-11 rounded-full px-4 text-sm font-semibold', active === x.tier ? 'bg-[#111] text-[#C6F432]' : 'border border-slate-300 bg-white text-slate-700 hover:border-[#111]')}>
+            className={cx('press min-h-11 rounded-full px-4 text-sm font-semibold', active === x.tier ? 'bg-[#111] text-[var(--brand-glow)]' : 'border border-slate-300 bg-white text-slate-700 hover:border-[#111]')}>
             Tier {x.tier}
           </button>
         ))}
@@ -218,7 +218,7 @@ function TierSummary({ d }: { d: Draft }) {
   const lim = (l: Limit, unit: string) => `${l.max.trim() ? `${money(Number(l.max))} per ${unit}` : `no limit per ${unit}`}, ${l.daily.trim() ? `${money(Number(l.daily))} per 24 hours` : 'no daily limit'}`;
   const cards = d.cards.flatMap((c) => [c.virtual && `${c.name} virtual`, c.physical && `${c.name} physical`].filter(Boolean));
   return (
-    <p className="rounded-xl bg-[#F7FADC] p-3 text-xs text-slate-700" data-testid={`text-tier${d.tier}-summary`}>
+    <p className="rounded-xl bg-[var(--brand-soft)] p-3 text-xs text-slate-700" data-testid={`text-tier${d.tier}-summary`}>
       <b>Tier {d.tier}:</b> withdrawals {lim(d.withdrawal, 'request')} · top-ups {lim(d.topUp, 'top-up')} · cards: {cards.length ? cards.join(', ') : 'none'}
     </p>
   );

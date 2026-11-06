@@ -114,6 +114,7 @@ Pages: Dashboard, Users, Grant Plans, Transactions, Deposit Page, Withdrawal Pag
 - **KYC:** a document queue with previews; approve or reject (with a reason). The verification level is recomputed.
 - **Settings** (`/admin/settings/<section>`, side menu on desktop, tabs on phones):
   - **General:** global freeze (with a confirmation and a reason) and the security rules
+  - **Branding** (`/admin/settings/branding`): the application's **name**, its **brand colour** (swatches, colour picker or hex) and **logo** (upload or an https link, downloaded once and stored). One colour drives both sides: buttons, links, highlights and the admin's accents; text on it is worked out to stay readable. The screen previews changes live; saving applies them everywhere (other open screens within 15 seconds), including the sign-in pages, tab title and icon, and every email. Audited
   - **Email:** Resend key, sender, signature, health checks, test email (§7)
   - **Tiers** (`/admin/settings/tiers`, 9.4; the old `/admin/settings/limits` redirects here): per tier (1–3), the withdrawal limits (per request, per 24 h), card top-up limits (per top-up, per 24 h), which card types it may buy (virtual / physical, on top of what Settings → Cards puts on sale), and for Tiers 2 and 3 the **upgrade form** (introduction + fields, same builder as Grant Plans, file uploads included; off = nobody can ask for that tier). A live warning when a tier may buy a physical card but no virtual card. Audited
   - **Cards** (`/admin/settings/cards`, 9.3): switch each card type on or off (Visa Debit, Visa Credit, Mastercard Debit, Mastercard Credit, Amex Platinum) and set its virtual and physical price and fee (fixed or %), with the total the user pays. Empty price = that kind isn't sold; 0 = free. Audited. Credit cards are a name only: no credit line, they spend what's topped up
@@ -142,7 +143,7 @@ Pages: Dashboard, Users, Grant Plans, Transactions, Deposit Page, Withdrawal Pag
   - Browser crashes (uncaught errors, failed promises, the "Something went wrong" screen) are reported to the API, even when signed out, and the crash screen shows a reference too.
   - With `SENTRY_DSN` set, errors also go to Sentry (EU region) or GlitchTip, without the user, cookies, headers, IP or query strings, and with emails, tokens, secrets and long numbers removed from messages.
 - **Phones:** every page was audited at 390 px: 44 px tap targets, no sideways scrolling, bell, menu and search reachable. The admin header is one 64 px row (search opens from an icon); the ledger and request decisions become cards.
-- **Look:** one typeface (Inter) on both sides; amounts in tabular figures; the admin side keeps its black / lime colours.
+- **Look:** one typeface (Inter) on both sides; amounts in tabular figures; the brand colour (Admin → Settings → Branding, navy by default) on both sides, with the admin side's black menu.
 
 ---
 
@@ -276,6 +277,7 @@ Dashboard settings (see §12): Site URL and Redirect URLs are set to `https://ac
 | `lib/db/migrations/0009_payment_methods.sql` | `demo_payment_methods`; `demo_requests.source`, `method_id`, `method_snapshot`, `field_values`, `proof_file_id` (old withdrawals backfilled to `grant`); `demo_profiles.withdrawal_sources` |
 | `lib/db/migrations/0011_grant_plans.sql` | `demo_industries` (seeded with 40), `demo_grant_plans`; `demo_profiles.industry_id`; `demo_applications.plan_id`, `plan_snapshot`, `answers`, `fee_cents` |
 | `lib/db/migrations/0012_tier_rules.sql` | `demo_tier_requests`; `demo_settings.tier_rules` (copies the platform-wide withdrawal limits into every tier; those columns stay, unused) |
+| `lib/db/migrations/0013_branding.sql` | `demo_settings.branding` (name, colour, logo) |
 | `lib/db/migrations/0007_email_settings.sql` | `demo_settings.email_config`, `email_secrets`, `email_hook_seen_at`, `email_hook_result`; `demo_notifications.email_last_error` |
 | `lib/db/supabase/migrations/0001_user_roles.sql` | `user_roles` (Supabase only) |
 | `lib/db/supabase/migrations/0002_app_api_role.sql` | `app_api` role, grants, `app_api_all` policies, revoked Data API grants |
@@ -409,7 +411,7 @@ No secrets. `PORT` and `BASE_PATH` for Vite; everything else comes from `GET /ap
 | Command | What it does |
 |---|---|
 | `pnpm run typecheck` | Type-check every package |
-| `pnpm test` | Vitest unit tests (134; one more runs against a real Redis with `TEST_REDIS_URL`) |
+| `pnpm test` | Vitest unit tests (140; one more runs against a real Redis with `TEST_REDIS_URL`) |
 | `pnpm --filter @workspace/api-spec run codegen` | Regenerate API hooks / validators after editing `openapi.yaml` |
 | `pnpm --filter @workspace/db run generate` | Write a new migration from schema changes |
 | `pnpm --filter @workspace/scripts run db:migrate` | Apply pending migrations (`-- --baseline` once for a database built with push) |
@@ -424,7 +426,8 @@ On Replit, restart the existing workflows instead of starting extra servers.
 
 ## 11. Testing
 
-**Committed:** `pnpm test`, 134 Vitest tests (+1 with `TEST_REDIS_URL`).
+**Committed:** `pnpm test`, 140 Vitest tests (+1 with `TEST_REDIS_URL`).
+- Branding: colour parsing, the readable text colours for any brand colour (4.5:1 on the colour, on white and on the admin's black), the branded email.
 - Tier rules (9.4): stored rules and the fallback to the old platform-wide limits, saving and refusals, upgrade forms, cards per tier, the next tier, custom limits over the tier's, top-up wording, the physical-without-virtual warning; the three tier emails.
 - Token verification: valid, expired, other project, wrong audience, anonymous, forged key, tampered payload, `alg: none`, HS256 algorithm confusion, key server down/timeout → 503.
 - Standard Webhooks signatures.
@@ -457,6 +460,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 | `phase9-cards`, `phase9-cards-ui` | Card Requests queue: tabs, order, decline with reason, ask again, activate, frozen account, concurrent decisions (9); dashboard KPI and list, menu badge, applicant view (6 + 6) |
 | `phase92-redis` | Two real API servers on one Redis (`REDIS_SERVER=` path to `redis-server`): status in Settings, password never shown, one shared limit, Retry-After, key names and expiry, a burst of 40 at once lets exactly the limit through, Redis killed (still answered, quickly, limited per server, status, one warning), Redis back (reconnects) (13) |
 | `phase94-tiers`, `phase94-ui` | Settings (old limits copied to every tier, cents, refusals, audit, warning), withdrawals over the tier limit (message, upgradeTier, nothing stored, bell + email once a day, none without a form or with custom limits), queue flag, card locks, physical needs virtual (users and admins), top-up limits, the upgrade form (required files, refused forms leave no files, two at once → one), queue, decline, approve, tier changed meanwhile (16); Settings → Tiers, inspector, refused withdrawal with Upgrade button, card shop, Your tier, Tier Upgrades approve (9 + 9). `phase5-limits(-ui)`, `phase10-methods` and `phase93-cards` were updated for tier limits and the virtual-first rule |
+| `phase-branding` | Branding API (defaults, save, refusals, audit, logo upload / link / remove, public logo) and browser on desktop + phone: live preview, save, another open screen following within 15 s, unsaved changes discarded, reload remembers, logo in menu and tab (4; 7 + 7) |
 | `phase6-mobile` | Phone audit at 390 px of every page, menu, panel, main dialogs and the sign-in pages: zoom-out, overflow, boxes sticking out, 44 px targets, bell / menu / search reachable; full-page screenshots with `SHOTS=` (35). Sign-in pages need `AUTH_WEB`: a proxy to a signed-out Supabase-mode API |
 
 Full run on 2026-10-29: all green on the dev frontend, on the **production build with its CSP**, and **on Supabase as `app_api`**.
@@ -524,6 +528,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | 2026-11-05 | **Grant plans** (Phase 11) replace the sample grants and matchmaking: each plan has its own application form (fields differ per plan, files included); users apply only through a plan; the same plan can be applied to again, and several at once. Plans stay open until switched off (no deadline) |
 | 2026-11-05 | **The application fee is charged only on approval** (never on submit, decline or withdrawal), fixed or a % of the award as the admin decides, and it is **the only charge that can take the account balance below $0**. No withdrawal from a balance at $0 or below; a fee-free withdrawal from a positive grant balance is still allowed |
 | 2026-11-05 | **Tier rules (9.4)**: a tier sets withdrawal limits, card top-up limits (per top-up and per 24 h) and which cards a user can buy (e.g. Amex only on Tier 3). **Tier limits replace the platform-wide limits**; a user's custom limits override their tier's. Users move up **one tier at a time** by sending the next tier's admin-made form; **an admin approves**. Over a limit: a message, the bell and an email with an Upgrade button (no browser push). **No physical card without a virtual card**, for users and admins (any virtual card counts; Settings → Tiers warns about a tier that can't meet it). Admins may issue any card type. Identity verification stays separate |
+| 2026-11-06 | **Branding**: the admin sets the application's name, one brand colour for both sides (the admin keeps its black menu) and a logo (upload or link); the name replaces "GrantApp" everywhere, emails included; open screens follow within ~15 seconds. Sample-data notices stay |
 | 2026-11-05 | **Industries** are admin-managed (40 to start); required at sign-up; plans for the user's industry (and all-industry plans) are recommended, but any plan can be applied to |
 
 ---
@@ -591,7 +596,9 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 3. **Settings → Cards:** switch card types on and set their prices (until then "No cards are on sale right now").
 4. **Settings → Industries:** check the starting list of 40; add or remove as you like.
 
-**Waiting for your answers:** the provisional 9.3 choices in `work.md` §17h.
+**9.3 choices:** answered 2026-11-06 (`work.md` §17h). The follow-up, **9.5** (any number of cards up to 20; withdrawal fees per tier in a new Settings section), is planned in `work.md` §23 and waits for your go.
+
+**Branding:** built and tested 2026-11-06 (`work.md` §24); `deploy.sh` applies migration 0013. Then set the name, colour and logo in Admin → Settings → Branding.
 
 **9.4 tier rules:** deployed 2026-11-06 at `2ad3f00` (0012 and Supabase 0006 applied). **Needs you** in the admin area: Settings → Tiers (limits, cards per tier, the Tier 2 and Tier 3 upgrade forms; until a form is saved nobody can ask to move up). The server asks for a restart (`server.md` §7).
 

@@ -59,6 +59,10 @@ The supplied documents contain generic Next.js instructions, but the user's expl
 - No payment processor or card network is connected. Any card, confidence score, grant/application, chart or document shown is sample data.
 - Do not describe a demonstration confidence score as real OCR or the preview role switch as sign-in.
 
+## Branding
+
+Admin → Settings → Branding sets the app name, one brand colour and a logo (`api-server lib/branding.ts`, `lib/brandColors.ts`; `demo_settings.branding`; public `GET /api/branding`). The web app applies it as CSS variables in `lib/branding.tsx` (`--brand`, `--brand-fg`, `--brand-ink`, `--brand-glow`, `--brand-dark`, `--brand-light`, `--brand-soft`, `--brand-soft2`) and re-reads it every 15 s. **Never hardcode the navy / lime colours or the name "GrantApp" in new UI**: use those variables, `useBranding().appName` and `BrandMark`; emails use `appName()` and the palette in `emailTemplates.ts`.
+
 ## Tiers (Step 9.4)
 
 `lib/tierRules.ts` (pure, unit-tested) and `lib/tiers.ts`; rules in `demo_settings.tier_rules`, requests in `demo_tier_requests`. Each tier sets withdrawal limits (they replaced the platform-wide limits; a user's custom limits still win), card top-up limits, and the card types it may buy; a refusal over a tier limit is a `TierLimitError` (API sends `upgradeTier`) and `promptTierUpgrade` writes the bell + email (once a day) outside the rolled-back transaction. No physical card without a virtual card. Upgrades: one tier at a time through the admin-made form, approved in Admin → Tier Upgrades.

@@ -12,9 +12,9 @@ import { useToast } from '@/hooks/use-toast';
  * and top up an active card from the account balance (no fee).
  */
 
-const primary = 'press inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#1E3A8A] px-4 text-sm font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60';
+const primary = 'press inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[var(--brand)] px-4 text-sm font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)] disabled:opacity-60';
 const outline = 'press inline-flex min-h-11 items-center gap-1.5 rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60';
-const inputCls = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20';
+const inputCls = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--brand-ink)] focus:ring-2 focus:ring-[var(--brand-ink)]/20';
 type Kind = 'Virtual' | 'Physical';
 type Choice = { t: ApplicantCardType; kind: Kind; p: CardKindPrice };
 
@@ -30,7 +30,7 @@ export function CardShop({ a }: { a: ApplicantAccount }) {
     <section aria-labelledby="shop-heading" className="space-y-3" data-testid="section-card-shop">
       <div>
         <h2 id="shop-heading" className="text-lg font-semibold text-slate-900">Get a card</h2>
-        <p className="text-sm text-slate-500">Paid from your account balance ({money(a.availableToWithdraw.deposit)} available). You can hold one virtual and one physical card; a physical card needs a virtual card first. Your tier decides which cards you can buy (<Link href="/tier" className="font-semibold text-[#1E3A8A] underline" data-testid="link-shop-tier">Tier {a.tier}</Link>).</p>
+        <p className="text-sm text-slate-500">Paid from your account balance ({money(a.availableToWithdraw.deposit)} available). You can hold one virtual and one physical card; a physical card needs a virtual card first. Your tier decides which cards you can buy (<Link href="/tier" className="font-semibold text-[var(--brand-ink)] underline" data-testid="link-shop-tier">Tier {a.tier}</Link>).</p>
       </div>
       {q.isLoading ? <div className="grid gap-3 md:grid-cols-2"><Skel className="h-32" /><Skel className="h-32" /></div>
         : q.isError || !q.data ? <ErrorState onRetry={() => q.refetch()} />
@@ -39,7 +39,7 @@ export function CardShop({ a }: { a: ApplicantAccount }) {
           <ul className="grid gap-3 md:grid-cols-2" data-testid="list-card-types">
             {q.data.map((t) => (
               <li key={t.key} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" data-testid={`card-type-${t.key}`}>
-                <p className="flex items-center gap-2 font-semibold text-slate-900"><CreditCard className="h-5 w-5 text-[#1E3A8A]" aria-hidden />{t.name}</p>
+                <p className="flex items-center gap-2 font-semibold text-slate-900"><CreditCard className="h-5 w-5 text-[var(--brand-ink)]" aria-hidden />{t.name}</p>
                 <div className="mt-3 space-y-2">
                   {(['Virtual', 'Physical'] as const).map((kind) => {
                     const p = kind === 'Virtual' ? t.virtual : t.physical;

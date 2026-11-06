@@ -369,7 +369,7 @@ export function AdminAuditPage() {
             <>
               {/* Phones get one card per entry, so the action is readable without scrolling sideways. */}
               <ul className="space-y-3 sm:hidden" data-testid="list-audit">{q.data.items.map((a) => (
-                <li key={a.id} className="border-l-2 border-[#C6F432] pl-3 text-sm" data-testid={`item-audit-entry-${a.id}`}>
+                <li key={a.id} className="border-l-2 border-[var(--brand)] pl-3 text-sm" data-testid={`item-audit-entry-${a.id}`}>
                   <p className="break-words font-semibold text-slate-900">{a.action}</p>
                   <p className="mt-0.5 text-xs text-slate-500">
                     {a.userId ? <Link href={`/admin/users/${a.userId}`} className="font-semibold text-slate-700 hover:underline">{a.userName ?? a.userId}</Link> : 'Platform'}
@@ -552,7 +552,7 @@ export function AdminApplicationPage() {
             <section className={cx(card, 'p-5')} data-testid="section-application-history">
               <SectionTitle>Status history</SectionTitle>
               <ol className="space-y-3">{a.events.map((e) => (
-                <li key={e.id} className="border-l-2 border-[#C6F432] pl-3 text-sm" data-testid={`row-event-${e.id}`}>
+                <li key={e.id} className="border-l-2 border-[var(--brand)] pl-3 text-sm" data-testid={`row-event-${e.id}`}>
                   <div className="flex flex-wrap items-center gap-2"><StatusBadge status={e.status} dot={false} /><span className="text-xs text-slate-500">{dateTime(e.createdAt)} · {e.actor}</span></div>
                   {e.note && <p className="mt-1 break-words text-slate-700">{e.note}</p>}
                 </li>

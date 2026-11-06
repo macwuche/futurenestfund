@@ -10,6 +10,7 @@ import { ainput, card, dark, ghost, lime, SectionTitle } from '@/components/admi
 import { apiError } from '@/lib/demo-state';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { useBranding } from '@/lib/branding';
 
 /**
  * Admin Settings → Email: Resend API key, sender, reply-to, support address, signature and the Supabase Send Email Hook,
@@ -29,6 +30,7 @@ function SourceNote({ v, envLabel = 'server environment' }: { v: EmailSettingVal
 }
 
 export function EmailSettingsCard() {
+  const { appName } = useBranding();
   const q = useGetEmailSettings();
   const s = q.data;
   return (
@@ -40,7 +42,7 @@ export function EmailSettingsCard() {
       ) : (
         <>
           <p className="mb-4 text-sm text-slate-600">
-            Every email GrantApp sends goes through <b>Resend</b>: sign-up and password emails from Supabase, and notifications about applications and money requests.
+            Every email {appName} sends goes through <b>Resend</b>: sign-up and password emails from Supabase, and notifications about applications and money requests.
             {s.from ? <> Emails are sent from <b className="break-all" data-testid="text-email-from">{s.from}</b>.</> : ' Add an API key and a sender address to start sending.'}
           </p>
           {!s.canStoreSecrets && (
@@ -160,6 +162,7 @@ function SecretField({ name, label, status, canStore, placeholder, help }: {
 }
 
 function SenderForm({ s }: { s: EmailSettings }) {
+  const { appName } = useBranding();
   const update = useUpdateEmailSettings();
   const updated = useSettingsUpdated();
   const { toast } = useToast();
@@ -178,7 +181,7 @@ function SenderForm({ s }: { s: EmailSettings }) {
       onError: (e2) => setErr(apiError(e2, "The email settings couldn't be saved.")),
     });
   };
-  const previewName = form.fromName.trim() || s.fromName.value || 'GrantApp';
+  const previewName = form.fromName.trim() || s.fromName.value || appName;
   const previewAddress = form.fromAddress.trim() || s.fromAddress.value || 'no-reply@your-domain.org';
   const previewSupport = form.supportEmail.trim() || s.supportEmail.value;
   const signature = form.signature.trim();
@@ -217,13 +220,13 @@ function SenderForm({ s }: { s: EmailSettings }) {
           <span className="font-semibold text-slate-700">Preview</span> · From: <span className="break-all">{previewName} &lt;{previewAddress}&gt;</span>
         </p>
         <div className="p-3 sm:p-4">
-          <p className="mb-2 text-sm font-bold text-slate-900">GrantApp</p>
+          <p className="mb-2 text-sm font-bold text-[var(--brand-ink)]">{appName}</p>
           <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
             <p className="mb-2 text-base font-bold text-slate-900">Withdrawal approved</p>
             <p>Hi Jane, your withdrawal of $1,250.00 (ref ABC12345) was approved. Your funds are on their way.</p>
             {signature && <p className="mt-4 whitespace-pre-line border-t border-slate-200 pt-3 text-slate-700" data-testid="preview-signature">{signature}</p>}
           </div>
-          <p className="mt-2 text-xs text-slate-500">Sent by GrantApp to jane@example.org. If you didn't expect this email, you can ignore it.{previewSupport && <> Questions? Write to <span className="text-[#1E3A8A]">{previewSupport}</span>.</>}</p>
+          <p className="mt-2 text-xs text-slate-500">Sent by {appName} to jane@example.org. If you didn't expect this email, you can ignore it.{previewSupport && <> Questions? Write to <span className="text-[var(--brand-ink)]">{previewSupport}</span>.</>}</p>
         </div>
       </div>
 

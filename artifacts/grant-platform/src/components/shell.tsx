@@ -14,6 +14,7 @@ import {
   MessageCircleQuestion, Ellipsis, BadgeCheck, Upload, ArrowLeftRight as SwitchIcon, LogOut, Wallet, ChevronDown, Award, Gauge,
 } from 'lucide-react';
 import { usePendingTierRequests } from '@/lib/tier-requests';
+import { BrandMark, useBranding } from '@/lib/branding';
 import { Avatar, checkFile, cx, Field, FILE_RULES, fileSize, inputCls, Modal, money, Skel, useDismiss } from '@/components/bits';
 import { CATEGORIES, apiError, useApplicantDashboard, useDemo, useNotifications, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
@@ -93,16 +94,17 @@ export function Layout({ admin, children }: { admin: boolean; children: ReactNod
   const [loc] = useLocation();
   // Links to a section (e.g. /settings#verification) let that page scroll itself.
   useEffect(() => { setOpen(false); if (!window.location.hash) window.scrollTo(0, 0); }, [loc]);
+  const { appName } = useBranding();
   useEffect(() => {
     if (!title) return;
-    document.title = `${title} | GrantApp`;
+    document.title = `${title} | ${appName}`;
     const description = admin
       ? `${title}: grant administration.`
       : `${title}: apply for grants, follow your applications and manage your funding.`;
     document.querySelector('meta[name="description"]')?.setAttribute('content', description);
     document.querySelector('meta[property="og:title"]')?.setAttribute('content', document.title);
     document.querySelector('meta[property="og:description"]')?.setAttribute('content', description);
-  }, [title, admin]);
+  }, [title, admin, appName]);
   const close = useCallback(() => setOpen(false), []);
   return (
     <TitleCtx.Provider value={setTitle}>
@@ -119,14 +121,13 @@ const SkipLink = () => <a href="#main" className="sr-only focus:not-sr-only focu
 /* User workspace                                                      */
 /* ================================================================== */
 
+/** The brand (Admin Settings → Branding): the logo, or the name's first letter on the brand colour, and the name. */
 function Logo() {
+  const { appName } = useBranding();
   return (
-    <Link href="/dashboard" aria-label="GrantApp home" className="flex items-center gap-1 px-2">
-      <svg viewBox="0 0 28 24" className="h-6 w-7" aria-hidden="true">
-        <path d="M1 3h6l6 13L22.5 1H27L14.5 23h-3z" fill="#1E3A8A" />
-        <path d="M7 3h3.5l5 10.5-2 3.5z" fill="#3B82F6" />
-      </svg>
-      <span className="text-[22px] font-bold tracking-tight text-slate-900">GrantApp</span>
+    <Link href="/dashboard" aria-label={`${appName} home`} className="flex min-w-0 items-center gap-2 px-2">
+      <BrandMark className="h-8 w-8 text-base" rounded="rounded-lg" />
+      <span className="truncate text-[22px] font-bold tracking-tight text-slate-900" data-testid="text-app-name">{appName}</span>
     </Link>
   );
 }
@@ -172,7 +173,7 @@ function UserFrame({ title, open, setOpen, close, loc, children }: { title: stri
 /** Phase 11: applications are made to a grant plan, so "New Application" opens the Grants page. */
 function NewAppButton({ className, testid = 'button-new-application' }: { className?: string; testid?: string }) {
   return (
-    <Link href="/grants" data-testid={testid} className={cx('press items-center gap-1.5 rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0F172A]', className)}>
+    <Link href="/grants" data-testid={testid} className={cx('press items-center gap-1.5 rounded-full bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-[var(--brand-fg)] transition hover:bg-[var(--brand-dark)]', className)}>
       <Plus className="h-4 w-4" />New Application
     </Link>
   );
@@ -182,8 +183,8 @@ function NavRow({ item, active, onNav, count }: { item: NavItem; active: boolean
   return (
     <Link href={item.href} onClick={onNav} aria-current={active ? 'page' : undefined} data-testid={testId(item.href)}
       className={cx('flex items-center gap-3 rounded-lg px-3 py-1.5 text-[15px] transition-colors duration-150',
-        active ? 'bg-[#DBEAFE] font-semibold text-slate-900' : 'font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900')}>
-      <item.icon className={cx('h-[18px] w-[18px] shrink-0', active ? 'text-[#1E3A8A]' : 'text-slate-500')} />
+        active ? 'bg-[var(--brand-soft2)] font-semibold text-slate-900' : 'font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900')}>
+      <item.icon className={cx('h-[18px] w-[18px] shrink-0', active ? 'text-[var(--brand-ink)]' : 'text-slate-500')} />
       <span className="flex-1 truncate">{item.label}</span>
       {count !== undefined && (
         <span data-testid="badge-applications-count" className="grid h-5 min-w-5 place-items-center rounded-full bg-slate-200 px-1.5 text-[11px] font-semibold text-slate-700">{count}</span>
@@ -344,7 +345,7 @@ function UserTopDesktop() {
         <form role="search" onSubmit={(e) => { e.preventDefault(); if (loc !== '/applications' && loc !== '/dashboard' && loc !== '/') nav('/applications'); }} className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <input data-testid="input-global-search" type="search" aria-label="Search applications" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search"
-            className="w-56 rounded-full border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20" />
+            className="w-56 rounded-full border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none transition focus:border-[var(--brand-ink)] focus:ring-2 focus:ring-[var(--brand-ink)]/20" />
         </form>
       </div>
     </header>
@@ -359,7 +360,7 @@ function DrawerSearch({ onDone }: { onDone: () => void }) {
     <form role="search" onSubmit={(e) => { e.preventDefault(); onDone(); if (loc !== '/applications') nav('/applications'); }} className="relative px-1">
       <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
       <input data-testid="input-drawer-search" type="search" enterKeyHint="search" aria-label="Search applications" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search applications"
-        className="w-full rounded-full border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-[15px] outline-none transition focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20" />
+        className="w-full rounded-full border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-[15px] outline-none transition focus:border-[var(--brand-ink)] focus:ring-2 focus:ring-[var(--brand-ink)]/20" />
     </form>
   );
 }
@@ -407,8 +408,8 @@ function BottomNav({ loc }: { loc: string }) {
         const a = isActive(loc, b.href);
         return (
           <Link key={b.href} href={b.href} data-testid={`button-bottom-${b.label.toLowerCase()}`} aria-current={a ? 'page' : undefined}
-            className={cx('flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold', a ? 'text-[#1E3A8A]' : 'text-slate-500')}>
-            <span className={cx('grid h-7 w-12 place-items-center rounded-full transition-colors', a && 'bg-[#DBEAFE]')}><b.icon className="h-5 w-5" /></span>{b.label}
+            className={cx('flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold', a ? 'text-[var(--brand-ink)]' : 'text-slate-500')}>
+            <span className={cx('grid h-7 w-12 place-items-center rounded-full transition-colors', a && 'bg-[var(--brand-soft2)]')}><b.icon className="h-5 w-5" /></span>{b.label}
           </Link>
         );
       })}
@@ -422,7 +423,7 @@ function WorkspaceSwitch() {
     <div role="group" aria-label="Demo workspace switch" data-testid="switch-workspace" className="grid grid-cols-2 rounded-full bg-white/10 p-0.5 text-xs font-semibold">
       {[{ admin: false, l: 'User view', to: '/dashboard' }, { admin: true, l: 'Admin view', to: '/admin' }].map((o) => (
         <button key={o.l} aria-pressed={o.admin} data-testid={o.admin ? 'button-admin-workspace' : 'button-user-workspace'} onClick={() => nav(o.to)}
-          className={cx('press rounded-full px-2 py-1.5 transition-all duration-200 whitespace-nowrap', o.admin ? 'bg-[#C6F432] text-[#111]' : 'text-slate-300 hover:text-white')}>
+          className={cx('press rounded-full px-2 py-1.5 transition-all duration-200 whitespace-nowrap', o.admin ? 'bg-[var(--brand)] text-[var(--brand-fg)]' : 'text-slate-300 hover:text-white')}>
           {o.l}
         </button>
       ))}
@@ -439,7 +440,7 @@ function AdminNavList({ onNav }: { onNav?: () => void }) {
   const cardRequests = useListAdminCardRequests({ status: 'requested' }, { query: { queryKey: getListAdminCardRequestsQueryKey({ status: 'requested' }), refetchInterval: 60_000 } }).data?.requested ?? 0;
   const tierRequests = usePendingTierRequests(60_000).data?.length ?? 0;
   const row = (active: boolean) => cx('group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
-    active ? 'bg-[#C6F432] text-[#111] font-semibold' : 'text-slate-300 hover:bg-white/10 hover:text-white hover:translate-x-0.5');
+    active ? 'bg-[var(--brand)] text-[var(--brand-fg)] font-semibold' : 'text-slate-300 hover:bg-white/10 hover:text-white hover:translate-x-0.5');
   return (
     <nav aria-label="Admin navigation" className="flex flex-col gap-1">
       {adminNav.map((i) => {
@@ -473,10 +474,10 @@ function AdminNavList({ onNav }: { onNav?: () => void }) {
             <i.icon className="h-[18px] w-[18px]" />
             <span className="flex-1">{i.label}</span>
             {i.href === '/admin/tiers' && tierRequests > 0 && (
-              <span data-testid="badge-tier-requests" aria-label={`${tierRequests} waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[#C6F432]' : 'bg-[#C6F432] text-[#111]')}>{tierRequests}</span>
+              <span data-testid="badge-tier-requests" aria-label={`${tierRequests} waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[var(--brand-glow)]' : 'bg-[var(--brand)] text-[var(--brand-fg)]')}>{tierRequests}</span>
             )}
             {i.href === '/admin/cards' && cardRequests > 0 && (
-              <span data-testid="badge-card-requests" aria-label={`${cardRequests} waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[#C6F432]' : 'bg-[#C6F432] text-[#111]')}>{cardRequests}</span>
+              <span data-testid="badge-card-requests" aria-label={`${cardRequests} waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[var(--brand-glow)]' : 'bg-[var(--brand)] text-[var(--brand-fg)]')}>{cardRequests}</span>
             )}
           </Link>
         );
@@ -486,12 +487,13 @@ function AdminNavList({ onNav }: { onNav?: () => void }) {
 }
 
 function AdminBrand() {
+  const { appName } = useBranding();
   return (
     <div className="flex items-center gap-2.5 px-2">
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#C6F432] font-display text-lg font-extrabold text-[#111]">G</span>
-      <div className="leading-tight">
-        <div className="font-display text-base font-bold text-white">GrantApp</div>
-        <div className="text-[10px] font-semibold uppercase tracking-widest text-[#C6F432]">Command center</div>
+      <BrandMark className="h-9 w-9 font-display text-lg" />
+      <div className="min-w-0 leading-tight">
+        <div className="truncate font-display text-base font-bold text-white" data-testid="text-admin-app-name">{appName}</div>
+        <div className="text-[10px] font-semibold uppercase tracking-widest text-[var(--brand-glow)]">Command center</div>
       </div>
     </div>
   );
@@ -507,7 +509,7 @@ function AdminSidebarBody({ onNav }: { onNav?: () => void }) {
       {status === 'demo' ? (
         <div className="mt-auto space-y-3">
           <div className="rounded-xl bg-white/5 p-3 text-xs leading-relaxed text-slate-400">
-            <strong className="text-[#C6F432]">DEMO preview.</strong> Switch workspaces to see both sides of the sample data.
+            <strong className="text-[var(--brand-glow)]">DEMO preview.</strong> Switch workspaces to see both sides of the sample data.
           </div>
           <WorkspaceSwitch />
         </div>
@@ -580,15 +582,15 @@ function AdminTop({ title, onMenu }: { title: string; onMenu: () => void }) {
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur" data-testid="header-admin">
       {/* One 64 px row: title left, search fills the middle (md+), freeze and avatar pinned right. */}
       <div className="flex min-h-16 flex-wrap items-center gap-2 px-4 py-3 sm:px-6 md:flex-nowrap md:gap-4">
-        <button aria-label="Open menu" data-testid="button-open-drawer" onClick={onMenu} className="press grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#111] text-[#C6F432] lg:hidden"><Menu className="h-5 w-5" /></button>
+        <button aria-label="Open menu" data-testid="button-open-drawer" onClick={onMenu} className="press grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#111] text-[var(--brand-glow)] lg:hidden"><Menu className="h-5 w-5" /></button>
         <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold sm:text-xl md:max-w-[16rem] md:flex-none lg:max-w-[20rem]" data-testid="text-page-title">{title}</h1>
         <AdminSearch open={searching} onClose={() => setSearching(false)} className={cx('order-last basis-full md:order-none md:block md:max-w-xl md:flex-1 md:basis-auto', searching ? 'block' : 'hidden')} />
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <button type="button" aria-label={searching ? 'Close search' : 'Search'} aria-expanded={searching} data-testid="button-admin-search-toggle" onClick={() => setSearching(!searching)}
-            className={cx('press grid h-10 w-10 place-items-center rounded-lg border md:hidden', searching ? 'border-[#111] bg-[#111] text-[#C6F432]' : 'border-slate-300 text-slate-700')}>
+            className={cx('press grid h-10 w-10 place-items-center rounded-lg border md:hidden', searching ? 'border-[#111] bg-[#111] text-[var(--brand-glow)]' : 'border-slate-300 text-slate-700')}>
             {searching ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
           </button>
-          <button data-testid="button-global-freeze" onClick={() => setConfirm(true)} disabled={!data} aria-label={frozen ? 'Lift global freeze' : 'Freeze the platform'} className={cx('press flex h-10 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition disabled:opacity-50', frozen ? 'bg-[#C6F432] text-[#111]' : 'bg-red-700 text-white hover:bg-red-800')}>
+          <button data-testid="button-global-freeze" onClick={() => setConfirm(true)} disabled={!data} aria-label={frozen ? 'Lift global freeze' : 'Freeze the platform'} className={cx('press flex h-10 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition disabled:opacity-50', frozen ? 'bg-[var(--brand)] text-[var(--brand-fg)]' : 'bg-red-700 text-white hover:bg-red-800')}>
             <Snowflake className="h-4 w-4" /><span className="sm:hidden">{frozen ? 'Lift' : 'Freeze'}</span><span className="hidden sm:inline">{frozen ? 'Lift freeze' : 'Freeze platform'}</span>
           </button>
           {account && (
@@ -625,10 +627,10 @@ export function GlobalFreezeDialog({ open, onClose, frozen }: { open: boolean; o
       <p className="mb-3 text-sm text-slate-600">
         {frozen ? 'Balance credits, approvals and applicant requests will be allowed again.' : 'Balance credits, approvals of deposits, withdrawals and grant awards, and new applicant requests are refused until the freeze is lifted.'} The change is written to the audit log. Sample data only.
       </p>
-      <textarea data-testid="input-freeze-reason" aria-label="Reason (optional)" maxLength={240} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional, recorded in the audit log)" className="mb-4 h-24 w-full rounded-xl border border-slate-300 p-3 text-sm outline-none focus:border-[#111] focus:ring-2 focus:ring-[#C6F432]" />
+      <textarea data-testid="input-freeze-reason" aria-label="Reason (optional)" maxLength={240} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional, recorded in the audit log)" className="mb-4 h-24 w-full rounded-xl border border-slate-300 p-3 text-sm outline-none focus:border-[#111] focus:ring-2 focus:ring-[var(--brand)]" />
       <div className="flex justify-end gap-2">
         <button data-testid="button-freeze-cancel" onClick={onClose} className="press rounded-lg px-4 py-2 text-sm font-semibold hover:bg-slate-100">Cancel</button>
-        <button data-testid="button-freeze-confirm" disabled={freeze.isPending} onClick={go} className="press rounded-lg bg-[#111] px-4 py-2 text-sm font-semibold text-[#C6F432] disabled:opacity-60">{freeze.isPending ? 'Applying…' : frozen ? 'Lift freeze' : 'Freeze platform'}</button>
+        <button data-testid="button-freeze-confirm" disabled={freeze.isPending} onClick={go} className="press rounded-lg bg-[#111] px-4 py-2 text-sm font-semibold text-[var(--brand-glow)] disabled:opacity-60">{freeze.isPending ? 'Applying…' : frozen ? 'Lift freeze' : 'Freeze platform'}</button>
       </div>
     </Modal>
   );
@@ -650,7 +652,7 @@ function AdminSearch({ className, open: shown, onClose }: { className?: string; 
   const go = (href: string) => { close(); setText(''); onClose?.(); nav(href); };
   const r = term.length >= 2 ? q.data : undefined;
   const empty = r && !r.users.length && !r.applications.length && !r.transactions.length && !r.audit.length;
-  const row = 'flex w-full flex-col rounded-lg px-2 py-1.5 text-left hover:bg-[#F7FADC]';
+  const row = 'flex w-full flex-col rounded-lg px-2 py-1.5 text-left hover:bg-[var(--brand-soft)]';
   const group = (label: string, items: ReactNode[]) => items.length > 0 && (
     <div className="py-1"><p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>{items}</div>
   );
@@ -659,7 +661,7 @@ function AdminSearch({ className, open: shown, onClose }: { className?: string; 
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
       <input ref={input} data-testid="input-admin-search" type="search" enterKeyHint="search" aria-label="Search users, applications, transactions and logs" value={text}
         onChange={(e) => { setText(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder="Search users, applications, ledger, audit log"
-        className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-[#111] focus:ring-2 focus:ring-[#C6F432]" />
+        className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-[#111] focus:ring-2 focus:ring-[var(--brand)]" />
       {open && term.length >= 2 && (
         <div className="pop absolute left-0 right-0 top-full z-50 mt-2 max-h-[70dvh] overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl md:w-[26rem]" data-testid="panel-admin-search">
           {q.isError ? <p className="px-2 py-3 text-sm text-red-700">Search failed. Try again.</p>

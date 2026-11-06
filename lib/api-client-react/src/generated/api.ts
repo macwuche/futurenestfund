@@ -24,6 +24,7 @@ import type {
   AdminApplication,
   AdminApplicationDetail,
   AdminAuditPage,
+  AdminBranding,
   AdminCardRequestList,
   AdminCardType,
   AdminDashboard,
@@ -56,6 +57,8 @@ import type {
   ApproveInput,
   AuthConfig,
   BalanceAdjustmentInput,
+  Branding,
+  BrandingUpdate,
   CardActionInput,
   CardBuyInput,
   CardDeclineInput,
@@ -939,6 +942,563 @@ export function useGetAuthConfig<TData = Awaited<ReturnType<typeof getAuthConfig
 
 
 
+
+export const getGetBrandingUrl = () => {
+
+
+
+
+  return `/api/branding`
+}
+
+/**
+ * @summary The application's name, brand colour (with the shades the app uses) and logo; public: the sign-in pages need it
+ */
+export const getBranding = async ( options?: Parameters<typeof customFetch>[1]): Promise<Branding> => {
+
+  return customFetch<Branding>(getGetBrandingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBrandingQueryKey = () => {
+    return [
+    `/api/branding`
+    ] as const;
+    }
+
+
+export const getGetBrandingQueryOptions = <TData = Awaited<ReturnType<typeof getBranding>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBranding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBrandingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBranding>>> = ({ signal }) => getBranding({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBranding>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBrandingQueryResult = NonNullable<Awaited<ReturnType<typeof getBranding>>>
+export type GetBrandingQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary The application's name, brand colour (with the shades the app uses) and logo; public: the sign-in pages need it
+ */
+
+export function useGetBranding<TData = Awaited<ReturnType<typeof getBranding>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBranding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBrandingQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBrandingLogoUrl = () => {
+
+
+
+
+  return `/api/branding/logo`
+}
+
+/**
+ * @summary The application's logo image (public)
+ */
+export const getBrandingLogo = async ( options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetBrandingLogoUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBrandingLogoQueryKey = () => {
+    return [
+    `/api/branding/logo`
+    ] as const;
+    }
+
+
+export const getGetBrandingLogoQueryOptions = <TData = Awaited<ReturnType<typeof getBrandingLogo>>, TError = ErrorType<ErrorMessage>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrandingLogo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBrandingLogoQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBrandingLogo>>> = ({ signal }) => getBrandingLogo({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBrandingLogo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBrandingLogoQueryResult = NonNullable<Awaited<ReturnType<typeof getBrandingLogo>>>
+export type GetBrandingLogoQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary The application's logo image (public)
+ */
+
+export function useGetBrandingLogo<TData = Awaited<ReturnType<typeof getBrandingLogo>>, TError = ErrorType<ErrorMessage>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrandingLogo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBrandingLogoQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminBrandingUrl = () => {
+
+
+
+
+  return `/api/admin/branding`
+}
+
+/**
+ * @summary Branding with where the logo came from and the defaults
+ */
+export const getAdminBranding = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminBranding> => {
+
+  return customFetch<AdminBranding>(getGetAdminBrandingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminBrandingQueryKey = () => {
+    return [
+    `/api/admin/branding`
+    ] as const;
+    }
+
+
+export const getGetAdminBrandingQueryOptions = <TData = Awaited<ReturnType<typeof getAdminBranding>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminBranding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminBrandingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminBranding>>> = ({ signal }) => getAdminBranding({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminBranding>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminBrandingQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminBranding>>>
+export type GetAdminBrandingQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Branding with where the logo came from and the defaults
+ */
+
+export function useGetAdminBranding<TData = Awaited<ReturnType<typeof getAdminBranding>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminBranding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminBrandingQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAdminBrandingUrl = () => {
+
+
+
+
+  return `/api/admin/branding`
+}
+
+/**
+ * @summary Set the application's name and brand colour
+ */
+export const updateAdminBranding = async (brandingUpdate: BrandingUpdate, options?: Parameters<typeof customFetch>[1]): Promise<AdminBranding> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminBranding>(getUpdateAdminBrandingUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(brandingUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminBrandingMutationKey = () => ['updateAdminBranding'] as const;
+
+export const getUpdateAdminBrandingMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminBranding>>, TError,UpdateAdminBrandingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminBranding>>, TError,UpdateAdminBrandingMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminBrandingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminBranding>>, UpdateAdminBrandingMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAdminBranding(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminBrandingMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminBranding>>>
+    export type UpdateAdminBrandingMutationBody = BodyType<BrandingUpdate>
+    export type UpdateAdminBrandingMutationError = ErrorType<ErrorMessage>
+    export type UpdateAdminBrandingMutationVariables = {data: BodyType<BrandingUpdate>}
+
+    /**
+ * @summary Set the application's name and brand colour
+ */
+export const useUpdateAdminBranding = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminBranding>>, TError,UpdateAdminBrandingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminBranding>>,
+        TError,
+        UpdateAdminBrandingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminBrandingMutationOptions(options));
+    }
+
+export const getUploadAdminBrandingLogoUrl = () => {
+
+
+
+
+  return `/api/admin/branding/logo`
+}
+
+/**
+ * @summary Upload the logo (PNG, JPEG or WebP, up to 2 MB; re-encoded)
+ */
+export const uploadAdminBrandingLogo = async (fileUpload: FileUpload, options?: Parameters<typeof customFetch>[1]): Promise<AdminBranding> => {
+    const formData = new FormData();
+formData.append(`file`, fileUpload.file);
+
+  return customFetch<AdminBranding>(getUploadAdminBrandingLogoUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadAdminBrandingLogoMutationKey = () => ['uploadAdminBrandingLogo'] as const;
+
+export const getUploadAdminBrandingLogoMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAdminBrandingLogo>>, TError,UploadAdminBrandingLogoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadAdminBrandingLogo>>, TError,UploadAdminBrandingLogoMutationVariables, TContext> => {
+
+const mutationKey = getUploadAdminBrandingLogoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadAdminBrandingLogo>>, UploadAdminBrandingLogoMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadAdminBrandingLogo(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadAdminBrandingLogoMutationResult = NonNullable<Awaited<ReturnType<typeof uploadAdminBrandingLogo>>>
+    export type UploadAdminBrandingLogoMutationBody = BodyType<FileUpload>
+    export type UploadAdminBrandingLogoMutationError = ErrorType<ErrorMessage>
+    export type UploadAdminBrandingLogoMutationVariables = {data: BodyType<FileUpload>}
+
+    /**
+ * @summary Upload the logo (PNG, JPEG or WebP, up to 2 MB; re-encoded)
+ */
+export const useUploadAdminBrandingLogo = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAdminBrandingLogo>>, TError,UploadAdminBrandingLogoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadAdminBrandingLogo>>,
+        TError,
+        UploadAdminBrandingLogoMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadAdminBrandingLogoMutationOptions(options));
+    }
+
+export const getDeleteAdminBrandingLogoUrl = () => {
+
+
+
+
+  return `/api/admin/branding/logo`
+}
+
+/**
+ * @summary Remove the logo (the name's first letter shows instead)
+ */
+export const deleteAdminBrandingLogo = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminBranding> => {
+
+  return customFetch<AdminBranding>(getDeleteAdminBrandingLogoUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAdminBrandingLogoMutationKey = () => ['deleteAdminBrandingLogo'] as const;
+
+export const getDeleteAdminBrandingLogoMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminBrandingLogo>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminBrandingLogo>>, TError,void, TContext> => {
+
+const mutationKey = getDeleteAdminBrandingLogoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminBrandingLogo>>, void> = () => {
+
+
+          return  deleteAdminBrandingLogo(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminBrandingLogoMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminBrandingLogo>>>
+
+    export type DeleteAdminBrandingLogoMutationError = ErrorType<unknown>
+
+
+    /**
+ * @summary Remove the logo (the name's first letter shows instead)
+ */
+export const useDeleteAdminBrandingLogo = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminBrandingLogo>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminBrandingLogo>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDeleteAdminBrandingLogoMutationOptions(options));
+    }
+
+export const getSetAdminBrandingLogoUrlUrl = () => {
+
+
+
+
+  return `/api/admin/branding/logo-url`
+}
+
+/**
+ * @summary Take the logo from an https:// link (downloaded once and stored, never hot-linked)
+ */
+export const setAdminBrandingLogoUrl = async (logoUrlInput: LogoUrlInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminBranding> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminBranding>(getSetAdminBrandingLogoUrlUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(logoUrlInput)
+  }
+);}
+
+
+
+
+
+export const getSetAdminBrandingLogoUrlMutationKey = () => ['setAdminBrandingLogoUrl'] as const;
+
+export const getSetAdminBrandingLogoUrlMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAdminBrandingLogoUrl>>, TError,SetAdminBrandingLogoUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setAdminBrandingLogoUrl>>, TError,SetAdminBrandingLogoUrlMutationVariables, TContext> => {
+
+const mutationKey = getSetAdminBrandingLogoUrlMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setAdminBrandingLogoUrl>>, SetAdminBrandingLogoUrlMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setAdminBrandingLogoUrl(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetAdminBrandingLogoUrlMutationResult = NonNullable<Awaited<ReturnType<typeof setAdminBrandingLogoUrl>>>
+    export type SetAdminBrandingLogoUrlMutationBody = BodyType<LogoUrlInput>
+    export type SetAdminBrandingLogoUrlMutationError = ErrorType<ErrorMessage>
+    export type SetAdminBrandingLogoUrlMutationVariables = {data: BodyType<LogoUrlInput>}
+
+    /**
+ * @summary Take the logo from an https:// link (downloaded once and stored, never hot-linked)
+ */
+export const useSetAdminBrandingLogoUrl = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAdminBrandingLogoUrl>>, TError,SetAdminBrandingLogoUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setAdminBrandingLogoUrl>>,
+        TError,
+        SetAdminBrandingLogoUrlMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetAdminBrandingLogoUrlMutationOptions(options));
+    }
 
 export const getGetMeUrl = () => {
 

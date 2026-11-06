@@ -30,7 +30,7 @@ export function TierRequestQueue() {
         : (
           <ul className="divide-y" data-testid="list-dashboard-tier-requests">{q.data.slice(0, 5).map((r) => (
             <li key={r.id}>
-              <Link href="/admin/tiers" className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 hover:bg-[#F7FADC] sm:flex-nowrap sm:px-2" data-testid={`link-dashboard-tier-${r.id}`}>
+              <Link href="/admin/tiers" className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 hover:bg-[var(--brand-soft)] sm:flex-nowrap sm:px-2" data-testid={`link-dashboard-tier-${r.id}`}>
                 <Gauge className="hidden h-4 w-4 shrink-0 text-slate-400 sm:block" />
                 <span className="min-w-0 basis-full sm:flex-1 sm:basis-0"><span className="block truncate font-semibold">{r.user.name}</span><span className="block text-xs text-slate-500">Tier {r.fromTier} → Tier {r.toTier}</span></span>
                 <span className="text-xs text-slate-500">waiting {waited(r.submittedAt)}</span>
@@ -55,7 +55,7 @@ export function AdminTierRequestsPage() {
             <button key={t} role="tab" aria-selected={tab === t} data-testid={`tab-tiers-${t}`} onClick={() => navigate(t === 'pending' ? '/admin/tiers' : '/admin/tiers?tab=decided', { replace: true })}
               className={cx('press inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold', tab === t ? 'bg-[#111] text-white' : 'border border-[#E2E8F0] bg-white text-slate-700 hover:bg-slate-50')}>
               {t === 'pending' ? 'Waiting' : 'Decided'}
-              {t === 'pending' && pending.data && <span className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px]', tab === t ? 'bg-[#C6F432] text-[#111]' : 'bg-slate-100 text-slate-700')}>{pending.data.length}</span>}
+              {t === 'pending' && pending.data && <span className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px]', tab === t ? 'bg-[var(--brand)] text-[var(--brand-fg)]' : 'bg-slate-100 text-slate-700')}>{pending.data.length}</span>}
             </button>
           ))}
         </div>

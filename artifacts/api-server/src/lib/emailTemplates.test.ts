@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { authEmail, escapeHtml, moneyEmail, notificationEmail, setEmailBranding, testEmail, tierEmail } from "./emailTemplates";
+import { authEmail, escapeHtml, moneyEmail, notificationEmail, setAppBrand, setEmailBranding, testEmail, tierEmail } from "./emailTemplates";
 import { parseFrom } from "./email";
 
 describe("email templates", () => {
@@ -17,6 +17,18 @@ describe("email templates", () => {
     expect(m.html).toContain('href="https://app.example.org/a?b=1&amp;c=2"');
     expect(m.html).not.toContain("<b>");
     expect(m.subject).toBe('GrantApp: Approved <b>"$5"</b>'); // subjects are plain text, not HTML
+  });
+  it("uses the branding: the application name everywhere, the brand colour on the button with readable text", () => {
+    setAppBrand({ name: "Future <Nest>", color: "#C6F432" });
+    try {
+      const m = authEmail("recovery", "ada@x.org", { name: "Ada", link: "https://app.example.org/auth/confirm?x=1" });
+      expect(m.subject).toBe("Reset your Future <Nest> password");
+      expect(m.html).toContain("Future &lt;Nest&gt;");
+      expect(m.html).not.toContain("GrantApp");
+      expect(m.html).toContain("background:#C6F432");
+      expect(m.html).toContain("color:#111111;text-decoration:none");
+      expect(m.text).toContain("Sent by Future <Nest> to ada@x.org.");
+    } finally { setAppBrand({ name: "GrantApp", color: "#1E3A8A" }); }
   });
   describe("tier emails (9.4)", () => {
     const url = "https://app.example.org/tier";

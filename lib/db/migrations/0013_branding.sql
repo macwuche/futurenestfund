@@ -1,0 +1,1 @@
+ALTER TABLE "demo_settings" ADD COLUMN "branding" jsonb;

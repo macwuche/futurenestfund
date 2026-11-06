@@ -12,17 +12,17 @@ type Tone = 'user' | 'admin';
 const styles = {
   user: {
     card: 'rounded-2xl border border-[#E5E7EB] bg-white shadow-sm',
-    primary: 'press inline-flex items-center justify-center gap-2 rounded-full bg-[#1E3A8A] px-5 py-2.5 text-[15px] font-semibold text-white hover:bg-[#0F172A] disabled:opacity-50',
-    secondary: 'press inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:border-[#1E3A8A] disabled:opacity-60',
+    primary: 'press inline-flex items-center justify-center gap-2 rounded-full bg-[var(--brand)] px-5 py-2.5 text-[15px] font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)] disabled:opacity-50',
+    secondary: 'press inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:border-[var(--brand-ink)] disabled:opacity-60',
     danger: 'press inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#991B1B] px-4 text-sm font-semibold text-white hover:bg-red-900 disabled:opacity-60',
-    icon: 'bg-[#EEF4FB] text-[#1E3A8A]',
+    icon: 'bg-[var(--brand-soft)] text-[var(--brand-ink)]',
   },
   admin: {
     card: 'rounded-2xl border border-[#E2E8F0] bg-white shadow-sm',
-    primary: 'press inline-flex items-center justify-center gap-2 rounded-lg bg-[#C6F432] px-4 py-2 text-sm font-semibold text-[#111] hover:brightness-95 disabled:opacity-60',
+    primary: 'press inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-[var(--brand-fg)] hover:brightness-95 disabled:opacity-60',
     secondary: 'press inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:border-[#111] disabled:opacity-60',
     danger: 'press inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-red-700 px-4 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-60',
-    icon: 'bg-[#111] text-[#C6F432]',
+    icon: 'bg-[#111] text-[var(--brand-glow)]',
   },
 } as const;
 

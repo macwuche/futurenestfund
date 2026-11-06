@@ -31,7 +31,7 @@ const tone: Record<string, string> = {
   green: 'bg-[#DCFCE7] text-[#166534]',
   amber: 'bg-[#FEF3C7] text-[#92400E]',
   red: 'bg-[#FEE2E2] text-[#991B1B]',
-  blue: 'bg-[#DBEAFE] text-[#1E3A8A]',
+  blue: 'bg-[var(--brand-soft2)] text-[var(--brand-ink)]',
   gray: 'bg-slate-100 text-slate-600',
 };
 const map: Record<string, string> = {
@@ -141,7 +141,7 @@ export function Modal({ open, onClose, title, children, testid, wide = false }: 
   );
 }
 
-export const inputCls = 'w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20 disabled:bg-slate-100 disabled:text-slate-500';
+export const inputCls = 'w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-[var(--brand-ink)] focus:ring-2 focus:ring-[var(--brand-ink)]/20 disabled:bg-slate-100 disabled:text-slate-500';
 export function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
   return (
     <label className="block">
@@ -157,7 +157,7 @@ export function Avatar({ name, url, className, testid }: { name: string; url?: s
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [url]);
   return (
-    <span data-testid={testid} className={cx('grid shrink-0 place-items-center overflow-hidden rounded-full bg-[#1E3A8A] font-semibold leading-none text-white', className)}>
+    <span data-testid={testid} className={cx('grid shrink-0 place-items-center overflow-hidden rounded-full bg-[var(--brand)] font-semibold leading-none text-[var(--brand-fg)]', className)}>
       {url && !failed ? <img src={url} alt="" className="h-full w-full object-cover" onError={() => setFailed(true)} /> : name.charAt(0)}
     </span>
   );

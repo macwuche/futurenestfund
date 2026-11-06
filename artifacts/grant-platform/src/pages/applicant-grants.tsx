@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
  */
 
 const card = 'rounded-2xl border border-slate-200 bg-white shadow-sm';
-const primary = 'press inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#1E3A8A] px-5 text-sm font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60';
+const primary = 'press inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[var(--brand)] px-5 text-sm font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)] disabled:opacity-60';
 const outline = 'press inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60';
 
 export function GrantPlansPage() {
@@ -64,13 +64,13 @@ function GrantPlansBody() {
         : (
           <>
             {!filtering && !mine && (
-              <p className="rounded-xl border border-[#1E3A8A]/15 bg-[#F5F8FD] px-4 py-3 text-sm text-slate-700" data-testid="text-choose-industry-hint">
-                <Link href="/settings" className="font-semibold text-[#1E3A8A] underline">Choose your industry</Link> to see the grants recommended for you.
+              <p className="rounded-xl border border-[var(--brand-ink)]/15 bg-[#F5F8FD] px-4 py-3 text-sm text-slate-700" data-testid="text-choose-industry-hint">
+                <Link href="/settings" className="font-semibold text-[var(--brand-ink)] underline">Choose your industry</Link> to see the grants recommended for you.
               </p>
             )}
             {recommended.length > 0 && (
               <section aria-labelledby="recommended-heading" data-testid="section-recommended-plans">
-                <h2 id="recommended-heading" className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900"><Sparkles className="h-5 w-5 text-[#1E3A8A]" aria-hidden />Recommended for you</h2>
+                <h2 id="recommended-heading" className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900"><Sparkles className="h-5 w-5 text-[var(--brand-ink)]" aria-hidden />Recommended for you</h2>
                 {myIndustry && !filtering && <p className="-mt-2 mb-3 text-sm text-slate-500">For {myIndustry}, and grants open to every industry.</p>}
                 <PlanGrid plans={recommended} />
               </section>
@@ -92,7 +92,7 @@ function PlanGrid({ plans }: { plans: GrantPlan[] }) {
     <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" data-testid="list-plans">
       {plans.map((p) => (
         <li key={p.id}>
-          <Link href={`/grants/${p.id}`} data-testid={`card-plan-${p.id}`} className={cx(card, 'lift group flex h-full flex-col p-4 transition hover:border-[#1E3A8A] sm:p-5')}>
+          <Link href={`/grants/${p.id}`} data-testid={`card-plan-${p.id}`} className={cx(card, 'lift group flex h-full flex-col p-4 transition hover:border-[var(--brand-ink)] sm:p-5')}>
             <div className="flex items-start gap-3">
               <PlanLogo url={p.logoUrl} name={p.name} initials={p.initials} className="h-12 w-12" />
               <div className="min-w-0 flex-1">
@@ -103,7 +103,7 @@ function PlanGrid({ plans }: { plans: GrantPlan[] }) {
             </div>
             {p.description && <p className="mt-3 line-clamp-2 text-sm text-slate-600">{p.description}</p>}
             <div className="mt-auto flex flex-wrap items-end justify-between gap-2 pt-4">
-              <span><span className="block text-xs text-slate-500">You receive</span><span className="text-xl font-bold tabular-nums text-[#1E3A8A]" data-testid={`text-plan-amount-${p.id}`}>{money(p.amount)}</span></span>
+              <span><span className="block text-xs text-slate-500">You receive</span><span className="text-xl font-bold tabular-nums text-[var(--brand-ink)]" data-testid={`text-plan-amount-${p.id}`}>{money(p.amount)}</span></span>
               <span className="text-xs text-slate-500" data-testid={`text-plan-fee-${p.id}`}>{feeLine(p.feeAmount)}</span>
             </div>
           </Link>
@@ -120,7 +120,7 @@ export function GrantPlanPage() {
   const q = useGetApplicantGrantPlan(planId ?? '');
   return (
     <Shell title={q.data?.name ?? 'Grant'}>
-      <Link href="/grants" className="mb-4 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-[#1E3A8A] hover:underline" data-testid="link-back-grants"><ArrowLeft className="h-4 w-4" />All grants</Link>
+      <Link href="/grants" className="mb-4 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-[var(--brand-ink)] hover:underline" data-testid="link-back-grants"><ArrowLeft className="h-4 w-4" />All grants</Link>
       {q.isLoading ? <PageSkeleton />
         : q.isError || !q.data ? <Empty title="This grant isn't open" hint="It may have closed. Browse the grants that are open now." />
         : <ApplyFlow p={q.data} />}
@@ -187,7 +187,7 @@ function ApplyFlow({ p }: { p: GrantPlan }) {
         <section className={cx(card, 'p-5')} data-testid="section-application-summary">
           <h2 className="text-lg font-semibold text-slate-900">Check and submit</h2>
           <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl bg-[#EEF4FB] p-4"><dt className="text-sm text-slate-600">You'll receive if approved</dt><dd className="mt-1 text-2xl font-bold tabular-nums text-[#1E3A8A]" data-testid="text-summary-amount">{money(p.amount)}</dd><dd className="text-xs text-slate-500">Added to your grant balance</dd></div>
+            <div className="rounded-xl bg-[var(--brand-soft)] p-4"><dt className="text-sm text-slate-600">You'll receive if approved</dt><dd className="mt-1 text-2xl font-bold tabular-nums text-[var(--brand-ink)]" data-testid="text-summary-amount">{money(p.amount)}</dd><dd className="text-xs text-slate-500">Added to your grant balance</dd></div>
             <div className="rounded-xl bg-slate-50 p-4"><dt className="text-sm text-slate-600">Application fee</dt><dd className="mt-1 text-2xl font-bold tabular-nums text-slate-900" data-testid="text-summary-fee">{money(p.feeAmount)}</dd><dd className="text-xs text-slate-500">{p.feeAmount > 0 ? 'Charged from your account balance only if approved' : 'No fee for this grant'}</dd></div>
           </dl>
           <FeeNote fee={p.feeAmount} />
@@ -225,7 +225,7 @@ function PlanHeader({ p }: { p: GrantPlan }) {
       </div>
       {/* Phones: the amount goes under the name, so the name keeps the width. */}
       <div className="w-full border-t border-slate-100 pt-3 sm:w-auto sm:border-0 sm:pt-0 sm:text-right">
-        <p className="text-2xl font-bold tabular-nums text-[#1E3A8A]" data-testid="text-plan-amount">{money(p.amount)}</p>
+        <p className="text-2xl font-bold tabular-nums text-[var(--brand-ink)]" data-testid="text-plan-amount">{money(p.amount)}</p>
         <p className="text-xs text-slate-500" data-testid="text-plan-fee">{feeLine(p.feeAmount)}</p>
       </div>
     </section>

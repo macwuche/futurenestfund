@@ -171,6 +171,116 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuthConfig" }
+  /branding:
+    get:
+      operationId: getBranding
+      tags: [auth]
+      summary: "The application's name, brand colour (with the shades the app uses) and logo; public: the sign-in pages need it"
+      responses:
+        "200":
+          description: Branding
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Branding" }
+  /branding/logo:
+    get:
+      operationId: getBrandingLogo
+      tags: [auth]
+      summary: The application's logo image (public)
+      responses:
+        "200":
+          description: The image
+          content:
+            image/webp:
+              schema: { type: string, format: binary }
+        "404":
+          description: No logo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/branding:
+    get:
+      operationId: getAdminBranding
+      tags: [admin]
+      summary: Branding with where the logo came from and the defaults
+      responses:
+        "200":
+          description: Branding
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBranding" }
+    put:
+      operationId: updateAdminBranding
+      tags: [admin]
+      summary: Set the application's name and brand colour
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BrandingUpdate" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBranding" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/branding/logo:
+    post:
+      operationId: uploadAdminBrandingLogo
+      tags: [admin]
+      summary: Upload the logo (PNG, JPEG or WebP, up to 2 MB; re-encoded)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/FileUpload" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBranding" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    delete:
+      operationId: deleteAdminBrandingLogo
+      tags: [admin]
+      summary: Remove the logo (the name's first letter shows instead)
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBranding" }
+  /admin/branding/logo-url:
+    post:
+      operationId: setAdminBrandingLogoUrl
+      tags: [admin]
+      summary: Take the logo from an https:// link (downloaded once and stored, never hot-linked)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LogoUrlInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBranding" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
   /me:
     get:
       operationId: getMe
@@ -2251,6 +2361,50 @@ components:
         decision: { type: string, enum: [approve, decline] }
         note: { type: string, maxLength: 500, description: "Required (5+ characters) to decline; optional note when approving" }
       required: [decision]
+    BrandPalette:
+      type: object
+      properties:
+        brand: { type: string }
+        fg: { type: string, description: "Text on the brand colour" }
+        ink: { type: string, description: "The brand as text on white" }
+        glow: { type: string, description: "The brand as text on the admin's black" }
+        dark: { type: string }
+        light: { type: string }
+        soft: { type: string }
+        soft2: { type: string }
+      required: [brand, fg, ink, glow, dark, light, soft, soft2]
+    Branding:
+      type: object
+      properties:
+        appName: { type: string }
+        color: { type: string, description: "#RRGGBB" }
+        palette: { $ref: "#/components/schemas/BrandPalette" }
+        logoUrl: { type: [string, "null"] }
+      required: [appName, color, palette, logoUrl]
+    AdminBranding:
+      allOf:
+        - { $ref: "#/components/schemas/Branding" }
+        - type: object
+          properties:
+            logoSource: { type: [string, "null"], description: "upload, or the host the logo was taken from" }
+            defaults:
+              type: object
+              properties:
+                appName: { type: string }
+                color: { type: string }
+              required: [appName, color]
+          required: [logoSource, defaults]
+    BrandingUpdate:
+      type: object
+      properties:
+        appName: { type: string, minLength: 2, maxLength: 40 }
+        color: { type: string, maxLength: 7 }
+      required: [appName, color]
+    LogoUrlInput:
+      type: object
+      properties:
+        url: { type: string, maxLength: 2000 }
+      required: [url]
     ErrorMessage:
       type: object
       properties:
@@ -2563,11 +2717,6 @@ components:
       properties:
         direction: { type: string, enum: [up, down] }
       required: [direction]
-    LogoUrlInput:
-      type: object
-      properties:
-        url: { type: string, maxLength: 2000 }
-      required: [url]
     ApproveInput:
       type: object
       properties:

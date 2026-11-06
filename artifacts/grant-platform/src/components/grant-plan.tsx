@@ -28,7 +28,7 @@ export function PlanLogo({ url, name, initials, className = 'h-12 w-12' }: { url
     );
   }
   return (
-    <span aria-hidden className={cx('grid shrink-0 select-none place-items-center rounded-xl bg-[linear-gradient(135deg,#1E3A8A_0%,#2563EB_100%)] font-bold tracking-wide text-white', className)} data-testid="plan-initials">
+    <span aria-hidden className={cx('grid shrink-0 select-none place-items-center rounded-xl bg-[linear-gradient(135deg,var(--brand)_0%,var(--brand-light)_100%)] font-bold tracking-wide text-[var(--brand-fg)]', className)} data-testid="plan-initials">
       <span className="text-[clamp(0.75rem,40%,1.25rem)]">{initials ?? initialsOf(name)}</span>
     </span>
   );

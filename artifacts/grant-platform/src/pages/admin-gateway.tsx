@@ -275,7 +275,7 @@ function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentM
             <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Amount</legend>
             <div className="flex flex-wrap gap-2" role="radiogroup">
               {([['range', 'Minimum and maximum'], ['fixed', 'Fixed amounts']] as const).map(([v, label]) => (
-                <label key={v} className={cx('press flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm font-semibold', d.amountMode === v ? 'border-[#111] bg-[#C6F432]/30' : 'border-slate-300')}>
+                <label key={v} className={cx('press flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm font-semibold', d.amountMode === v ? 'border-[#111] bg-[var(--brand)]/30' : 'border-slate-300')}>
                   <input type="radio" name="amount-mode" checked={d.amountMode === v} onChange={() => set({ amountMode: v })} className="accent-[#111]" data-testid={`radio-amount-${v}`} />{label}
                 </label>
               ))}
@@ -328,7 +328,7 @@ function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentM
               <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Payment proof upload</legend>
               <div className="grid gap-2 sm:grid-cols-3">
                 {PROOF.map((p) => (
-                  <label key={p.value} className={cx('press flex cursor-pointer flex-col rounded-lg border p-3 text-sm', d.proofMode === p.value ? 'border-[#111] bg-[#C6F432]/30' : 'border-slate-300')}>
+                  <label key={p.value} className={cx('press flex cursor-pointer flex-col rounded-lg border p-3 text-sm', d.proofMode === p.value ? 'border-[#111] bg-[var(--brand)]/30' : 'border-slate-300')}>
                     <span className="flex items-center gap-2 font-semibold"><input type="radio" name="proof" checked={d.proofMode === p.value} onChange={() => set({ proofMode: p.value })} className="accent-[#111]" data-testid={`radio-proof-${p.value}`} />{p.label}</span>
                     <span className="mt-1 text-xs text-slate-500">{p.hint}</span>
                   </label>
@@ -360,7 +360,7 @@ function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentM
               </div>
               <MethodInstructions text={d.instructions} testid="text-preview-instructions" />
               {d.amountMode === 'fixed'
-                ? d.fixed.length ? <FixedAmountChoices amounts={d.fixed.map(Number)} value="" onChange={() => {}} activeClass="border-[#1E3A8A] bg-[#1E3A8A] text-white" /> : null
+                ? d.fixed.length ? <FixedAmountChoices amounts={d.fixed.map(Number)} value="" onChange={() => {}} activeClass="border-[var(--brand-ink)] bg-[var(--brand)] text-[var(--brand-fg)]" /> : null
                 : <input disabled placeholder="Amount" className={cx(ainput, 'min-h-11')} aria-label="Amount (preview)" />}
               <MethodFieldInputs fields={methodFields(d.fields).map((f, i) => ({ ...f, id: d.fields[i]!.key }))} values={preview} onChange={setPreview} inputClass={ainput} idPrefix="preview" />
               {kind === 'Deposit' && <ProofInput mode={d.proofMode} file={null} onChange={() => {}} disabled />}

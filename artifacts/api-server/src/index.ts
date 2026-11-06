@@ -4,6 +4,7 @@ import { seedDemoData } from "./lib/demoSeed";
 import { database } from "@workspace/db";
 import { startNotificationMailer } from "./lib/notificationMailer";
 import { loadEmailSettings, startEmailSettingsRefresh } from "./lib/emailSettings";
+import { loadBranding, startBrandingRefresh } from "./lib/branding";
 import { flushReports, forwardError } from "./lib/monitoring";
 
 // Errors outside a request: logged and reported. A crash still exits (systemd restarts the service), after sending.
@@ -40,6 +41,9 @@ await seedDemoData();
 // Email settings saved in Admin Settings (they win over the env vars); re-read every minute.
 await loadEmailSettings();
 startEmailSettingsRefresh();
+// Branding (name, colour, logo) for emails; re-read every minute so every process follows a change.
+await loadBranding();
+startBrandingRefresh();
 startNotificationMailer();
 
 const onListening = (err?: Error) => {

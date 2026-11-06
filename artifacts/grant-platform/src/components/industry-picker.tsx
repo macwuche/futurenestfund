@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
  */
 
 const card = 'rounded-2xl border border-slate-200 bg-white shadow-sm';
-const primary = 'press inline-flex min-h-11 items-center justify-center rounded-full bg-[#1E3A8A] px-5 text-sm font-semibold text-white hover:bg-[#0F172A] disabled:opacity-50';
+const primary = 'press inline-flex min-h-11 items-center justify-center rounded-full bg-[var(--brand)] px-5 text-sm font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)] disabled:opacity-50';
 
 function useIndustryForm(current: string | null, onSaved?: () => void) {
   const list = useListIndustries();

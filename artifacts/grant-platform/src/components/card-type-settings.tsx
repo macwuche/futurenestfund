@@ -98,7 +98,7 @@ export function CardTypeSettings() {
               <input type="checkbox" checked={r.enabled} onChange={(e) => set(r.key, { enabled: e.target.checked })} className="h-5 w-5 accent-[#111]" data-testid={`switch-card-type-${r.key}`} />
               <CreditCard className="h-5 w-5 text-slate-500" aria-hidden />
               <span className="font-semibold">{r.name}</span>
-              <span className={cx('ml-auto rounded-full px-2 py-0.5 text-xs font-semibold', r.enabled ? 'bg-[#C6F432] text-[#111]' : 'bg-slate-200 text-slate-600')}>{r.enabled ? 'On sale' : 'Off'}</span>
+              <span className={cx('ml-auto rounded-full px-2 py-0.5 text-xs font-semibold', r.enabled ? 'bg-[var(--brand)] text-[var(--brand-fg)]' : 'bg-slate-200 text-slate-600')}>{r.enabled ? 'On sale' : 'Off'}</span>
             </label>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               {KINDS.map(([k, label]) => (

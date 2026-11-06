@@ -8,6 +8,7 @@ import emailSettingsRouter from "./emailSettings";
 import paymentMethodsRouter from "./paymentMethods";
 import grantPlansRouter, { publicIndustriesRouter } from "./grantPlans";
 import tiersRouter from "./tiers";
+import brandingRouter, { publicBrandingRouter } from "./branding";
 import { authenticate, requireAdmin, requireApplicant } from "../lib/auth";
 import { perIp, perUserUploads, perUserWrites } from "../lib/rateLimit";
 
@@ -17,6 +18,7 @@ router.use(healthRouter);
 router.use(perIp);
 router.use(clientErrorsRouter);
 router.use(publicIndustriesRouter);
+router.use(publicBrandingRouter);
 // Everything below needs a signed-in caller (crash reports above may come from the sign-in page); each workspace then checks the role.
 router.use(cookieParser(), authenticate);
 router.use((req, res, next) => (req.method === "GET" || req.method === "HEAD" ? next() : perUserWrites(req, res, next)));
@@ -29,6 +31,7 @@ router.use(emailSettingsRouter);
 router.use(paymentMethodsRouter);
 router.use(grantPlansRouter);
 router.use(tiersRouter);
+router.use(brandingRouter);
 router.use(workspaceRouter);
 
 export default router;

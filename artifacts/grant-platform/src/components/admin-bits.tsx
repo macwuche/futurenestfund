@@ -12,8 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 
 /* Admin command-center styles (black / lime, per the admin spec). */
 export const card = 'rounded-2xl border border-[#E2E8F0] bg-white shadow-sm';
-export const ainput = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#111] focus:ring-2 focus:ring-[#C6F432] disabled:bg-slate-100 disabled:text-slate-500';
-export const lime = 'press rounded-lg bg-[#C6F432] px-4 py-2 text-sm font-semibold text-[#111] hover:brightness-95 disabled:opacity-60';
+export const ainput = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#111] focus:ring-2 focus:ring-[var(--brand)] disabled:bg-slate-100 disabled:text-slate-500';
+export const lime = 'press rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-[var(--brand-fg)] hover:brightness-95 disabled:opacity-60';
 export const dark = 'press rounded-lg bg-[#111] px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60';
 export const ghost = 'press rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:border-[#111] disabled:opacity-60';
 export const danger = 'press rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-60';
@@ -23,7 +23,7 @@ export function Stat({ label, value, id, accent, href, hint }: { label: string; 
   const body = (
     <>
       {/* On phones the label keeps room for two lines, so values in a row line up even when one label wraps (finding AM5). */}
-      <p className={cx('min-h-[2.75em] text-[13px] font-semibold leading-snug sm:min-h-0', accent ? 'text-[#C6F432]' : 'text-slate-500')}>{label}</p>
+      <p className={cx('min-h-[2.75em] text-[13px] font-semibold leading-snug sm:min-h-0', accent ? 'text-[var(--brand-glow)]' : 'text-slate-500')}>{label}</p>
       <p className="font-num mt-1 text-2xl font-semibold tracking-tight sm:mt-2" data-testid={`stat-${id}`}>{value}</p>
       {hint && <p className={cx('mt-0.5 text-xs', accent ? 'text-slate-300' : 'text-slate-500')}>{hint}</p>}
     </>
@@ -187,7 +187,7 @@ export function CreditModal({ open, onClose, user, account = 'deposit', users, d
           if (debit && before !== undefined && v.amount > before) return setError(`The ${balanceName(v.account)} balance is only ${money(before)}.`);
           if (debit) setConfirming(v); else record(v);
         })}>
-          <p className={cx('rounded-lg p-3 text-xs text-slate-700', debit ? 'bg-[#FEF2F2]' : 'bg-[#F7FADC]')}>
+          <p className={cx('rounded-lg p-3 text-xs text-slate-700', debit ? 'bg-[#FEF2F2]' : 'bg-[var(--brand-soft)]')}>
             {debit ? 'Takes money off a sample balance (never below $0, and never below what pending withdrawals hold), with a ledger entry and an audit record. The user is notified with your reason.'
               : 'Adds to a sample balance and writes a ledger entry and an audit record.'} Refused while the platform or the account is frozen. No real transfer occurs.
           </p>

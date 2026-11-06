@@ -97,7 +97,7 @@ function TrackerBody({ d }: { d: ApplicantDashboard }) {
           <div><h2 id="trend-heading" className="text-lg font-semibold text-slate-900">Submitted vs. under review</h2><Legend className="mt-1" /></div>
           <div role="tablist" aria-label="Chart period" className="flex rounded-full bg-slate-100 p-0.5 text-sm font-semibold">
             {(['weekly', 'monthly'] as const).map((p) => (
-              <button key={p} role="tab" aria-selected={period === p} data-testid={`tab-period-${p}`} onClick={() => setPeriod(p)} className={cx('rounded-full px-3.5 py-1.5 capitalize transition', period === p ? 'bg-[#1E3A8A] text-white' : 'text-slate-600 hover:text-slate-900')}>{p}</button>
+              <button key={p} role="tab" aria-selected={period === p} data-testid={`tab-period-${p}`} onClick={() => setPeriod(p)} className={cx('rounded-full px-3.5 py-1.5 capitalize transition', period === p ? 'bg-[var(--brand)] text-[var(--brand-fg)]' : 'text-slate-600 hover:text-slate-900')}>{p}</button>
             ))}
           </div>
         </div>
@@ -108,7 +108,7 @@ function TrackerBody({ d }: { d: ApplicantDashboard }) {
                 <CartesianGrid vertical={false} stroke="#E5E7EB" />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} tick={{ fill: '#475569' }} />
                 <YAxis tickLine={false} axisLine={false} fontSize={12} width={68} tick={{ fill: '#475569' }} tickFormatter={usd0} domain={[0, (max: number) => Math.max(5000, Math.ceil(max / 5000) * 5000)]} />
-                <Tooltip cursor={{ fill: '#EEF4FB' }} formatter={(v: number) => money(v)} contentStyle={{ borderRadius: 12, borderColor: '#E5E7EB', fontSize: 13 }} />
+                <Tooltip cursor={{ fill: 'var(--brand-soft)' }} formatter={(v: number) => money(v)} contentStyle={{ borderRadius: 12, borderColor: '#E5E7EB', fontSize: 13 }} />
                 <Bar dataKey="submitted" name="Submitted" stackId="a" fill={NAVY} isAnimationActive={anim} />
                 <Bar dataKey="review" name="Review" stackId="a" fill={GREY} radius={[4, 4, 0, 0]} isAnimationActive={anim} />
               </BarChart>
@@ -194,10 +194,10 @@ function ReportsBody({ d }: { d: ApplicantDashboard }) {
           <ul className="space-y-3">
             {exports.map((x) => (
               <li key={x.k} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#EEF4FB] text-[#1E3A8A]"><x.icon className="h-5 w-5" /></span>
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--brand-soft)] text-[var(--brand-ink)]"><x.icon className="h-5 w-5" /></span>
                 <span className="min-w-0 flex-1"><span className="block font-semibold text-slate-900">{x.title}</span><span className="block text-sm text-slate-500">{x.hint}</span></span>
                 <button data-testid={`button-export-${x.k}`} disabled={x.disabled} onClick={() => { x.run(); toast({ title: `${x.title} report downloaded` }); }}
-                  className="press inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-300 px-3.5 py-1.5 text-sm font-semibold text-slate-700 hover:border-[#1E3A8A] hover:text-[#1E3A8A] disabled:opacity-50"><Download className="h-4 w-4" />CSV</button>
+                  className="press inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-300 px-3.5 py-1.5 text-sm font-semibold text-slate-700 hover:border-[var(--brand-ink)] hover:text-[var(--brand-ink)] disabled:opacity-50"><Download className="h-4 w-4" />CSV</button>
               </li>
             ))}
           </ul>
@@ -261,7 +261,7 @@ function MilestonesBody({ d, milestones }: { d: ApplicantDashboard; milestones: 
     return (
       <li key={m.id} data-testid={`row-milestone-${m.id}`} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 sm:px-4">
         <button role="checkbox" aria-checked={m.done} aria-label={`Mark "${m.title}" ${m.done ? 'not done' : 'done'}`} data-testid={`checkbox-milestone-${m.id}`} onClick={() => toggleMilestone(m.id)}
-          className={cx('grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition', m.done ? 'border-[#16A34A] bg-[#16A34A] text-white' : 'border-slate-300 hover:border-[#1E3A8A]')}>{m.done && <Check className="h-3.5 w-3.5" strokeWidth={3} />}</button>
+          className={cx('grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition', m.done ? 'border-[#16A34A] bg-[#16A34A] text-white' : 'border-slate-300 hover:border-[var(--brand-ink)]')}>{m.done && <Check className="h-3.5 w-3.5" strokeWidth={3} />}</button>
         <span className="min-w-0 flex-1">
           <span className={cx('block truncate font-semibold', m.done ? 'text-slate-500 line-through' : 'text-slate-900')}>{m.title}</span>
           <span className="block truncate text-sm text-slate-500">{m.grant}<span className="hidden sm:inline"> · Due {dateFmt(m.due)}</span></span>
@@ -281,7 +281,7 @@ function MilestonesBody({ d, milestones }: { d: ApplicantDashboard; milestones: 
             <h2 className="text-lg font-semibold text-slate-900">{done.length} of {milestones.length} milestones complete</h2>
             <p className="text-sm text-slate-500">{overdue > 0 ? <span className="font-semibold text-[#991B1B]">{overdue} overdue</span> : 'Nothing overdue'} · {open.length} still to do</p>
           </div>
-          <button data-testid="button-add-milestone" onClick={() => setAdding(true)} className="press inline-flex items-center gap-1.5 rounded-full bg-[#1E3A8A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0F172A]"><Plus className="h-4 w-4" />Add milestone</button>
+          <button data-testid="button-add-milestone" onClick={() => setAdding(true)} className="press inline-flex items-center gap-1.5 rounded-full bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)]"><Plus className="h-4 w-4" />Add milestone</button>
         </div>
         <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Milestones complete" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
           <div className="h-full rounded-full bg-[#16A34A] transition-all duration-700" style={{ width: `${pct}%` }} />
@@ -318,7 +318,7 @@ function AddMilestoneModal({ open, onClose, grants }: { open: boolean; onClose: 
         <Field label="Grant"><select data-testid="select-milestone-grant" className={inputCls} {...f.register('grant')}>{grants.map((g) => <option key={g}>{g}</option>)}</select></Field>
         <Field label="Due date" error={f.formState.errors.due?.message}><input data-testid="input-milestone-due" type="date" className={inputCls} {...f.register('due')} /></Field>
         {err && <p role="alert" className="text-sm text-[#991B1B]">{err}</p>}
-        <button data-testid="button-submit-milestone" type="submit" disabled={create.isPending} className="press w-full rounded-full bg-[#1E3A8A] py-2.5 text-sm font-semibold text-white hover:bg-[#0F172A] disabled:opacity-60">{create.isPending ? 'Adding…' : 'Add milestone'}</button>
+        <button data-testid="button-submit-milestone" type="submit" disabled={create.isPending} className="press w-full rounded-full bg-[var(--brand)] py-2.5 text-sm font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)] disabled:opacity-60">{create.isPending ? 'Adding…' : 'Add milestone'}</button>
       </form>
     </Modal>
   );
@@ -369,7 +369,7 @@ function HelpBody() {
   ];
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-[#DBEAFE] bg-[#EEF4FB] p-5 sm:p-8">
+      <section className="rounded-2xl border border-[var(--brand-soft2)] bg-[var(--brand-soft)] p-5 sm:p-8">
         <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">How can we help?</h2>
         <div className="relative mt-4 max-w-xl">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
@@ -378,7 +378,7 @@ function HelpBody() {
         <div className="noscroll -mx-1 mt-4 flex gap-2 overflow-x-auto px-1" role="group" aria-label="Topics">
           {['All', ...topics].map((t) => (
             <button key={t} aria-pressed={topic === t} data-testid={`filter-topic-${t.toLowerCase().replace(/[^a-z]+/g, '-')}`} onClick={() => setTopic(t)}
-              className={cx('press whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-semibold', topic === t ? 'border-[#1E3A8A] bg-[#1E3A8A] text-white' : 'border-slate-300 bg-white text-slate-600 hover:border-[#1E3A8A]')}>{t}</button>
+              className={cx('press whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-semibold', topic === t ? 'border-[var(--brand-ink)] bg-[var(--brand)] text-[var(--brand-fg)]' : 'border-slate-300 bg-white text-slate-600 hover:border-[var(--brand-ink)]')}>{t}</button>
           ))}
         </div>
       </section>
@@ -403,9 +403,9 @@ function HelpBody() {
             <h2 id="contact-heading" className="mb-3 text-lg font-semibold text-slate-900">Contact support</h2>
             {supportEmail ? (
               <>
-                <p className="flex items-center gap-2 text-sm text-slate-700"><Mail className="h-4 w-4 shrink-0 text-[#1E3A8A]" />
-                  <a href={`mailto:${supportEmail}`} className="break-all font-semibold text-[#1E3A8A] hover:underline" data-testid="link-support-email">{supportEmail}</a></p>
-                <p className="mt-2 flex items-center gap-2 text-sm text-slate-700"><Clock className="h-4 w-4 shrink-0 text-[#1E3A8A]" />Mon–Fri, 9:00–17:00 · reply within 1 business day</p>
+                <p className="flex items-center gap-2 text-sm text-slate-700"><Mail className="h-4 w-4 shrink-0 text-[var(--brand-ink)]" />
+                  <a href={`mailto:${supportEmail}`} className="break-all font-semibold text-[var(--brand-ink)] hover:underline" data-testid="link-support-email">{supportEmail}</a></p>
+                <p className="mt-2 flex items-center gap-2 text-sm text-slate-700"><Clock className="h-4 w-4 shrink-0 text-[var(--brand-ink)]" />Mon–Fri, 9:00–17:00 · reply within 1 business day</p>
               </>
             ) : (
               <p className="text-sm text-slate-600" data-testid="text-support-none">Contact your grant administrator. A support email address hasn't been set up yet.</p>

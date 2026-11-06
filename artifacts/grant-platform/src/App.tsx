@@ -20,6 +20,7 @@ import { AdminDepositMethodsPage, AdminWithdrawalMethodsPage } from '@/pages/adm
 import { AdminGrantPlansPage } from '@/pages/admin-plans';
 import { AdminCardRequestsPage } from '@/pages/admin-cards';
 import { AdminTierRequestsPage } from '@/pages/admin-tiers';
+import { BrandingProvider } from '@/lib/branding';
 import { TierPage } from '@/pages/applicant-tier';
 import {
   Redirect,
@@ -134,12 +135,14 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <BrandingProvider>
         <AuthProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
             <AuthGate />
           </WouterRouter>
           <Toaster />
         </AuthProvider>
+        </BrandingProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
