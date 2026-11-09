@@ -95,7 +95,7 @@ export async function createPlanApplication(profileId: string, input: { planId: 
         planId: plan.id, planSnapshot: snapshot, answers: { ...answers, ...Object.fromEntries(stored) }, feeCents: feeAmount,
       });
       await tx.insert(demoApplicationEventsTable).values({ applicationId: id, status: "Submitted", note: "Application submitted", actor });
-      await tx.insert(demoAuditTable).values({ profileId, actor, action: `Application ${id} submitted for "${plan.name}" (${usd(plan.amountCents)}${feeAmount ? `, application fee ${usd(feeAmount)} on approval` : ""})` });
+      await tx.insert(demoAuditTable).values({ profileId, actor, action: `Application ${id} submitted for "${plan.name}" (${usd(plan.amountCents)}${feeAmount ? `, application charge ${usd(feeAmount)} on approval` : ""})` });
       await notifyUser(profileId, `Application for "${plan.name}" submitted`, `/applications/${id}`, tx);
     });
   } catch (err) {

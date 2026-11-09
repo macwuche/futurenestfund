@@ -20,6 +20,7 @@ import { CATEGORIES, apiError, useApplicantDashboard, useDemo, useNotifications,
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { AdminAvatar, useAdminAccount } from '@/components/admin-photo';
+import { ledgerKindLabel } from '@/lib/ledger-wording';
 
 type NavItem = { href: string; label: string; icon: typeof House };
 
@@ -670,7 +671,7 @@ function AdminSearch({ className, open: shown, onClose }: { className?: string; 
             : <>
               {group('Users', r.users.map((u) => <button type="button" key={u.id} className={row} onClick={() => go(`/admin/users/${u.id}`)} data-testid={`search-user-${u.id}`}><span className="text-sm font-semibold">{u.name}</span><span className="text-xs text-slate-500">{u.email} · {u.organization}</span></button>))}
               {group('Applications', r.applications.map((a) => <button type="button" key={a.id} className={row} onClick={() => go(`/admin/users/${a.userId}/applications/${a.id}`)} data-testid={`search-app-${a.id}`}><span className="text-sm font-semibold">{a.title}</span><span className="text-xs text-slate-500">{a.id} · {a.userName} · {a.status === 'Review' ? 'Under review' : a.status}</span></button>))}
-              {group('Ledger', r.transactions.map((t) => <button type="button" key={t.id} className={row} onClick={() => go(`/admin/transactions?q=${t.id.slice(0, 8)}`)} data-testid={`search-tx-${t.id}`}><span className="text-sm font-semibold">{t.kind} · {money(t.amount)}</span><span className="truncate text-xs text-slate-500">{t.userName} · {t.reason}</span></button>))}
+              {group('Ledger', r.transactions.map((t) => <button type="button" key={t.id} className={row} onClick={() => go(`/admin/transactions?q=${t.id.slice(0, 8)}`)} data-testid={`search-tx-${t.id}`}><span className="text-sm font-semibold">{ledgerKindLabel(t.kind)} · {money(t.amount)}</span><span className="truncate text-xs text-slate-500">{t.userName} · {t.reason}</span></button>))}
               {group('Audit log', r.audit.map((a) => <button type="button" key={a.id} className={row} onClick={() => go(`/admin/audit?search=${a.id}`)} data-testid={`search-audit-${a.id}`}><span className="text-sm">{a.action}</span><span className="text-xs text-slate-500">{a.subject} · {a.actor} · {new Date(a.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span></button>))}
             </>}
         </div>

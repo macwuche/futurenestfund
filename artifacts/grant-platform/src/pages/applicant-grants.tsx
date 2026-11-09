@@ -153,7 +153,7 @@ function ApplyFlow({ p }: { p: GrantPlan }) {
     m.mutate({ data: { planId: p.id, answers: JSON.stringify(answers), fileFields: JSON.stringify(fileFields), files: fileFields.map((id) => files[id]!) } }, {
       onSuccess: (a) => {
         refresh();
-        toast({ title: 'Application submitted', description: p.feeAmount > 0 ? `Nothing is charged now. The ${money(p.feeAmount)} fee is charged only if it's approved.` : "We'll let you know when it's reviewed." });
+        toast({ title: 'Application submitted', description: p.feeAmount > 0 ? `Nothing is charged now. The ${money(p.feeAmount)} application charge is taken only if it's approved.` : "We'll let you know when it's reviewed." });
         navigate(`/applications/${a.id}`);
       },
       onError: (e) => setError(apiError(e, "Your application couldn't be submitted. Try again.")),
@@ -188,7 +188,7 @@ function ApplyFlow({ p }: { p: GrantPlan }) {
           <h2 className="text-lg font-semibold text-slate-900">Check and submit</h2>
           <dl className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl bg-[var(--brand-soft)] p-4"><dt className="text-sm text-slate-600">You'll receive if approved</dt><dd className="mt-1 text-2xl font-bold tabular-nums text-[var(--brand-ink)]" data-testid="text-summary-amount">{money(p.amount)}</dd><dd className="text-xs text-slate-500">Added to your grant balance</dd></div>
-            <div className="rounded-xl bg-slate-50 p-4"><dt className="text-sm text-slate-600">Application fee</dt><dd className="mt-1 text-2xl font-bold tabular-nums text-slate-900" data-testid="text-summary-fee">{money(p.feeAmount)}</dd><dd className="text-xs text-slate-500">{p.feeAmount > 0 ? 'Charged from your account balance only if approved' : 'No fee for this grant'}</dd></div>
+            <div className="rounded-xl bg-slate-50 p-4"><dt className="text-sm text-slate-600">Application charge</dt><dd className="mt-1 text-2xl font-bold tabular-nums text-slate-900" data-testid="text-summary-fee">{money(p.feeAmount)}</dd><dd className="text-xs text-slate-500">{p.feeAmount > 0 ? 'Charged from your account balance only if approved' : 'No fee for this grant'}</dd></div>
           </dl>
           <FeeNote fee={p.feeAmount} />
           {p.fields.length > 0 && (
@@ -236,7 +236,7 @@ function FeeNote({ fee }: { fee: number }) {
   if (!(fee > 0)) return null;
   return (
     <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" data-testid="text-fee-note">
-      Nothing is charged when you apply. If your application is approved, the {money(fee)} application fee is charged from your account balance,
+      Nothing is charged when you apply. If your application is approved, the {money(fee)} application charge is taken from your account balance,
       even if that takes it below $0. Your next deposit then covers it first.
     </p>
   );

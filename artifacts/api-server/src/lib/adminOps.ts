@@ -13,6 +13,7 @@ import { looseDocuments, planParts } from "./planAnswers";
 import { describeLimits, effectiveLimits, parseLimits, withdrawnLast24h, type Limits } from "./withdrawalLimits";
 import { rulesOfSettings } from "./tiers";
 import { tierOf, withdrawalLimitsOf } from "./tierRules";
+import { ledgerKindLabel, ledgerReasonLabel } from "./ledgerWording";
 
 /*
  * Administrator actions on what applicants submit. Every action that moves money locks rows in the same
@@ -116,19 +117,19 @@ export async function decideApplication(id: string, decision: Decision, note: st
       });
       if (fee > 0) {
         await tx.insert(demoLedgerTable).values({
-          profileId: profile.id, kind: "Application fee", account: "deposit", amountCents: -fee, reason: `Application fee · ${a.title}`, applicationId: a.id, actor,
+          profileId: profile.id, kind: "Application fee", account: "deposit", amountCents: -fee, reason: `Application charge · ${a.title}`, applicationId: a.id, actor,
         });
       }
-      eventNote = `Funding of ${usd(a.amountCents)} approved${fee > 0 ? `; application fee ${usd(fee)} charged from the account balance` : ""}${text ? `. ${text}` : ""}`;
+      eventNote = `Funding of ${usd(a.amountCents)} approved${fee > 0 ? `; application charge ${usd(fee)} taken from the account balance` : ""}${text ? `. ${text}` : ""}`;
     } else if (decision === "Review") {
       eventNote = text || "Moved to review";
     }
     await tx.update(demoApplicationsTable).set({ status: decision, updatedAt: new Date() }).where(eq(demoApplicationsTable.id, id));
     await tx.insert(demoApplicationEventsTable).values({ applicationId: id, status: decision, note: eventNote, actor });
-    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor, action: `Application ${id} ${decision === "Review" ? "moved to review" : statusWords(decision)}${decision === "Approved" && a.feeCents > 0 ? ` (application fee ${usd(a.feeCents)})` : ""}` });
+    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor, action: `Application ${id} ${decision === "Review" ? "moved to review" : statusWords(decision)}${decision === "Approved" && a.feeCents > 0 ? ` (application charge ${usd(a.feeCents)})` : ""}` });
     const message = {
       Review: `"${a.title}" is now under review`,
-      Approved: `"${a.title}" was approved. ${usd(a.amountCents)} was added to your grant balance${a.feeCents > 0 ? ` and the ${usd(a.feeCents)} application fee was charged from your account balance` : ""}`,
+      Approved: `"${a.title}" was approved. ${usd(a.amountCents)} was added to your grant balance${a.feeCents > 0 ? ` and the ${usd(a.feeCents)} application charge was taken from your account balance` : ""}`,
       Declined: `"${a.title}" was declined`,
       "Changes requested": `Changes were requested on "${a.title}"`,
     }[decision];
@@ -321,7 +322,7 @@ type LedgerRow = typeof demoLedgerTable.$inferSelect;
 const ledgerEntry = (l: LedgerRow, userName: string) => ({
   id: l.id, createdAt: l.createdAt.toISOString(), userId: l.profileId, userName,
   kind: l.kind as "Top-up" | "Debit" | "Deposit" | "Withdrawal" | "Grant award" | "Opening balance" | "Fee" | "Card purchase" | "Card top-up" | "Application fee",
-  account: l.account as "grant" | "deposit" | "card", amount: l.amountCents / 100, reason: l.reason, actor: l.actor,
+  account: l.account as "grant" | "deposit" | "card", amount: l.amountCents / 100, reason: ledgerReasonLabel(l.reason), actor: l.actor,
   ...(l.requestId ? { requestId: l.requestId } : {}),
   ...(l.applicationId ? { applicationId: l.applicationId } : {}),
 });
@@ -383,8 +384,8 @@ export async function exportLedgerCsv(f: LedgerFilters) {
     .where(ledgerWhere(f)).orderBy(desc(demoLedgerTable.createdAt), desc(demoLedgerTable.id)).limit(10000);
   const header = ["Entry ID", "Date (UTC)", "User ID", "User", "Type", "Account", "Amount (USD)", "Reason", "Recorded by", "Request ID", "Application ID"];
   const lines = rows.map(({ l, name }) => [
-    cell(l.id), cell(l.createdAt.toISOString()), cell(l.profileId), cell(name), cell(l.kind), cell(l.account),
-    (l.amountCents / 100).toFixed(2), cell(l.reason), cell(l.actor), cell(l.requestId ?? ""), cell(l.applicationId ?? ""),
+    cell(l.id), cell(l.createdAt.toISOString()), cell(l.profileId), cell(name), cell(ledgerKindLabel(l.kind)), cell(l.account),
+    (l.amountCents / 100).toFixed(2), cell(ledgerReasonLabel(l.reason)), cell(l.actor), cell(l.requestId ?? ""), cell(l.applicationId ?? ""),
   ].join(","));
   return [header.map(cell).join(","), ...lines].join("\r\n") + "\r\n";
 }

@@ -37,9 +37,9 @@ export function parsePlan(input: PlanInput): ParsedPlan | string {
   if (industryId !== null && !isUuid(industryId)) return "Choose an industry, or All industries.";
   const amountCents = awardCents(input.amount);
   if (amountCents === null) return "The award amount must be between $1 and $10,000,000, with at most two decimals.";
-  const fee = parseFee(input.fee, "The application fee");
+  const fee = parseFee(input.fee, "The application charge");
   if (typeof fee === "string") return fee;
-  if (feeCents(fee, amountCents) > amountCents) return "The application fee can't be more than the award.";
+  if (feeCents(fee, amountCents) > amountCents) return "The application charge can't be more than the award.";
   const fields = parseFields(input.fields, PLAN_FIELD_TYPES, PLAN_LIMITS.fields, "A plan's form");
   if (typeof fields === "string") return fields;
   if (fields.filter(f => f.type === "file").length > PLAN_LIMITS.fileFields) return `A plan's form can ask for at most ${PLAN_LIMITS.fileFields} files.`;

@@ -15,6 +15,7 @@ import { countCardRequests } from "./cards";
 import { describeFee, feeCents } from "./fees";
 import { findIndustry } from "./industries";
 import { cardTypeInfo, typeOfCard } from "./cardTypes";
+import { ledgerReasonLabel } from "./ledgerWording";
 
 export class DemoInputError extends Error {}
 
@@ -394,7 +395,7 @@ export async function applicantAccount(profileId: string) {
   const transactions = [
     ...ledger.map(l => ({
       id: l.id, type: l.kind, account: l.account, direction: l.amountCents < 0 ? "out" : "in", amount: Math.abs(l.amountCents) / 100,
-      description: l.reason, status: "Completed", createdAt: l.createdAt.toISOString(), details: [],
+      description: ledgerReasonLabel(l.reason), status: "Completed", createdAt: l.createdAt.toISOString(), details: [],
     })),
     ...requests.map(r => requestTransaction(r, logos)),
   ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));

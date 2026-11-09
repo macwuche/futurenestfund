@@ -117,5 +117,5 @@ export function checkPlanValues(fields: PlanField[], values: PlanValues, files: 
   return errors;
 }
 
-/** "Fee $2.00" → the fee line shown on plan cards and the summary. */
-export const feeLine = (feeAmount: number) => (feeAmount > 0 ? `${money(feeAmount)} application fee` : 'No application fee');
+/** "$2.00 application charge" → the charge line shown on plan cards and the summary. */
+export const feeLine = (feeAmount: number) => (feeAmount > 0 ? `${money(feeAmount)} application charge` : 'No application charge');

@@ -37,7 +37,7 @@ describe("parsePlan", () => {
   it("the fee is fixed or a percentage of the award, never more than the award", () => {
     expect(ok({ name: "Ok", amount: 1000, fee: { mode: "percent", amount: 5 } }).fee).toEqual({ mode: "percent", value: 500 });
     expect(parsePlan({ name: "Ok", amount: 10, fee: { mode: "fixed", amount: 20 } })).toMatch(/more than the award/);
-    expect(parsePlan({ name: "Ok", amount: 10, fee: { mode: "fixed", amount: -1 } })).toMatch(/application fee can't be negative/i);
+    expect(parsePlan({ name: "Ok", amount: 10, fee: { mode: "fixed", amount: -1 } })).toMatch(/application charge can't be negative/i);
     expect(ok({ name: "Ok", amount: 10 }).fee).toEqual({ mode: "fixed", value: 0 });
     expect(feeCents({ mode: "percent", value: 150 }, 123456)).toBe(1852); // 1.5% of $1,234.56 = $18.5184 → $18.52
   });

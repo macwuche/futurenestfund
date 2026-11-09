@@ -2750,3 +2750,35 @@ One commit when green; `deploy.sh` applies 0014. **Parked 2026-11-06** while bra
 - new `phase-branding.mjs`: API 4/4 (defaults, save + refusals + audit, logo upload served publicly, logo from a link replacing the old file, remove); browser 7 + 7 (live preview on the admin's screen, saving, **another open user screen following in under 16 s**, unsaved changes discarded on leaving, reload remembers, logo in the menu and tab)
 
 **Committed** `1c4b760`. **Deployed** 2026-11-06 at `1c4b760` (0013 applied). **Still to do:** Admin → Settings → Branding (name, colour, logo).
+
+---
+
+## 25. Summary of 2026-11-06
+
+| Step | Commit | Deployed | Notes |
+|---|---|---|---|
+| Docs: code layout, history hash | `a2d05e5` | (docs) | `PROJECT.md` §3 listed the removed `grantCatalog.ts` |
+| 9.4 tier rules | `924fffb` (+ `2ad3f00` docs) | `2ad3f00` (migration 0012, Supabase 0006) | §22; tier limits replaced the platform-wide withdrawal limits; Settings → Tiers, Your tier, Tier Upgrades |
+| 9.3 choices answered; 9.5 planned | (docs) | | §17h, §23: any number of cards (up to 20), withdrawal fees per tier; waits for the user's go |
+| Branding | `1c4b760` | `1c4b760` (migration 0013) | §24; name, one brand colour for both sides, logo; ~290 colour codes became variables |
+
+**Live now:** `1c4b760` at https://access.futurenestfund.org (deploy records `dcf0067`, `5e1c1c7`).
+
+**Tests today:** `pnpm test` 140/140; new suites `phase94-tiers` 16/16, `phase94-ui` 9 + 9, `phase-branding` 4 + 7 + 7; every API and browser regression suite green, the phone audit 45/45 with 0 problems (Your tier, Tier Upgrades, Settings → Tiers added). Suites updated for the new rules: `phase5-limits(-ui)`, `phase10-methods`, `phase93-cards`, `phase8-balances-ui`, `phase6-mobile`.
+
+**Needs the user (admin area):** Settings → Branding (name, colour, logo); Settings → Tiers (limits, cards, Tier 2 / 3 upgrade forms); and, from before, grant plans, payment methods, card types (`server.md` §6b).
+
+**Waiting for the user:** go-ahead for 9.5 (§23).
+
+**Server and dashboards (unchanged):** rotate the secrets pasted in chat and delete the GitHub token; Resend email (DEPLOY step 10); Supabase minimum password length 8; off-server backup copies; ClamAV only if memory allows (RAM read 73.6% right after the last build); reboot at a quiet time.
+
+---
+
+## 26. Wording: "application charge" (2026-11-09)
+
+**Request (user, 2026-11-09):** on the grant form, call the "application fee" the **application charge**; then the same everywhere else.
+
+**Changed** (wording only, no migration): grant cards, the apply page, the summary and its note, the submit message, the application detail page, the Account balance card's below-$0 line, Transactions (rows, filter "Application charges", CSV on both sides), the header search, the Help Centre, the approval notification and email, the application history note, the audit log, Admin → Grant Plans (field, help text, preview, errors) and the approval panel.
+- The ledger keeps the stored kind **`Application fee`** (append-only rows, the API's filter value and `?type=` links): `ledgerKindLabel` (`api-server lib/ledgerWording.ts`, `grant-platform lib/ledger-wording.ts`) shows it as "Application charge". New ledger rows say "Application charge · <plan>"; older rows that say "Application fee · …" are shown with the new wording by `ledgerReasonLabel`. Older audit and history entries keep their old text.
+
+**Tests:** typecheck clean; `pnpm test` 140/140 (+1 skipped); `phase11-plans` 17/17, `phase11-ui` 9 + 9, `phase2-desktop` 26/26 (expectations updated); demo data restored after each.

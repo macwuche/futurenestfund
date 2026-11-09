@@ -45,7 +45,7 @@ export function AdminGrantPlansPage() {
         </SectionTitle>
         <p className="-mt-2 mb-4 text-sm text-slate-500">
           Applicants see the plans that are on, with the ones for their industry recommended first. Each plan has its own application form.
-          The application fee is charged from the applicant's account balance only when you approve, and it is the one charge that can take that balance below $0.
+          The application charge is taken from the applicant's account balance only when you approve, and it is the one charge that can take that balance below $0.
         </p>
         {list.isLoading ? <div className="space-y-2">{[1, 2].map((i) => <Skel key={i} className="h-20" />)}</div>
           : list.isError || !list.data ? <ErrorState onRetry={() => list.refetch()} />
@@ -132,7 +132,7 @@ const validAward = (n: number | null) => n !== null && Number.isFinite(n) && n >
 const planFields = (fields: DraftField[]) => fieldsOut(fields) as PlanField[];
 
 function previewFee(d: Draft) {
-  const f = feeFromDraft(d.fee, 'The application fee');
+  const f = feeFromDraft(d.fee, 'The application charge');
   const award = parseAmount(d.amount);
   if (typeof f === 'string' || !(f.amount > 0)) return 0;
   if (f.mode === 'fixed') return f.amount;
@@ -142,9 +142,9 @@ function previewFee(d: Draft) {
 function checkDraft(d: Draft): string {
   if (d.name.trim().length < 2) return 'Give the plan a name (at least 2 characters).';
   if (!validAward(parseAmount(d.amount))) return 'The award amount must be between $1 and $10,000,000, with at most two decimals.';
-  const fee = feeFromDraft(d.fee, 'The application fee');
+  const fee = feeFromDraft(d.fee, 'The application charge');
   if (typeof fee === 'string') return fee;
-  if (previewFee(d) > parseAmount(d.amount)!) return "The application fee can't be more than the award.";
+  if (previewFee(d) > parseAmount(d.amount)!) return "The application charge can't be more than the award.";
   const fieldProblem = checkDraftFields(d.fields);
   if (fieldProblem) return fieldProblem;
   if (d.fields.filter((f) => f.type === 'file').length > 10) return "A plan's form can ask for at most 10 files.";
@@ -185,7 +185,7 @@ function PlanEditor({ plan, onClose }: { plan?: GrantPlan; onClose: () => void }
     setError(''); setBusy(true);
     const data: GrantPlanUpdate = {
       name: d.name.trim(), description: d.description, industryId: d.industryId || null, amount: award!,
-      fee: feeFromDraft(d.fee, 'The application fee') as { mode: 'fixed' | 'percent'; amount: number },
+      fee: feeFromDraft(d.fee, 'The application charge') as { mode: 'fixed' | 'percent'; amount: number },
       fields: planFields(d.fields), enabled: d.enabled,
     };
     let saved = current;
@@ -261,12 +261,12 @@ function PlanEditor({ plan, onClose }: { plan?: GrantPlan; onClose: () => void }
             </Field>
           </div>
           <fieldset>
-            <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Application fee</legend>
+            <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Application charge</legend>
             <p className="mb-2 text-xs text-slate-500" data-testid="text-plan-fee-help">
               Charged from the applicant's account balance only when you approve, even if that takes it below $0. Nothing is charged on submit, decline or withdrawal.
               A fixed amount or a percentage of the award; empty = no fee.
             </p>
-            <div className="max-w-xs"><FeeInput value={d.fee} onChange={(fee) => set({ fee })} label="Application fee" testid="input-plan-fee" /></div>
+            <div className="max-w-xs"><FeeInput value={d.fee} onChange={(fee) => set({ fee })} label="Application charge" testid="input-plan-fee" /></div>
           </fieldset>
 
           <FieldBuilder fields={d.fields} onChange={(update) => setD((x) => ({ ...x, fields: update(x.fields) }))} types={PLAN_FIELD_TYPES} max={MAX_FIELDS}

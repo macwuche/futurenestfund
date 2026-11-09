@@ -15,7 +15,7 @@ const card = 'rounded-2xl border border-slate-200 bg-white shadow-sm';
 /** What happens with the fee, in words, for the application's status. */
 export function feeStatus(a: Pick<ApplicationDetail, 'status' | 'fee' | 'feeCharged'>) {
   const fee = a.fee ?? 0;
-  if (!(fee > 0)) return 'No application fee';
+  if (!(fee > 0)) return 'No application charge';
   if (a.feeCharged) return `${money(fee)} charged from your account balance on approval`;
   if (a.status === 'Declined' || a.status === 'Withdrawn') return `${money(fee)} not charged`;
   return `${money(fee)}, charged from your account balance only if approved`;

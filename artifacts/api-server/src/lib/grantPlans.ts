@@ -8,6 +8,10 @@ import { DemoInputError } from "./demoWorkspace";
 import { fetchRemoteImage, MAX_LOGO_BYTES, RemoteImageError } from "./remoteImage";
 import { findFile, removeFile, storeUpload, UploadError } from "./uploads";
 import { describeFee, feeCents, feeOut, storedFee, type FeeRule } from "./fees";
+
+/** "application charge $2.00" / "no application charge", for the audit log. */
+const chargeText = (fee: FeeRule, baseCents: number) =>
+  describeFee(fee, baseCents) === "No fee" ? "no application charge" : describeFee(fee, baseCents).replace(/^Fee /, "application charge ");
 import { usd, type MethodField } from "./paymentRules";
 import { parsePlan, planInitials, type PlanInput } from "./grantPlanRules";
 import { findIndustry, industryNames } from "./industries";
@@ -114,7 +118,7 @@ export async function createPlan(input: PlanInput, actor: string) {
       name: parsed.name, description: parsed.description, industryId: parsed.industryId, amountCents: parsed.amountCents,
       feeMode: parsed.fee.mode, feeValue: parsed.fee.value, fields: parsed.fields, enabled: parsed.enabled, createdBy: actor,
     }).returning();
-    await audit(actor, `Grant plan "${parsed.name}" created (${usd(parsed.amountCents)}, application ${describeFee(parsed.fee, parsed.amountCents).toLowerCase()}, ${fieldCount(parsed.fields.length)}${parsed.enabled ? "" : ", off"})`, tx);
+    await audit(actor, `Grant plan "${parsed.name}" created (${usd(parsed.amountCents)}, ${chargeText(parsed.fee, parsed.amountCents)}, ${fieldCount(parsed.fields.length)}${parsed.enabled ? "" : ", off"})`, tx);
     return row!;
   });
   return adminPlan(p.id);
@@ -140,7 +144,7 @@ export async function updatePlan(id: string, input: PlanInput, actor: string) {
   }
   if (parsed.amountCents !== current.amountCents) changes.push(`award ${usd(parsed.amountCents)}`);
   const before = planFee(current);
-  if (parsed.fee.mode !== before.mode || parsed.fee.value !== before.value) changes.push(`application ${describeFee(parsed.fee, parsed.amountCents).toLowerCase()}`);
+  if (parsed.fee.mode !== before.mode || parsed.fee.value !== before.value) changes.push(`${chargeText(parsed.fee, parsed.amountCents)}`);
   if (JSON.stringify(parsed.fields) !== JSON.stringify(planFields(current))) changes.push(`form (${fieldCount(parsed.fields.length)})`);
   if (parsed.enabled !== current.enabled) changes.push(parsed.enabled ? "switched on" : "switched off");
   if (!changes.length) return adminPlan(id);

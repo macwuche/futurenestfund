@@ -31,6 +31,7 @@ import { useBranding } from '@/lib/branding';
 import { apiError, upgradeTierOf, matchesSearch, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 import { FixedAmountChoices, MethodFieldInputs, MethodInstructions, MethodLogo, ProofInput, RequestDetails, checkFieldValues, type FieldValues } from '@/components/payment-method';
+import { ledgerKindLabel } from '@/lib/ledger-wording';
 
 export const card = 'rounded-2xl border border-[#E5E7EB] bg-white shadow-sm';
 export const NAVY = 'var(--brand)';
@@ -113,7 +114,7 @@ function BalanceCards({ d }: { d: ApplicantDashboard }) {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
         <BalanceCard tone={0} wide href="/transactions" label="Account balance" icon={Wallet} value={b.accountBalance} valueTestid="text-account-balance" testid="card-balance-account">
           {b.accountBalance < 0
-            ? <span data-testid="text-account-negative">Below $0 after an application fee. Your next deposit covers it first.</span>
+            ? <span data-testid="text-account-negative">Below $0 after an application charge. Your next deposit covers it first.</span>
             : 'Deposits minus fees and charges'}
         </BalanceCard>
         <BalanceCard tone={1} href="/applications?status=approved" label="Grant balance" icon={Landmark} value={b.grantBalance} valueTestid="text-grant-balance" testid="card-balance-grant">
@@ -320,7 +321,7 @@ function AppDetail({ a }: { a: ApplicationDetail }) {
         </div>
         <dl className={cx('mt-5 grid gap-4 border-t border-slate-100 pt-4', a.plan ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3')}>
           <div><dt className="text-sm text-slate-500">{a.plan ? (a.status === 'Approved' ? 'Awarded' : 'You receive if approved') : 'Requested amount'}</dt><dd className="text-lg font-bold tabular-nums text-slate-900" data-testid="text-application-amount">{money(a.amount)}</dd></div>
-          {a.plan && <div><dt className="text-sm text-slate-500">Application fee</dt><dd className="font-semibold text-slate-900" data-testid="text-application-fee">{feeStatus(a)}</dd></div>}
+          {a.plan && <div><dt className="text-sm text-slate-500">Application charge</dt><dd className="font-semibold text-slate-900" data-testid="text-application-fee">{feeStatus(a)}</dd></div>}
           <div><dt className="text-sm text-slate-500">Submitted</dt><dd className="font-semibold text-slate-900">{dateFmt(a.submittedAt)}</dd></div>
           <div><dt className="text-sm text-slate-500">Last updated</dt><dd className="font-semibold text-slate-900">{dateFmt(a.updatedAt)}</dd></div>
         </dl>
@@ -577,7 +578,7 @@ function CardsBody({ a }: { a: Account }) {
 
 /* Transactions */
 const txTypes = ['All', 'Deposit', 'Withdrawal', 'Grant award', 'Top-up', 'Debit', 'Fee', 'Application fee', 'Card purchase', 'Card top-up'] as const;
-const txFilterLabel: Record<(typeof txTypes)[number], string> = { All: 'All', Deposit: 'Deposits', Withdrawal: 'Withdrawals', 'Grant award': 'Grant awards', 'Top-up': 'Top-ups', Debit: 'Debits', Fee: 'Fees', 'Application fee': 'Application fees', 'Card purchase': 'Card purchases', 'Card top-up': 'Card top-ups' };
+const txFilterLabel: Record<(typeof txTypes)[number], string> = { All: 'All', Deposit: 'Deposits', Withdrawal: 'Withdrawals', 'Grant award': 'Grant awards', 'Top-up': 'Top-ups', Debit: 'Debits', Fee: 'Fees', 'Application fee': 'Application charges', 'Card purchase': 'Card purchases', 'Card top-up': 'Card top-ups' };
 const accountLabel: Record<string, string> = { grant: 'Grant balance', deposit: 'Account balance', card: 'Card account' };
 
 /** Deposit and withdrawal requests are reviewed by the finance team, so their statuses read as review outcomes. */
@@ -591,7 +592,7 @@ export function TxRow({ t, showDetails = false }: { t: Tx; showDetails?: boolean
       <span className={cx('grid h-10 w-10 shrink-0 place-items-center rounded-lg', incoming ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[var(--brand-soft)] text-[var(--brand-ink)]')}><Icon className="h-5 w-5" /></span>
       <span className="min-w-0 flex-1">
         <span className="line-clamp-2 block font-semibold text-slate-900">{t.description}</span>
-        <span className="block truncate text-sm text-slate-500">{t.type}{t.reference && <> · <span data-testid={`text-transaction-ref-${t.id}`}>Ref {t.reference}</span></>}<span className="hidden sm:inline"> · {accountLabel[t.account]}</span> · {dateFmt(t.createdAt)}</span>
+        <span className="block truncate text-sm text-slate-500">{ledgerKindLabel(t.type)}{t.reference && <> · <span data-testid={`text-transaction-ref-${t.id}`}>Ref {t.reference}</span></>}<span className="hidden sm:inline"> · {accountLabel[t.account]}</span> · {dateFmt(t.createdAt)}</span>
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1">
         <span className={cx('font-semibold tabular-nums', t.status === 'Declined' ? 'text-slate-400 line-through' : incoming ? 'text-[#166534]' : 'text-slate-900')} data-testid={`text-transaction-amount-${t.id}`}>{incoming ? '+' : '−'}{money(t.amount)}</span>

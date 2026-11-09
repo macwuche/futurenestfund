@@ -14,6 +14,7 @@ import { card, ainput, lime, dark, ghost, danger, Stat, SectionTitle, useAdminRe
 import { apiError } from '@/lib/demo-state';
 import { RequestDetails } from '@/components/payment-method';
 import { useToast } from '@/hooks/use-toast';
+import { ledgerKindLabel } from '@/lib/ledger-wording';
 
 /** User dropdowns list everyone by name (up to 500; a searchable picker would replace them beyond that). */
 const USER_PICKER = { pageSize: 500, sort: 'name' } as const;
@@ -200,7 +201,7 @@ export const AdminWithdrawalsPage = () => <RequestQueuePage kind="Withdrawal" />
 const LEDGER_TYPES: { value: ListAdminTransactionsType; label: string }[] = [
   { value: 'all', label: 'All types' }, { value: 'Deposit', label: 'Deposits' }, { value: 'Withdrawal', label: 'Withdrawals' },
   { value: 'Grant award', label: 'Grant awards' }, { value: 'Top-up', label: 'Top-ups' }, { value: 'Debit', label: 'Debits' }, { value: 'Opening balance', label: 'Opening balances' },
-  { value: 'Fee', label: 'Fees' }, { value: 'Application fee', label: 'Application fees' }, { value: 'Card purchase', label: 'Card purchases' }, { value: 'Card top-up', label: 'Card top-ups' },
+  { value: 'Fee', label: 'Fees' }, { value: 'Application fee', label: 'Application charges' }, { value: 'Card purchase', label: 'Card purchases' }, { value: 'Card top-up', label: 'Card top-ups' },
 ];
 
 export function AdminTransactionsPage() {
@@ -258,7 +259,7 @@ export function AdminTransactionsPage() {
                     <div className="flex items-start justify-between gap-3">
                       <span className="min-w-0">
                         <Link href={`/admin/users/${t.userId}`} className="block truncate font-semibold hover:underline">{t.userName}</Link>
-                        <span className="block text-xs text-slate-500">{t.kind} · <span className="capitalize">{t.account}</span></span>
+                        <span className="block text-xs text-slate-500">{ledgerKindLabel(t.kind)} · <span className="capitalize">{t.account}</span></span>
                       </span>
                       <span className={cx('font-num shrink-0 text-right font-semibold', t.amount < 0 ? 'text-slate-900' : 'text-[#166534]')} data-testid={`text-ledger-card-amount-${t.id}`}>{signed(t.amount)}</span>
                     </div>
@@ -277,7 +278,7 @@ export function AdminTransactionsPage() {
                       <tr key={t.id} className="border-b align-top" data-testid={`row-ledger-${t.id}`}>
                         <td className="whitespace-nowrap py-2.5 pr-3 text-xs text-slate-600">{dateTime(t.createdAt)}<span className="font-num block text-slate-400" title={t.id}>{t.id.slice(0, 8)}</span></td>
                         <td className="py-2.5"><Link href={`/admin/users/${t.userId}`} className="font-semibold hover:underline">{t.userName}</Link></td>
-                        <td className="whitespace-nowrap py-2.5">{t.kind}</td>
+                        <td className="whitespace-nowrap py-2.5">{ledgerKindLabel(t.kind)}</td>
                         <td className="py-2.5 capitalize">{t.account}</td>
                         <td className="max-w-[18rem] py-2.5 text-slate-700"><span className="break-words">{t.reason}</span><span className="block text-xs text-slate-500">{t.actor}</span></td>
                         <td className={cx('font-num whitespace-nowrap py-2.5 text-right font-semibold', t.amount < 0 ? 'text-slate-900' : 'text-[#166534]')} data-testid={`text-ledger-amount-${t.id}`}>{signed(t.amount)}</td>
@@ -495,7 +496,7 @@ export function AdminApplicationPage() {
   // Phase 11: approving a plan application also charges its fee from the account balance, even below $0.
   const fee = a?.fee ?? 0;
   const afterFee = a ? Math.round((a.accountBalance - fee) * 100) / 100 : 0;
-  const approveText = a ? `${money(a.amount)} is added to ${a.userName}'s grant balance${fee > 0 ? ` and the ${money(fee)} application fee is charged from their account balance (${money(a.accountBalance)} → ${money(afterFee)}${afterFee < 0 ? ', below $0' : ''})` : ''}. Both are recorded in the ledger and the applicant is notified.` : '';
+  const approveText = a ? `${money(a.amount)} is added to ${a.userName}'s grant balance${fee > 0 ? ` and the ${money(fee)} application charge is taken from their account balance (${money(a.accountBalance)} → ${money(afterFee)}${afterFee < 0 ? ', below $0' : ''})` : ''}. Both are recorded in the ledger and the applicant is notified.` : '';
   return (
     <Shell admin title="Application review">
       <Link href={`/admin/users/${userId}`} data-testid="link-back-user" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"><ArrowLeft className="h-4 w-4" />Back to user</Link>
@@ -516,7 +517,7 @@ export function AdminApplicationPage() {
               </div>
               <dl className={cx('mt-4 grid grid-cols-2 gap-3 text-sm', a.plan ? 'sm:grid-cols-4' : 'sm:grid-cols-3')}>
                 <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">{a.plan ? 'Award' : 'Requested'}</dt><dd className="font-num text-lg font-semibold">{money(a.amount)}</dd></div>
-                {a.plan && <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">Application fee</dt><dd className="font-num text-lg font-semibold" data-testid="text-admin-app-fee">{money(fee)}</dd><dd className="text-xs text-slate-500">{fee > 0 ? (a.feeCharged ? 'Charged on approval' : a.status === 'Declined' || a.status === 'Withdrawn' ? 'Not charged' : 'Charged on approval') : 'No fee'}</dd></div>}
+                {a.plan && <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">Application charge</dt><dd className="font-num text-lg font-semibold" data-testid="text-admin-app-fee">{money(fee)}</dd><dd className="text-xs text-slate-500">{fee > 0 ? (a.feeCharged ? 'Charged on approval' : a.status === 'Declined' || a.status === 'Withdrawn' ? 'Not charged' : 'Charged on approval') : 'No fee'}</dd></div>}
                 <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">Submitted</dt><dd className="font-semibold">{dateFmt(a.submittedAt)}</dd></div>
                 <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">Last change</dt><dd className="font-semibold">{dateFmt(a.updatedAt)}</dd></div>
               </dl>

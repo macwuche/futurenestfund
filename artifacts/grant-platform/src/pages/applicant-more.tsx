@@ -18,6 +18,7 @@ import { Empty, ErrorState, Field, Modal, Skel, StatusBadge, cx, dateFmt, inputC
 import { apiError, useApplicantAccount, useApplicantDashboard, useApplications, useDemo, useMilestones, useRefreshApplicant, type Milestone } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 import { Gate, GREY, Legend, NAVY, card, usd0 } from '@/pages/applicant';
+import { ledgerKindLabel } from '@/lib/ledger-wording';
 
 /* ---------- shared helpers ---------- */
 const STATUSES = ['Submitted', 'Review', 'Approved', 'Changes requested', 'Declined'] as const;
@@ -161,7 +162,7 @@ function ReportsBody({ d }: { d: ApplicantDashboard }) {
     { k: 'applications', title: 'Applications', hint: `${all.length} rows · title, category, status, amount, date`, icon: FileText,
       run: () => downloadCsv(`applications-${stamp}.csv`, ['ID', 'Title', 'Category', 'Status', 'Amount (USD)', 'Submitted'], all.map((a) => [a.id, a.title, a.category, statusLabel(a.status), a.amount.toFixed(2), a.submittedAt.slice(0, 10)])) },
     { k: 'transactions', title: 'Transactions', hint: acct.data ? `${tx.length} rows · type, account, amount, status, date` : acct.isError ? 'Account data unavailable right now' : 'Loading account data…', icon: ArrowLeftRight, disabled: !acct.data,
-      run: () => downloadCsv(`transactions-${stamp}.csv`, ['ID', 'Type', 'Account', 'Direction', 'Amount (USD)', 'Status', 'Description', 'Date'], tx.map((t) => [t.id, t.type, t.account, t.direction, t.amount.toFixed(2), t.status, t.description, t.createdAt])) },
+      run: () => downloadCsv(`transactions-${stamp}.csv`, ['ID', 'Type', 'Account', 'Direction', 'Amount (USD)', 'Status', 'Description', 'Date'], tx.map((t) => [t.id, ledgerKindLabel(t.type), t.account, t.direction, t.amount.toFixed(2), t.status, t.description, t.createdAt])) },
     { k: 'funding', title: 'Funding trend', hint: `${d.fundingTrend.length} rows · monthly submitted vs. under review`, icon: ChartColumn,
       run: () => downloadCsv(`funding-trend-${stamp}.csv`, ['Period', 'Submitted (USD)', 'Under review (USD)'], d.fundingTrend.map((p) => [p.label, p.submitted, p.review])) },
   ];
@@ -329,7 +330,7 @@ function AddMilestoneModal({ open, onClose, grants }: { open: boolean; onClose: 
 /* ================================================================== */
 const topics = ['Applications', 'Funding & payments', 'Cards', 'Account & security'] as const;
 const faqs: { topic: (typeof topics)[number]; q: string; a: string }[] = [
-  { topic: 'Applications', q: 'How do I apply for a grant?', a: 'Open Grants (or select "New Application"), choose a grant and select "Apply for this grant". Fill in its form, attach any files it asks for, then check the summary: it shows what you receive if approved and the application fee. Nothing is charged when you submit.' },
+  { topic: 'Applications', q: 'How do I apply for a grant?', a: 'Open Grants (or select "New Application"), choose a grant and select "Apply for this grant". Fill in its form, attach any files it asks for, then check the summary: it shows what you receive if approved and the application charge. Nothing is charged when you submit.' },
   { topic: 'Applications', q: 'What do the application statuses mean?', a: 'Submitted means the funder has received it. Under Review means it is being assessed. Changes requested means the funder needs more information. Approved and Declined are final decisions.' },
   { topic: 'Applications', q: 'Which grants are recommended for me?', a: 'Grants for your industry, and grants open to every industry, are listed first under "Recommended for you". You chose your industry when you signed up; change it in Settings → Your industry. You can apply to any grant, recommended or not.' },
   { topic: 'Funding & payments', q: 'How long do withdrawals take?', a: 'When you place a withdrawal request you get a notification and an email with its reference. Our finance team then reviews it, and it shows as Under review until they approve or decline it; you are notified again either way, with the reason if it is declined. Pending withdrawals are deducted from your available balance, so you can’t request the same funds twice. Approved withdrawals are paid out of the balance you chose: your grant balance, or your account balance if your administrator has opened it to you.' },
@@ -346,7 +347,7 @@ const faqs: { topic: (typeof topics)[number]; q: string; a: string }[] = [
   { topic: 'Cards', q: 'My physical card arrived. How do I activate it?', a: 'On the Cards page, choose "It’s arrived: activate". An administrator then activates it and you get a notification.' },
   { topic: 'Account & security', q: 'How do I change my email or organization?', a: 'Email and organization are locked to protect your account. Contact support and we’ll update them after confirming your identity.' },
   { topic: 'Account & security', q: 'What is identity verification (KYC)?', a: 'We check a government ID and proof of address before money can be withdrawn. Upload both in Settings → Identity verification (images or PDF, up to 10 MB). An administrator reviews each document and you are notified of the result. If one isn’t accepted, the reason is shown next to it in Settings so you can upload a new copy.' },
-  { topic: 'Applications', q: 'When is the application fee charged?', a: 'Only when your application is approved. It is taken from your account balance at the same time as the award is added to your grant balance, and it can take your account balance below $0: your next deposit then covers it first. If your application is declined or you withdraw it, nothing is charged.' },
+  { topic: 'Applications', q: 'When is the application charge taken?', a: 'Only when your application is approved. It is taken from your account balance at the same time as the award is added to your grant balance, and it can take your account balance below $0: your next deposit then covers it first. If your application is declined or you withdraw it, nothing is charged.' },
   { topic: 'Account & security', q: 'I forgot my password. What do I do?', a: 'On the sign-in page, choose “Forgot password?” and enter your email. We’ll send a link to choose a new password; it works once and expires after an hour. Sign out from the account menu (the … next to your name).' },
   { topic: 'Account & security', q: 'How do I change my password or sign out other devices?', a: 'Go to Settings → Sign-in & security. To change your password, enter your current one and then the new one (at least 8 characters). “Sign out of other devices” ends your sessions everywhere else; a device that is already open keeps access for up to an hour.' },
   { topic: 'Account & security', q: 'Can I stop notification emails?', a: 'Yes. Turn off “Email notifications” in Settings → Account. You will still see every update under the bell.' },
