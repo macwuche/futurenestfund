@@ -1,6 +1,6 @@
 # GrantApp deployment tracker (server.md)
 
-_Deployment only. Last updated 2026-11-06._
+_Deployment only. Last updated 2026-11-09._
 
 - **Exact commands:** [`docs/DEPLOY.md`](docs/DEPLOY.md).
 - **This file:** the record of what's decided, done, not done yet and still to do.
@@ -113,7 +113,7 @@ Step 6.5 counts as **done** when steps 1–9 have been followed once end to end.
 
 ## 6b. After deploying (in the admin area)
 
-The app is live at `1c4b760` (2026-11-06, branding). These need you in the admin area, or applicants can't use the matching feature:
+The app is live at `3612717` (2026-11-09, "application charge" wording; before that `1c4b760`, branding). These need you in the admin area, or applicants can't use the matching feature:
 
 | What | Where | Until it's done |
 |---|---|---|
@@ -186,3 +186,4 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 | 2026-11-05 | Deployed **f39c238** (Phase 11: grant plans, industries, application fees; matchmaking and sample grants removed; up from `1b2a4c0`). Builds OK; app migrations: 1 applied (**0011** grant plans: `demo_industries` with 40 industries, `demo_grant_plans`, profile industry, application plan/answers/fee), 12 recorded; Supabase **0005_grant_plans** applied, 0001–0004 skipped. API reloaded, health OK. RAM 70.8% right after the build (higher than the 47–57% of earlier builds; check `free -m` once it settles). Next: create grant plans in Admin → Grant Plans (until then applicants see "No grants are open right now"). |
 | 2026-11-06 | Deployed **2ad3f00** (9.4 tier rules: withdrawal and top-up limits and cards per tier, upgrade forms, Tier Upgrades queue; up from `f39c238`). Builds OK; app migrations: 1 applied (**0012** tier rules: `demo_tier_requests`, `demo_settings.tier_rules` with the platform-wide withdrawal limits copied into every tier), 13 recorded; Supabase **0006_tier_requests** applied, 0001–0005 skipped. API reloaded, health OK, `futurenestfund-api` online. RAM 59.5% right after the build. Next: Admin → Settings → Tiers (limits, cards, Tier 2 / Tier 3 upgrade forms). |
 | 2026-11-06 | Deployed **1c4b760** (branding: admin-set application name, brand colour and logo on both sides and in emails; up from `2ad3f00`, docs-only commits in between). Builds OK; app migrations: 1 applied (**0013** `demo_settings.branding`), 14 recorded; Supabase migrations all skipped (0001–0006). API reloaded, health OK, `futurenestfund-api` online. RAM 73.6% right after the build (59.5% after the previous one; check `free -m` once it settles). Next: Admin → Settings → Branding (until then "GrantApp" in navy, admin accents navy instead of lime). |
+| 2026-11-09 | Deployed **3612717** (wording: "application charge" instead of "application fee" everywhere people see it; the ledger kind stays `Application fee`; also the 2026-11-06 doc updates; up from `1c4b760`, docs-only commits in between). Builds OK; no migrations (0 applied, 14 recorded; Supabase all skipped). API reloaded, health OK, `futurenestfund-api` online. RAM 72.5% right after the build. pnpm offered 12.18.0; not taken (the server stays on 10.26.1). |

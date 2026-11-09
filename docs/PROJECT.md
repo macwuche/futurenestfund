@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-11-06 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1, 9.2 and 9.3 done; Phase 10 done; Phase 11 (grant plans, industries, application fees) done (`010d4b9`); 9.4 tier rules done (`924fffb`); branding done (`1c4b760`); 9.5 planned · **live at https://access.futurenestfund.org** (`1c4b760` deployed 2026-11-06)._
+_Last updated 2026-11-06 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1, 9.2 and 9.3 done; Phase 10 done; Phase 11 (grant plans, industries, application fees) done (`010d4b9`); 9.4 tier rules done (`924fffb`); branding done (`1c4b760`); 9.5 planned · **live at https://access.futurenestfund.org** (`3612717` deployed 2026-11-09)._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -593,7 +593,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 
 ## 15. Open items and next steps
 
-**Live:** `1c4b760` (branding; deployed 2026-11-06, migration 0013). Before that: `2ad3f00` (9.4 tier rules; 2026-11-06, migration 0012, Supabase 0006), on 2026-11-05: `dc386f9` (9.1, Phase 10, 9.3; migrations 0009, 0010, Supabase 0004), `a1072f6` (9.2), `1b2a4c0` (8.2), `f39c238` (Phase 11; migration 0011, Supabase 0005). Records in `server.md` §10.
+**Live:** `3612717` ("application charge" wording; deployed 2026-11-09, no migration). Before that: `1c4b760` (branding; 2026-11-06, migration 0013), `2ad3f00` (9.4 tier rules; 2026-11-06, migration 0012, Supabase 0006), on 2026-11-05: `dc386f9` (9.1, Phase 10, 9.3; migrations 0009, 0010, Supabase 0004), `a1072f6` (9.2), `1b2a4c0` (8.2), `f39c238` (Phase 11; migration 0011, Supabase 0005). Records in `server.md` §10.
 
 **Needs you now, in the admin area** (nothing below works for applicants until it's set up):
 1. **Grant Plans:** create at least one plan (until then applicants see "No grants are open right now").

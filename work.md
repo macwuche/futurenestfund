@@ -2782,3 +2782,5 @@ One commit when green; `deploy.sh` applies 0014. **Parked 2026-11-06** while bra
 - The ledger keeps the stored kind **`Application fee`** (append-only rows, the API's filter value and `?type=` links): `ledgerKindLabel` (`api-server lib/ledgerWording.ts`, `grant-platform lib/ledger-wording.ts`) shows it as "Application charge". New ledger rows say "Application charge · <plan>"; older rows that say "Application fee · …" are shown with the new wording by `ledgerReasonLabel`. Older audit and history entries keep their old text.
 
 **Tests:** typecheck clean; `pnpm test` 140/140 (+1 skipped); `phase11-plans` 17/17, `phase11-ui` 9 + 9, `phase2-desktop` 26/26 (expectations updated); demo data restored after each.
+
+**Committed** `3612717`. **Deployed** 2026-11-09 at `3612717` (no migration).
