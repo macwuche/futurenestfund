@@ -12,6 +12,8 @@ export interface PlanApplicationResubmitForm {
      * @maxLength 1000
      */
   note?: string;
+  /** Range plans: a new amount requested in USD; left out, it stays */
+  amount?: string;
   /** JSON object of answers by field id */
   answers: string;
   /** JSON array: the field id each file in files is for; a file field with no new file keeps the one attached */

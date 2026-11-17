@@ -8,7 +8,8 @@ import {
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Download, FileText, Plus, Info, X } from 'lucide-react';
 import { keepPreviousData, useQueryClient } from '@tanstack/react-query';
 import { Shell } from '@/components/shell';
-import { PlanLogo } from '@/components/grant-plan';
+import { PlanLogo, typedAmount } from '@/components/grant-plan';
+import { feeOn } from '@/components/fee-input';
 import { balanceName, Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, fileSize, money, statusLabel } from '@/components/bits';
 import { card, ainput, lime, dark, ghost, danger, Stat, SectionTitle, useAdminRefresh, ReasonModal, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
 import { apiError } from '@/lib/demo-state';
@@ -488,15 +489,29 @@ export function AdminApplicationPage() {
   const [open, setOpen] = useState<ApplicationDecisionInputStatus | null>(null);
   const [error, setError] = useState('');
   const a = q.data && q.data.userId === userId ? q.data : undefined;
-  const run = (status: ApplicationDecisionInputStatus, note?: string) => decide.mutate({ applicationId, data: { status, ...(note ? { note } : {}) } }, {
+  // Range plans: the admin may approve less than was asked (not below the minimum); a % charge follows the amount.
+  const range = a?.amountRange;
+  const [approveInput, setApproveAmount] = useState('');
+  useEffect(() => { if (a && open === 'Approved') setApproveAmount(String(a.requestedAmount ?? a.amount)); }, [open, a?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const approveAmount = range ? typedAmount(approveInput) : null;
+  const asked = a?.requestedAmount ?? a?.amount ?? 0;
+  const approveProblem = !range ? '' : approveAmount === null ? 'Enter the amount to approve, with at most two decimals.'
+    : approveAmount > asked ? `You can approve up to the ${money(asked)} requested.`
+    : approveAmount < range.min ? `This grant's minimum is ${money(range.min)}.` : '';
+  const run = (status: ApplicationDecisionInputStatus, note?: string) => {
+    if (status === 'Approved' && approveProblem) return setError(approveProblem);
+    decide.mutate({ applicationId, data: { status, ...(note ? { note } : {}), ...(status === 'Approved' && range && approveAmount !== null ? { amount: approveAmount } : {}) } }, {
     onSuccess: (d) => { qc.setQueryData(getGetAdminApplicationQueryKey(applicationId), d); refresh(); setOpen(null); toast({ title: `Application ${statusLabel(d.status).toLowerCase()}`, description: d.title }); },
     onError: (e) => setError(apiError(e, 'The decision could not be saved.')),
   });
+  };
   const approveBlocked = a && (a.platformFrozen ? 'Approvals are paused by the global freeze.' : a.userStatus === 'Frozen' ? 'Unfreeze this account before approving funding.' : '');
   // Phase 11: approving a plan application also charges its fee from the account balance, even below $0.
   const fee = a?.fee ?? 0;
-  const afterFee = a ? Math.round((a.accountBalance - fee) * 100) / 100 : 0;
-  const approveText = a ? `${money(a.amount)} is added to ${a.userName}'s grant balance${fee > 0 ? ` and the ${money(fee)} application charge is taken from their account balance (${money(a.accountBalance)} → ${money(afterFee)}${afterFee < 0 ? ', below $0' : ''})` : ''}. Both are recorded in the ledger and the applicant is notified.` : '';
+  const award = range && approveAmount !== null && !approveProblem ? approveAmount : a?.amount ?? 0;
+  const approveFee = range && a?.feeRule && award !== a.amount ? feeOn(a.feeRule, award) : fee;
+  const afterFee = a ? Math.round((a.accountBalance - approveFee) * 100) / 100 : 0;
+  const approveText = a ? `${money(award)} is added to ${a.userName}'s grant balance${approveFee > 0 ? ` and the ${money(approveFee)} application charge is taken from their account balance (${money(a.accountBalance)} → ${money(afterFee)}${afterFee < 0 ? ', below $0' : ''})` : ''}. Both are recorded in the ledger and the applicant is notified.` : '';
   return (
     <Shell admin title="Application review">
       <Link href={`/admin/users/${userId}`} data-testid="link-back-user" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"><ArrowLeft className="h-4 w-4" />Back to user</Link>
@@ -516,7 +531,8 @@ export function AdminApplicationPage() {
                 <StatusBadge status={a.status} testid="badge-application-status" />
               </div>
               <dl className={cx('mt-4 grid grid-cols-2 gap-3 text-sm', a.plan ? 'sm:grid-cols-4' : 'sm:grid-cols-3')}>
-                <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">{a.plan ? 'Award' : 'Requested'}</dt><dd className="font-num text-lg font-semibold">{money(a.amount)}</dd></div>
+                <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">{a.plan ? (range && a.status !== 'Approved' ? 'Requested' : 'Award') : 'Requested'}</dt><dd className="font-num text-lg font-semibold" data-testid="text-admin-app-amount">{money(a.amount)}</dd>
+                  {range && <dd className="text-xs text-slate-500" data-testid="text-admin-app-range">{a.requestedAmount !== undefined && a.requestedAmount !== a.amount ? `${money(a.requestedAmount)} requested · ` : ''}range {money(range.min)} – {money(range.max)}</dd>}</div>
                 {a.plan && <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">Application charge</dt><dd className="font-num text-lg font-semibold" data-testid="text-admin-app-fee">{money(fee)}</dd><dd className="text-xs text-slate-500">{fee > 0 ? (a.feeCharged ? 'Charged on approval' : a.status === 'Declined' || a.status === 'Withdrawn' ? 'Not charged' : 'Charged on approval') : 'No fee'}</dd></div>}
                 <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">Submitted</dt><dd className="font-semibold">{dateFmt(a.submittedAt)}</dd></div>
                 <div className="rounded-xl bg-[#F4F5F8] p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">Last change</dt><dd className="font-semibold">{dateFmt(a.updatedAt)}</dd></div>
@@ -580,7 +596,21 @@ export function AdminApplicationPage() {
           </aside>
           {open && (
             <ReasonModal open onClose={() => setOpen(null)} testid="dialog-decision" title={decisionCopy[open].title} confirmLabel={decisionCopy[open].confirm}
-              intro={<p>{open === 'Approved' ? approveText : decisionCopy[open].intro}</p>}
+              intro={<>
+                {open === 'Approved' && range && (
+                  <div className="mb-3">
+                    <label htmlFor="approve-amount" className="mb-1 block text-sm font-semibold text-slate-800">Amount to approve</label>
+                    <div className="relative max-w-[12rem]">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">$</span>
+                      <input id="approve-amount" type="text" inputMode="decimal" autoComplete="off" value={approveInput} data-testid="input-approve-amount" aria-invalid={!!approveProblem}
+                        onChange={(e) => { setApproveAmount(e.target.value); setError(''); }} className={cx(ainput, 'font-num min-h-11 pl-6')} />
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">{money(asked)} was requested. You can approve less, down to the grant's minimum of {money(range.min)}.</p>
+                    {approveProblem && <p className="mt-1 text-sm text-[#991B1B]" data-testid="text-approve-amount-error">{approveProblem}</p>}
+                  </div>
+                )}
+                <p>{open === 'Approved' ? approveText : decisionCopy[open].intro}</p>
+              </>}
               label={open === 'Changes requested' ? 'What needs to change (shared with the applicant)' : open === 'Declined' ? 'Reason (shared with the applicant)' : 'Note for the history (shared with the applicant)'}
               optional={!decisionCopy[open].needsNote} maxLength={1000} pending={decide.isPending} error={error} onSubmit={(note) => run(open, note || undefined)} />
           )}

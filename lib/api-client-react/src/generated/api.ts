@@ -4276,6 +4276,9 @@ export const getCreateApplicantApplicationUrl = () => {
 export const createApplicantApplication = async (planApplicationForm: PlanApplicationForm, options?: Parameters<typeof customFetch>[1]): Promise<ApplicationDetail> => {
     const formData = new FormData();
 formData.append(`planId`, planApplicationForm.planId);
+if(planApplicationForm.amount !== undefined) {
+ formData.append(`amount`, planApplicationForm.amount);
+ }
 formData.append(`answers`, planApplicationForm.answers);
 if(planApplicationForm.fileFields !== undefined) {
  formData.append(`fileFields`, planApplicationForm.fileFields);
@@ -4512,6 +4515,9 @@ export const resubmitApplicantApplication = async (applicationId: string,
     const formData = new FormData();
 if(planApplicationResubmitForm.note !== undefined) {
  formData.append(`note`, planApplicationResubmitForm.note);
+ }
+if(planApplicationResubmitForm.amount !== undefined) {
+ formData.append(`amount`, planApplicationResubmitForm.amount);
  }
 formData.append(`answers`, planApplicationResubmitForm.answers);
 if(planApplicationResubmitForm.fileFields !== undefined) {

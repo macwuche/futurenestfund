@@ -11,4 +11,6 @@ export interface ApplicationDecisionInput {
   status: ApplicationDecisionInputStatus;
   /** @maxLength 1000 */
   note?: string;
+  /** Approved only, range plans: the amount approved in USD, from the plan's minimum up to what was requested (default: what was requested) */
+  amount?: number;
 }

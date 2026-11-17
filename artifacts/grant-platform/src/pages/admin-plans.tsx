@@ -10,8 +10,8 @@ import { Shell } from '@/components/shell';
 import { Empty, ErrorState, Field, Modal, Skel, checkFile, cx, money } from '@/components/bits';
 import { card, ainput, lime, dark, danger, ghost, SectionTitle } from '@/components/admin-bits';
 import { FieldBuilder, PLAN_FIELD_TYPES, checkDraftFields, fieldsOut, toDraftFields, type DraftField } from '@/components/field-builder';
-import { PlanFieldInputs, PlanLogo, feeLine, initialsOf, type PlanFiles, type PlanValues } from '@/components/grant-plan';
-import { FeeInput, feeDraft, feeFromDraft, type FeeDraft } from '@/components/fee-input';
+import { PlanFieldInputs, PlanLogo, awardLine, feeLine, initialsOf, planFeeLine, type PlanFiles, type PlanValues } from '@/components/grant-plan';
+import { FeeInput, feeDraft, feeFromDraft, feeOn, type FeeDraft } from '@/components/fee-input';
 import { apiError } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
@@ -64,7 +64,7 @@ function PlanRow({ p, onEdit, onDelete }: { p: GrantPlan; onEdit: () => void; on
   const update = useUpdateAdminGrantPlan();
   const refresh = useRefreshPlans();
   const { toast } = useToast();
-  const meta = [p.industry, `${money(p.amount)} award`, feeLine(p.feeAmount), `${p.fields.length} field${p.fields.length === 1 ? '' : 's'}`].join(' · ');
+  const meta = [p.industry, `${awardLine(p)} award`, planFeeLine(p), `${p.fields.length} field${p.fields.length === 1 ? '' : 's'}`].join(' · ');
   return (
     <li className={cx('rounded-xl border p-4', p.enabled ? 'border-[#E2E8F0]' : 'border-dashed border-slate-300 bg-slate-50')} data-testid={`row-plan-${p.id}`}>
       <div className="flex flex-wrap items-center gap-3">
@@ -119,11 +119,12 @@ function DeletePlan({ plan, onClose }: { plan: GrantPlan | null; onClose: () => 
 /* ---------- the create / edit form ---------- */
 
 type Draft = {
-  name: string; description: string; industryId: string; amount: string; fee: FeeDraft; fields: DraftField[]; enabled: boolean;
+  name: string; description: string; industryId: string; amountMode: 'fixed' | 'range'; amount: string; maxAmount: string; fee: FeeDraft; fields: DraftField[]; enabled: boolean;
   logoTab: 'upload' | 'url'; logoFile: File | null; logoUrlInput: string; removeLogo: boolean;
 };
 const toDraft = (p: GrantPlan | undefined): Draft => ({
-  name: p?.name ?? '', description: p?.description ?? '', industryId: p?.industryId ?? '', amount: p ? String(p.amount) : '',
+  name: p?.name ?? '', description: p?.description ?? '', industryId: p?.industryId ?? '', amountMode: p?.amountMode === 'range' ? 'range' : 'fixed',
+  amount: p ? String(p.amount) : '', maxAmount: p?.maxAmount != null ? String(p.maxAmount) : '',
   fee: feeDraft(p?.fee), fields: toDraftFields(p?.fields), enabled: p?.enabled ?? true,
   logoTab: 'upload', logoFile: null, logoUrlInput: '', removeLogo: false,
 });
@@ -131,20 +132,32 @@ const parseAmount = (s: string) => { const t = s.trim().replace(/[$,\s]/g, ''); 
 const validAward = (n: number | null) => n !== null && Number.isFinite(n) && n >= 1 && n <= 10_000_000 && Math.abs(n * 100 - Math.round(n * 100)) < 1e-6;
 const planFields = (fields: DraftField[]) => fieldsOut(fields) as PlanField[];
 
+/** The charge on the award (fixed) or on the minimum (range), as the server works it out. */
 function previewFee(d: Draft) {
   const f = feeFromDraft(d.fee, 'The application charge');
   const award = parseAmount(d.amount);
   if (typeof f === 'string' || !(f.amount > 0)) return 0;
   if (f.mode === 'fixed') return f.amount;
-  return validAward(award) ? Math.round(award! * f.amount) / 100 : 0;
+  return validAward(award) ? feeOn(f, award!) : 0;
+}
+
+/** The preview's charge line: a range plan's percentage stays a percentage (it depends on the amount asked for). */
+function previewFeeLine(d: Draft) {
+  const f = feeFromDraft(d.fee, 'The application charge');
+  if (d.amountMode === 'range' && typeof f !== 'string' && f.mode === 'percent') return f.amount > 0 ? `${f.amount}% application charge, of the amount approved` : 'No application charge';
+  const fee = previewFee(d);
+  return `${feeLine(fee)}${fee > 0 ? ', charged on approval' : ''}`;
 }
 
 function checkDraft(d: Draft): string {
   if (d.name.trim().length < 2) return 'Give the plan a name (at least 2 characters).';
-  if (!validAward(parseAmount(d.amount))) return 'The award amount must be between $1 and $10,000,000, with at most two decimals.';
+  const range = d.amountMode === 'range';
+  if (!validAward(parseAmount(d.amount))) return range ? 'The minimum must be between $1 and $10,000,000, with at most two decimals.' : 'The award amount must be between $1 and $10,000,000, with at most two decimals.';
+  if (range && !validAward(parseAmount(d.maxAmount))) return 'The maximum must be between $1 and $10,000,000, with at most two decimals.';
+  if (range && parseAmount(d.maxAmount)! <= parseAmount(d.amount)!) return 'The maximum must be more than the minimum.';
   const fee = feeFromDraft(d.fee, 'The application charge');
   if (typeof fee === 'string') return fee;
-  if (previewFee(d) > parseAmount(d.amount)!) return "The application charge can't be more than the award.";
+  if (previewFee(d) > parseAmount(d.amount)!) return range ? "The application charge can't be more than the minimum." : "The application charge can't be more than the award.";
   const fieldProblem = checkDraftFields(d.fields);
   if (fieldProblem) return fieldProblem;
   if (d.fields.filter((f) => f.type === 'file').length > 10) return "A plan's form can ask for at most 10 files.";
@@ -184,7 +197,8 @@ function PlanEditor({ plan, onClose }: { plan?: GrantPlan; onClose: () => void }
     if (problem) return setError(problem);
     setError(''); setBusy(true);
     const data: GrantPlanUpdate = {
-      name: d.name.trim(), description: d.description, industryId: d.industryId || null, amount: award!,
+      name: d.name.trim(), description: d.description, industryId: d.industryId || null, amountMode: d.amountMode, amount: award!,
+      ...(d.amountMode === 'range' ? { maxAmount: parseAmount(d.maxAmount)! } : {}),
       fee: feeFromDraft(d.fee, 'The application charge') as { mode: 'fixed' | 'percent'; amount: number },
       fields: planFields(d.fields), enabled: d.enabled,
     };
@@ -256,15 +270,39 @@ function PlanEditor({ plan, onClose }: { plan?: GrantPlan; onClose: () => void }
                 {industries.data?.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
               </select>
             </Field>
-            <Field label="Award amount ($)">
-              <input value={d.amount} onChange={(e) => set({ amount: e.target.value })} inputMode="decimal" placeholder="e.g. 5000" className={cx(ainput, 'font-num min-h-11')} data-testid="input-plan-amount" />
-            </Field>
           </div>
+          <fieldset>
+            <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Award</legend>
+            <div className="mb-2 flex w-fit rounded-lg border border-slate-300 p-0.5" role="radiogroup" aria-label="Award type">
+              {([['fixed', 'Fixed amount'], ['range', 'Range']] as const).map(([m, label]) => (
+                <button key={m} type="button" role="radio" aria-checked={d.amountMode === m} data-testid={`button-plan-award-${m}`} onClick={() => set({ amountMode: m })}
+                  className={cx('press min-h-11 rounded-md px-3 text-sm font-semibold', d.amountMode === m ? 'bg-[#111] text-white' : 'text-slate-700 hover:bg-slate-100')}>{label}</button>
+              ))}
+            </div>
+            <p className="mb-2 text-xs text-slate-500" data-testid="text-plan-award-help">
+              {d.amountMode === 'fixed' ? 'Every approved applicant receives this amount.'
+                : 'Applicants type the amount they want, between the minimum and the maximum. When approving you can give the amount asked for, or less (not below the minimum).'}
+            </p>
+            {d.amountMode === 'fixed' ? (
+              <div className="max-w-xs"><Field label="Award amount ($)">
+                <input value={d.amount} onChange={(e) => set({ amount: e.target.value })} inputMode="decimal" placeholder="e.g. 5000" className={cx(ainput, 'font-num min-h-11')} data-testid="input-plan-amount" />
+              </Field></div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Minimum ($)">
+                  <input value={d.amount} onChange={(e) => set({ amount: e.target.value })} inputMode="decimal" placeholder="e.g. 1000" className={cx(ainput, 'font-num min-h-11')} data-testid="input-plan-amount" />
+                </Field>
+                <Field label="Maximum ($)">
+                  <input value={d.maxAmount} onChange={(e) => set({ maxAmount: e.target.value })} inputMode="decimal" placeholder="e.g. 10000" className={cx(ainput, 'font-num min-h-11')} data-testid="input-plan-max-amount" />
+                </Field>
+              </div>
+            )}
+          </fieldset>
           <fieldset>
             <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Application charge</legend>
             <p className="mb-2 text-xs text-slate-500" data-testid="text-plan-fee-help">
               Charged from the applicant's account balance only when you approve, even if that takes it below $0. Nothing is charged on submit, decline or withdrawal.
-              A fixed amount or a percentage of the award; empty = no fee.
+              A fixed amount or a percentage of the award{d.amountMode === 'range' ? " (worked out on the amount approved; a fixed charge can't be more than the minimum)" : ''}; empty = no fee.
             </p>
             <div className="max-w-xs"><FeeInput value={d.fee} onChange={(fee) => set({ fee })} label="Application charge" testid="input-plan-fee" /></div>
           </fieldset>
@@ -293,8 +331,11 @@ function PlanEditor({ plan, onClose }: { plan?: GrantPlan; onClose: () => void }
                 <PlanLogo url={shownLogo} name={d.name || 'Grant plan'} initials={initialsOf(d.name || 'Grant plan')} />
                 <div className="min-w-0"><p className="truncate font-semibold">{d.name.trim() || 'Plan name'}</p><p className="text-xs text-slate-500">{industryName}</p></div>
               </div>
-              <p className="font-num text-lg font-bold">{validAward(award) ? money(award!) : '$0.00'}</p>
-              <p className="text-xs text-slate-500">{feeLine(previewFee(d))}{previewFee(d) > 0 ? ', charged on approval' : ''}</p>
+              <p className="font-num text-lg font-bold" data-testid="text-plan-preview-award">{d.amountMode === 'range'
+                ? (validAward(award) && validAward(parseAmount(d.maxAmount)) ? awardLine({ amountMode: 'range', amount: award!, maxAmount: parseAmount(d.maxAmount) }) : '$0.00 – $0.00')
+                : validAward(award) ? money(award!) : '$0.00'}</p>
+              <p className="text-xs text-slate-500">{previewFeeLine(d)}</p>
+              {d.amountMode === 'range' && <p className="text-xs text-slate-500">Applicants enter the amount they're requesting first.</p>}
               {d.description.trim() && <p className="line-clamp-4 whitespace-pre-line text-sm text-slate-600">{d.description}</p>}
               <PlanFieldInputs fields={planFields(d.fields).map((f, i) => ({ ...f, id: d.fields[i]!.key }))} values={previewValues} files={previewFiles}
                 onChange={setPreviewValues} onFile={(k, f) => setPreviewFiles((x) => ({ ...x, [k]: f }))} inputClass={ainput} idPrefix="preview" />

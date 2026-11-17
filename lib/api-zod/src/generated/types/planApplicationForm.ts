@@ -8,6 +8,8 @@
 
 export interface PlanApplicationForm {
   planId: string;
+  /** Range plans: the amount requested in USD, e.g. "4000" or "4000.50" (ignored for fixed plans) */
+  amount?: string;
   /** JSON object of answers by field id (file fields are sent in files) */
   answers: string;
   /** JSON array: the field id each file in files is for, in the same order */

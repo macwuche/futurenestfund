@@ -4,6 +4,7 @@
  */
 import type { demoApplicationsTable } from "@workspace/db";
 import type { FeeRule } from "./fees";
+import { isRange, type AmountMode } from "./grantPlanRules";
 import type { MethodField } from "./paymentRules";
 import { fileUrl, type StoredFile } from "./uploads";
 
@@ -12,6 +13,8 @@ type AppRow = typeof demoApplicationsTable.$inferSelect;
 /** What an application keeps of its plan. */
 export type PlanSnapshot = {
   planId: string; name: string; description: string; industry: string; amountCents: number; fee: FeeRule; initials: string; fields: MethodField[];
+  /** Since award ranges: "range" with `amountCents` as the minimum. Copies made before have neither (fixed). */
+  amountMode?: AmountMode; maxAmountCents?: number | null;
 };
 
 export const snapshotOf = (a: Pick<AppRow, "planSnapshot">) => (a.planSnapshot as PlanSnapshot | null) ?? null;
@@ -35,6 +38,9 @@ export function planParts(a: AppRow, files: StoredFile[], scope: "admin" | "appl
     plan: { id: snap.planId, name: snap.name, industry: snap.industry, initials: snap.initials, ...(logo ? { logoUrl: logo } : {}) },
     fee: a.feeCents / 100,
     feeCharged: a.status === "Approved",
+    // What the applicant asked for (the award can be lower once approved), and the range they could choose from.
+    requestedAmount: (a.requestedCents ?? a.amountCents) / 100,
+    ...(isRange(snap) ? { amountRange: { min: snap.amountCents / 100, max: snap.maxAmountCents! / 100 }, feeRule: { mode: snap.fee.mode, amount: snap.fee.value / 100 } } : {}),
     answers: snap.fields.map(f => {
       const v = answers[f.id];
       // The field's settings come along, so the applicant can edit the answers after "Changes requested".

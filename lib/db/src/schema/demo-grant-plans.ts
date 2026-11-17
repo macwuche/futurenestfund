@@ -20,7 +20,10 @@ export const demoGrantPlansTable = pgTable("demo_grant_plans", {
   description: text("description").notNull().default(""),
   /** null = all industries. */
   industryId: uuid("industry_id"),
+  /** fixed: amount_cents is the award. range: the applicant chooses between amount_cents (minimum) and max_amount_cents. */
+  amountMode: text("amount_mode").notNull().default("fixed"),
   amountCents: integer("amount_cents").notNull(),
+  maxAmountCents: integer("max_amount_cents"),
   /** The application fee, charged on approval. fixed: fee_value in cents; percent: hundredths of a percent of the award (1% = 100). */
   feeMode: text("fee_mode").notNull().default("fixed"),
   feeValue: integer("fee_value").notNull().default(0),

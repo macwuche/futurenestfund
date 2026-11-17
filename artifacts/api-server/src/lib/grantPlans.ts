@@ -10,10 +10,10 @@ import { findFile, removeFile, storeUpload, UploadError } from "./uploads";
 import { describeFee, feeCents, feeOut, storedFee, type FeeRule } from "./fees";
 
 /** "application charge $2.00" / "no application charge", for the audit log. */
-const chargeText = (fee: FeeRule, baseCents: number) =>
+const chargeText = (fee: FeeRule, baseCents?: number) =>
   describeFee(fee, baseCents) === "No fee" ? "no application charge" : describeFee(fee, baseCents).replace(/^Fee /, "application charge ");
 import { usd, type MethodField } from "./paymentRules";
-import { parsePlan, planInitials, type PlanInput } from "./grantPlanRules";
+import { awardText, isRange, parsePlan, planInitials, type AmountMode, type AwardRule, type PlanInput } from "./grantPlanRules";
 import { findIndustry, industryNames } from "./industries";
 
 /** Logos belong to the platform, not to a user. */
@@ -23,6 +23,8 @@ export const ALL_INDUSTRIES = "All industries";
 const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 export const planFee = (p: Pick<DemoGrantPlan, "feeMode" | "feeValue">): FeeRule => storedFee(p.feeMode, p.feeValue);
 export const planFields = (p: Pick<DemoGrantPlan, "fields">) => (p.fields as MethodField[]) ?? [];
+export const planAward = (p: Pick<DemoGrantPlan, "amountMode" | "amountCents" | "maxAmountCents">): AwardRule =>
+  ({ amountMode: p.amountMode === "range" ? "range" : "fixed", amountCents: p.amountCents, maxAmountCents: p.maxAmountCents });
 
 export const planLogoUrl = (p: { id: string; logoFileId: string | null }, scope: "admin" | "applicant") =>
   !p.logoFileId ? undefined : scope === "admin" ? `/api/admin/files/${p.logoFileId}` : `/api/applicant/grant-plans/${p.id}/logo?v=${p.logoFileId.slice(0, 8)}`;
@@ -31,11 +33,14 @@ type Extras = { industryName?: string | null; applicationCount?: number; recomme
 
 function planOut(p: DemoGrantPlan, scope: "admin" | "applicant", x: Extras = {}) {
   const fee = planFee(p);
+  const rangePlan = isRange(planAward(p));
   const logoUrl = planLogoUrl(p, scope);
   return {
     id: p.id, name: p.name, description: p.description, industryId: p.industryId ?? null,
     industry: p.industryId ? x.industryName ?? "Unknown industry" : ALL_INDUSTRIES,
-    amount: p.amountCents / 100, fee: feeOut(fee), feeAmount: feeCents(fee, p.amountCents) / 100, feeText: describeFee(fee, p.amountCents),
+    // A range plan's charge depends on what the applicant asks for: feeAmount is the charge on the minimum.
+    amountMode: rangePlan ? "range" as const : "fixed" as const, amount: p.amountCents / 100, maxAmount: rangePlan ? p.maxAmountCents! / 100 : null,
+    fee: feeOut(fee), feeAmount: feeCents(fee, p.amountCents) / 100, feeText: rangePlan ? describeFee(fee) : describeFee(fee, p.amountCents),
     ...(logoUrl ? { logoUrl } : {}), initials: planInitials(p.name), fields: planFields(p),
     ...(scope === "admin"
       ? { enabled: p.enabled, applicationCount: x.applicationCount ?? 0, createdBy: p.createdBy, createdAt: p.createdAt.toISOString(), updatedAt: p.updatedAt.toISOString() }
@@ -115,17 +120,19 @@ export async function createPlan(input: PlanInput, actor: string) {
   if (n >= MAX_PLANS) throw new DemoInputError(`You can have at most ${MAX_PLANS} grant plans. Delete or reuse one.`);
   const p = await db.transaction(async tx => {
     const [row] = await tx.insert(demoGrantPlansTable).values({
-      name: parsed.name, description: parsed.description, industryId: parsed.industryId, amountCents: parsed.amountCents,
+      name: parsed.name, description: parsed.description, industryId: parsed.industryId,
+      amountMode: parsed.amountMode, amountCents: parsed.amountCents, maxAmountCents: parsed.maxAmountCents,
       feeMode: parsed.fee.mode, feeValue: parsed.fee.value, fields: parsed.fields, enabled: parsed.enabled, createdBy: actor,
     }).returning();
-    await audit(actor, `Grant plan "${parsed.name}" created (${usd(parsed.amountCents)}, ${chargeText(parsed.fee, parsed.amountCents)}, ${fieldCount(parsed.fields.length)}${parsed.enabled ? "" : ", off"})`, tx);
+    await audit(actor, `Grant plan "${parsed.name}" created (${awardText(parsed, usd)}, ${chargeText(parsed.fee, parsed.amountMode === "range" ? undefined : parsed.amountCents)}, ${fieldCount(parsed.fields.length)}${parsed.enabled ? "" : ", off"})`, tx);
     return row!;
   });
   return adminPlan(p.id);
 }
 
 const asInput = (p: DemoGrantPlan): PlanInput => ({
-  name: p.name, description: p.description, industryId: p.industryId, amount: p.amountCents / 100, fee: feeOut(planFee(p)), fields: planFields(p), enabled: p.enabled,
+  name: p.name, description: p.description, industryId: p.industryId, amountMode: planAward(p).amountMode, amount: p.amountCents / 100,
+  maxAmount: p.maxAmountCents === null ? undefined : p.maxAmountCents / 100, fee: feeOut(planFee(p)), fields: planFields(p), enabled: p.enabled,
 });
 
 /** Change a plan; only the parts sent change. Applications already submitted keep their own copy of the plan. */
@@ -142,15 +149,19 @@ export async function updatePlan(id: string, input: PlanInput, actor: string) {
     const name = parsed.industryId ? (await findIndustry(parsed.industryId))?.name : ALL_INDUSTRIES;
     changes.push(`industry ${name}`);
   }
-  if (parsed.amountCents !== current.amountCents) changes.push(`award ${usd(parsed.amountCents)}`);
+  const award = planAward(current);
+  if (parsed.amountMode !== award.amountMode || parsed.amountCents !== current.amountCents || parsed.maxAmountCents !== (isRange(award) ? current.maxAmountCents : null)) {
+    changes.push(`award ${awardText(parsed, usd)}`);
+  }
   const before = planFee(current);
-  if (parsed.fee.mode !== before.mode || parsed.fee.value !== before.value) changes.push(`${chargeText(parsed.fee, parsed.amountCents)}`);
+  if (parsed.fee.mode !== before.mode || parsed.fee.value !== before.value) changes.push(`${chargeText(parsed.fee, parsed.amountMode === "range" ? undefined : parsed.amountCents)}`);
   if (JSON.stringify(parsed.fields) !== JSON.stringify(planFields(current))) changes.push(`form (${fieldCount(parsed.fields.length)})`);
   if (parsed.enabled !== current.enabled) changes.push(parsed.enabled ? "switched on" : "switched off");
   if (!changes.length) return adminPlan(id);
   await db.transaction(async tx => {
     await tx.update(demoGrantPlansTable).set({
-      name: parsed.name, description: parsed.description, industryId: parsed.industryId, amountCents: parsed.amountCents,
+      name: parsed.name, description: parsed.description, industryId: parsed.industryId,
+      amountMode: parsed.amountMode, amountCents: parsed.amountCents, maxAmountCents: parsed.maxAmountCents,
       feeMode: parsed.fee.mode, feeValue: parsed.fee.value, fields: parsed.fields, enabled: parsed.enabled, updatedAt: new Date(),
     }).where(eq(demoGrantPlansTable.id, id));
     await audit(actor, `Grant plan "${current.name}" changed: ${changes.join(", ")}`, tx);

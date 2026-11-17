@@ -8,9 +8,11 @@
 import type { AdminApplication } from './adminApplication';
 import type { AdminApplicationDetailAllowedDecisionsItem } from './adminApplicationDetailAllowedDecisionsItem';
 import type { AdminApplicationDetailUserStatus } from './adminApplicationDetailUserStatus';
+import type { AmountRange } from './amountRange';
 import type { ApplicationAnswer } from './applicationAnswer';
 import type { ApplicationEvent } from './applicationEvent';
 import type { ApplicationPlan } from './applicationPlan';
+import type { FeeRule } from './feeRule';
 import type { StoredDocument } from './storedDocument';
 
 export type AdminApplicationDetail = AdminApplication & {
@@ -24,6 +26,10 @@ export type AdminApplicationDetail = AdminApplication & {
   fee?: number;
   /** Whether the fee has been charged (the application was approved) */
   feeCharged?: boolean;
+  /** Plan applications: the amount the applicant asked for (amount is the award, lower if an admin approved less) */
+  requestedAmount?: number;
+  amountRange?: AmountRange;
+  feeRule?: FeeRule;
   answers?: ApplicationAnswer[];
   allowedDecisions: AdminApplicationDetailAllowedDecisionsItem[];
   documents: StoredDocument[];

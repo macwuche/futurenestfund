@@ -7,7 +7,8 @@ import {
 import { ArrowLeft, ChevronRight, Search, Sparkles } from 'lucide-react';
 import { Shell } from '@/components/shell';
 import { Empty, ErrorState, PageSkeleton, StatusBadge, cx, inputCls, money } from '@/components/bits';
-import { PlanFieldInputs, PlanLogo, checkPlanValues, feeLine, type PlanFiles, type PlanValues } from '@/components/grant-plan';
+import { PlanFieldInputs, PlanLogo, awardLine, checkPlanValues, checkRangeAmount, isRangePlan, planFeeLine, typedAmount, type PlanFiles, type PlanValues } from '@/components/grant-plan';
+import { feeOn } from '@/components/fee-input';
 import { apiError, useApplicantDashboard, useRefreshApplicant } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
 
@@ -103,8 +104,8 @@ function PlanGrid({ plans }: { plans: GrantPlan[] }) {
             </div>
             {p.description && <p className="mt-3 line-clamp-2 text-sm text-slate-600">{p.description}</p>}
             <div className="mt-auto flex flex-wrap items-end justify-between gap-2 pt-4">
-              <span><span className="block text-xs text-slate-500">You receive</span><span className="text-xl font-bold tabular-nums text-[var(--brand-ink)]" data-testid={`text-plan-amount-${p.id}`}>{money(p.amount)}</span></span>
-              <span className="text-xs text-slate-500" data-testid={`text-plan-fee-${p.id}`}>{feeLine(p.feeAmount)}</span>
+              <span><span className="block text-xs text-slate-500">{isRangePlan(p) ? 'Choose your amount' : 'You receive'}</span><span className={cx('font-bold tabular-nums text-[var(--brand-ink)]', isRangePlan(p) ? 'text-base' : 'text-xl')} data-testid={`text-plan-amount-${p.id}`}>{awardLine(p)}</span></span>
+              <span className="text-xs text-slate-500" data-testid={`text-plan-fee-${p.id}`}>{planFeeLine(p)}</span>
             </div>
           </Link>
         </li>
@@ -136,24 +137,31 @@ function ApplyFlow({ p }: { p: GrantPlan }) {
   const [files, setFiles] = useState<PlanFiles>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
+  // Range plans: the applicant types the amount they're requesting; the charge (if a %) follows it.
+  const range = isRangePlan(p);
+  const [amountText, setAmountText] = useState('');
+  const [amountError, setAmountError] = useState('');
+  const requested = range ? typedAmount(amountText) ?? 0 : p.amount;
+  const charge = range ? feeOn(p.fee, requested) : p.feeAmount;
   const m = useCreateApplicantApplication();
   const refresh = useRefreshApplicant();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const toSummary = () => {
     const e = checkPlanValues(p.fields, values, files);
-    setErrors(e);
-    if (Object.keys(e).length) { setError('Check the highlighted fields.'); return; }
+    const amountProblem = range ? checkRangeAmount(amountText, p.amount, p.maxAmount!) : '';
+    setErrors(e); setAmountError(amountProblem);
+    if (Object.keys(e).length || amountProblem) { setError(amountProblem && !Object.keys(e).length ? amountProblem : 'Check the highlighted fields.'); return; }
     setError(''); setStep('summary'); window.scrollTo({ top: 0 });
   };
   const submit = () => {
     setError('');
     const fileFields = p.fields.filter((f) => f.type === 'file' && f.id && files[f.id]).map((f) => f.id!);
     const answers = Object.fromEntries(p.fields.filter((f) => f.type !== 'file' && f.id && values[f.id]?.trim()).map((f) => [f.id!, values[f.id!]!.trim()]));
-    m.mutate({ data: { planId: p.id, answers: JSON.stringify(answers), fileFields: JSON.stringify(fileFields), files: fileFields.map((id) => files[id]!) } }, {
+    m.mutate({ data: { planId: p.id, ...(range ? { amount: requested.toFixed(2) } : {}), answers: JSON.stringify(answers), fileFields: JSON.stringify(fileFields), files: fileFields.map((id) => files[id]!) } }, {
       onSuccess: (a) => {
         refresh();
-        toast({ title: 'Application submitted', description: p.feeAmount > 0 ? `Nothing is charged now. The ${money(p.feeAmount)} application charge is taken only if it's approved.` : "We'll let you know when it's reviewed." });
+        toast({ title: 'Application submitted', description: charge > 0 ? `Nothing is charged now. The ${money(charge)} application charge is taken only if it's approved.` : "We'll let you know when it's reviewed." });
         navigate(`/applications/${a.id}`);
       },
       onError: (e) => setError(apiError(e, "Your application couldn't be submitted. Try again.")),
@@ -166,14 +174,35 @@ function ApplyFlow({ p }: { p: GrantPlan }) {
         <section className={cx(card, 'p-5')} data-testid="section-plan-details">
           {p.description ? <p className="whitespace-pre-line text-[15px] leading-relaxed text-slate-700" data-testid="text-plan-description">{p.description}</p>
             : <p className="text-sm text-slate-500">No description.</p>}
-          <FeeNote fee={p.feeAmount} />
+          {range && (
+            <p className="mt-4 rounded-xl bg-[var(--brand-soft)] px-4 py-3 text-sm text-slate-700" data-testid="text-plan-range">
+              You choose how much to ask for: anything from <span className="font-semibold tabular-nums">{money(p.amount)}</span> to <span className="font-semibold tabular-nums">{money(p.maxAmount!)}</span>.
+              {p.fee.mode === 'percent' && p.fee.amount > 0 && ` The application charge is ${p.fee.amount}% of the amount approved.`}
+            </p>
+          )}
+          <FeeNote charge={range && p.fee.mode === 'percent' ? (p.fee.amount > 0 ? `${p.fee.amount}%` : '') : p.feeAmount > 0 ? money(p.feeAmount) : ''} />
           <button type="button" className={cx(primary, 'mt-5 w-full sm:w-auto')} onClick={() => setStep('form')} data-testid="button-start-application">Apply for this grant</button>
         </section>
       )}
       {step === 'form' && (
         <form className={cx(card, 'p-5')} noValidate onSubmit={(e) => { e.preventDefault(); toSummary(); }} data-testid="form-plan-application">
           <h2 className="mb-4 text-lg font-semibold text-slate-900">Your application</h2>
-          {p.fields.length === 0 ? <p className="text-sm text-slate-600">This grant has no questions. Continue to review and submit.</p>
+          {range && (
+            <div className="mb-5">
+              <label htmlFor="apply-amount" className="mb-1 block text-sm font-semibold text-slate-800">Amount you're requesting <span className="text-[#991B1B]" aria-hidden>*</span></label>
+              <div className="relative max-w-xs">
+                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-500">$</span>
+                <input id="apply-amount" type="text" inputMode="decimal" autoComplete="off" value={amountText} placeholder={String(p.amount)} data-testid="input-apply-amount"
+                  aria-invalid={!!amountError} aria-describedby="apply-amount-help"
+                  onChange={(e) => { setAmountText(e.target.value); setAmountError(''); setError(''); }}
+                  onBlur={() => amountText.trim() && setAmountError(checkRangeAmount(amountText, p.amount, p.maxAmount!))}
+                  className={cx(inputCls, 'min-h-11 pl-7 tabular-nums', amountError && 'border-[#DC2626]')} />
+              </div>
+              <p id="apply-amount-help" className="mt-1 text-xs text-slate-500">From {money(p.amount)} to {money(p.maxAmount!)}.{charge > 0 && requested > 0 && !amountError ? ` Application charge on this amount: ${money(charge)}, only if approved.` : ''}</p>
+              {amountError && <p className="mt-1 text-sm text-[#991B1B]" data-testid="text-apply-amount-error">{amountError}</p>}
+            </div>
+          )}
+          {p.fields.length === 0 ? <p className="text-sm text-slate-600">{range ? 'This grant has no other questions.' : 'This grant has no questions.'} Continue to review and submit.</p>
             : <PlanFieldInputs fields={p.fields} values={values} files={files} errors={errors} inputClass={inputCls} idPrefix="apply"
                 onChange={setValues} onFile={(k, f) => { setFiles((x) => ({ ...x, [k]: f })); setErrors((x) => { const { [k]: _gone, ...rest } = x; return rest; }); }} />}
           {error && <p role="alert" className="mt-4 rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-apply-error">{error}</p>}
@@ -187,10 +216,11 @@ function ApplyFlow({ p }: { p: GrantPlan }) {
         <section className={cx(card, 'p-5')} data-testid="section-application-summary">
           <h2 className="text-lg font-semibold text-slate-900">Check and submit</h2>
           <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl bg-[var(--brand-soft)] p-4"><dt className="text-sm text-slate-600">You'll receive if approved</dt><dd className="mt-1 text-2xl font-bold tabular-nums text-[var(--brand-ink)]" data-testid="text-summary-amount">{money(p.amount)}</dd><dd className="text-xs text-slate-500">Added to your grant balance</dd></div>
-            <div className="rounded-xl bg-slate-50 p-4"><dt className="text-sm text-slate-600">Application charge</dt><dd className="mt-1 text-2xl font-bold tabular-nums text-slate-900" data-testid="text-summary-fee">{money(p.feeAmount)}</dd><dd className="text-xs text-slate-500">{p.feeAmount > 0 ? 'Charged from your account balance only if approved' : 'No fee for this grant'}</dd></div>
+            <div className="rounded-xl bg-[var(--brand-soft)] p-4"><dt className="text-sm text-slate-600">You'll receive if approved</dt><dd className="mt-1 text-2xl font-bold tabular-nums text-[var(--brand-ink)]" data-testid="text-summary-amount">{money(requested)}</dd><dd className="text-xs text-slate-500">{range ? 'The amount you requested, added to your grant balance' : 'Added to your grant balance'}</dd></div>
+            <div className="rounded-xl bg-slate-50 p-4"><dt className="text-sm text-slate-600">Application charge</dt><dd className="mt-1 text-2xl font-bold tabular-nums text-slate-900" data-testid="text-summary-fee">{money(charge)}</dd><dd className="text-xs text-slate-500">{charge > 0 ? 'Charged from your account balance only if approved' : 'No fee for this grant'}</dd></div>
           </dl>
-          <FeeNote fee={p.feeAmount} />
+          {range && <p className="mt-3 text-xs text-slate-500" data-testid="text-summary-lower">An administrator may approve a lower amount (not below {money(p.amount)}){p.fee.mode === 'percent' && p.fee.amount > 0 ? '; the charge is then worked out on the amount approved' : ''}.</p>}
+          <FeeNote charge={charge > 0 ? money(charge) : ''} />
           {p.fields.length > 0 && (
             <dl className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200" data-testid="list-summary-answers">
               {p.fields.map((f, i) => {
@@ -225,18 +255,20 @@ function PlanHeader({ p }: { p: GrantPlan }) {
       </div>
       {/* Phones: the amount goes under the name, so the name keeps the width. */}
       <div className="w-full border-t border-slate-100 pt-3 sm:w-auto sm:border-0 sm:pt-0 sm:text-right">
-        <p className="text-2xl font-bold tabular-nums text-[var(--brand-ink)]" data-testid="text-plan-amount">{money(p.amount)}</p>
-        <p className="text-xs text-slate-500" data-testid="text-plan-fee">{feeLine(p.feeAmount)}</p>
+        {isRangePlan(p) && <p className="text-xs text-slate-500">Choose an amount</p>}
+        <p className={cx('font-bold tabular-nums text-[var(--brand-ink)]', isRangePlan(p) ? 'text-lg' : 'text-2xl')} data-testid="text-plan-amount">{awardLine(p)}</p>
+        <p className="text-xs text-slate-500" data-testid="text-plan-fee">{planFeeLine(p)}</p>
       </div>
     </section>
   );
 }
 
-function FeeNote({ fee }: { fee: number }) {
-  if (!(fee > 0)) return null;
+/** `charge` is "$2.00" or, for a range plan's percentage, "5%"; empty = no charge, no note. */
+function FeeNote({ charge }: { charge: string }) {
+  if (!charge) return null;
   return (
     <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" data-testid="text-fee-note">
-      Nothing is charged when you apply. If your application is approved, the {money(fee)} application charge is taken from your account balance,
+      Nothing is charged when you apply. If your application is approved, the {charge} application charge is taken from your account balance,
       even if that takes it below $0. Your next deposit then covers it first.
     </p>
   );

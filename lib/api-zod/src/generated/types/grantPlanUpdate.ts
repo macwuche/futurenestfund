@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { FeeRule } from './feeRule';
+import type { GrantPlanUpdateAmountMode } from './grantPlanUpdateAmountMode';
 import type { PlanField } from './planField';
 
 export interface GrantPlanUpdate {
@@ -13,7 +14,11 @@ export interface GrantPlanUpdate {
   description?: string;
   /** @nullable */
   industryId?: string | null;
+  amountMode?: GrantPlanUpdateAmountMode;
+  /** The award (fixed) or the minimum (range) */
   amount?: number;
+  /** Range only: the maximum */
+  maxAmount?: number;
   fee?: FeeRule;
   fields?: PlanField[];
   enabled?: boolean;

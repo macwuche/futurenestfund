@@ -9,7 +9,9 @@ import { KYC_KINDS } from "./kyc";
 import { fileUrl, type DbTx } from "./uploads";
 import { DemoInputError, getUser, methodLogos, requestDetails, type LogoMap } from "./demoWorkspace";
 import { sourceAllowed, SOURCE_LABEL, SOURCES_LABEL, type BalanceSource, type WithdrawalSources } from "./paymentRules";
-import { looseDocuments, planParts } from "./planAnswers";
+import { looseDocuments, planParts, snapshotOf } from "./planAnswers";
+import { isRange } from "./grantPlanRules";
+import { feeCents } from "./fees";
 import { describeLimits, effectiveLimits, parseLimits, withdrawnLast24h, type Limits } from "./withdrawalLimits";
 import { rulesOfSettings } from "./tiers";
 import { tierOf, withdrawalLimitsOf } from "./tierRules";
@@ -90,8 +92,9 @@ export async function adminApplicationDetail(id: string) {
  * (Phase 11) it also charges the application fee from the account balance in the same step: the one charge that may
  * take that balance below $0.
  */
-export async function decideApplication(id: string, decision: Decision, note: string | undefined, actor: string) {
+export async function decideApplication(id: string, decision: Decision, note: string | undefined, actor: string, approvedAmount?: number) {
   const text = (note ?? "").trim();
+  if (approvedAmount !== undefined && decision !== "Approved") throw new DemoInputError("An amount can only be given when approving.");
   if (decision === "Declined" && text.length < 5) throw new DemoInputError("Give the applicant a reason of at least 5 characters.");
   if (decision === "Changes requested" && text.length < 5) throw new DemoInputError("Describe the changes needed in at least 5 characters.");
   const found = await db.transaction(async tx => {
@@ -105,31 +108,51 @@ export async function decideApplication(id: string, decision: Decision, note: st
       throw new DemoInputError(`An application that is ${statusWords(a.status)} can't be moved to ${statusWords(decision)}.`);
     }
     let eventNote = text;
+    // Approving a range plan's application for less than was asked: the award and a percentage charge follow.
+    const asked = a.requestedCents ?? a.amountCents;
+    let award = a.amountCents;
+    let fee = a.feeCents;
+    if (decision === "Approved" && approvedAmount !== undefined) {
+      const snap = snapshotOf(a);
+      const cents = Math.round(approvedAmount * 100);
+      if (!snap || !isRange(snap)) {
+        if (cents !== a.amountCents) throw new DemoInputError("This grant has a fixed award, so it's approved for that amount.");
+      } else {
+        if (!Number.isFinite(approvedAmount) || Math.abs(approvedAmount * 100 - cents) > 1e-6) throw new DemoInputError("Use at most two decimals for the amount approved.");
+        if (cents > asked) throw new DemoInputError(`You can approve up to the ${usd(asked)} the applicant asked for.`);
+        if (cents < snap.amountCents) throw new DemoInputError(`The amount approved can't be below this grant's minimum of ${usd(snap.amountCents)}.`);
+        award = cents;
+        fee = feeCents(snap.fee, cents);
+      }
+    }
+    const lowered = award !== asked;
     if (decision === "Approved") {
       if (frozen) throw new DemoInputError("Approvals that release funds are paused by the global freeze.");
       if (profile.status === "Frozen") throw new DemoInputError("Unfreeze this account before approving funding.");
-      const next = profile.grantCents + a.amountCents;
+      const next = profile.grantCents + award;
       if (next > MAX_BALANCE_CENTS) throw new DemoInputError("This would exceed the demo account limit.");
-      const fee = a.feeCents;
       await tx.update(demoProfilesTable).set({ grantCents: next, ...(fee > 0 ? { depositCents: profile.depositCents - fee } : {}) }).where(eq(demoProfilesTable.id, profile.id));
       await tx.insert(demoLedgerTable).values({
-        profileId: profile.id, kind: "Grant award", account: "grant", amountCents: a.amountCents, reason: `Grant award · ${a.title}`, applicationId: a.id, actor,
+        profileId: profile.id, kind: "Grant award", account: "grant", amountCents: award, reason: `Grant award · ${a.title}`, applicationId: a.id, actor,
       });
       if (fee > 0) {
         await tx.insert(demoLedgerTable).values({
           profileId: profile.id, kind: "Application fee", account: "deposit", amountCents: -fee, reason: `Application charge · ${a.title}`, applicationId: a.id, actor,
         });
       }
-      eventNote = `Funding of ${usd(a.amountCents)} approved${fee > 0 ? `; application charge ${usd(fee)} taken from the account balance` : ""}${text ? `. ${text}` : ""}`;
+      eventNote = `Funding of ${usd(award)} approved${lowered ? ` (${usd(asked)} was requested)` : ""}${fee > 0 ? `; application charge ${usd(fee)} taken from the account balance` : ""}${text ? `. ${text}` : ""}`;
     } else if (decision === "Review") {
       eventNote = text || "Moved to review";
     }
-    await tx.update(demoApplicationsTable).set({ status: decision, updatedAt: new Date() }).where(eq(demoApplicationsTable.id, id));
+    await tx.update(demoApplicationsTable).set({
+      status: decision, updatedAt: new Date(),
+      ...(decision === "Approved" && lowered ? { amountCents: award, feeCents: fee } : {}),
+    }).where(eq(demoApplicationsTable.id, id));
     await tx.insert(demoApplicationEventsTable).values({ applicationId: id, status: decision, note: eventNote, actor });
-    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor, action: `Application ${id} ${decision === "Review" ? "moved to review" : statusWords(decision)}${decision === "Approved" && a.feeCents > 0 ? ` (application charge ${usd(a.feeCents)})` : ""}` });
+    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor, action: `Application ${id} ${decision === "Review" ? "moved to review" : statusWords(decision)}${decision === "Approved" && lowered ? ` for ${usd(award)} of ${usd(asked)} requested` : ""}${decision === "Approved" && fee > 0 ? ` (application charge ${usd(fee)})` : ""}` });
     const message = {
       Review: `"${a.title}" is now under review`,
-      Approved: `"${a.title}" was approved. ${usd(a.amountCents)} was added to your grant balance${a.feeCents > 0 ? ` and the ${usd(a.feeCents)} application charge was taken from your account balance` : ""}`,
+      Approved: `"${a.title}" was approved${lowered ? ` for ${usd(award)} (you asked for ${usd(asked)})` : ""}. ${usd(award)} was added to your grant balance${fee > 0 ? ` and the ${usd(fee)} application charge was taken from your account balance` : ""}`,
       Declined: `"${a.title}" was declined`,
       "Changes requested": `Changes were requested on "${a.title}"`,
     }[decision];

@@ -2699,7 +2699,7 @@ One commit when 9.4 is green. `deploy.sh` applies 0012 and Supabase 0006.
 ### 23c. Withdrawal fees per tier (answers 1 and 2)
 - Only **withdrawal** method fees differ by tier. Deposit fees, card fees and grant application fees stay one fee for everyone.
 - **Admin → Settings → Withdrawal fees** (new section, `/admin/settings/withdrawal-fees`): a row per withdrawal method, with a Tier 1, Tier 2 and Tier 3 fee (fixed $ or %, same input as today). Empty = that tier pays the method's own fee from Payment Gateway, so nothing changes until the admin fills it in. Shows each tier's fee on a sample amount (e.g. "$100 → $2.00"). Audited.
-- Stored with the method: `demo_payment_methods.tier_fees` jsonb (`{ "1": FeeRule, … }`, missing tier = the method's fee). Migration 0014 (0013 went to branding, §24), no new table, so no Supabase migration.
+- Stored with the method: `demo_payment_methods.tier_fees` jsonb (`{ "1": FeeRule, … }`, missing tier = the method's fee). Migration 0015 (0013 went to branding, §24; 0014 to award ranges, §28), no new table, so no Supabase migration.
 - Payment Gateway's withdrawal form keeps the method fee, labelled "Default fee (tiers without their own fee in Settings → Withdrawal fees)".
 - Worked out from the user's tier when they place a withdrawal; stored on the request (`fee_cents`, snapshot fee text) as today, so held fees, approvals, declines, emails and reports work unchanged.
 - The applicant's withdrawal form shows **their** tier's fee for each method; "Your tier" lists the withdrawal fee per method for each tier, so an upgrade shows what it saves.
@@ -2724,7 +2724,7 @@ One commit when 9.4 is green. `deploy.sh` applies 0012 and Supabase 0006.
 | 9.5.3 | Placing a withdrawal uses the tier's fee; applicant form, Your tier | fee per tier held, approved, declined; upgrade changes only new requests |
 | 9.5.4 | Regressions (23d) and the phone audit | all green; typecheck, `pnpm test` |
 
-One commit when green; `deploy.sh` applies 0014. **Parked 2026-11-06** while branding (§24) was built; waits for the user's go.
+One commit when green; `deploy.sh` applies 0015. **Parked 2026-11-06** while branding (§24) was built; waits for the user's go.
 
 ---
 
@@ -2794,3 +2794,34 @@ One commit when green; `deploy.sh` applies 0014. **Parked 2026-11-06** while bra
 **Changed** (wording only, no migration): on Withdrawals, the method list ("Processing charge $2.00" / "Processing charge 1%"), the summary under the amount, the browser's and the server's refusals when the account balance can't cover it (`demoWorkspace.ts`), and the withdrawal rows in "Your withdrawal requests" (the same row shows on Transactions). The server's `feeText` stays "Fee …" (shared with deposits, cards and the admin side); the page relabels it (`processingCharge` in `applicant.tsx`). Unchanged: Add funds (deposit fees still "Fee"), the Transactions filter "Fees", the admin side and the audit log.
 
 **Tests:** typecheck clean; `pnpm test` 140/140 (+1 skipped); `phase93-fees` 8/8, `phase11-plans` 17/17, `phase93-ui` 8 + 8 (expectations updated); demo data restored after each.
+
+---
+
+## 28. Grant plans: award range chosen by the applicant (2026-11-17)
+
+**Request (user, 2026-11-17):** a plan's award shouldn't always be fixed: the admin sets a minimum and maximum, and the applicant types the amount they want.
+
+**Answers (user, 2026-11-17):** 1 the admin chooses per plan: **Fixed** (as today) or **Range**; existing plans stay Fixed. 2 a percentage application charge is worked out on the **amount requested** (a fixed charge can't be more than the minimum). 3 at approval the admin may **approve a lower amount** (not below the minimum); a % charge is worked out again on the approved amount and the applicant is told. 4 after "Changes requested" the applicant **may change the amount** (within the range as it was when they applied).
+
+**Plan:**
+- **Data** (migration **0014**; 9.5's planned migration becomes 0015): `demo_grant_plans.amount_mode` (`fixed` | `range`, default fixed) and `max_amount_cents` (null when fixed; in range mode `amount_cents` is the minimum); `demo_applications.requested_cents` (what the applicant asked for; `amount_cents` stays "the award", lowered on approval, so every total that sums it stays right). No new table, so no Supabase migration. The plan snapshot keeps the mode and maximum.
+- **Rules** (`grantPlanRules.ts`, unit-tested): range min < max, both $1–$10,000,000; the charge on the minimum can't be more than the minimum; `requestedCents(snapshot, amount)` checks an applicant's amount (two decimals, inside the range).
+- **API:** plans gain `amountMode`, `maxAmount`; applying and resubmitting take `amount`; the decision takes `amount` (Approved only, range plans only, between the minimum and what was asked); details gain `requestedAmount` and `amountRange`.
+- **Admin:** Grant Plans editor: Award = Fixed amount / Range (minimum, maximum), preview; the row reads "$1,000 – $10,000 award". Application review: Requested and Award; the Approve dialog has the amount to approve (requested by default) and recalculates the charge and the account balance after.
+- **Applicant:** cards and the plan page show "$1,000 – $10,000"; the form asks "Amount you're requesting" first; the summary shows that amount and its charge; the detail page shows "You asked for" when an admin approved less; resubmitting can change the amount.
+
+### 2026-11-17: built and tested
+
+**Built** (plan above; migration **0014** `0014_grant_award_range.sql`, no Supabase migration):
+- **Rules** (`grantPlanRules.ts`): `amountMode` / `maxAmount` on plans (range: min < max, $1–$10,000,000; a fixed charge no more than the minimum); `requestedCents` reads the applicant's amount ("4,000", "$4000.50"; two decimals; inside the range; a fixed plan ignores it); `awardText` for the audit log.
+- **API:** plans return `amountMode`, `maxAmount` (and `feeText` "Fee 5%" for a range's percentage; `feeAmount` is the charge on the minimum). Applying and resubmitting take `amount`; the snapshot keeps the mode and maximum, so later plan edits never change an application's range. Approving takes `amount` (range only; from the minimum up to what was asked; a fixed plan refuses another amount): the award and a % charge are worked out on it, `amount_cents` / `fee_cents` lowered, `requested_cents` kept; history, audit and notification say "approved for $5,000.00 (you asked for $6,000.00)". Details return `requestedAmount`, `amountRange` and `feeRule`.
+- **Admin:** Grant Plans editor: Award = Fixed amount / Range (Minimum, Maximum), preview "$1,000.00 – $10,000.00" and "5% application charge, of the amount approved"; rows read "$1,000.00 – $10,000.00 award · 5% application charge". Application review: Requested (with the range, and what was requested once approved for less); the Approve dialog has **Amount to approve** (requested by default) and recalculates the charge and the account balance after.
+- **Applicant:** cards and the plan page read "Choose your amount $1,000.00 – $10,000.00" and "5% application charge"; the form asks **Amount you're requesting** first, checked as they type, with the charge on that amount; the summary shows the amount and its charge and says an admin may approve less; Changes requested lets them change the amount (charge shown); the detail page shows "You asked for $6,000.00" when approved for less.
+
+**Found and fixed while testing:** after a refused amount, the form's error box stayed on screen once a valid amount was typed (phone screenshot); typing now clears it, and the UI suite checks it.
+
+**Tests (2026-11-17, test API on :8099 via the proxy, demo data restored after each):**
+- typecheck clean; `pnpm test` 144/144 (+1 skipped): `grantPlanRules.test.ts` +4 (ranges, charge vs minimum, reading amounts, award text)
+- new `phase-award-range.mjs` 7/7 (admin rules and switching, applying, a fixed plan unchanged, resubmitting within the range as it was, approving less: balances, ledger, notification; approving without an amount) and `phase-award-range-ui.mjs` 4 + 4 (screenshots checked at 1440 and 390 px)
+- unchanged and passing: phase11-plans 17/17, phase11-ui 9 + 9, phase3-api 24/24, phase2-desktop 26/26, smoke 22 + 22, phase6-mobile 45/45 with 0 problems
+

@@ -5,10 +5,12 @@
  * Grant applicant and administration dashboard API
  * OpenAPI spec version: 0.1.0
  */
+import type { AmountRange } from './amountRange';
 import type { ApplicantApplication } from './applicantApplication';
 import type { ApplicationAnswer } from './applicationAnswer';
 import type { ApplicationEvent } from './applicationEvent';
 import type { ApplicationPlan } from './applicationPlan';
+import type { FeeRule } from './feeRule';
 import type { StoredDocument } from './storedDocument';
 
 export type ApplicationDetail = ApplicantApplication & {
@@ -24,6 +26,10 @@ export type ApplicationDetail = ApplicantApplication & {
   fee?: number;
   /** Whether the fee has been charged (the application was approved) */
   feeCharged?: boolean;
+  /** Plan applications: the amount the applicant asked for (amount is the award, lower if an admin approved less) */
+  requestedAmount?: number;
+  amountRange?: AmountRange;
+  feeRule?: FeeRule;
   answers?: ApplicationAnswer[];
   documents: StoredDocument[];
   events: ApplicationEvent[];

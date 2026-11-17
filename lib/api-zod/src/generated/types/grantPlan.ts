@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { FeeRule } from './feeRule';
+import type { GrantPlanAmountMode } from './grantPlanAmountMode';
 import type { PlanField } from './planField';
 
 /**
@@ -22,10 +23,17 @@ export interface GrantPlan {
   industryId: string | null;
   /** The industry's name, or "All industries" */
   industry: string;
-  /** Award in USD, credited to the grant balance on approval */
+  /** fixed: amount is the award. range: the applicant asks for an amount between amount and maxAmount */
+  amountMode: GrantPlanAmountMode;
+  /** Award in USD (fixed), or the smallest amount an applicant may ask for (range) */
   amount: number;
+  /**
+     * Range plans: the largest amount an applicant may ask for; null when fixed
+     * @nullable
+     */
+  maxAmount: number | null;
   fee: FeeRule;
-  /** The application fee on this award, in USD (charged on approval) */
+  /** The application charge on this award (range: on the minimum), in USD (charged on approval) */
   feeAmount: number;
   /** e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee" */
   feeText: string;

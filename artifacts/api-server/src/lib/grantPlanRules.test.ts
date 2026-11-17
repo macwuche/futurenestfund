@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { awardCents, parsePlan, planInitials } from "./grantPlanRules";
+import { awardCents, awardText, parsePlan, planInitials, requestedCents } from "./grantPlanRules";
 import { parseAnswers, parseFields, FIELD_TYPES, PLAN_FIELD_TYPES } from "./paymentRules";
 import { feeCents } from "./fees";
 
@@ -77,5 +77,44 @@ describe("planInitials and awardCents", () => {
     expect(awardCents(10_000_000)).toBe(1_000_000_000);
     expect(awardCents(0.99)).toBeNull();
     expect(awardCents(Number.NaN)).toBeNull();
+  });
+});
+
+describe("award ranges", () => {
+  it("a plan is fixed unless it asks for a range; a range needs a maximum above the minimum", () => {
+    expect(ok({ name: "Ok", amount: 500 })).toMatchObject({ amountMode: "fixed", amountCents: 50000, maxAmountCents: null });
+    expect(ok({ name: "Ok", amount: 500, maxAmount: 900 })).toMatchObject({ amountMode: "fixed", maxAmountCents: null });
+    expect(ok({ name: "Ok", amountMode: "range", amount: 1000, maxAmount: 10000 })).toMatchObject({ amountMode: "range", amountCents: 100000, maxAmountCents: 1000000 });
+    expect(parsePlan({ name: "Ok", amountMode: "ladder", amount: 10 })).toMatch(/fixed award or a range/);
+    expect(parsePlan({ name: "Ok", amountMode: "range", amount: 1000 })).toMatch(/maximum must be between/);
+    expect(parsePlan({ name: "Ok", amountMode: "range", amount: 1000, maxAmount: 1000 })).toMatch(/more than the minimum/);
+    expect(parsePlan({ name: "Ok", amountMode: "range", amount: 0.5, maxAmount: 1000 })).toMatch(/minimum must be between/);
+    expect(parsePlan({ name: "Ok", amountMode: "range", amount: 10, maxAmount: 10_000_000.01 })).toMatch(/maximum must be between/);
+  });
+  it("a fixed charge can't be more than the minimum; a percentage always fits", () => {
+    expect(parsePlan({ name: "Ok", amountMode: "range", amount: 10, maxAmount: 1000, fee: { mode: "fixed", amount: 20 } })).toMatch(/more than the minimum/);
+    expect(ok({ name: "Ok", amountMode: "range", amount: 10, maxAmount: 1000, fee: { mode: "percent", amount: 100 } }).fee).toEqual({ mode: "percent", value: 10000 });
+  });
+  it("reads the amount an applicant asks for", () => {
+    const range = { amountMode: "range" as const, amountCents: 100000, maxAmountCents: 1000000 };
+    expect(requestedCents(range, "4000")).toBe(400000);
+    expect(requestedCents(range, "$4,000.50")).toBe(400050);
+    expect(requestedCents(range, 1000)).toBe(100000);
+    expect(requestedCents(range, "10000")).toBe(1000000);
+    expect(requestedCents(range, "999.99")).toMatch(/between \$1,000 and \$10,000/);
+    expect(requestedCents(range, "10000.01")).toMatch(/must be between/);
+    expect(requestedCents(range, "")).toMatch(/Enter the amount/);
+    expect(requestedCents(range, undefined)).toMatch(/Enter the amount/);
+    expect(requestedCents(range, "4000.123")).toMatch(/two decimals/);
+    expect(requestedCents(range, "-4000")).toMatch(/two decimals/);
+    expect(requestedCents(range, "1e4")).toMatch(/two decimals/);
+    // A fixed plan (or a copy from before ranges) always gets its own award.
+    expect(requestedCents({ amountCents: 50000 }, "9")).toBe(50000);
+    expect(requestedCents({ amountMode: "fixed", amountCents: 50000, maxAmountCents: null }, undefined)).toBe(50000);
+  });
+  it("describes the award", () => {
+    const usd = (c: number) => `$${(c / 100).toFixed(2)}`;
+    expect(awardText({ amountCents: 50000 }, usd)).toBe("$500.00");
+    expect(awardText({ amountMode: "range", amountCents: 100000, maxAmountCents: 1000000 }, usd)).toBe("$1000.00 – $10000.00");
   });
 });

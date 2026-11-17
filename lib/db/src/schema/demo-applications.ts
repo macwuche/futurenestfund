@@ -6,7 +6,10 @@ export const demoApplicationsTable = pgTable("demo_applications", {
   profileId: text("profile_id").notNull(),
   title: text("title").notNull(),
   category: text("category").notNull(),
+  /** The award: what the applicant asked for, or the lower amount an administrator approved. */
   amountCents: integer("amount_cents").notNull(),
+  /** Plan applications: the amount the applicant asked for (a range plan lets them choose it); null on older rows. */
+  requestedCents: integer("requested_cents"),
   status: text("status").notNull().default("Submitted"),
   submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

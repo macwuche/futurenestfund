@@ -2750,9 +2750,11 @@ components:
         description: { type: string }
         industryId: { type: [string, "null"], description: "null = all industries" }
         industry: { type: string, description: "The industry's name, or \"All industries\"" }
-        amount: { type: number, description: "Award in USD, credited to the grant balance on approval" }
+        amountMode: { type: string, enum: [fixed, range], description: "fixed: amount is the award. range: the applicant asks for an amount between amount and maxAmount" }
+        amount: { type: number, description: "Award in USD (fixed), or the smallest amount an applicant may ask for (range)" }
+        maxAmount: { type: [number, "null"], description: "Range plans: the largest amount an applicant may ask for; null when fixed" }
         fee: { $ref: "#/components/schemas/FeeRule" }
-        feeAmount: { type: number, description: "The application fee on this award, in USD (charged on approval)" }
+        feeAmount: { type: number, description: "The application charge on this award (range: on the minimum), in USD (charged on approval)" }
         feeText: { type: string, description: "e.g. \"Fee $2.00\", \"Fee 1% ($50.00)\" or \"No fee\"" }
         logoUrl: { type: string }
         initials: { type: string, description: "Placeholder when there is no logo, e.g. SG" }
@@ -2765,14 +2767,16 @@ components:
         createdBy: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-      required: [id, name, description, industryId, industry, amount, fee, feeAmount, feeText, initials, fields]
+      required: [id, name, description, industryId, industry, amountMode, amount, maxAmount, fee, feeAmount, feeText, initials, fields]
     GrantPlanUpdate:
       type: object
       properties:
         name: { type: string }
         description: { type: string }
         industryId: { type: [string, "null"] }
-        amount: { type: number }
+        amountMode: { type: string, enum: [fixed, range] }
+        amount: { type: number, description: "The award (fixed) or the minimum (range)" }
+        maxAmount: { type: number, description: "Range only: the maximum" }
         fee: { $ref: "#/components/schemas/FeeRule" }
         fields:
           type: array
@@ -2858,6 +2862,7 @@ components:
       type: object
       properties:
         planId: { type: string }
+        amount: { type: string, description: "Range plans: the amount requested in USD, e.g. \"4000\" or \"4000.50\" (ignored for fixed plans)" }
         answers: { type: string, description: "JSON object of answers by field id (file fields are sent in files)" }
         fileFields: { type: string, description: "JSON array: the field id each file in files is for, in the same order" }
         files:
@@ -2868,12 +2873,20 @@ components:
       type: object
       properties:
         note: { type: string, maxLength: 1000, description: "Optional note to the reviewer" }
+        amount: { type: string, description: "Range plans: a new amount requested in USD; left out, it stays" }
         answers: { type: string, description: "JSON object of answers by field id" }
         fileFields: { type: string, description: "JSON array: the field id each file in files is for; a file field with no new file keeps the one attached" }
         files:
           type: array
           items: { type: string, format: binary }
       required: [answers]
+    AmountRange:
+      type: object
+      description: "Range plans: the amounts the applicant could ask for, as when they applied (with feeRule, the charge rule to work out a new amount's charge)"
+      properties:
+        min: { type: number }
+        max: { type: number }
+      required: [min, max]
     ApplicationPlan:
       type: object
       description: The grant plan an application was made to, as it was when submitted
@@ -2912,6 +2925,9 @@ components:
             plan: { $ref: "#/components/schemas/ApplicationPlan" }
             fee: { type: number, description: "Plan applications: the application fee, charged from the account balance on approval" }
             feeCharged: { type: boolean, description: "Whether the fee has been charged (the application was approved)" }
+            requestedAmount: { type: number, description: "Plan applications: the amount the applicant asked for (amount is the award, lower if an admin approved less)" }
+            amountRange: { $ref: "#/components/schemas/AmountRange" }
+            feeRule: { $ref: "#/components/schemas/FeeRule" }
             answers:
               type: array
               items: { $ref: "#/components/schemas/ApplicationAnswer" }
@@ -3414,6 +3430,9 @@ components:
             plan: { $ref: "#/components/schemas/ApplicationPlan" }
             fee: { type: number, description: "Plan applications: the application fee, charged from the account balance on approval" }
             feeCharged: { type: boolean, description: "Whether the fee has been charged (the application was approved)" }
+            requestedAmount: { type: number, description: "Plan applications: the amount the applicant asked for (amount is the award, lower if an admin approved less)" }
+            amountRange: { $ref: "#/components/schemas/AmountRange" }
+            feeRule: { $ref: "#/components/schemas/FeeRule" }
             answers:
               type: array
               items: { $ref: "#/components/schemas/ApplicationAnswer" }
@@ -3432,6 +3451,7 @@ components:
       properties:
         status: { type: string, enum: [Review, Approved, Declined, Changes requested] }
         note: { type: string, maxLength: 1000 }
+        amount: { type: number, description: "Approved only, range plans: the amount approved in USD, from the plan's minimum up to what was requested (default: what was requested)" }
       required: [status]
     AdminRequest:
       type: object

@@ -1074,6 +1074,17 @@ export interface HealthStatus {
 }
 
 /**
+ * fixed: amount is the award. range: the applicant asks for an amount between amount and maxAmount
+ */
+export type GrantPlanAmountMode = typeof GrantPlanAmountMode[keyof typeof GrantPlanAmountMode];
+
+
+export const GrantPlanAmountMode = {
+  fixed: 'fixed',
+  range: 'range',
+} as const;
+
+/**
  * A grant plan (Phase 11)
  */
 export interface GrantPlan {
@@ -1087,10 +1098,17 @@ export interface GrantPlan {
   industryId: string | null;
   /** The industry's name, or "All industries" */
   industry: string;
-  /** Award in USD, credited to the grant balance on approval */
+  /** fixed: amount is the award. range: the applicant asks for an amount between amount and maxAmount */
+  amountMode: GrantPlanAmountMode;
+  /** Award in USD (fixed), or the smallest amount an applicant may ask for (range) */
   amount: number;
+  /**
+     * Range plans: the largest amount an applicant may ask for; null when fixed
+     * @nullable
+     */
+  maxAmount: number | null;
   fee: FeeRule;
-  /** The application fee on this award, in USD (charged on approval) */
+  /** The application charge on this award (range: on the minimum), in USD (charged on approval) */
   feeAmount: number;
   /** e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee" */
   feeText: string;
@@ -1109,12 +1127,24 @@ export interface GrantPlan {
   updatedAt?: string;
 }
 
+export type GrantPlanUpdateAmountMode = typeof GrantPlanUpdateAmountMode[keyof typeof GrantPlanUpdateAmountMode];
+
+
+export const GrantPlanUpdateAmountMode = {
+  fixed: 'fixed',
+  range: 'range',
+} as const;
+
 export interface GrantPlanUpdate {
   name?: string;
   description?: string;
   /** @nullable */
   industryId?: string | null;
+  amountMode?: GrantPlanUpdateAmountMode;
+  /** The award (fixed) or the minimum (range) */
   amount?: number;
+  /** Range only: the maximum */
+  maxAmount?: number;
   fee?: FeeRule;
   fields?: PlanField[];
   enabled?: boolean;
@@ -1221,6 +1251,8 @@ export interface ApplicationEvent {
 
 export interface PlanApplicationForm {
   planId: string;
+  /** Range plans: the amount requested in USD, e.g. "4000" or "4000.50" (ignored for fixed plans) */
+  amount?: string;
   /** JSON object of answers by field id (file fields are sent in files) */
   answers: string;
   /** JSON array: the field id each file in files is for, in the same order */
@@ -1234,11 +1266,21 @@ export interface PlanApplicationResubmitForm {
      * @maxLength 1000
      */
   note?: string;
+  /** Range plans: a new amount requested in USD; left out, it stays */
+  amount?: string;
   /** JSON object of answers by field id */
   answers: string;
   /** JSON array: the field id each file in files is for; a file field with no new file keeps the one attached */
   fileFields?: string;
   files?: Blob[];
+}
+
+/**
+ * Range plans: the amounts the applicant could ask for, as when they applied (with feeRule, the charge rule to work out a new amount's charge)
+ */
+export interface AmountRange {
+  min: number;
+  max: number;
 }
 
 /**
@@ -1265,6 +1307,10 @@ export type ApplicationDetail = ApplicantApplication & {
   fee?: number;
   /** Whether the fee has been charged (the application was approved) */
   feeCharged?: boolean;
+  /** Plan applications: the amount the applicant asked for (amount is the award, lower if an admin approved less) */
+  requestedAmount?: number;
+  amountRange?: AmountRange;
+  feeRule?: FeeRule;
   answers?: ApplicationAnswer[];
   documents: StoredDocument[];
   events: ApplicationEvent[];
@@ -1963,6 +2009,10 @@ export type AdminApplicationDetail = AdminApplication & {
   fee?: number;
   /** Whether the fee has been charged (the application was approved) */
   feeCharged?: boolean;
+  /** Plan applications: the amount the applicant asked for (amount is the award, lower if an admin approved less) */
+  requestedAmount?: number;
+  amountRange?: AmountRange;
+  feeRule?: FeeRule;
   answers?: ApplicationAnswer[];
   allowedDecisions: AdminApplicationDetailAllowedDecisionsItem[];
   documents: StoredDocument[];
@@ -1983,6 +2033,8 @@ export interface ApplicationDecisionInput {
   status: ApplicationDecisionInputStatus;
   /** @maxLength 1000 */
   note?: string;
+  /** Approved only, range plans: the amount approved in USD, from the plan's minimum up to what was requested (default: what was requested) */
+  amount?: number;
 }
 
 export type AdminRequestKind = typeof AdminRequestKind[keyof typeof AdminRequestKind];

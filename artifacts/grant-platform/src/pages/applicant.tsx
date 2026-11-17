@@ -320,7 +320,9 @@ function AppDetail({ a }: { a: ApplicationDetail }) {
           <StatusBadge status={a.status} dot={false} testid="badge-application-status" />
         </div>
         <dl className={cx('mt-5 grid gap-4 border-t border-slate-100 pt-4', a.plan ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3')}>
-          <div><dt className="text-sm text-slate-500">{a.plan ? (a.status === 'Approved' ? 'Awarded' : 'You receive if approved') : 'Requested amount'}</dt><dd className="text-lg font-bold tabular-nums text-slate-900" data-testid="text-application-amount">{money(a.amount)}</dd></div>
+          <div><dt className="text-sm text-slate-500">{a.plan ? (a.status === 'Approved' ? 'Awarded' : 'You receive if approved') : 'Requested amount'}</dt><dd className="text-lg font-bold tabular-nums text-slate-900" data-testid="text-application-amount">{money(a.amount)}</dd>
+            {a.requestedAmount !== undefined && a.requestedAmount !== a.amount && <dd className="text-xs text-slate-500" data-testid="text-application-requested">You asked for {money(a.requestedAmount)}</dd>}
+            {a.amountRange && a.status !== 'Approved' && <dd className="text-xs text-slate-500">The amount you requested</dd>}</div>
           {a.plan && <div><dt className="text-sm text-slate-500">Application charge</dt><dd className="font-semibold text-slate-900" data-testid="text-application-fee">{feeStatus(a)}</dd></div>}
           <div><dt className="text-sm text-slate-500">Submitted</dt><dd className="font-semibold text-slate-900">{dateFmt(a.submittedAt)}</dd></div>
           <div><dt className="text-sm text-slate-500">Last updated</dt><dd className="font-semibold text-slate-900">{dateFmt(a.updatedAt)}</dd></div>

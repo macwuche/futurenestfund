@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { PlanField } from '@workspace/api-client-react';
+import type { GrantPlan, PlanField } from '@workspace/api-client-react';
 import { Paperclip } from 'lucide-react';
 import { FILE_RULES, checkFile, cx, money } from '@/components/bits';
 
@@ -119,3 +119,31 @@ export function checkPlanValues(fields: PlanField[], values: PlanValues, files: 
 
 /** "$2.00 application charge" → the charge line shown on plan cards and the summary. */
 export const feeLine = (feeAmount: number) => (feeAmount > 0 ? `${money(feeAmount)} application charge` : 'No application charge');
+
+type AwardShape = Pick<GrantPlan, 'amountMode' | 'amount' | 'maxAmount'>;
+export const isRangePlan = (p: AwardShape) => p.amountMode === 'range' && typeof p.maxAmount === 'number';
+
+/** "$5,000.00", or "$1,000.00 – $10,000.00" for a plan where the applicant chooses the amount. */
+export const awardLine = (p: AwardShape) => (isRangePlan(p) ? `${money(p.amount)} – ${money(p.maxAmount!)}` : money(p.amount));
+
+/** The charge line for a plan card: a range plan's charge depends on the amount, so a percentage stays a percentage. */
+export function planFeeLine(p: AwardShape & Pick<GrantPlan, 'fee' | 'feeAmount'>) {
+  if (!isRangePlan(p) || p.fee.mode === 'fixed') return feeLine(p.feeAmount);
+  return p.fee.amount > 0 ? `${p.fee.amount}% application charge` : 'No application charge';
+}
+
+/** An amount typed by the applicant, in dollars, or null when it isn't a number with at most two decimals. */
+export function typedAmount(s: string) {
+  const t = s.trim().replace(/[$,\s]/g, '');
+  return /^\d+(\.\d{1,2})?$/.test(t) ? Number(t) : null;
+}
+
+/** What's wrong with an amount for a range, or '' (same wording as the server). */
+export function checkRangeAmount(s: string, min: number, max: number) {
+  const between = `between ${money(min)} and ${money(max)}`;
+  if (!s.trim()) return `Enter the amount you're requesting, ${between}.`;
+  const n = typedAmount(s);
+  if (n === null) return `Enter a number with at most two decimals, ${between}.`;
+  if (n < min || n > max) return `The amount you request must be ${between}.`;
+  return '';
+}

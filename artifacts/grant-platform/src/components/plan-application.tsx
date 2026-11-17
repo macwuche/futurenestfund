@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { useResubmitApplicantApplication, type ApplicationDetail, type PlanField } from '@workspace/api-client-react';
 import { Download, Paperclip } from 'lucide-react';
 import { Field, cx, inputCls, money } from '@/components/bits';
-import { PlanFieldInputs, checkPlanValues, type PlanFiles, type PlanValues } from '@/components/grant-plan';
+import { PlanFieldInputs, checkPlanValues, checkRangeAmount, typedAmount, type PlanFiles, type PlanValues } from '@/components/grant-plan';
+import { feeOn } from '@/components/fee-input';
 import { apiError } from '@/lib/demo-state';
 
 /*
@@ -55,22 +56,42 @@ export function PlanResubmit({ a, onDone }: { a: ApplicationDetail; onDone: (d: 
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
+  // Range plans: the amount can change too, within the range as it was when they applied.
+  const range = a.amountRange;
+  const [amountText, setAmountText] = useState(() => String(a.requestedAmount ?? a.amount));
+  const [amountError, setAmountError] = useState('');
+  const newAmount = typedAmount(amountText);
+  const newCharge = range && a.feeRule && newAmount !== null ? feeOn(a.feeRule, newAmount) : null;
   const m = useResubmitApplicantApplication();
   const existing = Object.fromEntries((a.answers ?? []).filter((x) => x.file).map((x) => [x.fieldId, x.file!.name]));
   const submit = () => {
     const e = checkPlanValues(fields, values, files, existing);
-    setErrors(e);
-    if (Object.keys(e).length) return setError('Check the highlighted fields.');
+    const amountProblem = range ? checkRangeAmount(amountText, range.min, range.max) : '';
+    setErrors(e); setAmountError(amountProblem);
+    if (Object.keys(e).length || amountProblem) return setError(amountProblem && !Object.keys(e).length ? amountProblem : 'Check the highlighted fields.');
     setError('');
     const fileFields = fields.filter((f) => f.type === 'file' && files[f.id!]).map((f) => f.id!);
     const answers = Object.fromEntries(fields.filter((f) => f.type !== 'file' && values[f.id!]?.trim()).map((f) => [f.id!, values[f.id!]!.trim()]));
-    m.mutate({ applicationId: a.id, data: { note: note.trim() || undefined, answers: JSON.stringify(answers), fileFields: JSON.stringify(fileFields), files: fileFields.map((id) => files[id]!) } }, {
+    m.mutate({ applicationId: a.id, data: { note: note.trim() || undefined, ...(range ? { amount: newAmount!.toFixed(2) } : {}), answers: JSON.stringify(answers), fileFields: JSON.stringify(fileFields), files: fileFields.map((id) => files[id]!) } }, {
       onSuccess: (d) => { setFiles({}); setNote(''); onDone(d); },
       onError: (err) => setError(apiError(err, "Your changes couldn't be sent. Try again.")),
     });
   };
   return (
     <form noValidate className="mt-4 space-y-4" onSubmit={(e) => { e.preventDefault(); submit(); }} data-testid="form-plan-resubmit">
+      {range && (
+        <div>
+          <label htmlFor="edit-amount" className="mb-1 block text-sm font-semibold text-slate-800">Amount you're requesting</label>
+          <div className="relative max-w-xs">
+            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-500">$</span>
+            <input id="edit-amount" type="text" inputMode="decimal" autoComplete="off" value={amountText} data-testid="input-edit-amount" aria-invalid={!!amountError}
+              onChange={(e) => { setAmountText(e.target.value); setAmountError(''); setError(''); }}
+              className={cx(inputCls, 'min-h-11 pl-7 tabular-nums', amountError && 'border-[#DC2626]')} />
+          </div>
+          <p className="mt-1 text-xs text-slate-500">From {money(range.min)} to {money(range.max)}.{newCharge ? ` Application charge on this amount: ${money(newCharge)}, only if approved.` : ''}</p>
+          {amountError && <p className="mt-1 text-sm text-[#991B1B]" data-testid="text-edit-amount-error">{amountError}</p>}
+        </div>
+      )}
       <PlanFieldInputs fields={fields} values={values} files={files} errors={errors} inputClass={inputCls} idPrefix="edit" existingFiles={existing}
         onChange={setValues} onFile={(k, f) => setFiles((x) => ({ ...x, [k]: f }))} />
       <Field label="Note to the reviewer (optional)"><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={1000} placeholder="What you changed" className={cx(inputCls, 'resize-y')} data-testid="input-resubmit-note" /></Field>

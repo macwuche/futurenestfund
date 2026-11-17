@@ -58,10 +58,11 @@ Menu in groups: **Overview** (Dashboard, My Applications (+ detail page), Milest
   - setup cards: **Choose your industry** (opens a picker) and **Apply for a grant** (opens Grants); each is marked complete by the server (industry chosen / an application submitted)
   - the Account balance card can show a negative figure after an application fee, with "Your next deposit covers it first"
   - grant highlights
-- **Grants** (`/grants`, Phase 11): the enabled grant plans, **Recommended for you** first (the user's industry, and plans open to all industries), then the others; search and an industry filter. A plan card shows its logo (or initials, e.g. **SG**), industry, award and application fee.
-- **Applying** (`/grants/:planId`): the plan's description → its own form (text, long text, number, email, phone, date, dropdown, **file**) → a **summary** (what you receive if approved, the application fee, every answer and file name) → submit. **Nothing is charged on submit.** "New Application" opens Grants.
+- **Grants** (`/grants`, Phase 11): the enabled grant plans, **Recommended for you** first (the user's industry, and plans open to all industries), then the others; search and an industry filter. A plan card shows its logo (or initials, e.g. **SG**), industry, award (or its range, e.g. $1,000.00 – $10,000.00) and application charge.
+- **Applying** (`/grants/:planId`): the plan's description → (a **range** plan: the amount they're requesting, between its minimum and maximum, with the charge on it) → its own form (text, long text, number, email, phone, date, dropdown, **file**) → a **summary** (what you receive if approved, the application fee, every answer and file name) → submit. **Nothing is charged on submit.** "New Application" opens Grants.
 - **Applications:** list with filters, detail page with the plan, the award, the fee status (charged only if approved / charged on approval / not charged), the answers with file downloads, and a status timeline.
-  - When changes are requested on a plan application, the applicant edits the answers (a file not replaced stays attached) and resubmits with an optional note.
+  - When changes are requested on a plan application, the applicant edits the answers (a file not replaced stays attached) and, for a range plan, the amount (within the range as it was when they applied), and resubmits with an optional note.
+  - When an admin approved less than asked, the detail page shows "You asked for …" under the award.
   - Applications from before plans keep their old flow: reply with a note and documents (attach up to 5).
   - Applications can be withdrawn; a declined or withdrawn application is never charged.
 - **Money:**
@@ -101,8 +102,8 @@ Pages: Dashboard, Users, Grant Plans, Transactions, Deposit Page, Withdrawal Pag
   - **cards:** issue a sample card of any type (virtual active at once, physical pending until marked issued), charged at the type's price + fee from the account balance unless **Free of charge** is ticked; **Top up** moves money from the account balance to the card account (the card account has no plain Credit any more); freeze / unfreeze with a reason shown to the user (also locks a card the user froze themselves), cancel (permanent); shows who froze a card and when a user asked for a physical card to be activated
   - **profile photo:** upload or remove the user's photo (same checks and re-encoding as the applicant's own upload; removal asks first). Audited, and the user is notified.
   - the user's applications and KYC documents
-- **Application review:** Submitted → Review → Approved / Declined / Changes requested, with notes. Shows the plan, the application form's answers (files open in a new tab) and the fee. Approving credits the award to the grant balance and, for a plan with a fee, charges the **application fee** from the account balance in the same step (ledger kind `Application fee`), even below $0; the panel spells out the account balance before and after.
-- **Grant Plans** (`/admin/grant-plans`, Phase 11): create, edit, switch on/off and delete plans: name, description, industry (or All industries), award ($1–$10,000,000), application fee (fixed or % of the award, never more than the award), logo (upload or `https://` link, else initials), and the application form (up to 30 fields, 10 of them files; same builder as Payment Gateway plus **File upload**). A live preview shows the applicant's view. Applications keep a copy of the plan as it was, so edits never change them; a plan with applications can only be switched off. Audited.
+- **Application review:** Submitted → Review → Approved / Declined / Changes requested, with notes. Shows the plan, the application form's answers (files open in a new tab) and the fee. For a range plan the panel shows the amount requested and the range, and the Approve dialog takes the **amount to approve** (requested by default; less, down to the minimum; the % charge follows). Approving credits the award to the grant balance and, for a plan with a fee, charges the **application fee** from the account balance in the same step (ledger kind `Application fee`), even below $0; the panel spells out the account balance before and after.
+- **Grant Plans** (`/admin/grant-plans`, Phase 11): create, edit, switch on/off and delete plans: name, description, industry (or All industries), award: **fixed** ($1–$10,000,000) or a **range** the applicant chooses from (minimum and maximum), application charge (fixed or % of the award, never more than the award or the minimum; a range plan's % is worked out on the amount requested, then approved), logo (upload or `https://` link, else initials), and the application form (up to 30 fields, 10 of them files; same builder as Payment Gateway plus **File upload**). A live preview shows the applicant's view. Applications keep a copy of the plan as it was, so edits never change them; a plan with applications can only be switched off. Audited.
 - **Deposit / Withdrawal queues:** approve (with an optional note shown to the applicant) or decline (decline needs a reason). Each request shows its method, the applicant's answers, the payment proof (preview / download) and, for withdrawals, the balance it's paid from. Freezes, balances, KYC and the user's open withdrawal balances are re-checked at approval time. A pending withdrawal above the user's current limit is flagged.
 - **Payment Gateway** (menu group → Deposit / Withdrawal, `/admin/payment-gateway/deposit|withdrawal`): create, edit, enable / disable, reorder and delete methods. A method has a logo (uploaded, or downloaded once from an `https://` link with private / internal addresses refused, re-encoded to WebP), a name (unique per kind), an amount rule (minimum and maximum, either optional, or up to 10 fixed amounts), instructions, up to 20 fields (short / long text, number, email, phone, date, dropdown; required or optional; placeholder and help) and, for deposits, payment proof required / optional / off, and a **fee** (fixed or %, never negative; 9.3). A live preview shows the applicant's form. Requests keep a copy of the method as it was, so edits never change them; a used method can only be disabled. Every change is audited.
 - **Withdraw from** (inspector → Limits): grant balance / account balance / both, per user; audited, the user is notified. A debit can't eat into what pending withdrawals from that balance hold.
@@ -279,6 +280,7 @@ Dashboard settings (see §12): Site URL and Redirect URLs are set to `https://ac
 | `lib/db/migrations/0011_grant_plans.sql` | `demo_industries` (seeded with 40), `demo_grant_plans`; `demo_profiles.industry_id`; `demo_applications.plan_id`, `plan_snapshot`, `answers`, `fee_cents` |
 | `lib/db/migrations/0012_tier_rules.sql` | `demo_tier_requests`; `demo_settings.tier_rules` (copies the platform-wide withdrawal limits into every tier; those columns stay, unused) |
 | `lib/db/migrations/0013_branding.sql` | `demo_settings.branding` (name, colour, logo) |
+| `lib/db/migrations/0014_grant_award_range.sql` | `demo_grant_plans.amount_mode`, `max_amount_cents` (range plans; `amount_cents` is then the minimum); `demo_applications.requested_cents` |
 | `lib/db/migrations/0007_email_settings.sql` | `demo_settings.email_config`, `email_secrets`, `email_hook_seen_at`, `email_hook_result`; `demo_notifications.email_last_error` |
 | `lib/db/supabase/migrations/0001_user_roles.sql` | `user_roles` (Supabase only) |
 | `lib/db/supabase/migrations/0002_app_api_role.sql` | `app_api` role, grants, `app_api_all` policies, revoked Data API grants |
@@ -414,7 +416,7 @@ No secrets. `PORT` and `BASE_PATH` for Vite; everything else comes from `GET /ap
 | Command | What it does |
 |---|---|
 | `pnpm run typecheck` | Type-check every package |
-| `pnpm test` | Vitest unit tests (140; one more runs against a real Redis with `TEST_REDIS_URL`) |
+| `pnpm test` | Vitest unit tests (144; one more runs against a real Redis with `TEST_REDIS_URL`) |
 | `pnpm --filter @workspace/api-spec run codegen` | Regenerate API hooks / validators after editing `openapi.yaml` |
 | `pnpm --filter @workspace/db run generate` | Write a new migration from schema changes |
 | `pnpm --filter @workspace/scripts run db:migrate` | Apply pending migrations (`-- --baseline` once for a database built with push) |
@@ -429,7 +431,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 
 ## 11. Testing
 
-**Committed:** `pnpm test`, 140 Vitest tests (+1 with `TEST_REDIS_URL`).
+**Committed:** `pnpm test`, 144 Vitest tests (+1 with `TEST_REDIS_URL`).
 - Branding: colour parsing, the readable text colours for any brand colour (4.5:1 on the colour, on white and on the admin's black), the branded email.
 - Tier rules (9.4): stored rules and the fallback to the old platform-wide limits, saving and refusals, upgrade forms, cards per tier, the next tier, custom limits over the tier's, top-up wording, the physical-without-virtual warning; the three tier emails.
 - Token verification: valid, expired, other project, wrong audience, anonymous, forged key, tampered payload, `alg: none`, HS256 algorithm confusion, key server down/timeout → 503.
@@ -463,6 +465,7 @@ On Replit, restart the existing workflows instead of starting extra servers.
 | `phase9-cards`, `phase9-cards-ui` | Card Requests queue: tabs, order, decline with reason, ask again, activate, frozen account, concurrent decisions (9); dashboard KPI and list, menu badge, applicant view (6 + 6) |
 | `phase92-redis` | Two real API servers on one Redis (`REDIS_SERVER=` path to `redis-server`): status in Settings, password never shown, one shared limit, Retry-After, key names and expiry, a burst of 40 at once lets exactly the limit through, Redis killed (still answered, quickly, limited per server, status, one warning), Redis back (reconnects) (13) |
 | `phase94-tiers`, `phase94-ui` | Settings (old limits copied to every tier, cents, refusals, audit, warning), withdrawals over the tier limit (message, upgradeTier, nothing stored, bell + email once a day, none without a form or with custom limits), queue flag, card locks, physical needs virtual (users and admins), top-up limits, the upgrade form (required files, refused forms leave no files, two at once → one), queue, decline, approve, tier changed meanwhile (16); Settings → Tiers, inspector, refused withdrawal with Upgrade button, card shop, Your tier, Tier Upgrades approve (9 + 9). `phase5-limits(-ui)`, `phase10-methods` and `phase93-cards` were updated for tier limits and the virtual-first rule |
+| `phase-award-range`, `phase-award-range-ui` | Range plans: admin rules (max above min, charge vs minimum), switching fixed ↔ range, applying (amount required, checked, % charge on it), a fixed plan unchanged, resubmitting with a new amount within the range as it was, approving less (balances, ledger, notification), approving without an amount (7); editor, cards, amount field, summary, resubmit, Approve dialog, applicant detail on desktop and phone (4 + 4) |
 | `phase-branding` | Branding API (defaults, save, refusals, audit, logo upload / link / remove, public logo) and browser on desktop + phone: live preview, save, another open screen following within 15 s, unsaved changes discarded, reload remembers, logo in menu and tab (4; 7 + 7) |
 | `phase6-mobile` | Phone audit at 390 px of every page, menu, panel, main dialogs and the sign-in pages: zoom-out, overflow, boxes sticking out, 44 px targets, bell / menu / search reachable; full-page screenshots with `SHOTS=` (35). Sign-in pages need `AUTH_WEB`: a proxy to a signed-out Supabase-mode API |
 
@@ -535,6 +538,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | 2026-11-05 | **Industries** are admin-managed (40 to start); required at sign-up; plans for the user's industry (and all-industry plans) are recommended, but any plan can be applied to |
 | 2026-11-09 | The grant plan's fee is called the **application charge** everywhere people see it; the ledger kind stays `Application fee` in the database and API (shown as "Application charge") |
 | 2026-11-17 | On the applicant's Withdrawals page the withdrawal method's fee is called the **processing charge**; deposits, the admin side and the API keep "fee" |
+| 2026-11-17 | **Award ranges**: a grant plan's award is fixed or a minimum–maximum range chosen by the admin; the applicant types the amount; a % application charge is worked out on the amount requested; an admin may approve less (not below the minimum), the charge following; the amount can change on resubmission. Existing plans stay fixed |
 
 ---
 
@@ -642,7 +646,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 - ~~9.2 shared rate limits (Redis, was 6.7)~~: built and tested 2026-11-05 (`work.md` §18), deployed at `a1072f6`. Only matters with more than one API server, so it stays off on the VPS (DEPLOY step 12 when needed)
 - ~~9.3 fees, card types and card purchases~~: built and tested 2026-11-05 (plan and log in `work.md` §17), `711ec58`, deployed 2026-11-05. Its provisional choices were answered on 2026-11-06 (`work.md` §17h): 1–3 kept; any number of cards and per-tier withdrawal fees go into 9.5
 - ~~9.4 tier rules~~: built and tested 2026-11-06 (plan, answers and log in `work.md` §22), deployed at `2ad3f00`. Not done: browser push notifications (decided against: on-screen message + bell + email)
-- 9.5 any number of cards (up to 20 not cancelled) and **withdrawal fees per tier** (new Settings → Withdrawal fees; empty = the method's own fee): planned in `work.md` §23 (migration 0014), **waits for your go**
+- 9.5 any number of cards (up to 20 not cancelled) and **withdrawal fees per tier** (new Settings → Withdrawal fees; empty = the method's own fee): planned in `work.md` §23 (migration 0015), **waits for your go**
 
 **Branding** (`work.md` §24): ~~name, colour and logo~~ built, tested and deployed 2026-11-06 (`1c4b760`). Not done: link previews on other sites (WhatsApp, Slack) still read "GrantApp" from the static `index.html`, since they don't run the app
 

@@ -8,11 +8,11 @@ import { and, eq } from "drizzle-orm";
 import { db, demoApplicationsTable, demoApplicationEventsTable, demoAuditTable, demoProfilesTable } from "@workspace/db";
 import { notifyUser } from "./notifications";
 import { RecordInputError, applicationDetail } from "./applicantRecords";
-import { ALL_INDUSTRIES, findPlan, planFee, planFields } from "./grantPlans";
+import { ALL_INDUSTRIES, findPlan, planAward, planFee, planFields } from "./grantPlans";
 import { industryNames } from "./industries";
 import { feeCents } from "./fees";
 import { parseAnswers, usd, type MethodField } from "./paymentRules";
-import { planInitials } from "./grantPlanRules";
+import { isRange, planInitials, requestedCents } from "./grantPlanRules";
 import { answersOf, snapshotOf, type PlanSnapshot } from "./planAnswers";
 import { removeFile, storeUpload, UploadError } from "./uploads";
 
@@ -70,9 +70,12 @@ async function storeAnswerFiles(profileId: string, applicationId: string, fields
 }
 const dropFiles = (ids: string[]) => Promise.all(ids.map(id => removeFile(id).catch(() => {})));
 
-export async function createPlanApplication(profileId: string, input: { planId: unknown; answers: unknown; fileFields?: unknown; files?: Express.Multer.File[] }) {
+export async function createPlanApplication(profileId: string, input: { planId: unknown; amount?: unknown; answers: unknown; fileFields?: unknown; files?: Express.Multer.File[] }) {
   const plan = typeof input.planId === "string" ? await findPlan(input.planId) : undefined;
   if (!plan || !plan.enabled) throw new RecordInputError("This grant plan isn't open for applications any more.");
+  const award = planAward(plan);
+  const requested = requestedCents(award, input.amount);
+  if (typeof requested === "string") throw new RecordInputError(requested);
   const fields = planFields(plan);
   const answers = parseAnswers(fields, readAnswers(input.answers));
   if (typeof answers === "string") throw new RecordInputError(answers);
@@ -83,19 +86,21 @@ export async function createPlanApplication(profileId: string, input: { planId: 
   const fee = planFee(plan);
   const snapshot: PlanSnapshot = {
     planId: plan.id, name: plan.name, description: plan.description, industry, amountCents: plan.amountCents, fee, initials: planInitials(plan.name), fields,
+    ...(isRange(award) ? { amountMode: "range" as const, maxAmountCents: award.maxAmountCents } : {}),
   };
-  const feeAmount = feeCents(fee, plan.amountCents);
+  // A percentage charge is worked out on the amount asked for (and again on the amount approved, if lower).
+  const feeAmount = feeCents(fee, requested);
   const id = `APP-${randomUUID().slice(0, 8).toUpperCase()}`;
   const actor = await actorName(profileId);
   const stored = await storeAnswerFiles(profileId, id, fields, files);
   try {
     await db.transaction(async tx => {
       await tx.insert(demoApplicationsTable).values({
-        id, profileId, title: plan.name, category: industry, amountCents: plan.amountCents,
+        id, profileId, title: plan.name, category: industry, amountCents: requested, requestedCents: requested,
         planId: plan.id, planSnapshot: snapshot, answers: { ...answers, ...Object.fromEntries(stored) }, feeCents: feeAmount,
       });
-      await tx.insert(demoApplicationEventsTable).values({ applicationId: id, status: "Submitted", note: "Application submitted", actor });
-      await tx.insert(demoAuditTable).values({ profileId, actor, action: `Application ${id} submitted for "${plan.name}" (${usd(plan.amountCents)}${feeAmount ? `, application charge ${usd(feeAmount)} on approval` : ""})` });
+      await tx.insert(demoApplicationEventsTable).values({ applicationId: id, status: "Submitted", note: isRange(award) ? `Application submitted for ${usd(requested)}` : "Application submitted", actor });
+      await tx.insert(demoAuditTable).values({ profileId, actor, action: `Application ${id} submitted for "${plan.name}" (${usd(requested)}${isRange(award) ? " requested" : ""}${feeAmount ? `, application charge ${usd(feeAmount)} on approval` : ""})` });
       await notifyUser(profileId, `Application for "${plan.name}" submitted`, `/applications/${id}`, tx);
     });
   } catch (err) {
@@ -109,7 +114,7 @@ export async function createPlanApplication(profileId: string, input: { planId: 
  * After "Changes requested": the applicant edits their answers and may replace files (a file field left empty keeps the
  * file already attached), then the application goes back to Submitted.
  */
-export async function resubmitPlanApplication(profileId: string, id: string, input: { note?: unknown; answers: unknown; fileFields?: unknown; files?: Express.Multer.File[] }) {
+export async function resubmitPlanApplication(profileId: string, id: string, input: { note?: unknown; amount?: unknown; answers: unknown; fileFields?: unknown; files?: Express.Multer.File[] }) {
   const [a] = await db.select().from(demoApplicationsTable).where(and(eq(demoApplicationsTable.id, id), eq(demoApplicationsTable.profileId, profileId)));
   if (!a) return undefined;
   const snap = snapshotOf(a);
@@ -118,6 +123,12 @@ export async function resubmitPlanApplication(profileId: string, id: string, inp
   const note = typeof input.note === "string" ? input.note.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 1000) : "";
   const answers = parseAnswers(snap.fields, readAnswers(input.answers));
   if (typeof answers === "string") throw new RecordInputError(answers);
+  // A range plan's amount may change too, within the range as it was when they applied; left out, it stays.
+  const askedBefore = a.requestedCents ?? a.amountCents;
+  const changeAmount = isRange(snap) && input.amount !== undefined && input.amount !== "";
+  const requested = changeAmount ? requestedCents(snap, input.amount) : askedBefore;
+  if (typeof requested === "string") throw new RecordInputError(requested);
+  const feeAmount = feeCents(snap.fee, requested);
   const files = filesByField(snap.fields, input.files, input.fileFields);
   const before = answersOf(a);
   for (const f of snap.fields) if (f.type === "file" && f.required && !files.has(f.id) && !before[f.id]) throw new RecordInputError(`Attach "${f.label}".`);
@@ -130,9 +141,13 @@ export async function resubmitPlanApplication(profileId: string, id: string, inp
     const done = await db.transaction(async tx => {
       const [locked] = await tx.select().from(demoApplicationsTable).where(eq(demoApplicationsTable.id, id)).for("update");
       if (!locked || locked.status !== "Changes requested") throw new RecordInputError("This application can no longer be changed.");
-      await tx.update(demoApplicationsTable).set({ status: "Submitted", answers: { ...answers, ...kept, ...Object.fromEntries(stored) }, updatedAt: new Date() }).where(eq(demoApplicationsTable.id, id));
-      await tx.insert(demoApplicationEventsTable).values({ applicationId: id, status: "Submitted", note: note ? `Resubmitted with changes: ${note}` : "Resubmitted with changes", actor });
-      await tx.insert(demoAuditTable).values({ profileId, actor, action: `Application ${id} edited and resubmitted` });
+      await tx.update(demoApplicationsTable).set({
+        status: "Submitted", answers: { ...answers, ...kept, ...Object.fromEntries(stored) },
+        amountCents: requested, requestedCents: requested, feeCents: feeAmount, updatedAt: new Date(),
+      }).where(eq(demoApplicationsTable.id, id));
+      const moved = requested !== askedBefore ? ` (amount ${usd(askedBefore)} → ${usd(requested)})` : "";
+      await tx.insert(demoApplicationEventsTable).values({ applicationId: id, status: "Submitted", note: `Resubmitted with changes${moved}${note ? `: ${note}` : ""}`, actor });
+      await tx.insert(demoAuditTable).values({ profileId, actor, action: `Application ${id} edited and resubmitted${moved}` });
       await notifyUser(profileId, `Application for "${a.title}" resubmitted`, `/applications/${id}`, tx);
       return true;
     });

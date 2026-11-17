@@ -143,13 +143,13 @@ router.post("/applicant/applications", receiveApplicationForm, async (req, res):
   const body = (req.body ?? {}) as Record<string, unknown>;
   if (typeof body["planId"] !== "string") { res.status(400).json({ error: "Choose a grant plan to apply to." }); return; }
   const files = Array.isArray(req.files) ? req.files : [];
-  res.status(201).json(GetApplicantApplicationResponse.parse(await createPlanApplication(currentUserId(req), { planId: body["planId"], answers: body["answers"], fileFields: body["fileFields"], files })));
+  res.status(201).json(GetApplicantApplicationResponse.parse(await createPlanApplication(currentUserId(req), { planId: body["planId"], amount: body["amount"], answers: body["answers"], fileFields: body["fileFields"], files })));
 });
 router.post("/applicant/applications/:applicationId/resubmit", receiveApplicationForm, async (req, res): Promise<void> => {
   const params = ResubmitApplicantApplicationParams.safeParse(req.params);
   const body = (req.body ?? {}) as Record<string, unknown>;
   const files = Array.isArray(req.files) ? req.files : [];
-  const detail = params.success ? await resubmitPlanApplication(currentUserId(req), params.data.applicationId, { note: body["note"], answers: body["answers"], fileFields: body["fileFields"], files }) : undefined;
+  const detail = params.success ? await resubmitPlanApplication(currentUserId(req), params.data.applicationId, { note: body["note"], amount: body["amount"], answers: body["answers"], fileFields: body["fileFields"], files }) : undefined;
   if (!detail) { res.status(404).json({ error: "Application not found." }); return; }
   res.json(GetApplicantApplicationResponse.parse(detail));
 });
@@ -403,7 +403,7 @@ router.post("/admin/applications/:applicationId/decision", async (req, res): Pro
   const params = DecideAdminApplicationParams.safeParse(req.params);
   const input = DecideAdminApplicationBody.safeParse(req.body);
   if (!input.success) { res.status(400).json({ error: "Choose Review, Approved, Declined or Changes requested, with a note under 1000 characters." }); return; }
-  const detail = params.success ? await decideApplication(params.data.applicationId, input.data.status, input.data.note, currentAdmin(req)) : undefined;
+  const detail = params.success ? await decideApplication(params.data.applicationId, input.data.status, input.data.note, currentAdmin(req), input.data.amount) : undefined;
   if (!detail) { res.status(404).json({ error: "Application not found." }); return; }
   res.json(DecideAdminApplicationResponse.parse(detail));
 });

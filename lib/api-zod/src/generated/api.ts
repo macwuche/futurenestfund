@@ -738,12 +738,14 @@ export const ListApplicantGrantPlansResponseItem = zod.object({
   "description": zod.string(),
   "industryId": zod.string().nullable().describe('null = all industries'),
   "industry": zod.string().describe('The industry\'s name, or "All industries"'),
-  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "amountMode": zod.enum(['fixed', 'range']).describe('fixed: amount is the award. range: the applicant asks for an amount between amount and maxAmount'),
+  "amount": zod.number().describe('Award in USD (fixed), or the smallest amount an applicant may ask for (range)'),
+  "maxAmount": zod.number().nullable().describe('Range plans: the largest amount an applicant may ask for; null when fixed'),
   "fee": zod.object({
   "mode": zod.enum(['fixed', 'percent']),
   "amount": zod.number().min(listApplicantGrantPlansResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
 }).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
-  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeAmount": zod.number().describe('The application charge on this award (range: on the minimum), in USD (charged on approval)'),
   "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
   "logoUrl": zod.string().optional(),
   "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
@@ -789,12 +791,14 @@ export const GetApplicantGrantPlanResponse = zod.object({
   "description": zod.string(),
   "industryId": zod.string().nullable().describe('null = all industries'),
   "industry": zod.string().describe('The industry\'s name, or "All industries"'),
-  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "amountMode": zod.enum(['fixed', 'range']).describe('fixed: amount is the award. range: the applicant asks for an amount between amount and maxAmount'),
+  "amount": zod.number().describe('Award in USD (fixed), or the smallest amount an applicant may ask for (range)'),
+  "maxAmount": zod.number().nullable().describe('Range plans: the largest amount an applicant may ask for; null when fixed'),
   "fee": zod.object({
   "mode": zod.enum(['fixed', 'percent']),
   "amount": zod.number().min(getApplicantGrantPlanResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
 }).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
-  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeAmount": zod.number().describe('The application charge on this award (range: on the minimum), in USD (charged on approval)'),
   "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
   "logoUrl": zod.string().optional(),
   "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
@@ -845,12 +849,14 @@ export const ListAdminGrantPlansResponseItem = zod.object({
   "description": zod.string(),
   "industryId": zod.string().nullable().describe('null = all industries'),
   "industry": zod.string().describe('The industry\'s name, or "All industries"'),
-  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "amountMode": zod.enum(['fixed', 'range']).describe('fixed: amount is the award. range: the applicant asks for an amount between amount and maxAmount'),
+  "amount": zod.number().describe('Award in USD (fixed), or the smallest amount an applicant may ask for (range)'),
+  "maxAmount": zod.number().nullable().describe('Range plans: the largest amount an applicant may ask for; null when fixed'),
   "fee": zod.object({
   "mode": zod.enum(['fixed', 'percent']),
   "amount": zod.number().min(listAdminGrantPlansResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
 }).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
-  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeAmount": zod.number().describe('The application charge on this award (range: on the minimum), in USD (charged on approval)'),
   "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
   "logoUrl": zod.string().optional(),
   "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
@@ -890,7 +896,9 @@ export const CreateAdminGrantPlanBody = zod.object({
   "name": zod.string(),
   "description": zod.string().optional(),
   "industryId": zod.string().nullish(),
-  "amount": zod.number(),
+  "amountMode": zod.enum(['fixed', 'range']).optional(),
+  "amount": zod.number().describe('The award (fixed) or the minimum (range)'),
+  "maxAmount": zod.number().optional().describe('Range only: the maximum'),
   "fee": zod.object({
   "mode": zod.enum(['fixed', 'percent']),
   "amount": zod.number().min(createAdminGrantPlanBodyOneFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
@@ -925,12 +933,14 @@ export const CreateAdminGrantPlanResponse = zod.object({
   "description": zod.string(),
   "industryId": zod.string().nullable().describe('null = all industries'),
   "industry": zod.string().describe('The industry\'s name, or "All industries"'),
-  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "amountMode": zod.enum(['fixed', 'range']).describe('fixed: amount is the award. range: the applicant asks for an amount between amount and maxAmount'),
+  "amount": zod.number().describe('Award in USD (fixed), or the smallest amount an applicant may ask for (range)'),
+  "maxAmount": zod.number().nullable().describe('Range plans: the largest amount an applicant may ask for; null when fixed'),
   "fee": zod.object({
   "mode": zod.enum(['fixed', 'percent']),
   "amount": zod.number().min(createAdminGrantPlanResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
 }).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
-  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeAmount": zod.number().describe('The application charge on this award (range: on the minimum), in USD (charged on approval)'),
   "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
   "logoUrl": zod.string().optional(),
   "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
@@ -975,12 +985,14 @@ export const GetAdminGrantPlanResponse = zod.object({
   "description": zod.string(),
   "industryId": zod.string().nullable().describe('null = all industries'),
   "industry": zod.string().describe('The industry\'s name, or "All industries"'),
-  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "amountMode": zod.enum(['fixed', 'range']).describe('fixed: amount is the award. range: the applicant asks for an amount between amount and maxAmount'),
+  "amount": zod.number().describe('Award in USD (fixed), or the smallest amount an applicant may ask for (range)'),
+  "maxAmount": zod.number().nullable().describe('Range plans: the largest amount an applicant may ask for; null when fixed'),
   "fee": zod.object({
   "mode": zod.enum(['fixed', 'percent']),
   "amount": zod.number().min(getAdminGrantPlanResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
 }).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
-  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeAmount": zod.number().describe('The application charge on this award (range: on the minimum), in USD (charged on approval)'),
   "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
   "logoUrl": zod.string().optional(),
   "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
@@ -1023,7 +1035,9 @@ export const UpdateAdminGrantPlanBody = zod.object({
   "name": zod.string().optional(),
   "description": zod.string().optional(),
   "industryId": zod.string().nullish(),
-  "amount": zod.number().optional(),
+  "amountMode": zod.enum(['fixed', 'range']).optional(),
+  "amount": zod.number().optional().describe('The award (fixed) or the minimum (range)'),
+  "maxAmount": zod.number().optional().describe('Range only: the maximum'),
   "fee": zod.object({
   "mode": zod.enum(['fixed', 'percent']),
   "amount": zod.number().min(updateAdminGrantPlanBodyFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
@@ -1056,12 +1070,14 @@ export const UpdateAdminGrantPlanResponse = zod.object({
   "description": zod.string(),
   "industryId": zod.string().nullable().describe('null = all industries'),
   "industry": zod.string().describe('The industry\'s name, or "All industries"'),
-  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "amountMode": zod.enum(['fixed', 'range']).describe('fixed: amount is the award. range: the applicant asks for an amount between amount and maxAmount'),
+  "amount": zod.number().describe('Award in USD (fixed), or the smallest amount an applicant may ask for (range)'),
+  "maxAmount": zod.number().nullable().describe('Range plans: the largest amount an applicant may ask for; null when fixed'),
   "fee": zod.object({
   "mode": zod.enum(['fixed', 'percent']),
   "amount": zod.number().min(updateAdminGrantPlanResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
 }).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
-  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeAmount": zod.number().describe('The application charge on this award (range: on the minimum), in USD (charged on approval)'),
   "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
   "logoUrl": zod.string().optional(),
   "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
@@ -1120,12 +1136,14 @@ export const UploadAdminGrantPlanLogoResponse = zod.object({
   "description": zod.string(),
   "industryId": zod.string().nullable().describe('null = all industries'),
   "industry": zod.string().describe('The industry\'s name, or "All industries"'),
-  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "amountMode": zod.enum(['fixed', 'range']).describe('fixed: amount is the award. range: the applicant asks for an amount between amount and maxAmount'),
+  "amount": zod.number().describe('Award in USD (fixed), or the smallest amount an applicant may ask for (range)'),
+  "maxAmount": zod.number().nullable().describe('Range plans: the largest amount an applicant may ask for; null when fixed'),
   "fee": zod.object({
   "mode": zod.enum(['fixed', 'percent']),
   "amount": zod.number().min(uploadAdminGrantPlanLogoResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
 }).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
-  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeAmount": zod.number().describe('The application charge on this award (range: on the minimum), in USD (charged on approval)'),
   "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
   "logoUrl": zod.string().optional(),
   "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
@@ -1170,12 +1188,14 @@ export const DeleteAdminGrantPlanLogoResponse = zod.object({
   "description": zod.string(),
   "industryId": zod.string().nullable().describe('null = all industries'),
   "industry": zod.string().describe('The industry\'s name, or "All industries"'),
-  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "amountMode": zod.enum(['fixed', 'range']).describe('fixed: amount is the award. range: the applicant asks for an amount between amount and maxAmount'),
+  "amount": zod.number().describe('Award in USD (fixed), or the smallest amount an applicant may ask for (range)'),
+  "maxAmount": zod.number().nullable().describe('Range plans: the largest amount an applicant may ask for; null when fixed'),
   "fee": zod.object({
   "mode": zod.enum(['fixed', 'percent']),
   "amount": zod.number().min(deleteAdminGrantPlanLogoResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
 }).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
-  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeAmount": zod.number().describe('The application charge on this award (range: on the minimum), in USD (charged on approval)'),
   "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
   "logoUrl": zod.string().optional(),
   "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
@@ -1228,12 +1248,14 @@ export const SetAdminGrantPlanLogoUrlResponse = zod.object({
   "description": zod.string(),
   "industryId": zod.string().nullable().describe('null = all industries'),
   "industry": zod.string().describe('The industry\'s name, or "All industries"'),
-  "amount": zod.number().describe('Award in USD, credited to the grant balance on approval'),
+  "amountMode": zod.enum(['fixed', 'range']).describe('fixed: amount is the award. range: the applicant asks for an amount between amount and maxAmount'),
+  "amount": zod.number().describe('Award in USD (fixed), or the smallest amount an applicant may ask for (range)'),
+  "maxAmount": zod.number().nullable().describe('Range plans: the largest amount an applicant may ask for; null when fixed'),
   "fee": zod.object({
   "mode": zod.enum(['fixed', 'percent']),
   "amount": zod.number().min(setAdminGrantPlanLogoUrlResponseFeeAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
 }).describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
-  "feeAmount": zod.number().describe('The application fee on this award, in USD (charged on approval)'),
+  "feeAmount": zod.number().describe('The application charge on this award (range: on the minimum), in USD (charged on approval)'),
   "feeText": zod.string().describe('e.g. "Fee $2.00", "Fee 1% ($50.00)" or "No fee"'),
   "logoUrl": zod.string().optional(),
   "initials": zod.string().describe('Placeholder when there is no logo, e.g. SG'),
@@ -1949,10 +1971,15 @@ export const ListApplicantApplicationsResponse = zod.array(ListApplicantApplicat
  */
 export const CreateApplicantApplicationBody = zod.object({
   "planId": zod.string(),
+  "amount": zod.string().optional().describe('Range plans: the amount requested in USD, e.g. "4000" or "4000.50" (ignored for fixed plans)'),
   "answers": zod.string().describe('JSON object of answers by field id (file fields are sent in files)'),
   "fileFields": zod.string().optional().describe('JSON array: the field id each file in files is for, in the same order'),
   "files": zod.array(zod.instanceof(Blob)).optional()
 })
+
+export const createApplicantApplicationResponseTwoFeeRuleAmountMin = 0;
+
+
 
 export const CreateApplicantApplicationResponse = zod.object({
   "id": zod.string(),
@@ -1976,6 +2003,15 @@ export const CreateApplicantApplicationResponse = zod.object({
 }).optional().describe('The grant plan an application was made to, as it was when submitted'),
   "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
   "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "requestedAmount": zod.number().optional().describe('Plan applications: the amount the applicant asked for (amount is the award, lower if an admin approved less)'),
+  "amountRange": zod.object({
+  "min": zod.number(),
+  "max": zod.number()
+}).optional().describe('Range plans: the amounts the applicant could ask for, as when they applied (with feeRule, the charge rule to work out a new amount\'s charge)'),
+  "feeRule": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(createApplicantApplicationResponseTwoFeeRuleAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
   "answers": zod.array(zod.object({
   "fieldId": zod.string(),
   "label": zod.string(),
@@ -2019,6 +2055,10 @@ export const GetApplicantApplicationParams = zod.object({
   "applicationId": zod.coerce.string()
 })
 
+export const getApplicantApplicationResponseTwoFeeRuleAmountMin = 0;
+
+
+
 export const GetApplicantApplicationResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
@@ -2041,6 +2081,15 @@ export const GetApplicantApplicationResponse = zod.object({
 }).optional().describe('The grant plan an application was made to, as it was when submitted'),
   "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
   "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "requestedAmount": zod.number().optional().describe('Plan applications: the amount the applicant asked for (amount is the award, lower if an admin approved less)'),
+  "amountRange": zod.object({
+  "min": zod.number(),
+  "max": zod.number()
+}).optional().describe('Range plans: the amounts the applicant could ask for, as when they applied (with feeRule, the charge rule to work out a new amount\'s charge)'),
+  "feeRule": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(getApplicantApplicationResponseTwoFeeRuleAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
   "answers": zod.array(zod.object({
   "fieldId": zod.string(),
   "label": zod.string(),
@@ -2084,6 +2133,10 @@ export const WithdrawApplicantApplicationParams = zod.object({
   "applicationId": zod.coerce.string()
 })
 
+export const withdrawApplicantApplicationResponseTwoFeeRuleAmountMin = 0;
+
+
+
 export const WithdrawApplicantApplicationResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
@@ -2106,6 +2159,15 @@ export const WithdrawApplicantApplicationResponse = zod.object({
 }).optional().describe('The grant plan an application was made to, as it was when submitted'),
   "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
   "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "requestedAmount": zod.number().optional().describe('Plan applications: the amount the applicant asked for (amount is the award, lower if an admin approved less)'),
+  "amountRange": zod.object({
+  "min": zod.number(),
+  "max": zod.number()
+}).optional().describe('Range plans: the amounts the applicant could ask for, as when they applied (with feeRule, the charge rule to work out a new amount\'s charge)'),
+  "feeRule": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(withdrawApplicantApplicationResponseTwoFeeRuleAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
   "answers": zod.array(zod.object({
   "fieldId": zod.string(),
   "label": zod.string(),
@@ -2155,10 +2217,15 @@ export const resubmitApplicantApplicationBodyNoteMax = 1000;
 
 export const ResubmitApplicantApplicationBody = zod.object({
   "note": zod.string().max(resubmitApplicantApplicationBodyNoteMax).optional().describe('Optional note to the reviewer'),
+  "amount": zod.string().optional().describe('Range plans: a new amount requested in USD; left out, it stays'),
   "answers": zod.string().describe('JSON object of answers by field id'),
   "fileFields": zod.string().optional().describe('JSON array: the field id each file in files is for; a file field with no new file keeps the one attached'),
   "files": zod.array(zod.instanceof(Blob)).optional()
 })
+
+export const resubmitApplicantApplicationResponseTwoFeeRuleAmountMin = 0;
+
+
 
 export const ResubmitApplicantApplicationResponse = zod.object({
   "id": zod.string(),
@@ -2182,6 +2249,15 @@ export const ResubmitApplicantApplicationResponse = zod.object({
 }).optional().describe('The grant plan an application was made to, as it was when submitted'),
   "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
   "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "requestedAmount": zod.number().optional().describe('Plan applications: the amount the applicant asked for (amount is the award, lower if an admin approved less)'),
+  "amountRange": zod.object({
+  "min": zod.number(),
+  "max": zod.number()
+}).optional().describe('Range plans: the amounts the applicant could ask for, as when they applied (with feeRule, the charge rule to work out a new amount\'s charge)'),
+  "feeRule": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(resubmitApplicantApplicationResponseTwoFeeRuleAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
   "answers": zod.array(zod.object({
   "fieldId": zod.string(),
   "label": zod.string(),
@@ -2238,6 +2314,10 @@ export const RespondToApplicantApplicationBody = zod.object({
   "amount": zod.number().min(respondToApplicantApplicationBodyAmountMin).max(respondToApplicantApplicationBodyAmountMax).optional()
 })
 
+export const respondToApplicantApplicationResponseTwoFeeRuleAmountMin = 0;
+
+
+
 export const RespondToApplicantApplicationResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
@@ -2260,6 +2340,15 @@ export const RespondToApplicantApplicationResponse = zod.object({
 }).optional().describe('The grant plan an application was made to, as it was when submitted'),
   "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
   "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "requestedAmount": zod.number().optional().describe('Plan applications: the amount the applicant asked for (amount is the award, lower if an admin approved less)'),
+  "amountRange": zod.object({
+  "min": zod.number(),
+  "max": zod.number()
+}).optional().describe('Range plans: the amounts the applicant could ask for, as when they applied (with feeRule, the charge rule to work out a new amount\'s charge)'),
+  "feeRule": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(respondToApplicantApplicationResponseTwoFeeRuleAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
   "answers": zod.array(zod.object({
   "fieldId": zod.string(),
   "label": zod.string(),
@@ -2390,6 +2479,10 @@ export const UploadApplicantApplicationDocumentBody = zod.object({
   "file": zod.instanceof(Blob)
 })
 
+export const uploadApplicantApplicationDocumentResponseTwoFeeRuleAmountMin = 0;
+
+
+
 export const UploadApplicantApplicationDocumentResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
@@ -2412,6 +2505,15 @@ export const UploadApplicantApplicationDocumentResponse = zod.object({
 }).optional().describe('The grant plan an application was made to, as it was when submitted'),
   "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
   "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "requestedAmount": zod.number().optional().describe('Plan applications: the amount the applicant asked for (amount is the award, lower if an admin approved less)'),
+  "amountRange": zod.object({
+  "min": zod.number(),
+  "max": zod.number()
+}).optional().describe('Range plans: the amounts the applicant could ask for, as when they applied (with feeRule, the charge rule to work out a new amount\'s charge)'),
+  "feeRule": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(uploadApplicantApplicationDocumentResponseTwoFeeRuleAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
   "answers": zod.array(zod.object({
   "fieldId": zod.string(),
   "label": zod.string(),
@@ -2456,6 +2558,10 @@ export const DeleteApplicantApplicationDocumentParams = zod.object({
   "fileId": zod.coerce.string()
 })
 
+export const deleteApplicantApplicationDocumentResponseTwoFeeRuleAmountMin = 0;
+
+
+
 export const DeleteApplicantApplicationDocumentResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
@@ -2478,6 +2584,15 @@ export const DeleteApplicantApplicationDocumentResponse = zod.object({
 }).optional().describe('The grant plan an application was made to, as it was when submitted'),
   "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
   "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "requestedAmount": zod.number().optional().describe('Plan applications: the amount the applicant asked for (amount is the award, lower if an admin approved less)'),
+  "amountRange": zod.object({
+  "min": zod.number(),
+  "max": zod.number()
+}).optional().describe('Range plans: the amounts the applicant could ask for, as when they applied (with feeRule, the charge rule to work out a new amount\'s charge)'),
+  "feeRule": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(deleteApplicantApplicationDocumentResponseTwoFeeRuleAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
   "answers": zod.array(zod.object({
   "fieldId": zod.string(),
   "label": zod.string(),
@@ -4119,6 +4234,10 @@ export const GetAdminApplicationParams = zod.object({
   "applicationId": zod.coerce.string()
 })
 
+export const getAdminApplicationResponseTwoFeeRuleAmountMin = 0;
+
+
+
 export const GetAdminApplicationResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
@@ -4144,6 +4263,15 @@ export const GetAdminApplicationResponse = zod.object({
 }).optional().describe('The grant plan an application was made to, as it was when submitted'),
   "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
   "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "requestedAmount": zod.number().optional().describe('Plan applications: the amount the applicant asked for (amount is the award, lower if an admin approved less)'),
+  "amountRange": zod.object({
+  "min": zod.number(),
+  "max": zod.number()
+}).optional().describe('Range plans: the amounts the applicant could ask for, as when they applied (with feeRule, the charge rule to work out a new amount\'s charge)'),
+  "feeRule": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(getAdminApplicationResponseTwoFeeRuleAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
   "answers": zod.array(zod.object({
   "fieldId": zod.string(),
   "label": zod.string(),
@@ -4194,8 +4322,13 @@ export const decideAdminApplicationBodyNoteMax = 1000;
 
 export const DecideAdminApplicationBody = zod.object({
   "status": zod.enum(['Review', 'Approved', 'Declined', 'Changes requested']),
-  "note": zod.string().max(decideAdminApplicationBodyNoteMax).optional()
+  "note": zod.string().max(decideAdminApplicationBodyNoteMax).optional(),
+  "amount": zod.number().optional().describe('Approved only, range plans: the amount approved in USD, from the plan\'s minimum up to what was requested (default: what was requested)')
 })
+
+export const decideAdminApplicationResponseTwoFeeRuleAmountMin = 0;
+
+
 
 export const DecideAdminApplicationResponse = zod.object({
   "id": zod.string(),
@@ -4222,6 +4355,15 @@ export const DecideAdminApplicationResponse = zod.object({
 }).optional().describe('The grant plan an application was made to, as it was when submitted'),
   "fee": zod.number().optional().describe('Plan applications: the application fee, charged from the account balance on approval'),
   "feeCharged": zod.boolean().optional().describe('Whether the fee has been charged (the application was approved)'),
+  "requestedAmount": zod.number().optional().describe('Plan applications: the amount the applicant asked for (amount is the award, lower if an admin approved less)'),
+  "amountRange": zod.object({
+  "min": zod.number(),
+  "max": zod.number()
+}).optional().describe('Range plans: the amounts the applicant could ask for, as when they applied (with feeRule, the charge rule to work out a new amount\'s charge)'),
+  "feeRule": zod.object({
+  "mode": zod.enum(['fixed', 'percent']),
+  "amount": zod.number().min(decideAdminApplicationResponseTwoFeeRuleAmountMin).describe('USD for fixed, percent for percent (1 = 1%)')
+}).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
   "answers": zod.array(zod.object({
   "fieldId": zod.string(),
   "label": zod.string(),
