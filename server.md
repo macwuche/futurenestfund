@@ -1,6 +1,6 @@
 # GrantApp deployment tracker (server.md)
 
-_Deployment only. Last updated 2026-11-09._
+_Deployment only. Last updated 2026-11-17._
 
 - **Exact commands:** [`docs/DEPLOY.md`](docs/DEPLOY.md).
 - **This file:** the record of what's decided, done, not done yet and still to do.
@@ -113,7 +113,7 @@ Step 6.5 counts as **done** when steps 1–9 have been followed once end to end.
 
 ## 6b. After deploying (in the admin area)
 
-The app is live at `3612717` (2026-11-09, "application charge" wording; before that `1c4b760`, branding). These need you in the admin area, or applicants can't use the matching feature:
+The app is live at `da871ec` (2026-11-17, award ranges and the withdrawal "processing charge" wording; before that `3612717`, "application charge" wording). These need you in the admin area, or applicants can't use the matching feature:
 
 | What | Where | Until it's done |
 |---|---|---|
@@ -123,6 +123,8 @@ The app is live at `3612717` (2026-11-09, "application charge" wording; before t
 | Check the 40 starting industries | Admin → Settings → Industries | The starting list is used |
 | Set the application name, colour and logo | Admin → Settings → Branding | The app is called "GrantApp" in navy; the admin side's accents turn navy too (they were lime) |
 | Set each tier's limits and cards, and the Tier 2 / Tier 3 upgrade forms | Admin → Settings → Tiers | Every tier has the old platform-wide withdrawal limits, no top-up limits, every card; nobody can ask to move up |
+
+Award ranges are deployed (`da871ec`, migration 0014 applied). Existing plans stay fixed; switch a plan to **Range** in Admin → Grant Plans to let applicants choose the amount. Rolling back to `3612717` works: the migration only adds columns; older code shows a range plan as a fixed award of its minimum, and applications keep their own amounts.
 
 Branding is deployed (`1c4b760`, migration 0013 applied). Rolling back to `dcf0067` works: the migration only adds a column, and older code shows "GrantApp" in navy / lime again.
 
@@ -187,3 +189,4 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 | 2026-11-06 | Deployed **2ad3f00** (9.4 tier rules: withdrawal and top-up limits and cards per tier, upgrade forms, Tier Upgrades queue; up from `f39c238`). Builds OK; app migrations: 1 applied (**0012** tier rules: `demo_tier_requests`, `demo_settings.tier_rules` with the platform-wide withdrawal limits copied into every tier), 13 recorded; Supabase **0006_tier_requests** applied, 0001–0005 skipped. API reloaded, health OK, `futurenestfund-api` online. RAM 59.5% right after the build. Next: Admin → Settings → Tiers (limits, cards, Tier 2 / Tier 3 upgrade forms). |
 | 2026-11-06 | Deployed **1c4b760** (branding: admin-set application name, brand colour and logo on both sides and in emails; up from `2ad3f00`, docs-only commits in between). Builds OK; app migrations: 1 applied (**0013** `demo_settings.branding`), 14 recorded; Supabase migrations all skipped (0001–0006). API reloaded, health OK, `futurenestfund-api` online. RAM 73.6% right after the build (59.5% after the previous one; check `free -m` once it settles). Next: Admin → Settings → Branding (until then "GrantApp" in navy, admin accents navy instead of lime). |
 | 2026-11-09 | Deployed **3612717** (wording: "application charge" instead of "application fee" everywhere people see it; the ledger kind stays `Application fee`; also the 2026-11-06 doc updates; up from `1c4b760`, docs-only commits in between). Builds OK; no migrations (0 applied, 14 recorded; Supabase all skipped). API reloaded, health OK, `futurenestfund-api` online. RAM 72.5% right after the build. pnpm offered 12.18.0; not taken (the server stays on 10.26.1). |
+| 2026-11-17 | Deployed **da871ec** (award ranges: a grant plan's award is fixed or a minimum–maximum range the applicant chooses, % charge on the amount, admins may approve less; and `c540a0a`, "processing charge" instead of "fee" on the applicant's Withdrawals page; up from `3612717`). Builds OK; app migrations: 1 applied (**0014** `grant_award_range`: `demo_grant_plans.amount_mode`, `max_amount_cents`, `demo_applications.requested_cents`), 15 recorded; Supabase migrations all skipped (0001–0006). API reloaded, health OK, `futurenestfund-api` online. RAM 55.3% right after the build. pnpm offered 12.21.0; not taken (the server stays on 10.26.1). |
