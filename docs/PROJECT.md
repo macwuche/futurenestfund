@@ -534,6 +534,7 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | 2026-11-06 | **Branding**: the admin sets the application's name, one brand colour for both sides (the admin keeps its black menu) and a logo (upload or link); the name replaces "GrantApp" everywhere, emails included; open screens follow within ~15 seconds. Sample-data notices stay |
 | 2026-11-05 | **Industries** are admin-managed (40 to start); required at sign-up; plans for the user's industry (and all-industry plans) are recommended, but any plan can be applied to |
 | 2026-11-09 | The grant plan's fee is called the **application charge** everywhere people see it; the ledger kind stays `Application fee` in the database and API (shown as "Application charge") |
+| 2026-11-17 | On the applicant's Withdrawals page the withdrawal method's fee is called the **processing charge**; deposits, the admin side and the API keep "fee" |
 
 ---
 

@@ -453,13 +453,13 @@ export async function createApplicantRequest(profileId: string, input: RequestIn
       const available = await availableCents(profile, source, tx);
       if (source === "deposit" && cents + fee > available) {
         throw new DemoInputError(fee > 0
-          ? `This withdrawal and its ${dollars(fee)} fee come to ${dollars(cents + fee)}, more than the ${dollars(available)} available in your account balance, after pending withdrawals.`
+          ? `This withdrawal and its ${dollars(fee)} processing charge come to ${dollars(cents + fee)}, more than the ${dollars(available)} available in your account balance, after pending withdrawals.`
           : `This is more than the ${dollars(available)} available in your account balance, after pending withdrawals.`);
       }
       if (source === "grant") {
         if (cents > available) throw new DemoInputError(`This is more than the ${dollars(available)} available in your grant balance, after pending withdrawals.`);
         const main = fee > 0 ? await availableCents(profile, "deposit", tx) : 0;
-        if (fee > main) throw new DemoInputError(`The ${dollars(fee)} fee is paid from your account balance, which has ${dollars(main)} available. Add funds first.`);
+        if (fee > main) throw new DemoInputError(`The ${dollars(fee)} processing charge is paid from your account balance, which has ${dollars(main)} available. Add funds first.`);
       }
       // The profile row is locked above, so two quick requests can't both fit under the daily total.
       // The limits are the user's tier's (Step 9.4), unless an admin set custom ones for them.

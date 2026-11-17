@@ -600,7 +600,7 @@ export function TxRow({ t, showDetails = false }: { t: Tx; showDetails?: boolean
       </span>
     </div>
     {showDetails && <RequestDetails method={t.method} details={t.details} proofUrl={t.proofUrl} source={t.type === 'Withdrawal' ? t.source : undefined} testid={`details-transaction-${t.id}`} />}
-    {showDetails && t.fee ? <p className="mt-2 text-xs tabular-nums text-slate-600" data-testid={`text-fee-${t.id}`}>{t.type === 'Deposit' ? `Fee ${money(t.fee)} · ${t.status === 'Completed' ? 'credited' : 'you receive'} ${money(Math.round((t.amount - t.fee) * 100) / 100)}` : `Fee ${money(t.fee)}, from your account balance`}</p> : null}
+    {showDetails && t.fee ? <p className="mt-2 text-xs tabular-nums text-slate-600" data-testid={`text-fee-${t.id}`}>{t.type === 'Deposit' ? `Fee ${money(t.fee)} · ${t.status === 'Completed' ? 'credited' : 'you receive'} ${money(Math.round((t.amount - t.fee) * 100) / 100)}` : `Processing charge ${money(t.fee)}, from your account balance`}</p> : null}
     {showDetails && t.status === 'Completed' && t.reviewNote && <p className="mt-2 text-xs text-slate-600" data-testid={`text-approve-note-${t.id}`}><span className="font-semibold">Note from our team:</span> {t.reviewNote}</p>}
     </li>
   );
@@ -631,6 +631,9 @@ function TxBody({ a }: { a: Account }) {
 }
 
 /* Withdrawals and Add funds */
+/** Withdrawals call the method fee a "processing charge" (the server's text says "Fee …"). */
+const processingCharge = (feeText: string) => feeText.replace(/^Fee\b/, 'Processing charge');
+
 function MoneyPage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
   return <AccountGate title={kind === 'Deposit' ? 'Add funds' : 'Withdrawals'}>{(a) => <MoneyBody kind={kind} a={a} />}</AccountGate>;
 }
@@ -684,8 +687,8 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
     }
     const fee = feeOn(method.fee, n);
     if (isDeposit && fee > 0 && fee >= n) return setErr(`The ${money(fee)} fee is more than this deposit. Deposit a larger amount.`);
-    if (!isDeposit && source === 'deposit' && fee > 0 && n + fee > a.availableToWithdraw.deposit) return setErr(`This withdrawal and its ${money(fee)} fee come to ${money(n + fee)}, more than the ${money(a.availableToWithdraw.deposit)} available in your account balance.`);
-    if (!isDeposit && source === 'grant' && fee > a.availableToWithdraw.deposit) return setErr(`The ${money(fee)} fee is paid from your account balance, which has ${money(a.availableToWithdraw.deposit)} available. Add funds first.`);
+    if (!isDeposit && source === 'deposit' && fee > 0 && n + fee > a.availableToWithdraw.deposit) return setErr(`This withdrawal and its ${money(fee)} processing charge come to ${money(n + fee)}, more than the ${money(a.availableToWithdraw.deposit)} available in your account balance.`);
+    if (!isDeposit && source === 'grant' && fee > a.availableToWithdraw.deposit) return setErr(`The ${money(fee)} processing charge is paid from your account balance, which has ${money(a.availableToWithdraw.deposit)} available. Add funds first.`);
     if (!isDeposit && available !== null && n > available) return setErr(`You can withdraw up to ${money(available)} from your ${sourceName[source as Source].toLowerCase()}.`);
     // Withdrawal limits are checked by the server (Step 9.4): a refusal there also tells the user how to upgrade, in the bell and by email.
     const fe = checkFieldValues(method.fields, values);
@@ -763,7 +766,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
                     <button key={x.id} type="button" role="radio" aria-checked={methodId === x.id} disabled={paused} onClick={() => choose(x.id)} data-testid={`button-method-${x.id}`}
                       className={cx('press flex min-h-11 items-center gap-3 rounded-xl border p-3 text-left', methodId === x.id ? 'border-[var(--brand-ink)] bg-[var(--brand-soft)] ring-2 ring-[var(--brand-ink)]/20' : 'border-slate-300 bg-white hover:border-[var(--brand-ink)]')}>
                       <MethodLogo url={x.logoUrl} name={x.name} />
-                      <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-slate-900">{x.name}</span><span className="block text-xs tabular-nums text-slate-500">{x.amountRule}{x.feeText !== 'No fee' ? ` · ${x.feeText}` : ''}</span></span>
+                      <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-slate-900">{x.name}</span><span className="block text-xs tabular-nums text-slate-500">{x.amountRule}{x.feeText !== 'No fee' ? ` · ${isDeposit ? x.feeText : processingCharge(x.feeText)}` : ''}</span></span>
                       {methodId === x.id && <CircleCheck className="h-5 w-5 shrink-0 text-[var(--brand-ink)]" aria-hidden />}
                     </button>
                   ))}
@@ -829,10 +832,10 @@ function FeeSummary({ isDeposit, feeText, fee, amount }: { isDeposit: boolean; f
   return (
     <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700" data-testid="text-method-fee" aria-live="polite">
       {fee === null
-        ? <>{feeText}{isDeposit ? ', taken out of the amount you deposit.' : ', paid from your account balance.'}</>
+        ? <>{isDeposit ? feeText : processingCharge(feeText)}{isDeposit ? ', taken out of the amount you deposit.' : ', paid from your account balance.'}</>
         : isDeposit
           ? <>Fee <span className="font-semibold tabular-nums">{money(fee)}</span> · you'll receive <span className="font-semibold tabular-nums" data-testid="text-fee-net">{money(Math.max(0, Math.round((amount - fee) * 100) / 100))}</span></>
-          : <>Fee <span className="font-semibold tabular-nums">{money(fee)}</span>, paid from your account balance · total <span className="font-semibold tabular-nums" data-testid="text-fee-net">{money(Math.round((amount + fee) * 100) / 100)}</span></>}
+          : <>Processing charge <span className="font-semibold tabular-nums">{money(fee)}</span>, paid from your account balance · total <span className="font-semibold tabular-nums" data-testid="text-fee-net">{money(Math.round((amount + fee) * 100) / 100)}</span></>}
     </p>
   );
 }

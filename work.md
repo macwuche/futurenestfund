@@ -2784,3 +2784,13 @@ One commit when green; `deploy.sh` applies 0014. **Parked 2026-11-06** while bra
 **Tests:** typecheck clean; `pnpm test` 140/140 (+1 skipped); `phase11-plans` 17/17, `phase11-ui` 9 + 9, `phase2-desktop` 26/26 (expectations updated); demo data restored after each.
 
 **Committed** `3612717`. **Deployed** 2026-11-09 at `3612717` (no migration).
+
+---
+
+## 27. Wording: withdrawal "processing charge" (2026-11-17)
+
+**Request (user, 2026-11-17):** on the user side's `/withdrawals`, call the "Fee" a **processing charge**.
+
+**Changed** (wording only, no migration): on Withdrawals, the method list ("Processing charge $2.00" / "Processing charge 1%"), the summary under the amount, the browser's and the server's refusals when the account balance can't cover it (`demoWorkspace.ts`), and the withdrawal rows in "Your withdrawal requests" (the same row shows on Transactions). The server's `feeText` stays "Fee …" (shared with deposits, cards and the admin side); the page relabels it (`processingCharge` in `applicant.tsx`). Unchanged: Add funds (deposit fees still "Fee"), the Transactions filter "Fees", the admin side and the audit log.
+
+**Tests:** typecheck clean; `pnpm test` 140/140 (+1 skipped); `phase93-fees` 8/8, `phase11-plans` 17/17, `phase93-ui` 8 + 8 (expectations updated); demo data restored after each.
