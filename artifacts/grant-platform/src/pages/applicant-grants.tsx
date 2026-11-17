@@ -180,7 +180,6 @@ function ApplyFlow({ p }: { p: GrantPlan }) {
               {p.fee.mode === 'percent' && p.fee.amount > 0 && ` The application charge is ${p.fee.amount}% of the amount approved.`}
             </p>
           )}
-          <FeeNote charge={range && p.fee.mode === 'percent' ? (p.fee.amount > 0 ? `${p.fee.amount}%` : '') : p.feeAmount > 0 ? money(p.feeAmount) : ''} />
           <button type="button" className={cx(primary, 'mt-5 w-full sm:w-auto')} onClick={() => setStep('form')} data-testid="button-start-application">Apply for this grant</button>
         </section>
       )}
@@ -220,7 +219,6 @@ function ApplyFlow({ p }: { p: GrantPlan }) {
             <div className="rounded-xl bg-slate-50 p-4"><dt className="text-sm text-slate-600">Application charge</dt><dd className="mt-1 text-2xl font-bold tabular-nums text-slate-900" data-testid="text-summary-fee">{money(charge)}</dd><dd className="text-xs text-slate-500">{charge > 0 ? 'Charged from your account balance only if approved' : 'No fee for this grant'}</dd></div>
           </dl>
           {range && <p className="mt-3 text-xs text-slate-500" data-testid="text-summary-lower">An administrator may approve a lower amount (not below {money(p.amount)}){p.fee.mode === 'percent' && p.fee.amount > 0 ? '; the charge is then worked out on the amount approved' : ''}.</p>}
-          <FeeNote charge={charge > 0 ? money(charge) : ''} />
           {p.fields.length > 0 && (
             <dl className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200" data-testid="list-summary-answers">
               {p.fields.map((f, i) => {
@@ -260,16 +258,5 @@ function PlanHeader({ p }: { p: GrantPlan }) {
         <p className="text-xs text-slate-500" data-testid="text-plan-fee">{planFeeLine(p)}</p>
       </div>
     </section>
-  );
-}
-
-/** `charge` is "$2.00" or, for a range plan's percentage, "5%"; empty = no charge, no note. */
-function FeeNote({ charge }: { charge: string }) {
-  if (!charge) return null;
-  return (
-    <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" data-testid="text-fee-note">
-      Nothing is charged when you apply. If your application is approved, the {charge} application charge is taken from your account balance,
-      even if that takes it below $0. Your next deposit then covers it first.
-    </p>
   );
 }

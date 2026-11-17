@@ -2825,3 +2825,13 @@ One commit when green; `deploy.sh` applies 0015. **Parked 2026-11-06** while bra
 - new `phase-award-range.mjs` 7/7 (admin rules and switching, applying, a fixed plan unchanged, resubmitting within the range as it was, approving less: balances, ledger, notification; approving without an amount) and `phase-award-range-ui.mjs` 4 + 4 (screenshots checked at 1440 and 390 px)
 - unchanged and passing: phase11-plans 17/17, phase11-ui 9 + 9, phase3-api 24/24, phase2-desktop 26/26, smoke 22 + 22, phase6-mobile 45/45 with 0 problems
 
+---
+
+## 29. Apply page: charge note removed (2026-11-17)
+
+**Request (user, 2026-11-17):** remove the note "Nothing is charged when you apply. If your application is approved, the $X application charge is taken from your account balance, even if that takes it below $0. Your next deposit then covers it first."
+
+**Changed:** the amber note (`FeeNote`, `applicant-grants.tsx`) is gone from both places it showed: the plan's details step and the summary before submitting. Kept: the summary's Application charge box ("Charged from your account balance only if approved"), the charge on plan cards, a range plan's line about its percentage, and the toast after submitting.
+
+**Tests:** typecheck clean; `phase11-ui` 9 + 9 and `phase-award-range-ui` 4 + 4 (expectations updated: the note is absent).
+
