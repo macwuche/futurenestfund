@@ -199,6 +199,24 @@ export function tierEmail(kind: TierEmailKind, to: string, name: string, d: Tier
   }
 }
 
+/**
+ * Card payments (Phase 13): sent when a customer saves a card. It's a security notice, so it goes out even when the
+ * customer turned email notifications off (only an administrator's email override stops it).
+ */
+export type CardEmailKind = "card_added";
+export type CardEmailData = { card: string; holderName: string; expiry: string; date: string };
+export const isCardEmailKind = (k: unknown): k is CardEmailKind => k === "card_added";
+
+export function cardEmail(_kind: CardEmailKind, to: string, name: string, d: CardEmailData, url: string): OutgoingEmail {
+  return render(to, `A card was added to your ${appName()} account`, "Card added", [
+    { kind: "p", text: greeting(name) },
+    { kind: "p", text: `Your ${d.card} was added to your ${appName()} account. You can use it straight away to add funds and to withdraw. Each deposit and withdrawal is reviewed by our finance team before money moves.` },
+    { kind: "rows", rows: [["Card", d.card], ["Name on card", d.holderName], ["Expires", d.expiry], ["Added", d.date]] },
+    { kind: "button", label: "View your cards", href: url },
+    { kind: "small", text: "Didn't add this card? Remove it from Payment cards and contact support straight away. We'll never ask for your card number, CVV or password by email or phone." },
+  ]);
+}
+
 /** The "Send test email" button in Admin Settings → Email. */
 export function testEmail(to: string, from: string, sentBy: string): OutgoingEmail {
   return render(to, `${appName()}: test email`, "Your email settings work", [

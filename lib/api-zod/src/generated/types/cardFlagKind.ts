@@ -15,5 +15,4 @@ export const CardFlagKind = {
   reported: 'reported',
   duplicate: 'duplicate',
   blocked: 'blocked',
-  unchecked: 'unchecked',
 } as const;

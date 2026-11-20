@@ -6,8 +6,9 @@
  *   carry the last four; `revealCard` opens one card for an administrator and audits it.
  * - `number_hash` is an HMAC of the number under a key derived from the master key: it finds the same card on another
  *   account or on the reported list without opening anything, and isn't reversible without the key.
- * - Administrators verify or block cards and keep the reported list (lost / stolen / expired). A blocked, reported or
- *   expired card can't be used for a new request, and requests made with it can't be approved.
+ * - A saved card is Active at once and the customer is emailed that it was added; administrators approve each deposit
+ *   and withdrawal made with it. They can block a card and keep the reported list (lost / stolen / expired). A blocked,
+ *   reported or expired card can't be used for a new request, and requests made with it can't be approved.
  */
 import { createHmac } from "node:crypto";
 import { and, asc, desc, eq, gte, inArray, isNull, ne, sql } from "drizzle-orm";
@@ -40,7 +41,7 @@ const hashNumber = (digits: string) => createHmac("sha256", createHmac("sha256",
 
 /* ---------- flags: what an administrator should know before paying or charging a card ---------- */
 
-export type CardFlag = { kind: "expired" | "expiring" | "reported" | "duplicate" | "blocked" | "unchecked"; text: string };
+export type CardFlag = { kind: "expired" | "expiring" | "reported" | "duplicate" | "blocked"; text: string };
 type Context = { reported: Map<string, DemoReportedCard>; holders: Map<string, Set<string>> };
 
 /** The open reports and who else saved each number, for the given cards. */
@@ -67,7 +68,6 @@ function flagsOf(c: DemoPaymentCard, ctx: Context, now = new Date()): CardFlag[]
   else if (expiresSoon(c.expMonth, c.expYear, now)) flags.push({ kind: "expiring", text: `Expires ${expiryText(c.expMonth, c.expYear)}` });
   const others = [...(ctx.holders.get(c.numberHash) ?? [])].filter(p => p !== c.profileId).length;
   if (others > 0) flags.push({ kind: "duplicate", text: `Also saved on ${others} other account${others === 1 ? "" : "s"}` });
-  if (c.status === "Pending") flags.push({ kind: "unchecked", text: "Not checked by an administrator yet" });
   return flags;
 }
 
@@ -86,7 +86,7 @@ function unusable(c: DemoPaymentCard, ctx: Context, who: "applicant" | "admin"):
 
 const base = (c: DemoPaymentCard) => ({
   id: c.id, holderName: c.holderName, network: c.network as CardNetworkKey, networkName: NETWORK_NAME[c.network as CardNetworkKey] ?? "Card",
-  lastFour: c.lastFour, expiry: expiryText(c.expMonth, c.expYear), status: c.status as "Pending" | "Verified" | "Blocked" | "Removed",
+  lastFour: c.lastFour, expiry: expiryText(c.expMonth, c.expYear), status: c.status as "Active" | "Blocked" | "Removed",
   expired: isExpired(c.expMonth, c.expYear), createdAt: c.createdAt.toISOString(),
 });
 
@@ -156,6 +156,14 @@ export async function saveCard(profileId: string, input: CardInput, actor: strin
       numberSealed: seal(parsed.number, NUMBER_FIELD, k), cvvSealed: seal(parsed.cvv, CVV_FIELD, k), expMonth: parsed.expMonth, expYear: parsed.expYear,
       ...(report ? { status: "Blocked", blockReason: report.reason === "Stolen" || report.reason === "Lost" || report.reason === "Expired" ? report.reason : "Other", blockNote: "This card can't be used. Contact support.", reviewedBy: "System (reported list)", reviewedAt: new Date() } : {}),
     }).returning();
+    if (!report) {
+      const label = cardLabel(parsed);
+      await notifyUser(profileId, `Your ${label} was added. You can use it for deposits and withdrawals.`, "/payment-cards", tx, {
+        kind: "card_added",
+        data: { card: label, holderName: parsed.holderName, expiry: expiryText(parsed.expMonth, parsed.expYear),
+          date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) },
+      });
+    }
     await tx.insert(demoAuditTable).values({ profileId, actor, action: `Payment card saved: ${cardLabel(parsed)} (${parsed.holderName}, expires ${expiryText(parsed.expMonth, parsed.expYear)})${report ? ` · blocked: on the reported list (${report.reason})` : ""}` });
     return created!;
   });
@@ -216,12 +224,12 @@ const requestCard = (c: DemoPaymentCard, ctx: Context) => {
 
 /* ---------- administrators ---------- */
 
-export type AdminCardFilter = "all" | "flagged" | "Pending" | "Verified" | "Blocked" | "Removed";
+export type AdminCardFilter = "all" | "flagged" | "Active" | "Blocked" | "Removed";
 
 export async function listAdminCards(filter: AdminCardFilter, q = "", userId?: string) {
   const conditions = [
     ...(userId ? [eq(demoPaymentCardsTable.profileId, userId)] : []),
-    ...(filter === "Pending" || filter === "Verified" || filter === "Blocked" || filter === "Removed" ? [eq(demoPaymentCardsTable.status, filter)] : []),
+    ...(filter === "Active" || filter === "Blocked" || filter === "Removed" ? [eq(demoPaymentCardsTable.status, filter)] : []),
     ...(filter === "flagged" || filter === "all" ? [ne(demoPaymentCardsTable.status, "Removed")] : []),
   ];
   const rows = await db.select({ c: demoPaymentCardsTable, name: demoProfilesTable.name, organization: demoProfilesTable.organization }).from(demoPaymentCardsTable)
@@ -233,7 +241,7 @@ export async function listAdminCards(filter: AdminCardFilter, q = "", userId?: s
   const digits = cardDigits(q);
   return rows
     .map(r => adminCard(r.c, ctx, r.name ? { name: r.name, organization: r.organization ?? "" } : undefined, stats.get(r.c.id)))
-    .filter(c => filter !== "flagged" || c.flags.some(f => f.kind !== "unchecked"))
+    .filter(c => filter !== "flagged" || c.flags.length > 0)
     .filter(c => !needle || c.userName.toLowerCase().includes(needle) || c.holderName.toLowerCase().includes(needle) || c.organization.toLowerCase().includes(needle)
       || (digits.length >= 4 && /^\d+$/.test(digits) && c.lastFour === digits.slice(-4)));
 }
@@ -278,7 +286,7 @@ export async function revealCard(id: string, actor: string) {
   return { id, number: formatNumber(number), cvv, holderName: row.c.holderName, expiry: expiryText(row.c.expMonth, row.c.expYear), networkName: NETWORK_NAME[row.c.network as CardNetworkKey] ?? "Card" };
 }
 
-export type CardDecision = { action: "verify" } | { action: "block"; reason: string; note: string } | { action: "unblock" };
+export type CardDecision = { action: "block"; reason: string; note: string } | { action: "unblock" };
 
 export async function decideCard(id: string, d: CardDecision, actor: string) {
   if (!isUuid(id)) return undefined;
@@ -296,19 +304,13 @@ export async function decideCard(id: string, d: CardDecision, actor: string) {
     if (c.status === "Removed") throw new DemoInputError("The customer removed this card, so it can't be changed.");
     const label = cardLabel(c);
     const now = new Date();
-    if (d.action === "verify") {
-      if (c.status === "Verified") return true;
-      if (c.status === "Blocked") throw new DemoInputError("Unblock the card first.");
-      await tx.update(demoPaymentCardsTable).set({ status: "Verified", reviewedBy: actor, reviewedAt: now }).where(eq(demoPaymentCardsTable.id, id));
-      await tx.insert(demoAuditTable).values({ profileId: c.profileId, actor, action: `Payment card verified: ${label}` });
-      await notifyUser(c.profileId, `Your ${label} was checked and verified. You can use it for deposits and withdrawals.`, "/payment-cards", tx);
-    } else if (d.action === "block") {
+    if (d.action === "block") {
       await tx.update(demoPaymentCardsTable).set({ status: "Blocked", blockReason: reason, blockNote: note, reviewedBy: actor, reviewedAt: now }).where(eq(demoPaymentCardsTable.id, id));
       await tx.insert(demoAuditTable).values({ profileId: c.profileId, actor, action: `Payment card blocked: ${label} · ${reason} · ${note}` });
       await notifyUser(c.profileId, `Your ${label} was blocked: ${note}`, "/payment-cards", tx);
     } else {
       if (c.status !== "Blocked") throw new DemoInputError("This card isn't blocked.");
-      await tx.update(demoPaymentCardsTable).set({ status: "Verified", blockReason: null, blockNote: null, reviewedBy: actor, reviewedAt: now }).where(eq(demoPaymentCardsTable.id, id));
+      await tx.update(demoPaymentCardsTable).set({ status: "Active", blockReason: null, blockNote: null, reviewedBy: actor, reviewedAt: now }).where(eq(demoPaymentCardsTable.id, id));
       await tx.insert(demoAuditTable).values({ profileId: c.profileId, actor, action: `Payment card unblocked: ${label}` });
       await notifyUser(c.profileId, `Your ${label} is unblocked and can be used again.`, "/payment-cards", tx);
     }
@@ -380,7 +382,7 @@ export async function clearReport(id: string, actor: string) {
 export async function cardPaymentsOverview() {
   const cards = await db.select().from(demoPaymentCardsTable).where(ne(demoPaymentCardsTable.status, "Removed"));
   const ctx = await contextFor(cards);
-  const flagged = cards.map(c => flagsOf(c, ctx)).filter(f => f.some(x => x.kind !== "unchecked"));
+  const flagged = cards.map(c => flagsOf(c, ctx)).filter(f => f.length > 0);
   const count = (s: string) => cards.filter(c => c.status === s).length;
   const byNetwork = Object.entries(cards.reduce<Record<string, number>>((m, c) => ({ ...m, [c.network]: (m[c.network] ?? 0) + 1 }), {}))
     .map(([network, n]) => ({ network: network as CardNetworkKey, networkName: NETWORK_NAME[network as CardNetworkKey] ?? "Card", count: n })).sort((a, b) => b.count - a.count);
@@ -415,7 +417,7 @@ export async function cardPaymentsOverview() {
   const decided = (totals?.completed ?? 0) + (totals?.declined ?? 0);
   const $ = (v: number | undefined) => Number(v ?? 0) / 100;
   return {
-    cards: { total: cards.length, pending: count("Pending"), verified: count("Verified"), blocked: count("Blocked"), flagged: flagged.length,
+    cards: { total: cards.length, active: count("Active"), blocked: count("Blocked"), flagged: flagged.length,
       expired: cards.filter(c => isExpired(c.expMonth, c.expYear)).length, reported: cards.filter(c => ctx.reported.has(c.numberHash)).length,
       customers: new Set(cards.map(c => c.profileId)).size },
     reportedOpen: reportedOpen?.n ?? 0,
@@ -438,9 +440,4 @@ export async function cardPaymentsOverview() {
   };
 }
 
-/** How many saved cards wait for a check (the menu badge). */
-export async function countCardsToCheck() {
-  const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(demoPaymentCardsTable).where(eq(demoPaymentCardsTable.status, "Pending"));
-  return row?.n ?? 0;
-}
 

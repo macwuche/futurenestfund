@@ -13,7 +13,8 @@ const panel = 'rounded-2xl border border-[#E5E7EB] bg-white shadow-sm';
 
 /**
  * Payment cards (Phase 13): the physical cards a customer collected at the office and saved, to add funds from or be paid
- * to. Each card is checked by the finance team; the number and CVV are never shown back here.
+ * to. A card is usable as soon as it's saved (the customer is emailed); the finance team approves each deposit and
+ * withdrawal made with it. The number and CVV are never shown back here.
  */
 export function PaymentCardsPage() {
   const q = useListApplicantPaymentCards();
@@ -88,8 +89,9 @@ function Body({ cards }: { cards: SavedCard[] }) {
         <h2 className="mb-2 flex items-center gap-2 font-semibold text-slate-900"><CreditCard className="h-4 w-4" />How card payments work</h2>
         <ol className="list-decimal space-y-1 pl-5">
           <li>Save the physical card you collected at our office.</li>
-          <li>Our finance team checks it. You can already use it while it's being checked.</li>
+          <li>It's ready straight away, and we email you to confirm it was added.</li>
           <li>Choose a card method in <Link href="/deposits" className="font-semibold underline">Add funds</Link> or <Link href="/withdrawals" className="font-semibold underline">Withdrawals</Link>, then pick your card.</li>
+          <li>Our finance team reviews each deposit and withdrawal before any money moves.</li>
           <li>If your card is lost or stolen, contact support at once so we can block it.</li>
         </ol>
       </section>

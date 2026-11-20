@@ -7,14 +7,13 @@
  */
 
 /**
- * Pending = not checked by an administrator yet
+ * Active as soon as the customer saves it; administrators can block it (lost, stolen, not ours)
  */
 export type SavedCardStatus = typeof SavedCardStatus[keyof typeof SavedCardStatus];
 
 
 export const SavedCardStatus = {
-  Pending: 'Pending',
-  Verified: 'Verified',
+  Active: 'Active',
   Blocked: 'Blocked',
   Removed: 'Removed',
 } as const;

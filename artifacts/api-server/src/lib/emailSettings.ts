@@ -322,7 +322,7 @@ export async function emailHealth() {
   const { rows: [o] } = await db.execute<{ waiting: number; retrying: number; failed: number; sent: number; last_sent: string | null; last_error: string | null; last_error_at: string | null }>(sql`
     with eligible as (
       select n.* from demo_notifications n join demo_profiles p on p.id = n.profile_id
-      where p.auth_user_id is not null and coalesce((p.permissions ->> 'emailOverride')::boolean, (p.permissions ->> 'emailNotifications')::boolean, false)
+      where p.auth_user_id is not null and coalesce((p.permissions ->> 'emailOverride')::boolean, n.email_kind = 'card_added' or coalesce((p.permissions ->> 'emailNotifications')::boolean, false))
     )
     select
       (select count(*)::int from eligible where emailed_at is null and email_attempts < 5 and created_at > now() - interval '24 hours') as waiting,

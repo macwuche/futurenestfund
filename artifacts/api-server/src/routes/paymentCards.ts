@@ -39,7 +39,7 @@ router.get("/admin/card-payments/overview", async (_req, res): Promise<void> => 
 });
 router.get("/admin/payment-cards", async (req, res): Promise<void> => {
   const query = ListAdminPaymentCardsQueryParams.safeParse(req.query);
-  if (!query.success) { res.status(400).json({ error: "Choose a filter: all, flagged, Pending, Verified, Blocked or Removed." }); return; }
+  if (!query.success) { res.status(400).json({ error: "Choose a filter: all, flagged, Active, Blocked or Removed." }); return; }
   res.json(ListAdminPaymentCardsResponse.parse(await listAdminCards(query.data.filter ?? "all", query.data.q ?? "", query.data.userId)));
 });
 router.get("/admin/payment-cards/:cardId", async (req, res): Promise<void> => {
@@ -59,7 +59,7 @@ router.post("/admin/payment-cards/:cardId/reveal", async (req, res): Promise<voi
 router.post("/admin/payment-cards/:cardId/decision", async (req, res): Promise<void> => {
   const params = DecideAdminPaymentCardParams.safeParse(req.params);
   const input = DecideAdminPaymentCardBody.safeParse(req.body);
-  if (!input.success) { res.status(400).json({ error: "Choose verify, block (with a reason) or unblock." }); return; }
+  if (!input.success) { res.status(400).json({ error: "Choose block (with a reason) or unblock." }); return; }
   const d = input.data.action === "block" ? { action: "block" as const, reason: input.data.reason ?? "", note: input.data.note ?? "" } : { action: input.data.action };
   const card = params.success ? await decideCard(params.data.cardId, d, currentAdmin(req)) : undefined;
   if (!card) { res.status(404).json({ error: "Card not found." }); return; }

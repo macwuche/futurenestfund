@@ -7,10 +7,10 @@ import {
   type AdminSavedCard, type CardPaymentsOverview, type ListAdminPaymentCardsFilter, type CardDecisionInputReason, type ReportCardInputReason, type ReportedCard,
 } from '@workspace/api-client-react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ArrowDownToLine, ArrowUpFromLine, Ban, Check, CircleAlert, Plus, Search, ShieldCheck, ShieldOff, Undo2 } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Ban, CircleAlert, Plus, Search, ShieldCheck, ShieldOff, Undo2 } from 'lucide-react';
 import { Shell } from '@/components/shell';
 import { Empty, ErrorState, Field, Modal, Skel, StatusBadge, cx, dateFmt, money } from '@/components/bits';
-import { card, ainput, dark, ghost, lime, danger, Stat, SectionTitle, useAdminRefresh } from '@/components/admin-bits';
+import { card, ainput, dark, ghost, danger, Stat, SectionTitle, useAdminRefresh } from '@/components/admin-bits';
 import { CardFace, NetworkMark, NetworkTile, groupDigits } from '@/components/payment-cards';
 import { FlagChips, RevealCardButton, SavedCardStatus } from '@/components/admin-payment-cards';
 import { RequestRow } from '@/pages/admin-ops';
@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 
 /**
  * Card Payments (Phase 13): customers pay in from, and are paid out to, the physical cards they collected at the office.
- * Administrators see how card payments are doing, check each saved card (verify / block), keep the list of cards reported
+ * Administrators see how card payments are doing, see every saved card (and block one that's lost, stolen or not ours), keep the list of cards reported
  * lost, stolen or expired, and work the queue of card requests.
  */
 
@@ -37,7 +37,7 @@ export function AdminCardPaymentsPage() {
   const tab = (TABS.some((t) => t.key === params.get('tab')) ? params.get('tab') : 'overview') as Tab;
   const overview = useGetAdminCardPaymentsOverview();
   const o = overview.data;
-  const counts: Partial<Record<Tab, number>> = o ? { cards: o.cards.pending, reported: o.reportedOpen, requests: o.pending.deposits + o.pending.withdrawals } : {};
+  const counts: Partial<Record<Tab, number>> = o ? { cards: o.cards.flagged, reported: o.reportedOpen, requests: o.pending.deposits + o.pending.withdrawals } : {};
   return (
     <Shell admin title="Card Payments">
       <div className="space-y-5">
@@ -83,7 +83,7 @@ function Overview({ o }: { o: CardPaymentsOverview }) {
       )}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat id="cp-cards" accent label="Saved cards" value={o.cards.total} hint={`${o.cards.customers} customer${o.cards.customers === 1 ? '' : 's'}`} href="/admin/card-payments?tab=cards" />
-        <Stat id="cp-to-check" label="Waiting for a check" value={o.cards.pending} hint={`${o.cards.verified} verified · ${o.cards.blocked} blocked`} href="/admin/card-payments?tab=cards" />
+        <Stat id="cp-active" label="Active cards" value={o.cards.active} hint={`${o.cards.blocked} blocked`} href="/admin/card-payments?tab=cards&filter=Active" />
         <Stat id="cp-flagged" label="Flagged cards" value={o.cards.flagged} hint={`${o.cards.reported} reported · ${o.cards.expired} expired`} href="/admin/card-payments?tab=cards&filter=flagged" />
         <Stat id="cp-pending" label="Card requests waiting" value={o.pending.deposits + o.pending.withdrawals} hint={money(o.pending.depositAmount + o.pending.withdrawalAmount)} href="/admin/card-payments?tab=requests" />
       </div>
@@ -161,8 +161,8 @@ function Overview({ o }: { o: CardPaymentsOverview }) {
 /* ---------- saved cards ---------- */
 
 const FILTERS: { key: ListAdminPaymentCardsFilter; label: string }[] = [
-  { key: 'all', label: 'All' }, { key: 'Pending', label: 'To check' }, { key: 'flagged', label: 'Flagged' },
-  { key: 'Verified', label: 'Verified' }, { key: 'Blocked', label: 'Blocked' }, { key: 'Removed', label: 'Removed' },
+  { key: 'all', label: 'All' }, { key: 'flagged', label: 'Flagged' },
+  { key: 'Active', label: 'Active' }, { key: 'Blocked', label: 'Blocked' }, { key: 'Removed', label: 'Removed' },
 ];
 
 function SavedCards({ initialCard }: { initialCard: string }) {
@@ -189,7 +189,7 @@ function SavedCards({ initialCard }: { initialCard: string }) {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Customer, name on card or last 4" data-testid="input-search-cards" className={cx(ainput, 'min-h-11 pl-9')} />
         </label>
       </div>
-      <p className="mb-4 text-xs text-slate-500">Cards customers saved from the office's physical cards. Check each one against your records: verify it, or block it (lost, stolen, expired, not ours). Numbers stay hidden until you open a card's details, and every view is audited.</p>
+      <p className="mb-4 text-xs text-slate-500">Cards customers saved from the office's physical cards. They're active as soon as they're saved; you approve each deposit and withdrawal made with them. Block a card that's lost, stolen or not ours. Numbers stay hidden until you open a card's details, and every view is audited.</p>
       {list.isLoading ? <div className="space-y-2">{[1, 2, 3].map((i) => <Skel key={i} className="h-16" />)}</div>
         : list.isError || !list.data ? <ErrorState onRetry={() => list.refetch()} />
         : list.data.length === 0 ? <Empty title={dq ? 'No cards match' : filter === 'all' ? 'No saved cards yet' : 'Nothing here'} hint="When a customer saves their card, it appears here." />
@@ -203,7 +203,7 @@ function SavedCards({ initialCard }: { initialCard: string }) {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold">{c.userName}</span>
                       <span className="font-num block text-xs text-slate-500">{c.networkName} •• {c.lastFour} · exp {c.expiry}</span>
-                      <span className="mt-1 block"><FlagChips flags={c.flags} hideUnchecked /></span>
+                      <span className="mt-1 block"><FlagChips flags={c.flags} /></span>
                     </span>
                     <SavedCardStatus status={c.status} expired={c.expired} />
                   </button>
@@ -219,7 +219,7 @@ function SavedCards({ initialCard }: { initialCard: string }) {
                       <td className="py-3 pr-3"><span className="flex items-center gap-3"><NetworkTile network={c.network} /><span><span className="font-num block font-semibold">•• {c.lastFour}</span><span className="block text-xs text-slate-500">{c.holderName} · exp {c.expiry}</span></span></span></td>
                       <td className="py-3"><Link href={`/admin/users/${c.userId}`} onClick={(e) => e.stopPropagation()} className="font-semibold hover:underline">{c.userName}</Link><span className="block text-xs text-slate-500">{c.organization}</span></td>
                       <td className="py-3"><SavedCardStatus status={c.status} expired={c.expired} /></td>
-                      <td className="max-w-[16rem] py-3"><FlagChips flags={c.flags} hideUnchecked />{c.flags.every((f) => f.kind === 'unchecked') && <span className="text-xs text-slate-400">None</span>}</td>
+                      <td className="max-w-[16rem] py-3"><FlagChips flags={c.flags} />{c.flags.length === 0 && <span className="text-xs text-slate-400">None</span>}</td>
                       <td className="font-num py-3 text-right text-xs"><span className="block text-slate-900">+{money(c.deposited)}</span><span className="block text-slate-500">−{money(c.withdrawn)}</span></td>
                       <td className="py-3 pl-4 text-xs text-slate-500">{dateFmt(c.createdAt)}{c.pendingRequests > 0 && <span className="mt-1 block font-semibold text-amber-800">{c.pendingRequests} waiting</span>}</td>
                     </tr>
@@ -278,7 +278,6 @@ function CardInspector({ cardId, onClose }: { cardId: string; onClose: () => voi
             </section>
             {c.status !== 'Removed' && (
               <section className="flex flex-wrap gap-2" data-testid="actions-card-inspector">
-                {c.status === 'Pending' && <button type="button" disabled={decide.isPending} onClick={() => act({ action: 'verify' }, 'Card verified')} className={cx(lime, 'inline-flex items-center gap-1.5')} data-testid="button-verify-card"><Check className="h-4 w-4" />Verify card</button>}
                 {c.status !== 'Blocked'
                   ? <button type="button" onClick={() => { setErr(''); setBlocking(true); }} className={cx(danger, 'inline-flex items-center gap-1.5')} data-testid="button-block-card"><Ban className="h-4 w-4" />Block</button>
                   : <button type="button" disabled={decide.isPending} onClick={() => act({ action: 'unblock' }, 'Card unblocked')} className={cx(ghost, 'inline-flex items-center gap-1.5')} data-testid="button-unblock-card"><Undo2 className="h-4 w-4" />Unblock</button>}

@@ -2234,7 +2234,7 @@ paths:
       tags: [admin]
       summary: Customers' saved cards with their flags
       parameters:
-        - { name: filter, in: query, required: false, schema: { type: string, enum: [all, flagged, Pending, Verified, Blocked, Removed], default: all } }
+        - { name: filter, in: query, required: false, schema: { type: string, enum: [all, flagged, Active, Blocked, Removed], default: all } }
         - { name: q, in: query, required: false, schema: { type: string, maxLength: 100 } }
         - { name: userId, in: query, required: false, schema: { type: string } }
       responses:
@@ -2375,7 +2375,7 @@ components:
       name: gp_session
   schemas:
     CardNetwork: { type: string, enum: [visa, mastercard, amex, verve, discover, other] }
-    SavedCardStatus: { type: string, enum: [Pending, Verified, Blocked, Removed], description: "Pending = not checked by an administrator yet" }
+    SavedCardStatus: { type: string, enum: [Active, Blocked, Removed], description: "Active as soon as the customer saves it; administrators can block it (lost, stolen, not ours)" }
     SavedCard:
       type: object
       description: A physical card the customer saved (Phase 13). Never carries the full number.
@@ -2403,7 +2403,7 @@ components:
     CardFlag:
       type: object
       properties:
-        kind: { type: string, enum: [expired, expiring, reported, duplicate, blocked, unchecked] }
+        kind: { type: string, enum: [expired, expiring, reported, duplicate, blocked] }
         text: { type: string }
       required: [kind, text]
     RequestCard:
@@ -2485,7 +2485,7 @@ components:
     CardDecisionInput:
       type: object
       properties:
-        action: { type: string, enum: [verify, block, unblock] }
+        action: { type: string, enum: [block, unblock] }
         reason: { type: string, enum: [Lost, Stolen, Expired, Not our card, Other], description: "block only" }
         note: { type: string, maxLength: 240, description: "block only: shown to the customer, at least 5 characters" }
       required: [action]
@@ -2519,14 +2519,13 @@ components:
           type: object
           properties:
             total: { type: integer }
-            pending: { type: integer }
-            verified: { type: integer }
+            active: { type: integer }
             blocked: { type: integer }
             flagged: { type: integer }
             expired: { type: integer }
             reported: { type: integer }
             customers: { type: integer }
-          required: [total, pending, verified, blocked, flagged, expired, reported, customers]
+          required: [total, active, blocked, flagged, expired, reported, customers]
         reportedOpen: { type: integer }
         pending:
           type: object

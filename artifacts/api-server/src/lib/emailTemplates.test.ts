@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { authEmail, escapeHtml, moneyEmail, notificationEmail, setAppBrand, setEmailBranding, testEmail, tierEmail } from "./emailTemplates";
+import { authEmail, cardEmail, escapeHtml, moneyEmail, notificationEmail, setAppBrand, setEmailBranding, testEmail, tierEmail } from "./emailTemplates";
 import { parseFrom } from "./email";
 
 describe("email templates", () => {
@@ -29,6 +29,15 @@ describe("email templates", () => {
       expect(m.html).toContain("color:#111111;text-decoration:none");
       expect(m.text).toContain("Sent by Future <Nest> to ada@x.org.");
     } finally { setAppBrand({ name: "GrantApp", color: "#1E3A8A" }); }
+  });
+  it("card added (Phase 13): the card, its holder and a link to the cards page, holder name escaped", () => {
+    const m = cardEmail("card_added", "ada@x.org", "Ada", { card: "Visa •• 4242", holderName: "Ada <L>", expiry: "08/29", date: "20 Nov 2026" }, "https://app.example.org/payment-cards");
+    expect(m.subject).toBe("A card was added to your GrantApp account");
+    expect(m.text).toContain("Your Visa •• 4242 was added");
+    expect(m.text).toContain("Expires: 08/29");
+    expect(m.html).toContain("Ada &lt;L&gt;");
+    expect(m.html).toContain('href="https://app.example.org/payment-cards"');
+    expect(m.text).toContain("Didn't add this card?");
   });
   describe("tier emails (9.4)", () => {
     const url = "https://app.example.org/tier";

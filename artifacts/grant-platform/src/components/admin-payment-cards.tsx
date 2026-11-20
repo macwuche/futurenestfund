@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRevealAdminPaymentCard, type CardFlag, type CardReveal, type CardNetwork } from '@workspace/api-client-react';
-import { CalendarX, CircleAlert, Copy, Eye, EyeOff, ShieldAlert, ShieldQuestion, Users } from 'lucide-react';
+import { CalendarX, CircleAlert, Copy, Eye, EyeOff, ShieldAlert, Users } from 'lucide-react';
 import { Modal, cx } from '@/components/bits';
 import { ghost } from '@/components/admin-bits';
 import { CardFace } from '@/components/payment-cards';
@@ -14,11 +14,10 @@ const FLAG_STYLE: Record<CardFlag['kind'], { cls: string; Icon: typeof CircleAle
   expired: { cls: 'bg-red-50 text-red-800', Icon: CalendarX },
   expiring: { cls: 'bg-amber-50 text-amber-900', Icon: CalendarX },
   duplicate: { cls: 'bg-amber-50 text-amber-900', Icon: Users },
-  unchecked: { cls: 'bg-slate-100 text-slate-700', Icon: ShieldQuestion },
 };
 
-export function FlagChips({ flags, testid, hideUnchecked }: { flags: CardFlag[]; testid?: string; hideUnchecked?: boolean }) {
-  const shown = hideUnchecked ? flags.filter((f) => f.kind !== 'unchecked') : flags;
+export function FlagChips({ flags, testid }: { flags: CardFlag[]; testid?: string }) {
+  const shown = flags;
   if (!shown.length) return null;
   return (
     <ul className="flex flex-wrap gap-1.5" data-testid={testid}>
@@ -32,10 +31,10 @@ export function FlagChips({ flags, testid, hideUnchecked }: { flags: CardFlag[];
 
 /** A saved card's status, admin wording. */
 export function SavedCardStatus({ status, expired }: { status: string; expired?: boolean }) {
-  const map: Record<string, string> = { Pending: 'bg-amber-50 text-amber-900', Verified: 'bg-green-50 text-green-800', Blocked: 'bg-red-100 text-red-900', Removed: 'bg-slate-100 text-slate-600' };
+  const map: Record<string, string> = { Active: 'bg-green-50 text-green-800', Blocked: 'bg-red-100 text-red-900', Removed: 'bg-slate-100 text-slate-600' };
   return (
-    <span className={cx('inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold', expired && status !== 'Blocked' && status !== 'Removed' ? 'bg-red-50 text-red-800' : map[status] ?? map.Pending)} data-testid={`badge-saved-card-${status}`}>
-      {status === 'Pending' ? 'To check' : status}{expired && status !== 'Removed' ? ' · expired' : ''}
+    <span className={cx('inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold', expired && status !== 'Blocked' && status !== 'Removed' ? 'bg-red-50 text-red-800' : map[status] ?? map.Active)} data-testid={`badge-saved-card-${status}`}>
+      {status}{expired && status !== 'Removed' ? ' · expired' : ''}
     </span>
   );
 }

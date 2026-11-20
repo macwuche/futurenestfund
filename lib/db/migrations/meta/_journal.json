@@ -113,6 +113,13 @@
       "when": 1795156299221,
       "tag": "0015_card_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1795162212064,
+      "tag": "0016_card_auto_active",
+      "breakpoints": true
     }
   ]
 }

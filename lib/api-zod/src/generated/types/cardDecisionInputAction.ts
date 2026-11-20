@@ -10,7 +10,6 @@ export type CardDecisionInputAction = typeof CardDecisionInputAction[keyof typeo
 
 
 export const CardDecisionInputAction = {
-  verify: 'verify',
   block: 'block',
   unblock: 'unblock',
 } as const;

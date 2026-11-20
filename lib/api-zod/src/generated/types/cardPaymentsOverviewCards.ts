@@ -8,8 +8,7 @@
 
 export type CardPaymentsOverviewCards = {
   total: number;
-  pending: number;
-  verified: number;
+  active: number;
   blocked: number;
   flagged: number;
   expired: number;

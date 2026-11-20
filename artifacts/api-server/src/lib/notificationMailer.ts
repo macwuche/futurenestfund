@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { EmailError, emailConfigured, sendEmail } from "./email";
-import { isMoneyEmailKind, isTierEmailKind, moneyEmail, notificationEmail, tierEmail, type MoneyEmailData, type TierEmailData } from "./emailTemplates";
+import { cardEmail, isCardEmailKind, isMoneyEmailKind, isTierEmailKind, moneyEmail, notificationEmail, tierEmail, type CardEmailData, type MoneyEmailData, type TierEmailData } from "./emailTemplates";
 import { logger } from "./logger";
 import { scrub } from "./monitoring";
 
@@ -9,7 +9,7 @@ import { scrub } from "./monitoring";
  * Emails in-app notifications (an outbox): notifyUser() only writes the row inside the business transaction, and this
  * worker sends it afterwards, so a rolled-back action never emails and a slow email never holds up the action.
  * Only signed-up users (not the sample profiles) get email, when their own switch is on or an administrator forced it on
- * (`permissions.emailOverride` wins over `emailNotifications` either way); a row is tried up to 5 times
+ * (`permissions.emailOverride` wins over `emailNotifications` either way; the "card added" security notice ignores `emailNotifications`); a row is tried up to 5 times
  * and only within 24 hours of being created. APP_URL is the public web address used for the "Open GrantApp" link.
  */
 const appUrl = process.env.APP_URL?.trim().replace(/\/+$/, "");
@@ -30,7 +30,7 @@ export async function sendPendingNotificationEmails(limit = 20): Promise<number>
       select n.id from demo_notifications n join demo_profiles p on p.id = n.profile_id
       where n.emailed_at is null and n.email_attempts < ${MAX_ATTEMPTS} and n.created_at > now() - interval '24 hours'
         and (n.email_claimed_until is null or n.email_claimed_until < now())
-        and p.auth_user_id is not null and coalesce((p.permissions ->> 'emailOverride')::boolean, (p.permissions ->> 'emailNotifications')::boolean, false)
+        and p.auth_user_id is not null and coalesce((p.permissions ->> 'emailOverride')::boolean, n.email_kind = 'card_added' or coalesce((p.permissions ->> 'emailNotifications')::boolean, false))
       order by n.created_at
       limit ${limit}
       for update of n skip locked
@@ -48,7 +48,9 @@ export async function sendPendingNotificationEmails(limit = 20): Promise<number>
         ? moneyEmail(row.email_kind, row.email, row.name, row.email_data, url)
         : isTierEmailKind(row.email_kind) && row.email_data
           ? tierEmail(row.email_kind, row.email, row.name, row.email_data as unknown as TierEmailData, url)
-          : notificationEmail(row.email, row.name, row.message, url);
+          : isCardEmailKind(row.email_kind) && row.email_data
+            ? cardEmail(row.email_kind, row.email, row.name, row.email_data as unknown as CardEmailData, url)
+            : notificationEmail(row.email, row.name, row.message, url);
       await sendEmail(message, `notification:${row.id}`);
       await db.execute(sql`update demo_notifications set emailed_at = now(), email_claimed_until = null, email_last_error = null where id = ${row.id}`);
       sent++;

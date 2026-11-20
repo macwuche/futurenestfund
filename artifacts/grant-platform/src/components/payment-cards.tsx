@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  useCreateApplicantPaymentCard, getListApplicantPaymentCardsQueryKey, type CardNetwork, type SavedCard,
+  useCreateApplicantPaymentCard, getListApplicantNotificationsQueryKey, getListApplicantPaymentCardsQueryKey, type CardNetwork, type SavedCard,
 } from '@workspace/api-client-react';
 import { CircleAlert, CreditCard, Lock, Plus, ShieldCheck } from 'lucide-react';
 import { Modal, cx } from '@/components/bits';
 import { apiError } from '@/lib/demo-state';
+import { useToast } from '@/hooks/use-toast';
 
 /**
  * Card payments (Phase 13): the pieces customers see when they save the physical card they collected at the office and
@@ -109,14 +110,13 @@ export function CardFace({ network, lastFour, digits, holderName, expiry, muted,
 export function cardStatusText(c: SavedCard) {
   if (c.status === 'Blocked') return c.blockedReason ?? 'Blocked. Contact support.';
   if (c.expired) return 'Expired';
-  if (c.status === 'Pending') return 'Being checked by our team';
-  return 'Verified';
+  return 'Ready to use';
 }
 export function CardStatusChip({ c }: { c: SavedCard }) {
   const bad = c.status === 'Blocked' || c.expired || !c.usable;
-  const tone = bad ? 'bg-red-50 text-red-800' : c.status === 'Pending' ? 'bg-amber-50 text-amber-900' : 'bg-green-50 text-green-800';
-  const label = c.status === 'Blocked' ? 'Blocked' : c.expired ? 'Expired' : !c.usable ? "Can't be used" : c.status === 'Pending' ? 'Being checked' : 'Verified';
-  return <span className={cx('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold', tone)} data-testid={`chip-card-status-${c.id}`}>{c.status === 'Verified' && !bad && <ShieldCheck className="h-3 w-3" />}{label}</span>;
+  const tone = bad ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800';
+  const label = c.status === 'Blocked' ? 'Blocked' : c.expired ? 'Expired' : !c.usable ? "Can't be used" : 'Active';
+  return <span className={cx('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold', tone)} data-testid={`chip-card-status-${c.id}`}>{!bad && <ShieldCheck className="h-3 w-3" />}{label}</span>;
 }
 
 /* ---------- adding a card ---------- */
@@ -155,6 +155,7 @@ function check(v: { holderName: string; digits: string; expiry: string; cvv: str
 /** The Add Card sheet: a live card preview, then the card's details. */
 export function AddCardDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved?: (c: SavedCard) => void }) {
   const qc = useQueryClient();
+  const { toast } = useToast();
   const m = useCreateApplicantPaymentCard();
   const [holderName, setHolder] = useState('');
   const [digits, setDigits] = useState('');
@@ -173,7 +174,12 @@ export function AddCardDialog({ open, onClose, onSaved }: { open: boolean; onClo
     if (Object.keys(found).length) return;
     setErr('');
     m.mutate({ data: { holderName: holderName.trim(), number: digits, expiry, cvv } }, {
-      onSuccess: (card) => { qc.invalidateQueries({ queryKey: getListApplicantPaymentCardsQueryKey() }); onSaved?.(card); onClose(); },
+      onSuccess: (card) => {
+        qc.invalidateQueries({ queryKey: getListApplicantPaymentCardsQueryKey() });
+        qc.invalidateQueries({ queryKey: getListApplicantNotificationsQueryKey() });
+        toast(card.status === 'Blocked' ? { title: "This card can't be used", description: 'Contact support.' } : { title: 'Card added', description: "It's ready to use. We've emailed you to confirm." });
+        onSaved?.(card); onClose();
+      },
       onError: (e2) => setErr(apiError(e2, "The card couldn't be saved. Please try again.")),
     });
   };
@@ -185,7 +191,7 @@ export function AddCardDialog({ open, onClose, onSaved }: { open: boolean; onClo
         <CardFace network={network} digits={digits} holderName={holderName} expiry={expiry} testid="preview-add-card" />
         <p className="flex items-start gap-2 rounded-xl bg-[var(--brand-soft)] px-3 py-2 text-xs text-slate-700">
           <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[var(--brand-ink)]" />
-          Only the physical card you collected at our office can be used. Our team checks each card before paying to it.
+          Only the physical card you collected at our office can be used. It's ready as soon as you save it, and we'll email you to confirm.
         </p>
         <h3 className="text-sm font-semibold text-slate-900">Card info</h3>
         <label className="block">

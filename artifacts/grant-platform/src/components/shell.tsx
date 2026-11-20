@@ -444,8 +444,9 @@ function AdminNavList({ onNav }: { onNav?: () => void }) {
   // Activation requests waiting (the same query the Card Requests page uses, so deciding one updates the badge).
   const cardRequests = useListAdminCardRequests({ status: 'requested' }, { query: { queryKey: getListAdminCardRequestsQueryKey({ status: 'requested' }), refetchInterval: 60_000 } }).data?.requested ?? 0;
   const tierRequests = usePendingTierRequests(60_000).data?.length ?? 0;
-  // Phase 13: saved cards nobody has checked yet.
-  const cardsToCheck = useGetAdminCardPaymentsOverview({ query: { queryKey: getGetAdminCardPaymentsOverviewQueryKey(), refetchInterval: 60_000 } }).data?.cards.pending ?? 0;
+  // Phase 13: card deposits and withdrawals waiting for approval.
+  const cardOverview = useGetAdminCardPaymentsOverview({ query: { queryKey: getGetAdminCardPaymentsOverviewQueryKey(), refetchInterval: 60_000 } }).data;
+  const cardsToCheck = cardOverview ? cardOverview.pending.deposits + cardOverview.pending.withdrawals : 0;
   const row = (active: boolean) => cx('group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
     active ? 'bg-[var(--brand)] text-[var(--brand-fg)] font-semibold' : 'text-slate-300 hover:bg-white/10 hover:text-white hover:translate-x-0.5');
   return (
@@ -484,7 +485,7 @@ function AdminNavList({ onNav }: { onNav?: () => void }) {
               <span data-testid="badge-tier-requests" aria-label={`${tierRequests} waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[var(--brand-glow)]' : 'bg-[var(--brand)] text-[var(--brand-fg)]')}>{tierRequests}</span>
             )}
             {i.href === '/admin/card-payments' && cardsToCheck > 0 && (
-              <span data-testid="badge-cards-to-check" aria-label={`${cardsToCheck} to check`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[var(--brand-glow)]' : 'bg-[var(--brand)] text-[var(--brand-fg)]')}>{cardsToCheck}</span>
+              <span data-testid="badge-cards-to-check" aria-label={`${cardsToCheck} card requests waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[var(--brand-glow)]' : 'bg-[var(--brand)] text-[var(--brand-fg)]')}>{cardsToCheck}</span>
             )}
             {i.href === '/admin/cards' && cardRequests > 0 && (
               <span data-testid="badge-card-requests" aria-label={`${cardRequests} waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[var(--brand-glow)]' : 'bg-[var(--brand)] text-[var(--brand-fg)]')}>{cardRequests}</span>

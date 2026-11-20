@@ -18,14 +18,13 @@ export const CardNetwork = {
 } as const;
 
 /**
- * Pending = not checked by an administrator yet
+ * Active as soon as the customer saves it; administrators can block it (lost, stolen, not ours)
  */
 export type SavedCardStatus = typeof SavedCardStatus[keyof typeof SavedCardStatus];
 
 
 export const SavedCardStatus = {
-  Pending: 'Pending',
-  Verified: 'Verified',
+  Active: 'Active',
   Blocked: 'Blocked',
   Removed: 'Removed',
 } as const;
@@ -73,7 +72,6 @@ export const CardFlagKind = {
   reported: 'reported',
   duplicate: 'duplicate',
   blocked: 'blocked',
-  unchecked: 'unchecked',
 } as const;
 
 export interface CardFlag {
@@ -199,7 +197,6 @@ export type CardDecisionInputAction = typeof CardDecisionInputAction[keyof typeo
 
 
 export const CardDecisionInputAction = {
-  verify: 'verify',
   block: 'block',
   unblock: 'unblock',
 } as const;
@@ -255,8 +252,7 @@ export interface ReportCardInput {
 
 export type CardPaymentsOverviewCards = {
   total: number;
-  pending: number;
-  verified: number;
+  active: number;
   blocked: number;
   flagged: number;
   expired: number;
@@ -2931,8 +2927,7 @@ export type ListAdminPaymentCardsFilter = typeof ListAdminPaymentCardsFilter[key
 export const ListAdminPaymentCardsFilter = {
   all: 'all',
   flagged: 'flagged',
-  Pending: 'Pending',
-  Verified: 'Verified',
+  Active: 'Active',
   Blocked: 'Blocked',
   Removed: 'Removed',
 } as const;
