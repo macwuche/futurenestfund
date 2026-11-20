@@ -1,6 +1,6 @@
 # GrantApp deployment tracker (server.md)
 
-_Deployment only. Last updated 2026-11-17._
+_Deployment only. Last updated 2026-11-20._
 
 - **Exact commands:** [`docs/DEPLOY.md`](docs/DEPLOY.md).
 - **This file:** the record of what's decided, done, not done yet and still to do.
@@ -113,16 +113,19 @@ Step 6.5 counts as **done** when steps 1–9 have been followed once end to end.
 
 ## 6b. After deploying (in the admin area)
 
-The app is live at `afb0f64` (2026-11-17, the apply page's charge note removed; before that `da871ec`, award ranges and the withdrawal "processing charge" wording). These need you in the admin area, or applicants can't use the matching feature:
+The app is live at `a93e715` (2026-11-20, card payments, Phase 13; before that `afb0f64`, the apply page's charge note removed, and `da871ec`, award ranges). These need you in the admin area, or applicants can't use the matching feature:
 
 | What | Where | Until it's done |
 |---|---|---|
 | Create at least one grant plan | Admin → Grant Plans | "No grants are open right now" |
 | Create and enable a Deposit and a Withdrawal method | Admin → Payment Gateway | No deposit or withdrawal requests |
+| Create a **Saved card** deposit and/or withdrawal method | Admin → Payment Gateway (or the buttons on Admin → Card Payments) | Customers can save cards but can't pay with them |
 | Switch card types on and set prices | Admin → Settings → Cards | "No cards are on sale right now" |
 | Check the 40 starting industries | Admin → Settings → Industries | The starting list is used |
 | Set the application name, colour and logo | Admin → Settings → Branding | The app is called "GrantApp" in navy; the admin side's accents turn navy too (they were lime) |
 | Set each tier's limits and cards, and the Tier 2 / Tier 3 upgrade forms | Admin → Settings → Tiers | Every tier has the old platform-wide withdrawal limits, no top-up limits, every card; nobody can ask to move up |
+
+Card payments are deployed (`a93e715`, migration 0015 and Supabase 0007 applied). Rolling back to `afb0f64` works: the migrations only add tables and columns; older code ignores saved cards and shows card requests as plain requests through their method.
 
 Award ranges are deployed (`da871ec`, migration 0014 applied). Existing plans stay fixed; switch a plan to **Range** in Admin → Grant Plans to let applicants choose the amount. Rolling back to `3612717` works: the migration only adds columns; older code shows a range plan as a fixed award of its minimum, and applications keep their own amounts.
 
@@ -191,3 +194,4 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 | 2026-11-09 | Deployed **3612717** (wording: "application charge" instead of "application fee" everywhere people see it; the ledger kind stays `Application fee`; also the 2026-11-06 doc updates; up from `1c4b760`, docs-only commits in between). Builds OK; no migrations (0 applied, 14 recorded; Supabase all skipped). API reloaded, health OK, `futurenestfund-api` online. RAM 72.5% right after the build. pnpm offered 12.18.0; not taken (the server stays on 10.26.1). |
 | 2026-11-17 | Deployed **da871ec** (award ranges: a grant plan's award is fixed or a minimum–maximum range the applicant chooses, % charge on the amount, admins may approve less; and `c540a0a`, "processing charge" instead of "fee" on the applicant's Withdrawals page; up from `3612717`). Builds OK; app migrations: 1 applied (**0014** `grant_award_range`: `demo_grant_plans.amount_mode`, `max_amount_cents`, `demo_applications.requested_cents`), 15 recorded; Supabase migrations all skipped (0001–0006). API reloaded, health OK, `futurenestfund-api` online. RAM 55.3% right after the build. pnpm offered 12.21.0; not taken (the server stays on 10.26.1). |
 | 2026-11-17 | Deployed **afb0f64** (apply page: the amber application-charge note removed; up from `da871ec`, a docs-only commit in between). Builds OK; no migrations (0 applied, 15 recorded; Supabase all skipped). API reloaded, health OK, `futurenestfund-api` online. RAM 63.7% right after the build. |
+| 2026-11-20 | Deployed **a93e715** (Phase 13 card payments: saved physical cards, Saved card payment methods, Admin → Card Payments; up from `afb0f64`, a docs-only commit in between). Builds OK; app migrations: 1 applied (**0015** `card_payments`: `demo_payment_cards`, `demo_reported_cards`, `demo_payment_methods.method_type`, `demo_requests.card_id`), 16 recorded; Supabase **0007_card_payments** applied, 0001–0006 skipped. API reloaded, health OK, `futurenestfund-api` online. RAM 47% right after the build. pnpm offered 12.21.0; not taken. Next: create a Saved card method in Payment Gateway. |
