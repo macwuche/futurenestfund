@@ -5,6 +5,355 @@
  * Grant applicant and administration dashboard API
  * OpenAPI spec version: 0.1.0
  */
+export type CardNetwork = typeof CardNetwork[keyof typeof CardNetwork];
+
+
+export const CardNetwork = {
+  visa: 'visa',
+  mastercard: 'mastercard',
+  amex: 'amex',
+  verve: 'verve',
+  discover: 'discover',
+  other: 'other',
+} as const;
+
+/**
+ * Pending = not checked by an administrator yet
+ */
+export type SavedCardStatus = typeof SavedCardStatus[keyof typeof SavedCardStatus];
+
+
+export const SavedCardStatus = {
+  Pending: 'Pending',
+  Verified: 'Verified',
+  Blocked: 'Blocked',
+  Removed: 'Removed',
+} as const;
+
+/**
+ * A physical card the customer saved (Phase 13). Never carries the full number.
+ */
+export interface SavedCard {
+  id: string;
+  holderName: string;
+  network: CardNetwork;
+  networkName: string;
+  lastFour: string;
+  /** MM/YY */
+  expiry: string;
+  status: SavedCardStatus;
+  expired: boolean;
+  createdAt: string;
+  /** Applicant: whether it can be used for a new request */
+  usable?: boolean;
+  /** Applicant: why it's blocked */
+  blockedReason?: string;
+}
+
+export interface SavedCardInput {
+  /** @maxLength 80 */
+  holderName: string;
+  /** @maxLength 30 */
+  number: string;
+  /**
+     * MM/YY
+     * @maxLength 10
+     */
+  expiry: string;
+  /** @maxLength 4 */
+  cvv: string;
+}
+
+export type CardFlagKind = typeof CardFlagKind[keyof typeof CardFlagKind];
+
+
+export const CardFlagKind = {
+  expired: 'expired',
+  expiring: 'expiring',
+  reported: 'reported',
+  duplicate: 'duplicate',
+  blocked: 'blocked',
+  unchecked: 'unchecked',
+} as const;
+
+export interface CardFlag {
+  kind: CardFlagKind;
+  text: string;
+}
+
+export type RequestCard = SavedCard & {
+  flags: CardFlag[];
+  /** Why the request can't be approved with this card right now */
+  blocker?: string;
+};
+
+export type AdminSavedCardBlockReason = typeof AdminSavedCardBlockReason[keyof typeof AdminSavedCardBlockReason];
+
+
+export const AdminSavedCardBlockReason = {
+  Lost: 'Lost',
+  Stolen: 'Stolen',
+  Expired: 'Expired',
+  Not_our_card: 'Not our card',
+  Other: 'Other',
+} as const;
+
+export type AdminSavedCard = SavedCard & {
+  userId: string;
+  userName: string;
+  organization: string;
+  flags: CardFlag[];
+  blockReason?: AdminSavedCardBlockReason;
+  blockNote?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  removedAt?: string;
+  requestCount: number;
+  pendingRequests: number;
+  /** Approved card deposits, USD */
+  deposited: number;
+  /** Approved card withdrawals, USD */
+  withdrawn: number;
+  lastUsedAt?: string;
+};
+
+export type AdminSavedCardDetailRequestsItemKind = typeof AdminSavedCardDetailRequestsItemKind[keyof typeof AdminSavedCardDetailRequestsItemKind];
+
+
+export const AdminSavedCardDetailRequestsItemKind = {
+  Deposit: 'Deposit',
+  Withdrawal: 'Withdrawal',
+} as const;
+
+export type AdminSavedCardDetailRequestsItemStatus = typeof AdminSavedCardDetailRequestsItemStatus[keyof typeof AdminSavedCardDetailRequestsItemStatus];
+
+
+export const AdminSavedCardDetailRequestsItemStatus = {
+  Pending: 'Pending',
+  Completed: 'Completed',
+  Declined: 'Declined',
+} as const;
+
+export type AdminSavedCardDetailRequestsItem = {
+  id: string;
+  reference: string;
+  kind: AdminSavedCardDetailRequestsItemKind;
+  amount: number;
+  fee: number;
+  status: AdminSavedCardDetailRequestsItemStatus;
+  createdAt: string;
+  reviewNote?: string;
+};
+
+export type AdminSavedCardDetailSameCardItem = {
+  cardId: string;
+  userId: string;
+  userName: string;
+  status: string;
+};
+
+export type ReportedCardReason = typeof ReportedCardReason[keyof typeof ReportedCardReason];
+
+
+export const ReportedCardReason = {
+  Lost: 'Lost',
+  Stolen: 'Stolen',
+  Expired: 'Expired',
+  Damaged: 'Damaged',
+  Other: 'Other',
+} as const;
+
+export interface ReportedCard {
+  id: string;
+  network: CardNetwork;
+  networkName: string;
+  lastFour: string;
+  reason: ReportedCardReason;
+  note: string;
+  reportedBy: string;
+  createdAt: string;
+  clearedAt?: string;
+  clearedBy?: string;
+  /** Saved cards (not removed) with this number */
+  matchingCards?: number;
+}
+
+export type AdminSavedCardDetail = AdminSavedCard & {
+  requests: AdminSavedCardDetailRequestsItem[];
+  /** The same card number saved on other accounts */
+  sameCard: AdminSavedCardDetailSameCardItem[];
+  reports: ReportedCard[];
+};
+
+export interface CardReveal {
+  id: string;
+  /** Grouped in fours */
+  number: string;
+  cvv: string;
+  holderName: string;
+  expiry: string;
+  networkName: string;
+}
+
+export type CardDecisionInputAction = typeof CardDecisionInputAction[keyof typeof CardDecisionInputAction];
+
+
+export const CardDecisionInputAction = {
+  verify: 'verify',
+  block: 'block',
+  unblock: 'unblock',
+} as const;
+
+/**
+ * block only
+ */
+export type CardDecisionInputReason = typeof CardDecisionInputReason[keyof typeof CardDecisionInputReason];
+
+
+export const CardDecisionInputReason = {
+  Lost: 'Lost',
+  Stolen: 'Stolen',
+  Expired: 'Expired',
+  Not_our_card: 'Not our card',
+  Other: 'Other',
+} as const;
+
+export interface CardDecisionInput {
+  action: CardDecisionInputAction;
+  /** block only */
+  reason?: CardDecisionInputReason;
+  /**
+     * block only: shown to the customer, at least 5 characters
+     * @maxLength 240
+     */
+  note?: string;
+}
+
+export type ReportCardInputReason = typeof ReportCardInputReason[keyof typeof ReportCardInputReason];
+
+
+export const ReportCardInputReason = {
+  Lost: 'Lost',
+  Stolen: 'Stolen',
+  Expired: 'Expired',
+  Damaged: 'Damaged',
+  Other: 'Other',
+} as const;
+
+export interface ReportCardInput {
+  /**
+     * The full card number, or…
+     * @maxLength 30
+     */
+  number?: string;
+  /** …a saved card */
+  cardId?: string;
+  reason: ReportCardInputReason;
+  /** @maxLength 240 */
+  note?: string;
+}
+
+export type CardPaymentsOverviewCards = {
+  total: number;
+  pending: number;
+  verified: number;
+  blocked: number;
+  flagged: number;
+  expired: number;
+  reported: number;
+  customers: number;
+};
+
+export type CardPaymentsOverviewPending = {
+  deposits: number;
+  depositAmount: number;
+  withdrawals: number;
+  withdrawalAmount: number;
+};
+
+export type CardPaymentsOverviewThisMonth = {
+  deposited: number;
+  withdrawn: number;
+};
+
+export type CardPaymentsOverviewAllTime = {
+  deposited: number;
+  withdrawn: number;
+  fees: number;
+  approved: number;
+  declined: number;
+  /** @nullable */
+  approvalRate: number | null;
+};
+
+export type CardPaymentsOverviewTrendItem = {
+  label: string;
+  deposits: number;
+  withdrawals: number;
+};
+
+export type CardPaymentsOverviewByNetworkItem = {
+  network: CardNetwork;
+  networkName: string;
+  count: number;
+};
+
+export type CardPaymentsOverviewMethodsItemKind = typeof CardPaymentsOverviewMethodsItemKind[keyof typeof CardPaymentsOverviewMethodsItemKind];
+
+
+export const CardPaymentsOverviewMethodsItemKind = {
+  Deposit: 'Deposit',
+  Withdrawal: 'Withdrawal',
+} as const;
+
+export type CardPaymentsOverviewMethodsItem = {
+  id: string;
+  kind: CardPaymentsOverviewMethodsItemKind;
+  name: string;
+  enabled: boolean;
+};
+
+export type CardPaymentsOverviewRecentItemKind = typeof CardPaymentsOverviewRecentItemKind[keyof typeof CardPaymentsOverviewRecentItemKind];
+
+
+export const CardPaymentsOverviewRecentItemKind = {
+  Deposit: 'Deposit',
+  Withdrawal: 'Withdrawal',
+} as const;
+
+export type CardPaymentsOverviewRecentItemStatus = typeof CardPaymentsOverviewRecentItemStatus[keyof typeof CardPaymentsOverviewRecentItemStatus];
+
+
+export const CardPaymentsOverviewRecentItemStatus = {
+  Pending: 'Pending',
+  Completed: 'Completed',
+  Declined: 'Declined',
+} as const;
+
+export type CardPaymentsOverviewRecentItem = {
+  id: string;
+  reference: string;
+  kind: CardPaymentsOverviewRecentItemKind;
+  amount: number;
+  status: CardPaymentsOverviewRecentItemStatus;
+  createdAt: string;
+  userId: string;
+  userName: string;
+  card: string;
+};
+
+export interface CardPaymentsOverview {
+  cards: CardPaymentsOverviewCards;
+  reportedOpen: number;
+  pending: CardPaymentsOverviewPending;
+  thisMonth: CardPaymentsOverviewThisMonth;
+  allTime: CardPaymentsOverviewAllTime;
+  trend: CardPaymentsOverviewTrendItem[];
+  byNetwork: CardPaymentsOverviewByNetworkItem[];
+  methods: CardPaymentsOverviewMethodsItem[];
+  recent: CardPaymentsOverviewRecentItem[];
+}
+
 export interface ApplicantPreferences {
   emailNotifications: boolean;
 }
@@ -895,6 +1244,8 @@ export interface ApplicantRequestForm {
   note?: string;
   /** Payment proof (deposits): JPG, PNG, WebP or PDF, up to 10 MB */
   file?: Blob;
+  /** Card methods: the saved card to charge (deposits) or pay (withdrawals) */
+  cardId?: string;
 }
 
 export interface WithdrawalSourcesUpdate {
@@ -956,6 +1307,17 @@ export const PaymentMethodKind = {
   Withdrawal: 'Withdrawal',
 } as const;
 
+/**
+ * card: the customer picks one of their saved physical cards
+ */
+export type PaymentMethodMethodType = typeof PaymentMethodMethodType[keyof typeof PaymentMethodMethodType];
+
+
+export const PaymentMethodMethodType = {
+  standard: 'standard',
+  card: 'card',
+} as const;
+
 export type PaymentMethodAmountMode = typeof PaymentMethodAmountMode[keyof typeof PaymentMethodAmountMode];
 
 
@@ -976,6 +1338,8 @@ export const PaymentMethodProofMode = {
 export interface PaymentMethod {
   id: string;
   kind: PaymentMethodKind;
+  /** card: the customer picks one of their saved physical cards */
+  methodType: PaymentMethodMethodType;
   name: string;
   logoUrl?: string;
   amountMode: PaymentMethodAmountMode;
@@ -1043,10 +1407,25 @@ export const PaymentMethodCreateKind = {
   Withdrawal: 'Withdrawal',
 } as const;
 
+/**
+ * Chosen once, when the method is made
+ */
+export type PaymentMethodCreateMethodType = typeof PaymentMethodCreateMethodType[keyof typeof PaymentMethodCreateMethodType];
+
+
+export const PaymentMethodCreateMethodType = {
+  standard: 'standard',
+  card: 'card',
+} as const;
+
 export type PaymentMethodCreate = PaymentMethodUpdate & {
   kind: PaymentMethodCreateKind;
+  /** Chosen once, when the method is made */
+  methodType?: PaymentMethodCreateMethodType;
 } & Required<Pick<PaymentMethodUpdate & {
   kind: PaymentMethodCreateKind;
+  /** Chosen once, when the method is made */
+  methodType?: PaymentMethodCreateMethodType;
 }, 'name'>>;
 
 export type PaymentMethodMoveDirection = typeof PaymentMethodMoveDirection[keyof typeof PaymentMethodMoveDirection];
@@ -2103,6 +2482,7 @@ export interface AdminRequest {
   fee: number;
   /** Deposits: what the account balance gets (amount − fee). Withdrawals: what leaves the user's balances in all (amount + fee) */
   net: number;
+  card?: RequestCard;
 }
 
 export type LedgerEntryKind = typeof LedgerEntryKind[keyof typeof LedgerEntryKind];
@@ -2375,6 +2755,10 @@ export const ListAdminPaymentMethodsKind = {
 export type ListAdminRequestsParams = {
 kind: ListAdminRequestsKind;
 status?: ListAdminRequestsStatus;
+/**
+ * card: only requests made with a saved card
+ */
+via?: ListAdminRequestsVia;
 };
 
 export type ListAdminRequestsKind = typeof ListAdminRequestsKind[keyof typeof ListAdminRequestsKind];
@@ -2391,6 +2775,13 @@ export type ListAdminRequestsStatus = typeof ListAdminRequestsStatus[keyof typeo
 export const ListAdminRequestsStatus = {
   pending: 'pending',
   decided: 'decided',
+} as const;
+
+export type ListAdminRequestsVia = typeof ListAdminRequestsVia[keyof typeof ListAdminRequestsVia];
+
+
+export const ListAdminRequestsVia = {
+  card: 'card',
 } as const;
 
 export type ListAdminTransactionsParams = {
@@ -2523,5 +2914,33 @@ to?: string;
  * @minimum 1
  */
 page?: number;
+};
+
+export type ListAdminPaymentCardsParams = {
+filter?: ListAdminPaymentCardsFilter;
+/**
+ * @maxLength 100
+ */
+q?: string;
+userId?: string;
+};
+
+export type ListAdminPaymentCardsFilter = typeof ListAdminPaymentCardsFilter[keyof typeof ListAdminPaymentCardsFilter];
+
+
+export const ListAdminPaymentCardsFilter = {
+  all: 'all',
+  flagged: 'flagged',
+  Pending: 'Pending',
+  Verified: 'Verified',
+  Blocked: 'Blocked',
+  Removed: 'Removed',
+} as const;
+
+export type ListAdminReportedCardsParams = {
+/**
+ * Include cleared reports
+ */
+cleared?: boolean;
 };
 

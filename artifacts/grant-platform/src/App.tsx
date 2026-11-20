@@ -22,6 +22,8 @@ import { AdminCardRequestsPage } from '@/pages/admin-cards';
 import { AdminTierRequestsPage } from '@/pages/admin-tiers';
 import { BrandingProvider } from '@/lib/branding';
 import { TierPage } from '@/pages/applicant-tier';
+import { PaymentCardsPage } from '@/pages/applicant-payment-cards';
+import { AdminCardPaymentsPage } from '@/pages/admin-card-payments';
 import {
   Redirect,
   Route,
@@ -47,6 +49,8 @@ function Router() {
         <Route path="/applications" component={ApplicationsPage} />
         <Route path="/applications/:id" component={ApplicationDetailPage} />
         <Route path="/cards" component={CardsPage} />
+        <Route path="/payment-cards" component={PaymentCardsPage} />
+        <Route path="/admin/card-payments" component={AdminCardPaymentsPage} />
         <Route path="/transactions" component={TransactionsPage} />
         <Route path="/withdrawals" component={WithdrawalsPage} />
         <Route path="/deposits" component={DepositsPage} />

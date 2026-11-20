@@ -25,6 +25,8 @@ export const demoRequestsTable = pgTable("demo_requests", {
   proofFileId: uuid("proof_file_id"),
   /** Step 9.3: the method's fee as worked out when the request was placed. Withdrawals: paid from the deposit (main) balance; deposits: taken out of the amount. */
   feeCents: integer("fee_cents").notNull().default(0),
+  /** Phase 13: card payment methods: the saved card (demo_payment_cards) the deposit is charged to or the withdrawal paid to. */
+  cardId: uuid("card_id"),
 }).enableRLS();
 
 export const insertDemoRequestSchema = createInsertSchema(demoRequestsTable).omit({ id: true, createdAt: true, status: true });

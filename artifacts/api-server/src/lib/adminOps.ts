@@ -4,6 +4,7 @@ import {
   demoApplicationEventsTable, demoFilesTable, demoKycDocumentsTable, type DemoProfile,
 } from "@workspace/db";
 import { notifyUser, requestEmailData, requestReference } from "./notifications";
+import { cardsForRequests, checkCardForApproval } from "./paymentCards";
 import { applicationSummary } from "./applicantRecords";
 import { KYC_KINDS } from "./kyc";
 import { fileUrl, type DbTx } from "./uploads";
@@ -182,21 +183,25 @@ const adminRequest = (r: RequestRow, p: DemoProfile, logos: LogoMap = new Map())
   };
 };
 
-export async function listAdminRequests(kind: "Deposit" | "Withdrawal", status: "pending" | "decided") {
+export async function listAdminRequests(kind: "Deposit" | "Withdrawal", status: "pending" | "decided", via?: "card") {
   const pending = status === "pending";
   const rows = await db.select({ r: demoRequestsTable, p: demoProfilesTable })
     .from(demoRequestsTable).innerJoin(demoProfilesTable, eq(demoProfilesTable.id, demoRequestsTable.profileId))
-    .where(and(eq(demoRequestsTable.kind, kind), pending ? eq(demoRequestsTable.status, "Pending") : ne(demoRequestsTable.status, "Pending")))
+    .where(and(eq(demoRequestsTable.kind, kind), pending ? eq(demoRequestsTable.status, "Pending") : ne(demoRequestsTable.status, "Pending"),
+      ...(via === "card" ? [isNotNull(demoRequestsTable.cardId)] : [])))
     .orderBy(pending ? asc(demoRequestsTable.createdAt) : desc(demoRequestsTable.reviewedAt)).limit(pending ? 200 : 30);
   const logos = await methodLogos(rows.map(({ r }) => r.methodId), "admin");
-  if (!pending || kind !== "Withdrawal") return rows.map(({ r, p }) => adminRequest(r, p, logos));
+  // Phase 13: requests made with a saved card carry the card and its flags (lost, expired, reported…).
+  const cards = await cardsForRequests(rows.map(({ r }) => r.cardId));
+  const withCard = (r: RequestRow) => (r.cardId && cards.get(r.cardId) ? { card: cards.get(r.cardId)! } : {});
+  if (!pending || kind !== "Withdrawal") return rows.map(({ r, p }) => ({ ...adminRequest(r, p, logos), ...withCard(r) }));
   // Limits are checked when a request is placed; flag any that the user's *current* limits wouldn't allow (e.g. lowered since).
   const [settings] = await db.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform"));
   const used = await withdrawnLast24h([...new Set(rows.map(({ p }) => p.id))]);
   const rules = rulesOfSettings(settings);
   return rows.map(({ r, p }) => {
     const warning = limitWarning(effectiveLimits(p, withdrawalLimitsOf(rules[tierOf(p.tier)])), used.get(p.id) ?? 0, r.amountCents);
-    return { ...adminRequest(r, p, logos), ...(warning ? { limitWarning: warning } : {}) };
+    return { ...adminRequest(r, p, logos), ...withCard(r), ...(warning ? { limitWarning: warning } : {}) };
   });
 }
 
@@ -267,6 +272,8 @@ export async function approveRequest(id: string, actor: string, note?: string) {
     const { frozen, profile, request: r } = locked;
     if (frozen) throw new DemoInputError("Approvals are paused while the platform is frozen.");
     if (profile.status === "Frozen") throw new DemoInputError("Unfreeze this account before approving its requests.");
+    // Phase 13: never charge or pay a card that's been blocked, reported or has expired since the request was placed.
+    await checkCardForApproval(tx, r.cardId);
     const perms = (profile.permissions ?? {}) as Perms;
     const kycRequired = r.kind === "Withdrawal" ? perms.withdrawalKycRequired : perms.depositKycRequired;
     if (kycRequired && profile.verificationLevel !== "Verified") {

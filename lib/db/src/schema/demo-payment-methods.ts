@@ -8,6 +8,8 @@ import { boolean, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle
 export const demoPaymentMethodsTable = pgTable("demo_payment_methods", {
   id: uuid("id").primaryKey().defaultRandom(),
   kind: text("kind").notNull(), // Deposit | Withdrawal
+  /** standard: the admin's own fields. card (Phase 13): the customer picks one of their saved physical cards instead. */
+  methodType: text("method_type").notNull().default("standard"),
   name: text("name").notNull(),
   logoFileId: uuid("logo_file_id"),
   /** range: min_cents..max_cents (either may be null = no bound); fixed: the applicant picks one of fixed_amounts_cents. */

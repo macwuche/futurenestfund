@@ -1860,7 +1860,8 @@ export const CreateApplicantRequestBody = zod.object({
   "source": zod.enum(['grant', 'deposit']).optional().describe('Withdrawals: which balance pays it'),
   "values": zod.string().optional().describe('JSON object of the method\'s field answers, by field id'),
   "note": zod.string().max(createApplicantRequestBodyNoteMax).optional(),
-  "file": zod.instanceof(Blob).optional().describe('Payment proof (deposits): JPG, PNG, WebP or PDF, up to 10 MB')
+  "file": zod.instanceof(Blob).optional().describe('Payment proof (deposits): JPG, PNG, WebP or PDF, up to 10 MB'),
+  "cardId": zod.string().optional().describe('Card methods: the saved card to charge (deposits) or pay (withdrawals)')
 })
 
 export const CreateApplicantRequestResponse = zod.object({
@@ -1909,6 +1910,7 @@ export const listApplicantPaymentMethodsResponseFeeAmountMin = 0;
 export const ListApplicantPaymentMethodsResponseItem = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "methodType": zod.enum(['standard', 'card']).describe('card: the customer picks one of their saved physical cards'),
   "name": zod.string(),
   "logoUrl": zod.string().optional(),
   "amountMode": zod.enum(['range', 'fixed']),
@@ -4421,6 +4423,7 @@ export const listAdminPaymentMethodsResponseFeeAmountMin = 0;
 export const ListAdminPaymentMethodsResponseItem = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "methodType": zod.enum(['standard', 'card']).describe('card: the customer picks one of their saved physical cards'),
   "name": zod.string(),
   "logoUrl": zod.string().optional(),
   "amountMode": zod.enum(['range', 'fixed']),
@@ -4465,7 +4468,7 @@ export const createAdminPaymentMethodBodyOneFieldsItemHelpMax = 200;
 
 export const createAdminPaymentMethodBodyOneFeeAmountMin = 0;
 
-
+export const createAdminPaymentMethodBodyTwoMethodTypeDefault = `standard`;
 
 export const CreateAdminPaymentMethodBody = zod.object({
   "name": zod.string(),
@@ -4490,7 +4493,8 @@ export const CreateAdminPaymentMethodBody = zod.object({
 }).optional().describe('A fixed amount (USD) or a percentage of the base amount; never negative. 0 = no fee.'),
   "enabled": zod.boolean().optional()
 }).and(zod.object({
-  "kind": zod.enum(['Deposit', 'Withdrawal'])
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "methodType": zod.enum(['standard', 'card']).default(createAdminPaymentMethodBodyTwoMethodTypeDefault).describe('Chosen once, when the method is made')
 }))
 
 export const createAdminPaymentMethodResponseFieldsItemLabelMax = 60;
@@ -4506,6 +4510,7 @@ export const createAdminPaymentMethodResponseFeeAmountMin = 0;
 export const CreateAdminPaymentMethodResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "methodType": zod.enum(['standard', 'card']).describe('card: the customer picks one of their saved physical cards'),
   "name": zod.string(),
   "logoUrl": zod.string().optional(),
   "amountMode": zod.enum(['range', 'fixed']),
@@ -4558,6 +4563,7 @@ export const getAdminPaymentMethodResponseFeeAmountMin = 0;
 export const GetAdminPaymentMethodResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "methodType": zod.enum(['standard', 'card']).describe('card: the customer picks one of their saved physical cards'),
   "name": zod.string(),
   "logoUrl": zod.string().optional(),
   "amountMode": zod.enum(['range', 'fixed']),
@@ -4644,6 +4650,7 @@ export const updateAdminPaymentMethodResponseFeeAmountMin = 0;
 export const UpdateAdminPaymentMethodResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "methodType": zod.enum(['standard', 'card']).describe('card: the customer picks one of their saved physical cards'),
   "name": zod.string(),
   "logoUrl": zod.string().optional(),
   "amountMode": zod.enum(['range', 'fixed']),
@@ -4710,6 +4717,7 @@ export const moveAdminPaymentMethodResponseFeeAmountMin = 0;
 export const MoveAdminPaymentMethodResponseItem = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "methodType": zod.enum(['standard', 'card']).describe('card: the customer picks one of their saved physical cards'),
   "name": zod.string(),
   "logoUrl": zod.string().optional(),
   "amountMode": zod.enum(['range', 'fixed']),
@@ -4767,6 +4775,7 @@ export const uploadAdminPaymentMethodLogoResponseFeeAmountMin = 0;
 export const UploadAdminPaymentMethodLogoResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "methodType": zod.enum(['standard', 'card']).describe('card: the customer picks one of their saved physical cards'),
   "name": zod.string(),
   "logoUrl": zod.string().optional(),
   "amountMode": zod.enum(['range', 'fixed']),
@@ -4819,6 +4828,7 @@ export const deleteAdminPaymentMethodLogoResponseFeeAmountMin = 0;
 export const DeleteAdminPaymentMethodLogoResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "methodType": zod.enum(['standard', 'card']).describe('card: the customer picks one of their saved physical cards'),
   "name": zod.string(),
   "logoUrl": zod.string().optional(),
   "amountMode": zod.enum(['range', 'fixed']),
@@ -4879,6 +4889,7 @@ export const setAdminPaymentMethodLogoUrlResponseFeeAmountMin = 0;
 export const SetAdminPaymentMethodLogoUrlResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "methodType": zod.enum(['standard', 'card']).describe('card: the customer picks one of their saved physical cards'),
   "name": zod.string(),
   "logoUrl": zod.string().optional(),
   "amountMode": zod.enum(['range', 'fixed']),
@@ -5005,7 +5016,8 @@ export const listAdminRequestsQueryStatusDefault = `pending`;
 
 export const ListAdminRequestsQueryParams = zod.object({
   "kind": zod.enum(['Deposit', 'Withdrawal']),
-  "status": zod.enum(['pending', 'decided']).default(listAdminRequestsQueryStatusDefault)
+  "status": zod.enum(['pending', 'decided']).default(listAdminRequestsQueryStatusDefault),
+  "via": zod.enum(['card']).optional().describe('card: only requests made with a saved card')
 })
 
 export const ListAdminRequestsResponseItem = zod.object({
@@ -5041,7 +5053,26 @@ export const ListAdminRequestsResponseItem = zod.object({
 })),
   "proofUrl": zod.string().optional(),
   "fee": zod.number().describe('The method\'s fee worked out when the request was placed'),
-  "net": zod.number().describe('Deposits: what the account balance gets (amount − fee). Withdrawals: what leaves the user\'s balances in all (amount + fee)')
+  "net": zod.number().describe('Deposits: what the account balance gets (amount − fee). Withdrawals: what leaves the user\'s balances in all (amount + fee)'),
+  "card": zod.object({
+  "id": zod.string(),
+  "holderName": zod.string(),
+  "network": zod.enum(['visa', 'mastercard', 'amex', 'verve', 'discover', 'other']),
+  "networkName": zod.string(),
+  "lastFour": zod.string(),
+  "expiry": zod.string().describe('MM/YY'),
+  "status": zod.enum(['Pending', 'Verified', 'Blocked', 'Removed']).describe('Pending = not checked by an administrator yet'),
+  "expired": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+}).describe('A physical card the customer saved (Phase 13). Never carries the full number.').and(zod.object({
+  "flags": zod.array(zod.object({
+  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked', 'unchecked']),
+  "text": zod.string()
+})),
+  "blocker": zod.string().optional().describe('Why the request can\'t be approved with this card right now')
+})).optional()
 })
 export const ListAdminRequestsResponse = zod.array(ListAdminRequestsResponseItem)
 
@@ -5094,7 +5125,26 @@ export const ApproveAdminRequestResponse = zod.object({
 })),
   "proofUrl": zod.string().optional(),
   "fee": zod.number().describe('The method\'s fee worked out when the request was placed'),
-  "net": zod.number().describe('Deposits: what the account balance gets (amount − fee). Withdrawals: what leaves the user\'s balances in all (amount + fee)')
+  "net": zod.number().describe('Deposits: what the account balance gets (amount − fee). Withdrawals: what leaves the user\'s balances in all (amount + fee)'),
+  "card": zod.object({
+  "id": zod.string(),
+  "holderName": zod.string(),
+  "network": zod.enum(['visa', 'mastercard', 'amex', 'verve', 'discover', 'other']),
+  "networkName": zod.string(),
+  "lastFour": zod.string(),
+  "expiry": zod.string().describe('MM/YY'),
+  "status": zod.enum(['Pending', 'Verified', 'Blocked', 'Removed']).describe('Pending = not checked by an administrator yet'),
+  "expired": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+}).describe('A physical card the customer saved (Phase 13). Never carries the full number.').and(zod.object({
+  "flags": zod.array(zod.object({
+  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked', 'unchecked']),
+  "text": zod.string()
+})),
+  "blocker": zod.string().optional().describe('Why the request can\'t be approved with this card right now')
+})).optional()
 })
 
 
@@ -5147,7 +5197,26 @@ export const RejectAdminRequestResponse = zod.object({
 })),
   "proofUrl": zod.string().optional(),
   "fee": zod.number().describe('The method\'s fee worked out when the request was placed'),
-  "net": zod.number().describe('Deposits: what the account balance gets (amount − fee). Withdrawals: what leaves the user\'s balances in all (amount + fee)')
+  "net": zod.number().describe('Deposits: what the account balance gets (amount − fee). Withdrawals: what leaves the user\'s balances in all (amount + fee)'),
+  "card": zod.object({
+  "id": zod.string(),
+  "holderName": zod.string(),
+  "network": zod.enum(['visa', 'mastercard', 'amex', 'verve', 'discover', 'other']),
+  "networkName": zod.string(),
+  "lastFour": zod.string(),
+  "expiry": zod.string().describe('MM/YY'),
+  "status": zod.enum(['Pending', 'Verified', 'Blocked', 'Removed']).describe('Pending = not checked by an administrator yet'),
+  "expired": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+}).describe('A physical card the customer saved (Phase 13). Never carries the full number.').and(zod.object({
+  "flags": zod.array(zod.object({
+  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked', 'unchecked']),
+  "text": zod.string()
+})),
+  "blocker": zod.string().optional().describe('Why the request can\'t be approved with this card right now')
+})).optional()
 })
 
 
@@ -5365,5 +5434,425 @@ export const ReviewAdminKycDocumentResponse = zod.object({
   "verificationLevel": zod.enum(['Verified', 'Pending', 'Rejected', 'Unsubmitted']),
   "reviewedBy": zod.string().optional()
 }))
+
+
+/**
+ * @summary The customer's saved physical cards (Phase 13), for card deposits and withdrawals
+ */
+export const ListApplicantPaymentCardsResponseItem = zod.object({
+  "id": zod.string(),
+  "holderName": zod.string(),
+  "network": zod.enum(['visa', 'mastercard', 'amex', 'verve', 'discover', 'other']),
+  "networkName": zod.string(),
+  "lastFour": zod.string(),
+  "expiry": zod.string().describe('MM/YY'),
+  "status": zod.enum(['Pending', 'Verified', 'Blocked', 'Removed']).describe('Pending = not checked by an administrator yet'),
+  "expired": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+}).describe('A physical card the customer saved (Phase 13). Never carries the full number.')
+export const ListApplicantPaymentCardsResponse = zod.array(ListApplicantPaymentCardsResponseItem)
+
+
+/**
+ * @summary Save a physical card collected at the office
+ */
+export const createApplicantPaymentCardBodyHolderNameMax = 80;
+
+export const createApplicantPaymentCardBodyNumberMax = 30;
+
+export const createApplicantPaymentCardBodyExpiryMax = 10;
+
+export const createApplicantPaymentCardBodyCvvMax = 4;
+
+
+
+export const CreateApplicantPaymentCardBody = zod.object({
+  "holderName": zod.string().max(createApplicantPaymentCardBodyHolderNameMax),
+  "number": zod.string().max(createApplicantPaymentCardBodyNumberMax),
+  "expiry": zod.string().max(createApplicantPaymentCardBodyExpiryMax).describe('MM/YY'),
+  "cvv": zod.string().max(createApplicantPaymentCardBodyCvvMax)
+})
+
+export const CreateApplicantPaymentCardResponse = zod.object({
+  "id": zod.string(),
+  "holderName": zod.string(),
+  "network": zod.enum(['visa', 'mastercard', 'amex', 'verve', 'discover', 'other']),
+  "networkName": zod.string(),
+  "lastFour": zod.string(),
+  "expiry": zod.string().describe('MM/YY'),
+  "status": zod.enum(['Pending', 'Verified', 'Blocked', 'Removed']).describe('Pending = not checked by an administrator yet'),
+  "expired": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+}).describe('A physical card the customer saved (Phase 13). Never carries the full number.')
+
+
+/**
+ * @summary Remove a saved card (not while a request made with it is waiting)
+ */
+export const DeleteApplicantPaymentCardParams = zod.object({
+  "cardId": zod.coerce.string()
+})
+
+export const DeleteApplicantPaymentCardResponse = zod.void()
+
+
+/**
+ * @summary Card payments at a glance (Phase 13)
+ */
+export const GetAdminCardPaymentsOverviewResponse = zod.object({
+  "cards": zod.object({
+  "total": zod.number().int(),
+  "pending": zod.number().int(),
+  "verified": zod.number().int(),
+  "blocked": zod.number().int(),
+  "flagged": zod.number().int(),
+  "expired": zod.number().int(),
+  "reported": zod.number().int(),
+  "customers": zod.number().int()
+}),
+  "reportedOpen": zod.number().int(),
+  "pending": zod.object({
+  "deposits": zod.number().int(),
+  "depositAmount": zod.number(),
+  "withdrawals": zod.number().int(),
+  "withdrawalAmount": zod.number()
+}),
+  "thisMonth": zod.object({
+  "deposited": zod.number(),
+  "withdrawn": zod.number()
+}),
+  "allTime": zod.object({
+  "deposited": zod.number(),
+  "withdrawn": zod.number(),
+  "fees": zod.number(),
+  "approved": zod.number().int(),
+  "declined": zod.number().int(),
+  "approvalRate": zod.number().int().nullable()
+}),
+  "trend": zod.array(zod.object({
+  "label": zod.string(),
+  "deposits": zod.number(),
+  "withdrawals": zod.number()
+})),
+  "byNetwork": zod.array(zod.object({
+  "network": zod.enum(['visa', 'mastercard', 'amex', 'verve', 'discover', 'other']),
+  "networkName": zod.string(),
+  "count": zod.number().int()
+})),
+  "methods": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "name": zod.string(),
+  "enabled": zod.boolean()
+})),
+  "recent": zod.array(zod.object({
+  "id": zod.string(),
+  "reference": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "amount": zod.number(),
+  "status": zod.enum(['Pending', 'Completed', 'Declined']),
+  "createdAt": zod.coerce.date(),
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "card": zod.string()
+}))
+})
+
+
+/**
+ * @summary Customers' saved cards with their flags
+ */
+export const listAdminPaymentCardsQueryFilterDefault = `all`;
+export const listAdminPaymentCardsQueryQMax = 100;
+
+
+
+export const ListAdminPaymentCardsQueryParams = zod.object({
+  "filter": zod.enum(['all', 'flagged', 'Pending', 'Verified', 'Blocked', 'Removed']).default(listAdminPaymentCardsQueryFilterDefault),
+  "q": zod.coerce.string().max(listAdminPaymentCardsQueryQMax).optional(),
+  "userId": zod.coerce.string().optional()
+})
+
+export const ListAdminPaymentCardsResponseItem = zod.object({
+  "id": zod.string(),
+  "holderName": zod.string(),
+  "network": zod.enum(['visa', 'mastercard', 'amex', 'verve', 'discover', 'other']),
+  "networkName": zod.string(),
+  "lastFour": zod.string(),
+  "expiry": zod.string().describe('MM/YY'),
+  "status": zod.enum(['Pending', 'Verified', 'Blocked', 'Removed']).describe('Pending = not checked by an administrator yet'),
+  "expired": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+}).describe('A physical card the customer saved (Phase 13). Never carries the full number.').and(zod.object({
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "organization": zod.string(),
+  "flags": zod.array(zod.object({
+  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked', 'unchecked']),
+  "text": zod.string()
+})),
+  "blockReason": zod.enum(['Lost', 'Stolen', 'Expired', 'Not our card', 'Other']).optional(),
+  "blockNote": zod.string().optional(),
+  "reviewedBy": zod.string().optional(),
+  "reviewedAt": zod.coerce.date().optional(),
+  "removedAt": zod.coerce.date().optional(),
+  "requestCount": zod.number().int(),
+  "pendingRequests": zod.number().int(),
+  "deposited": zod.number().describe('Approved card deposits, USD'),
+  "withdrawn": zod.number().describe('Approved card withdrawals, USD'),
+  "lastUsedAt": zod.coerce.date().optional()
+}))
+export const ListAdminPaymentCardsResponse = zod.array(ListAdminPaymentCardsResponseItem)
+
+
+/**
+ * @summary One saved card, its requests, other accounts with the same card and its reports
+ */
+export const GetAdminPaymentCardParams = zod.object({
+  "cardId": zod.coerce.string()
+})
+
+export const GetAdminPaymentCardResponse = zod.object({
+  "id": zod.string(),
+  "holderName": zod.string(),
+  "network": zod.enum(['visa', 'mastercard', 'amex', 'verve', 'discover', 'other']),
+  "networkName": zod.string(),
+  "lastFour": zod.string(),
+  "expiry": zod.string().describe('MM/YY'),
+  "status": zod.enum(['Pending', 'Verified', 'Blocked', 'Removed']).describe('Pending = not checked by an administrator yet'),
+  "expired": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+}).describe('A physical card the customer saved (Phase 13). Never carries the full number.').and(zod.object({
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "organization": zod.string(),
+  "flags": zod.array(zod.object({
+  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked', 'unchecked']),
+  "text": zod.string()
+})),
+  "blockReason": zod.enum(['Lost', 'Stolen', 'Expired', 'Not our card', 'Other']).optional(),
+  "blockNote": zod.string().optional(),
+  "reviewedBy": zod.string().optional(),
+  "reviewedAt": zod.coerce.date().optional(),
+  "removedAt": zod.coerce.date().optional(),
+  "requestCount": zod.number().int(),
+  "pendingRequests": zod.number().int(),
+  "deposited": zod.number().describe('Approved card deposits, USD'),
+  "withdrawn": zod.number().describe('Approved card withdrawals, USD'),
+  "lastUsedAt": zod.coerce.date().optional()
+})).and(zod.object({
+  "requests": zod.array(zod.object({
+  "id": zod.string(),
+  "reference": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "amount": zod.number(),
+  "fee": zod.number(),
+  "status": zod.enum(['Pending', 'Completed', 'Declined']),
+  "createdAt": zod.coerce.date(),
+  "reviewNote": zod.string().optional()
+})),
+  "sameCard": zod.array(zod.object({
+  "cardId": zod.string(),
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "status": zod.string()
+})).describe('The same card number saved on other accounts'),
+  "reports": zod.array(zod.object({
+  "id": zod.string(),
+  "network": zod.enum(['visa', 'mastercard', 'amex', 'verve', 'discover', 'other']),
+  "networkName": zod.string(),
+  "lastFour": zod.string(),
+  "reason": zod.enum(['Lost', 'Stolen', 'Expired', 'Damaged', 'Other']),
+  "note": zod.string(),
+  "reportedBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "clearedAt": zod.coerce.date().optional(),
+  "clearedBy": zod.string().optional(),
+  "matchingCards": zod.number().int().optional().describe('Saved cards (not removed) with this number')
+}))
+}))
+
+
+/**
+ * @summary The full card number and CVV, to pay or charge the card (audited)
+ */
+export const RevealAdminPaymentCardParams = zod.object({
+  "cardId": zod.coerce.string()
+})
+
+export const RevealAdminPaymentCardResponse = zod.object({
+  "id": zod.string(),
+  "number": zod.string().describe('Grouped in fours'),
+  "cvv": zod.string(),
+  "holderName": zod.string(),
+  "expiry": zod.string(),
+  "networkName": zod.string()
+})
+
+
+/**
+ * @summary Verify, block (with a reason the customer sees) or unblock a saved card
+ */
+export const DecideAdminPaymentCardParams = zod.object({
+  "cardId": zod.coerce.string()
+})
+
+export const decideAdminPaymentCardBodyNoteMax = 240;
+
+
+
+export const DecideAdminPaymentCardBody = zod.object({
+  "action": zod.enum(['verify', 'block', 'unblock']),
+  "reason": zod.enum(['Lost', 'Stolen', 'Expired', 'Not our card', 'Other']).optional().describe('block only'),
+  "note": zod.string().max(decideAdminPaymentCardBodyNoteMax).optional().describe('block only: shown to the customer, at least 5 characters')
+})
+
+export const DecideAdminPaymentCardResponse = zod.object({
+  "id": zod.string(),
+  "holderName": zod.string(),
+  "network": zod.enum(['visa', 'mastercard', 'amex', 'verve', 'discover', 'other']),
+  "networkName": zod.string(),
+  "lastFour": zod.string(),
+  "expiry": zod.string().describe('MM/YY'),
+  "status": zod.enum(['Pending', 'Verified', 'Blocked', 'Removed']).describe('Pending = not checked by an administrator yet'),
+  "expired": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+}).describe('A physical card the customer saved (Phase 13). Never carries the full number.').and(zod.object({
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "organization": zod.string(),
+  "flags": zod.array(zod.object({
+  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked', 'unchecked']),
+  "text": zod.string()
+})),
+  "blockReason": zod.enum(['Lost', 'Stolen', 'Expired', 'Not our card', 'Other']).optional(),
+  "blockNote": zod.string().optional(),
+  "reviewedBy": zod.string().optional(),
+  "reviewedAt": zod.coerce.date().optional(),
+  "removedAt": zod.coerce.date().optional(),
+  "requestCount": zod.number().int(),
+  "pendingRequests": zod.number().int(),
+  "deposited": zod.number().describe('Approved card deposits, USD'),
+  "withdrawn": zod.number().describe('Approved card withdrawals, USD'),
+  "lastUsedAt": zod.coerce.date().optional()
+})).and(zod.object({
+  "requests": zod.array(zod.object({
+  "id": zod.string(),
+  "reference": zod.string(),
+  "kind": zod.enum(['Deposit', 'Withdrawal']),
+  "amount": zod.number(),
+  "fee": zod.number(),
+  "status": zod.enum(['Pending', 'Completed', 'Declined']),
+  "createdAt": zod.coerce.date(),
+  "reviewNote": zod.string().optional()
+})),
+  "sameCard": zod.array(zod.object({
+  "cardId": zod.string(),
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "status": zod.string()
+})).describe('The same card number saved on other accounts'),
+  "reports": zod.array(zod.object({
+  "id": zod.string(),
+  "network": zod.enum(['visa', 'mastercard', 'amex', 'verve', 'discover', 'other']),
+  "networkName": zod.string(),
+  "lastFour": zod.string(),
+  "reason": zod.enum(['Lost', 'Stolen', 'Expired', 'Damaged', 'Other']),
+  "note": zod.string(),
+  "reportedBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "clearedAt": zod.coerce.date().optional(),
+  "clearedBy": zod.string().optional(),
+  "matchingCards": zod.number().int().optional().describe('Saved cards (not removed) with this number')
+}))
+}))
+
+
+/**
+ * @summary Cards reported lost, stolen, expired or damaged
+ */
+export const listAdminReportedCardsQueryClearedDefault = false;
+
+export const ListAdminReportedCardsQueryParams = zod.object({
+  "cleared": zod.coerce.boolean().default(listAdminReportedCardsQueryClearedDefault).describe('Include cleared reports')
+})
+
+export const ListAdminReportedCardsResponseItem = zod.object({
+  "id": zod.string(),
+  "network": zod.enum(['visa', 'mastercard', 'amex', 'verve', 'discover', 'other']),
+  "networkName": zod.string(),
+  "lastFour": zod.string(),
+  "reason": zod.enum(['Lost', 'Stolen', 'Expired', 'Damaged', 'Other']),
+  "note": zod.string(),
+  "reportedBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "clearedAt": zod.coerce.date().optional(),
+  "clearedBy": zod.string().optional(),
+  "matchingCards": zod.number().int().optional().describe('Saved cards (not removed) with this number')
+})
+export const ListAdminReportedCardsResponse = zod.array(ListAdminReportedCardsResponseItem)
+
+
+/**
+ * @summary Add a card to the reported list, by its full number or from a saved card
+ */
+export const createAdminReportedCardBodyNumberMax = 30;
+
+export const createAdminReportedCardBodyNoteMax = 240;
+
+
+
+export const CreateAdminReportedCardBody = zod.object({
+  "number": zod.string().max(createAdminReportedCardBodyNumberMax).optional().describe('The full card number, or…'),
+  "cardId": zod.string().optional().describe('…a saved card'),
+  "reason": zod.enum(['Lost', 'Stolen', 'Expired', 'Damaged', 'Other']),
+  "note": zod.string().max(createAdminReportedCardBodyNoteMax).optional()
+})
+
+export const CreateAdminReportedCardResponse = zod.object({
+  "id": zod.string(),
+  "network": zod.enum(['visa', 'mastercard', 'amex', 'verve', 'discover', 'other']),
+  "networkName": zod.string(),
+  "lastFour": zod.string(),
+  "reason": zod.enum(['Lost', 'Stolen', 'Expired', 'Damaged', 'Other']),
+  "note": zod.string(),
+  "reportedBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "clearedAt": zod.coerce.date().optional(),
+  "clearedBy": zod.string().optional(),
+  "matchingCards": zod.number().int().optional().describe('Saved cards (not removed) with this number')
+})
+
+
+/**
+ * @summary Clear a report (the card can be used again unless it's blocked)
+ */
+export const ClearAdminReportedCardParams = zod.object({
+  "reportId": zod.coerce.string()
+})
+
+export const ClearAdminReportedCardResponse = zod.object({
+  "id": zod.string(),
+  "network": zod.enum(['visa', 'mastercard', 'amex', 'verve', 'discover', 'other']),
+  "networkName": zod.string(),
+  "lastFour": zod.string(),
+  "reason": zod.enum(['Lost', 'Stolen', 'Expired', 'Damaged', 'Other']),
+  "note": zod.string(),
+  "reportedBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "clearedAt": zod.coerce.date().optional(),
+  "clearedBy": zod.string().optional(),
+  "matchingCards": zod.number().int().optional().describe('Saved cards (not removed) with this number')
+})
 
 

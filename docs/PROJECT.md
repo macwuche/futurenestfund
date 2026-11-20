@@ -22,6 +22,7 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 10 | Payment gateway: admin-made deposit and withdrawal methods (logo, amount rule, custom fields, payment proof); withdrawals from the grant and/or deposit balance; optional approval note | Built and tested 2026-11-04 (`work.md` §16), committed `e183fb3`; deployed 2026-11-05 at `dc386f9` (migration 0009 + Supabase 0004) |
 | 11 | Grant plans: admin-made plans (industry, award, application fee, logo, own application form with file uploads); industries (admin-managed, chosen at sign-up, drive recommendations); the application fee is charged on approval and may take the account balance below $0; matchmaking, the sample grants and the free-form application removed | **Built and tested 2026-11-05** (`work.md` §20, migration 0011 + Supabase 0005); committed `010d4b9`; deployed 2026-11-05 at `f39c238` |
 | 12 | Branding: the admin sets the application's name, one brand colour for both sides (live preview; readable text worked out for any colour) and a logo (upload or link); shown everywhere, emails included; open screens follow within 15 s | **Built and tested 2026-11-06** (`work.md` §24, migration 0013), committed `1c4b760`, **deployed 2026-11-06** |
+| 13 | Card payments: customers save the physical card they collected at the office (number and CVV encrypted) and add funds from it or are paid to it through a **Saved card** payment method; admins get **Card Payments** (overview and analytics, saved cards with verify / block and an audited "Show card details", a reported list for lost / stolen / expired cards, the card request queue) | **Built and tested 2026-11-20** (migration 0015 + Supabase 0007); not committed or deployed yet |
 | 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin layout, admin tables on phones, applicant fixes (review scored the UI 67/100) | Done: 7.1 on 2026-10-31, 7.2–7.7 on 2026-11-01 ([`work.md`](../work.md) §13 and the log after it) |
 
 What still needs you is listed in §12 (go-live checklist) and §15 (open items).
@@ -281,6 +282,7 @@ Dashboard settings (see §12): Site URL and Redirect URLs are set to `https://ac
 | `lib/db/migrations/0012_tier_rules.sql` | `demo_tier_requests`; `demo_settings.tier_rules` (copies the platform-wide withdrawal limits into every tier; those columns stay, unused) |
 | `lib/db/migrations/0013_branding.sql` | `demo_settings.branding` (name, colour, logo) |
 | `lib/db/migrations/0014_grant_award_range.sql` | `demo_grant_plans.amount_mode`, `max_amount_cents` (range plans; `amount_cents` is then the minimum); `demo_applications.requested_cents` |
+| `lib/db/migrations/0015_card_payments.sql` | `demo_payment_cards` (saved cards: sealed number and CVV, HMAC number hash, status), `demo_reported_cards`; `demo_payment_methods.method_type`; `demo_requests.card_id` |
 | `lib/db/migrations/0007_email_settings.sql` | `demo_settings.email_config`, `email_secrets`, `email_hook_seen_at`, `email_hook_result`; `demo_notifications.email_last_error` |
 | `lib/db/supabase/migrations/0001_user_roles.sql` | `user_roles` (Supabase only) |
 | `lib/db/supabase/migrations/0002_app_api_role.sql` | `app_api` role, grants, `app_api_all` policies, revoked Data API grants |
@@ -288,6 +290,7 @@ Dashboard settings (see §12): Site URL and Redirect URLs are set to `https://ac
 | `lib/db/supabase/migrations/0004_payment_methods.sql` | `app_api_all` policy for `demo_payment_methods`; no Data API grants |
 | `lib/db/supabase/migrations/0005_grant_plans.sql` | `app_api_all` policies for `demo_industries` and `demo_grant_plans`; no Data API grants |
 | `lib/db/supabase/migrations/0006_tier_requests.sql` | `app_api_all` policy for `demo_tier_requests`; no Data API grants |
+| `lib/db/supabase/migrations/0007_card_payments.sql` | `app_api_all` policies for `demo_payment_cards` and `demo_reported_cards`; no Data API grants |
 
 Changing the schema: edit `lib/db/src/schema` → `pnpm --filter @workspace/db run generate` → review the new SQL → `pnpm --filter @workspace/scripts run db:migrate`. A new table also needs an `app_api_all` policy in a new Supabase migration. Both existing databases were "baselined" once on 2026-10-29 (`db:migrate -- --baseline`), because they had been built with `drizzle-kit push`.
 
@@ -656,6 +659,14 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 
 **Phase 10 (payment gateway)**, plan in `work.md` §16:
 - ~~10.1–10.4 methods, admin pages, applicant forms, queues~~: done 2026-11-04 (`e183fb3`), deployed 2026-11-05. Not done as planned: no separate method column in CSV export / search (the ledger reason names the method).
+
+**Phase 13 (card payments)**, built and tested 2026-11-20:
+- Customer: **Payment cards** (`/payment-cards`, Money menu): save up to 5 cards (name, number with Luhn check, MM/YY, CVV; live card preview), see each card's status (being checked / verified / blocked / expired), remove one (not while a request uses it). On Add funds / Withdrawals a **Saved card** method shows the card picker and a payment summary (amount, fee, total).
+- Admin: **Card Payments** (`/admin/card-payments`; menu badge = cards to check): Overview (cards, flags, waiting requests, money charged / paid this month and all time, approval rate, fees, 6-month chart, networks, card methods, latest requests) · Saved cards (filters, search by name or last 4, inspector: verify, block with a reason the customer sees, unblock, add to reported list, requests, same card on other accounts) · Reported cards (add by full number or from a saved card, clear) · Card requests (the Deposit / Withdrawal queues, card requests only). The Deposit and Withdrawal pages show the card on each card request too. Payment Gateway: a new method's type is **Standard** or **Saved card** (fixed once made).
+- Rules (`lib/paymentCards.ts`, `lib/cardRules.ts`): number and CVV sealed with the settings master key (AES-256-GCM, field-bound); a keyed HMAC of the number finds the same card on other accounts and on the reported list. **Show card details** is a POST, audited, `no-store`, and the dialog closes after 2 minutes. Flags: blocked, reported, expired / expiring, on another account, not checked yet. A blocked, reported, removed or expired card can't be used for a new request, and its requests can't be approved. A reported number saved later is blocked at once, with a generic message for the customer.
+- **Decision (2026-11-20, the owner's):** the CVV is stored (encrypted) and shown to admins. Card industry rules (PCI DSS) forbid storing it; the risk was explained and accepted. The cards are issued at the office, so the app can't match them against its own card records: admins verify each card and keep the reported list.
+- Tests: `cardRules.test.ts` (7), `.unlazy/phase13-card-payments.mjs` 11/11, `.unlazy/phase13-ui.mjs` 9/9 desktop + 9/9 phone (through `proxy.mjs`).
+- **To go live:** commit, `deploy.sh` (migration 0015 + Supabase 0007), then create a Saved card deposit and/or withdrawal method in Payment Gateway (Card Payments links to it).
 
 **Limits worth knowing:**
 - The API can't sign anyone in by itself if Supabase is down; requests answer 503 until it's back.

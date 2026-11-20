@@ -7,11 +7,13 @@ import { z } from 'zod';
 import {
   useGetAdminDashboard, useListAdminCardRequests, getListAdminCardRequestsQueryKey, useUpdateGlobalFreeze, useSearchAdmin, getSearchAdminQueryKey,
   useMarkApplicantNotificationsRead, getListApplicantNotificationsQueryKey, type NotificationList,
+  useGetAdminCardPaymentsOverview, getGetAdminCardPaymentsOverviewQueryKey,
 } from '@workspace/api-client-react';
 import {
   LayoutDashboard, FileText, CreditCard, ArrowLeftRight, ArrowUpFromLine, PlusCircle, Settings, Bell, Search, Plus, Menu, X,
   Users, ArrowDownToLine, Snowflake, Building2, ScanLine, House, ClipboardList, ChartPie, Milestone,
   MessageCircleQuestion, Ellipsis, BadgeCheck, Upload, ArrowLeftRight as SwitchIcon, LogOut, Wallet, ChevronDown, Award, Gauge,
+  WalletCards,
 } from 'lucide-react';
 import { usePendingTierRequests } from '@/lib/tier-requests';
 import { BrandMark, useBranding } from '@/lib/branding';
@@ -40,6 +42,7 @@ const userNavGroups: { label: string; items: NavItem[] }[] = [
   ] },
   { label: 'Money', items: [
     { href: '/cards', label: 'Cards', icon: CreditCard },
+    { href: '/payment-cards', label: 'Payment cards', icon: WalletCards },
     { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
     { href: '/withdrawals', label: 'Withdrawals', icon: ArrowUpFromLine },
     { href: '/deposits', label: 'Add funds', icon: PlusCircle },
@@ -59,6 +62,7 @@ const adminNav: NavItem[] = [
   { href: '/admin/payment-gateway', label: 'Payment Gateway', icon: Wallet },
   { href: '/admin/kyc', label: 'KYC Page', icon: ScanLine },
   { href: '/admin/cards', label: 'Card Requests', icon: CreditCard },
+  { href: '/admin/card-payments', label: 'Card Payments', icon: WalletCards },
   { href: '/admin/tiers', label: 'Tier Upgrades', icon: Gauge },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
@@ -440,6 +444,8 @@ function AdminNavList({ onNav }: { onNav?: () => void }) {
   // Activation requests waiting (the same query the Card Requests page uses, so deciding one updates the badge).
   const cardRequests = useListAdminCardRequests({ status: 'requested' }, { query: { queryKey: getListAdminCardRequestsQueryKey({ status: 'requested' }), refetchInterval: 60_000 } }).data?.requested ?? 0;
   const tierRequests = usePendingTierRequests(60_000).data?.length ?? 0;
+  // Phase 13: saved cards nobody has checked yet.
+  const cardsToCheck = useGetAdminCardPaymentsOverview({ query: { queryKey: getGetAdminCardPaymentsOverviewQueryKey(), refetchInterval: 60_000 } }).data?.cards.pending ?? 0;
   const row = (active: boolean) => cx('group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
     active ? 'bg-[var(--brand)] text-[var(--brand-fg)] font-semibold' : 'text-slate-300 hover:bg-white/10 hover:text-white hover:translate-x-0.5');
   return (
@@ -476,6 +482,9 @@ function AdminNavList({ onNav }: { onNav?: () => void }) {
             <span className="flex-1">{i.label}</span>
             {i.href === '/admin/tiers' && tierRequests > 0 && (
               <span data-testid="badge-tier-requests" aria-label={`${tierRequests} waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[var(--brand-glow)]' : 'bg-[var(--brand)] text-[var(--brand-fg)]')}>{tierRequests}</span>
+            )}
+            {i.href === '/admin/card-payments' && cardsToCheck > 0 && (
+              <span data-testid="badge-cards-to-check" aria-label={`${cardsToCheck} to check`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[var(--brand-glow)]' : 'bg-[var(--brand)] text-[var(--brand-fg)]')}>{cardsToCheck}</span>
             )}
             {i.href === '/admin/cards' && cardRequests > 0 && (
               <span data-testid="badge-card-requests" aria-label={`${cardRequests} waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[var(--brand-glow)]' : 'bg-[var(--brand)] text-[var(--brand-fg)]')}>{cardRequests}</span>

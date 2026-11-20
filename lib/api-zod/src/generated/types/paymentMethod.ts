@@ -9,11 +9,14 @@ import type { FeeRule } from './feeRule';
 import type { PaymentField } from './paymentField';
 import type { PaymentMethodAmountMode } from './paymentMethodAmountMode';
 import type { PaymentMethodKind } from './paymentMethodKind';
+import type { PaymentMethodMethodType } from './paymentMethodMethodType';
 import type { PaymentMethodProofMode } from './paymentMethodProofMode';
 
 export interface PaymentMethod {
   id: string;
   kind: PaymentMethodKind;
+  /** card: the customer picks one of their saved physical cards */
+  methodType: PaymentMethodMethodType;
   name: string;
   logoUrl?: string;
   amountMode: PaymentMethodAmountMode;

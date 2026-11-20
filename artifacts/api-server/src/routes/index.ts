@@ -8,6 +8,7 @@ import emailSettingsRouter from "./emailSettings";
 import paymentMethodsRouter from "./paymentMethods";
 import grantPlansRouter, { publicIndustriesRouter } from "./grantPlans";
 import tiersRouter from "./tiers";
+import paymentCardsRouter from "./paymentCards";
 import brandingRouter, { publicBrandingRouter } from "./branding";
 import { authenticate, requireAdmin, requireApplicant } from "../lib/auth";
 import { perIp, perUserUploads, perUserWrites } from "../lib/rateLimit";
@@ -31,6 +32,7 @@ router.use(emailSettingsRouter);
 router.use(paymentMethodsRouter);
 router.use(grantPlansRouter);
 router.use(tiersRouter);
+router.use(paymentCardsRouter);
 router.use(brandingRouter);
 router.use(workspaceRouter);
 

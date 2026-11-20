@@ -29,7 +29,7 @@ function methodOut(m: DemoPaymentMethod, scope: "admin" | "applicant", requestCo
   const r = methodRules(m);
   const logoUrl = methodLogoUrl(m, scope);
   return {
-    id: m.id, kind: r.kind, name: m.name, ...(logoUrl ? { logoUrl } : {}),
+    id: m.id, kind: r.kind, methodType: (m.methodType === "card" ? "card" : "standard") as "card" | "standard", name: m.name, ...(logoUrl ? { logoUrl } : {}),
     amountMode: r.amountMode, minAmount: dollars(r.minCents), maxAmount: dollars(r.maxCents), fixedAmounts: r.fixedAmountsCents.map(c => c / 100),
     amountRule: describeAmountRule(r), fields: r.fields, proofMode: r.proofMode, instructions: m.instructions,
     fee: feeOut(r.fee), feeText: describeFee(r.fee),
@@ -89,7 +89,9 @@ async function nameTaken(kind: MethodKind, name: string, exceptId?: string) {
   return rows.some(r => r.id !== exceptId && r.name.toLowerCase() === name.toLowerCase());
 }
 
-export async function createMethod(kind: MethodKind, input: MethodInput, actor: string) {
+export async function createMethod(kind: MethodKind, input: MethodInput & { methodType?: unknown }, actor: string) {
+  // Phase 13: a card method has the customer pick a saved physical card. The type is chosen once, when the method is made.
+  const methodType = input.methodType === "card" ? "card" : "standard";
   const parsed = parseMethod(input, kind);
   if (typeof parsed === "string") throw new DemoInputError(parsed);
   if (await nameTaken(kind, parsed.name)) throw new DemoInputError(`There's already a ${kind.toLowerCase()} method called "${parsed.name}".`);
@@ -97,11 +99,11 @@ export async function createMethod(kind: MethodKind, input: MethodInput, actor: 
   if (n >= 50) throw new DemoInputError("You can have at most 50 methods of each kind. Delete or reuse one.");
   const m = await db.transaction(async tx => {
     const [row] = await tx.insert(demoPaymentMethodsTable).values({
-      kind, name: parsed.name, amountMode: parsed.amountMode, minCents: parsed.minCents, maxCents: parsed.maxCents,
+      kind, methodType, name: parsed.name, amountMode: parsed.amountMode, minCents: parsed.minCents, maxCents: parsed.maxCents,
       fixedAmountsCents: parsed.fixedAmountsCents, fields: parsed.fields, proofMode: parsed.proofMode, instructions: parsed.instructions,
       feeMode: parsed.fee.mode, feeValue: parsed.fee.value, enabled: parsed.enabled, sortOrder: n, createdBy: actor,
     }).returning();
-    await audit(actor, `${kind} method "${parsed.name}" created (${describeAmountRule(parsed)}, ${describeFee(parsed.fee).toLowerCase()}, ${parsed.fields.length} field${parsed.fields.length === 1 ? "" : "s"}${kind === "Deposit" ? `, proof ${parsed.proofMode}` : ""}${parsed.enabled ? "" : ", disabled"})`, tx);
+    await audit(actor, `${kind} ${methodType === "card" ? "card " : ""}method "${parsed.name}" created (${describeAmountRule(parsed)}, ${describeFee(parsed.fee).toLowerCase()}, ${parsed.fields.length} field${parsed.fields.length === 1 ? "" : "s"}${kind === "Deposit" ? `, proof ${parsed.proofMode}` : ""}${parsed.enabled ? "" : ", disabled"})`, tx);
     return row!;
   });
   return methodOut(m, "admin");

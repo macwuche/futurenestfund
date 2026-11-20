@@ -10,6 +10,7 @@ import type { AdminRequestStatus } from './adminRequestStatus';
 import type { AdminRequestUserStatus } from './adminRequestUserStatus';
 import type { AdminRequestVerificationLevel } from './adminRequestVerificationLevel';
 import type { BalanceSource } from './balanceSource';
+import type { RequestCard } from './requestCard';
 import type { RequestDetail } from './requestDetail';
 import type { RequestMethod } from './requestMethod';
 import type { WithdrawalSources } from './withdrawalSources';
@@ -45,4 +46,5 @@ export interface AdminRequest {
   fee: number;
   /** Deposits: what the account balance gets (amount − fee). Withdrawals: what leaves the user's balances in all (amount + fee) */
   net: number;
+  card?: RequestCard;
 }

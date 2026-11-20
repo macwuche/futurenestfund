@@ -6,10 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PaymentMethodCreateKind } from './paymentMethodCreateKind';
+import type { PaymentMethodCreateMethodType } from './paymentMethodCreateMethodType';
 import type { PaymentMethodUpdate } from './paymentMethodUpdate';
 
 export type PaymentMethodCreate = PaymentMethodUpdate & {
   kind: PaymentMethodCreateKind;
+  /** Chosen once, when the method is made */
+  methodType?: PaymentMethodCreateMethodType;
 } & Required<Pick<PaymentMethodUpdate & {
   kind: PaymentMethodCreateKind;
+  /** Chosen once, when the method is made */
+  methodType?: PaymentMethodCreateMethodType;
 }, 'name'>>;

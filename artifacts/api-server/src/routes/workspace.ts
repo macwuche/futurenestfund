@@ -130,7 +130,7 @@ router.post("/applicant/requests", receiveRequestForm, async (req, res): Promise
   }
   const amount = Number(input.data.amount);
   res.status(201).json(CreateApplicantRequestResponse.parse(await createApplicantRequest(currentUserId(req), {
-    kind: input.data.kind, methodId: input.data.methodId, amount, source: input.data.source, values, note: input.data.note,
+    kind: input.data.kind, methodId: input.data.methodId, amount, source: input.data.source, values, note: input.data.note, cardId: input.data.cardId,
   }, req.file)));
 });
 
@@ -411,7 +411,7 @@ router.post("/admin/applications/:applicationId/decision", async (req, res): Pro
 router.get("/admin/requests", async (req, res): Promise<void> => {
   const query = ListAdminRequestsQueryParams.safeParse(req.query);
   if (!query.success) { res.status(400).json({ error: "Choose Deposit or Withdrawal requests." }); return; }
-  res.json(ListAdminRequestsResponse.parse(await listAdminRequests(query.data.kind, query.data.status)));
+  res.json(ListAdminRequestsResponse.parse(await listAdminRequests(query.data.kind, query.data.status, query.data.via)));
 });
 router.post("/admin/requests/:requestId/approve", async (req, res): Promise<void> => {
   const params = ApproveAdminRequestParams.safeParse(req.params);

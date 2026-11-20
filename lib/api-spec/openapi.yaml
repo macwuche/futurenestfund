@@ -2017,6 +2017,7 @@ paths:
       parameters:
         - { name: kind, in: query, required: true, schema: { type: string, enum: [Deposit, Withdrawal] } }
         - { name: status, in: query, required: false, schema: { type: string, enum: [pending, decided], default: pending } }
+        - { name: via, in: query, required: false, schema: { type: string, enum: [card] }, description: "card: only requests made with a saved card" }
       responses:
         "200":
           description: Requests (pending oldest first, decided newest first)
@@ -2165,6 +2166,203 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /applicant/payment-cards:
+    get:
+      operationId: listApplicantPaymentCards
+      tags: [applicant]
+      summary: The customer's saved physical cards (Phase 13), for card deposits and withdrawals
+      responses:
+        "200":
+          description: Saved cards, oldest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/SavedCard" } }
+    post:
+      operationId: createApplicantPaymentCard
+      tags: [applicant]
+      summary: Save a physical card collected at the office
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SavedCardInput" }
+      responses:
+        "201":
+          description: The saved card
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SavedCard" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /applicant/payment-cards/{cardId}:
+    delete:
+      operationId: deleteApplicantPaymentCard
+      tags: [applicant]
+      summary: Remove a saved card (not while a request made with it is waiting)
+      parameters:
+        - { name: cardId, in: path, required: true, schema: { type: string } }
+      responses:
+        "204":
+          description: Removed
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Card not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/card-payments/overview:
+    get:
+      operationId: getAdminCardPaymentsOverview
+      tags: [admin]
+      summary: Card payments at a glance (Phase 13)
+      responses:
+        "200":
+          description: Figures
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CardPaymentsOverview" }
+  /admin/payment-cards:
+    get:
+      operationId: listAdminPaymentCards
+      tags: [admin]
+      summary: Customers' saved cards with their flags
+      parameters:
+        - { name: filter, in: query, required: false, schema: { type: string, enum: [all, flagged, Pending, Verified, Blocked, Removed], default: all } }
+        - { name: q, in: query, required: false, schema: { type: string, maxLength: 100 } }
+        - { name: userId, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: Cards, newest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AdminSavedCard" } }
+  /admin/payment-cards/{cardId}:
+    get:
+      operationId: getAdminPaymentCard
+      tags: [admin]
+      summary: One saved card, its requests, other accounts with the same card and its reports
+      parameters:
+        - { name: cardId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The card
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminSavedCardDetail" }
+        "404":
+          description: Card not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/payment-cards/{cardId}/reveal:
+    post:
+      operationId: revealAdminPaymentCard
+      tags: [admin]
+      summary: The full card number and CVV, to pay or charge the card (audited)
+      parameters:
+        - { name: cardId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Card details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CardReveal" }
+        "404":
+          description: Card not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/payment-cards/{cardId}/decision:
+    post:
+      operationId: decideAdminPaymentCard
+      tags: [admin]
+      summary: Verify, block (with a reason the customer sees) or unblock a saved card
+      parameters:
+        - { name: cardId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CardDecisionInput" }
+      responses:
+        "200":
+          description: The card
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminSavedCardDetail" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Card not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/reported-cards:
+    get:
+      operationId: listAdminReportedCards
+      tags: [admin]
+      summary: Cards reported lost, stolen, expired or damaged
+      parameters:
+        - { name: cleared, in: query, required: false, schema: { type: boolean, default: false }, description: "Include cleared reports" }
+      responses:
+        "200":
+          description: Reports, newest first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/ReportedCard" } }
+    post:
+      operationId: createAdminReportedCard
+      tags: [admin]
+      summary: Add a card to the reported list, by its full number or from a saved card
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReportCardInput" }
+      responses:
+        "201":
+          description: The report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReportedCard" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/reported-cards/{reportId}/clear:
+    post:
+      operationId: clearAdminReportedCard
+      tags: [admin]
+      summary: Clear a report (the card can be used again unless it's blocked)
+      parameters:
+        - { name: reportId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The cleared report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReportedCard" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+        "404":
+          description: Report not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
 components:
   securitySchemes:
     supabaseBearer:
@@ -2176,6 +2374,228 @@ components:
       in: cookie
       name: gp_session
   schemas:
+    CardNetwork: { type: string, enum: [visa, mastercard, amex, verve, discover, other] }
+    SavedCardStatus: { type: string, enum: [Pending, Verified, Blocked, Removed], description: "Pending = not checked by an administrator yet" }
+    SavedCard:
+      type: object
+      description: A physical card the customer saved (Phase 13). Never carries the full number.
+      properties:
+        id: { type: string }
+        holderName: { type: string }
+        network: { $ref: "#/components/schemas/CardNetwork" }
+        networkName: { type: string }
+        lastFour: { type: string }
+        expiry: { type: string, description: "MM/YY" }
+        status: { $ref: "#/components/schemas/SavedCardStatus" }
+        expired: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        usable: { type: boolean, description: "Applicant: whether it can be used for a new request" }
+        blockedReason: { type: string, description: "Applicant: why it's blocked" }
+      required: [id, holderName, network, networkName, lastFour, expiry, status, expired, createdAt]
+    SavedCardInput:
+      type: object
+      properties:
+        holderName: { type: string, maxLength: 80 }
+        number: { type: string, maxLength: 30 }
+        expiry: { type: string, maxLength: 10, description: "MM/YY" }
+        cvv: { type: string, maxLength: 4 }
+      required: [holderName, number, expiry, cvv]
+    CardFlag:
+      type: object
+      properties:
+        kind: { type: string, enum: [expired, expiring, reported, duplicate, blocked, unchecked] }
+        text: { type: string }
+      required: [kind, text]
+    RequestCard:
+      allOf:
+        - $ref: "#/components/schemas/SavedCard"
+        - type: object
+          properties:
+            flags:
+              type: array
+              items: { $ref: "#/components/schemas/CardFlag" }
+            blocker: { type: string, description: "Why the request can't be approved with this card right now" }
+          required: [flags]
+    AdminSavedCard:
+      allOf:
+        - $ref: "#/components/schemas/SavedCard"
+        - type: object
+          properties:
+            userId: { type: string }
+            userName: { type: string }
+            organization: { type: string }
+            flags:
+              type: array
+              items: { $ref: "#/components/schemas/CardFlag" }
+            blockReason: { type: string, enum: [Lost, Stolen, Expired, Not our card, Other] }
+            blockNote: { type: string }
+            reviewedBy: { type: string }
+            reviewedAt: { type: string, format: date-time }
+            removedAt: { type: string, format: date-time }
+            requestCount: { type: integer }
+            pendingRequests: { type: integer }
+            deposited: { type: number, description: "Approved card deposits, USD" }
+            withdrawn: { type: number, description: "Approved card withdrawals, USD" }
+            lastUsedAt: { type: string, format: date-time }
+          required: [userId, userName, organization, flags, requestCount, pendingRequests, deposited, withdrawn]
+    AdminSavedCardDetail:
+      allOf:
+        - $ref: "#/components/schemas/AdminSavedCard"
+        - type: object
+          properties:
+            requests:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: string }
+                  reference: { type: string }
+                  kind: { type: string, enum: [Deposit, Withdrawal] }
+                  amount: { type: number }
+                  fee: { type: number }
+                  status: { type: string, enum: [Pending, Completed, Declined] }
+                  createdAt: { type: string, format: date-time }
+                  reviewNote: { type: string }
+                required: [id, reference, kind, amount, fee, status, createdAt]
+            sameCard:
+              type: array
+              description: The same card number saved on other accounts
+              items:
+                type: object
+                properties:
+                  cardId: { type: string }
+                  userId: { type: string }
+                  userName: { type: string }
+                  status: { type: string }
+                required: [cardId, userId, userName, status]
+            reports:
+              type: array
+              items: { $ref: "#/components/schemas/ReportedCard" }
+          required: [requests, sameCard, reports]
+    CardReveal:
+      type: object
+      properties:
+        id: { type: string }
+        number: { type: string, description: "Grouped in fours" }
+        cvv: { type: string }
+        holderName: { type: string }
+        expiry: { type: string }
+        networkName: { type: string }
+      required: [id, number, cvv, holderName, expiry, networkName]
+    CardDecisionInput:
+      type: object
+      properties:
+        action: { type: string, enum: [verify, block, unblock] }
+        reason: { type: string, enum: [Lost, Stolen, Expired, Not our card, Other], description: "block only" }
+        note: { type: string, maxLength: 240, description: "block only: shown to the customer, at least 5 characters" }
+      required: [action]
+    ReportedCard:
+      type: object
+      properties:
+        id: { type: string }
+        network: { $ref: "#/components/schemas/CardNetwork" }
+        networkName: { type: string }
+        lastFour: { type: string }
+        reason: { type: string, enum: [Lost, Stolen, Expired, Damaged, Other] }
+        note: { type: string }
+        reportedBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        clearedAt: { type: string, format: date-time }
+        clearedBy: { type: string }
+        matchingCards: { type: integer, description: "Saved cards (not removed) with this number" }
+      required: [id, network, networkName, lastFour, reason, note, reportedBy, createdAt]
+    ReportCardInput:
+      type: object
+      properties:
+        number: { type: string, maxLength: 30, description: "The full card number, or…" }
+        cardId: { type: string, description: "…a saved card" }
+        reason: { type: string, enum: [Lost, Stolen, Expired, Damaged, Other] }
+        note: { type: string, maxLength: 240 }
+      required: [reason]
+    CardPaymentsOverview:
+      type: object
+      properties:
+        cards:
+          type: object
+          properties:
+            total: { type: integer }
+            pending: { type: integer }
+            verified: { type: integer }
+            blocked: { type: integer }
+            flagged: { type: integer }
+            expired: { type: integer }
+            reported: { type: integer }
+            customers: { type: integer }
+          required: [total, pending, verified, blocked, flagged, expired, reported, customers]
+        reportedOpen: { type: integer }
+        pending:
+          type: object
+          properties:
+            deposits: { type: integer }
+            depositAmount: { type: number }
+            withdrawals: { type: integer }
+            withdrawalAmount: { type: number }
+          required: [deposits, depositAmount, withdrawals, withdrawalAmount]
+        thisMonth:
+          type: object
+          properties:
+            deposited: { type: number }
+            withdrawn: { type: number }
+          required: [deposited, withdrawn]
+        allTime:
+          type: object
+          properties:
+            deposited: { type: number }
+            withdrawn: { type: number }
+            fees: { type: number }
+            approved: { type: integer }
+            declined: { type: integer }
+            approvalRate: { type: [integer, "null"] }
+          required: [deposited, withdrawn, fees, approved, declined, approvalRate]
+        trend:
+          type: array
+          items:
+            type: object
+            properties:
+              label: { type: string }
+              deposits: { type: number }
+              withdrawals: { type: number }
+            required: [label, deposits, withdrawals]
+        byNetwork:
+          type: array
+          items:
+            type: object
+            properties:
+              network: { $ref: "#/components/schemas/CardNetwork" }
+              networkName: { type: string }
+              count: { type: integer }
+            required: [network, networkName, count]
+        methods:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              kind: { type: string, enum: [Deposit, Withdrawal] }
+              name: { type: string }
+              enabled: { type: boolean }
+            required: [id, kind, name, enabled]
+        recent:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              reference: { type: string }
+              kind: { type: string, enum: [Deposit, Withdrawal] }
+              amount: { type: number }
+              status: { type: string, enum: [Pending, Completed, Declined] }
+              createdAt: { type: string, format: date-time }
+              userId: { type: string }
+              userName: { type: string }
+              card: { type: string }
+            required: [id, reference, kind, amount, status, createdAt, userId, userName, card]
+      required: [cards, reportedOpen, pending, thisMonth, allTime, trend, byNetwork, methods, recent]
     ApplicantPreferences:
       type: object
       properties:
@@ -2619,6 +3039,7 @@ components:
         values: { type: string, description: "JSON object of the method's field answers, by field id" }
         note: { type: string, maxLength: 240 }
         file: { type: string, format: binary, description: "Payment proof (deposits): JPG, PNG, WebP or PDF, up to 10 MB" }
+        cardId: { type: string, description: "Card methods: the saved card to charge (deposits) or pay (withdrawals)" }
       required: [kind, methodId, amount]
     BalanceSource: { type: string, enum: [grant, deposit] }
     WithdrawalSources: { type: string, enum: [grant, deposit, both], description: "Which balances the user can withdraw from" }
@@ -2665,6 +3086,7 @@ components:
       properties:
         id: { type: string }
         kind: { type: string, enum: [Deposit, Withdrawal] }
+        methodType: { type: string, enum: [standard, card], description: "card: the customer picks one of their saved physical cards" }
         name: { type: string }
         logoUrl: { type: string }
         amountMode: { type: string, enum: [range, fixed] }
@@ -2687,7 +3109,7 @@ components:
         createdBy: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-      required: [id, kind, name, amountMode, minAmount, maxAmount, fixedAmounts, amountRule, fields, proofMode, instructions, fee, feeText]
+      required: [id, kind, methodType, name, amountMode, minAmount, maxAmount, fixedAmounts, amountRule, fields, proofMode, instructions, fee, feeText]
     PaymentMethodUpdate:
       type: object
       properties:
@@ -2711,6 +3133,7 @@ components:
         - type: object
           properties:
             kind: { type: string, enum: [Deposit, Withdrawal] }
+            methodType: { type: string, enum: [standard, card], default: standard, description: "Chosen once, when the method is made" }
           required: [kind, name]
     PaymentMethodMove:
       type: object
@@ -3484,6 +3907,7 @@ components:
         proofUrl: { type: string }
         fee: { type: number, description: "The method's fee worked out when the request was placed" }
         net: { type: number, description: "Deposits: what the account balance gets (amount − fee). Withdrawals: what leaves the user's balances in all (amount + fee)" }
+        card: { $ref: "#/components/schemas/RequestCard" }
       required: [id, reference, kind, amount, note, status, createdAt, userId, userName, organization, userStatus, verificationLevel, kycRequired, grantBalance, depositBalance, details, withdrawalSources, fee, net]
     LedgerEntry:
       type: object

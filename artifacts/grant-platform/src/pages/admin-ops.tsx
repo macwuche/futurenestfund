@@ -16,6 +16,8 @@ import { apiError } from '@/lib/demo-state';
 import { RequestDetails } from '@/components/payment-method';
 import { useToast } from '@/hooks/use-toast';
 import { ledgerKindLabel } from '@/lib/ledger-wording';
+import { NetworkTile } from '@/components/payment-cards';
+import { FlagChips, RevealCardButton, SavedCardStatus } from '@/components/admin-payment-cards';
 
 /** User dropdowns list everyone by name (up to 500; a searchable picker would replace them beyond that). */
 const USER_PICKER = { pageSize: 500, sort: 'name' } as const;
@@ -99,6 +101,7 @@ function RequestQueuePage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
 /** Why an approval would be refused right now, so the button can say so before the server does. */
 function blocker(r: AdminRequest) {
   if (r.userStatus === 'Frozen') return 'Account is frozen';
+  if (r.status === 'Pending' && r.card?.blocker) return r.card.blocker;
   if (r.kycRequired && r.verificationLevel !== 'Verified') return 'Identity not verified';
   if (r.kind === 'Withdrawal') {
     const src = r.source ?? 'grant';
@@ -125,7 +128,27 @@ function ProofPreview({ url, name }: { url: string; name: string }) {
   );
 }
 
-function RequestRow({ r }: { r: AdminRequest }) {
+/** Phase 13: the saved card a request charges or pays, with its flags and the audited full details. */
+function RequestCardPanel({ r }: { r: AdminRequest }) {
+  const c = r.card;
+  if (!c) return null;
+  return (
+    <div className={cx('mt-2 rounded-xl border p-3', c.blocker ? 'border-red-200 bg-red-50/60' : 'border-slate-200 bg-slate-50/60')} data-testid={`panel-request-card-${r.id}`}>
+      <div className="flex flex-wrap items-center gap-3">
+        <NetworkTile network={c.network} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">{r.kind === 'Deposit' ? 'Charge' : 'Pay to'} {c.networkName} •• {c.lastFour}</p>
+          <p className="text-xs text-slate-500">{c.holderName} · exp {c.expiry} · <Link href={`/admin/card-payments?tab=cards&card=${c.id}`} className="font-semibold underline">Open card</Link></p>
+        </div>
+        <SavedCardStatus status={c.status} expired={c.expired} />
+        <RevealCardButton cardId={c.id} network={c.network} small />
+      </div>
+      <div className="mt-2"><FlagChips flags={c.flags} testid={`flags-request-${r.id}`} /></div>
+    </div>
+  );
+}
+
+export function RequestRow({ r }: { r: AdminRequest }) {
   const approve = useApproveAdminRequest();
   const reject = useRejectAdminRequest();
   const refresh = useAdminRefresh();
@@ -145,7 +168,8 @@ function RequestRow({ r }: { r: AdminRequest }) {
           <Link href={`/admin/users/${r.userId}`} className="font-semibold hover:underline">{r.userName}</Link>
           <p className="text-xs text-slate-500">{r.organization} · requested {dateTime(r.createdAt)} · ref <span className="font-num" data-testid={`text-request-ref-${r.id}`}>{r.reference}</span></p>
           {r.note && <p className="mt-1 text-sm text-slate-700">“{r.note}”</p>}
-          <RequestDetails method={r.method} details={r.details} source={deposit ? undefined : r.source} testid={`details-request-${r.id}`} />
+          <RequestDetails method={r.method} details={r.card ? r.details.slice(1) : r.details} source={deposit ? undefined : r.source} testid={`details-request-${r.id}`} />
+          <RequestCardPanel r={r} />
           {r.proofUrl ? <ProofPreview url={r.proofUrl} name={r.userName} /> : deposit && r.method && <p className="mt-2 text-xs text-slate-500" data-testid={`text-no-proof-${r.id}`}>No payment proof attached.</p>}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
             <StatusBadge status={r.verificationLevel} /><StatusBadge status={r.userStatus} />

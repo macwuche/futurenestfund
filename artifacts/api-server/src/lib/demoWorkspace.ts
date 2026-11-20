@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, gte, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db, demoProfilesTable, demoAuditTable, demoLedgerTable, demoSettingsTable, demoRequestsTable, demoApplicationsTable, demoPaymentMethodsTable, demoTierRequestsTable, type DemoProfile } from "@workspace/db";
 import { notifyUser, requestEmailData, requestReference } from "./notifications";
+import { cardForRequest } from "./paymentCards";
+import { cardLabel } from "./cardRules";
 import { activeApplicationsFilter, applicationSummary } from "./applicantRecords";
 import { currentKycDocuments } from "./kyc";
 import { fileUrl, storeUpload, type DbTx } from "./uploads";
@@ -334,7 +336,11 @@ export async function changeGlobalFreeze(frozen: boolean, actor: string, reason?
 }
 
 type RequestRow = typeof demoRequestsTable.$inferSelect;
-type Snapshot = { name?: string; amountRule?: string; feeText?: string; fields?: { id: string; label: string; type: string }[] };
+type Snapshot = {
+  name?: string; amountRule?: string; feeText?: string; fields?: { id: string; label: string; type: string }[];
+  /** Phase 13: card methods: the saved card as it was when the request was placed (never the number). */
+  card?: { network: string; lastFour: string; holderName: string; expiry: string };
+};
 
 export type LogoMap = Map<string, string | undefined>;
 
@@ -354,7 +360,10 @@ export function requestDetails(r: RequestRow, scope: "applicant" | "admin", logo
   return {
     ...(snap && r.methodId ? { method: { id: r.methodId, name: snap.name ?? "Payment method", ...(logoUrl ? { logoUrl } : {}) } } : {}),
     ...(r.kind === "Withdrawal" ? { source: (r.source === "deposit" ? "deposit" : "grant") as BalanceSource } : {}),
-    details: (snap?.fields ?? []).filter(f => values[f.id]).map(f => ({ label: f.label, value: values[f.id]! })),
+    details: [
+      ...(snap?.card ? [{ label: r.kind === "Deposit" ? "Charged to" : "Paid to", value: `${cardLabel(snap.card)} · ${snap.card.holderName} · exp ${snap.card.expiry}` }] : []),
+      ...(snap?.fields ?? []).filter(f => values[f.id]).map(f => ({ label: f.label, value: values[f.id]! })),
+    ],
     ...(r.proofFileId ? { proofUrl: fileUrl(scope, r.proofFileId) } : {}),
     ...(r.feeCents > 0 ? { fee: r.feeCents / 100 } : {}),
   };
@@ -408,7 +417,7 @@ export async function applicantAccount(profileId: string) {
   };
 }
 
-export type RequestInput = { kind: "Deposit" | "Withdrawal"; methodId: string; amount: number; source?: BalanceSource; values?: unknown; note?: string };
+export type RequestInput = { kind: "Deposit" | "Withdrawal"; methodId: string; amount: number; source?: BalanceSource; values?: unknown; note?: string; cardId?: string };
 
 /**
  * Place a deposit or withdrawal request through one of the administrator's methods.
@@ -474,10 +483,13 @@ export async function createApplicantRequest(profileId: string, input: RequestIn
         throw tierLimitError(rules, profile.tier, problem, blocked, profile.withdrawalLimitCustom);
       }
     }
+    // Phase 13: a card method needs one of the customer's own saved cards that can still be used.
+    const card = method.methodType === "card" ? await cardForRequest(tx, profile.id, input.cardId) : null;
     const [row] = await tx.insert(demoRequestsTable).values({
-      profileId: profile.id, kind, amountCents: cents, note, source, methodId: method.id, methodSnapshot: snapshot, fieldValues: answers, proofFileId, feeCents: fee,
+      profileId: profile.id, kind, amountCents: cents, note, source, methodId: method.id, methodSnapshot: card ? { ...snapshot, card: card.snapshot } : snapshot,
+      fieldValues: answers, proofFileId, feeCents: fee, cardId: card?.id ?? null,
     }).returning();
-    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor: profile.name, action: `${kind} request submitted +$${(cents / 100).toFixed(2)} via ${method.name}${source ? ` from the ${SOURCE_LABEL[source]}` : ""}${fee ? `, fee ${dollars(fee)}` : ""}${proofFileId ? ", with payment proof" : ""}` });
+    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor: profile.name, action: `${kind} request submitted +$${(cents / 100).toFixed(2)} via ${method.name}${card ? ` (${cardLabel(card.snapshot)})` : ""}${source ? ` from the ${SOURCE_LABEL[source]}` : ""}${fee ? `, fee ${dollars(fee)}` : ""}${proofFileId ? ", with payment proof" : ""}` });
     const amount = `$${(cents / 100).toFixed(2)}`;
     await notifyUser(profile.id, kind === "Withdrawal"
       ? `Withdrawal request of ${amount} via ${method.name} received (ref ${requestReference(row!.id)}). Our finance team will review it; your funds are released once it's approved.`

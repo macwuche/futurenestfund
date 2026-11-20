@@ -7,8 +7,13 @@
  */
 import type { ListAdminRequestsKind } from './listAdminRequestsKind';
 import type { ListAdminRequestsStatus } from './listAdminRequestsStatus';
+import type { ListAdminRequestsVia } from './listAdminRequestsVia';
 
 export type ListAdminRequestsParams = {
 kind: ListAdminRequestsKind;
 status?: ListAdminRequestsStatus;
+/**
+ * card: only requests made with a saved card
+ */
+via?: ListAdminRequestsVia;
 };

@@ -33,7 +33,8 @@ function proofText(m: PaymentMethod) {
 
 function GatewayPage({ kind }: { kind: Kind }) {
   const list = useListAdminPaymentMethods({ kind });
-  const [editing, setEditing] = useState<PaymentMethod | 'new' | null>(null);
+  // Phase 13: Card Payments links here with ?new=card to open a new "Saved card" method.
+  const [editing, setEditing] = useState<PaymentMethod | 'new' | 'new-card' | null>(() => new URLSearchParams(window.location.search).get('new') === 'card' ? 'new-card' : null);
   const [removing, setRemoving] = useState<PaymentMethod | null>(null);
   const word = kind.toLowerCase();
   return (
@@ -60,7 +61,7 @@ function GatewayPage({ kind }: { kind: Kind }) {
               ))}</ul>}
         </section>
       </div>
-      {editing && <MethodEditor kind={kind} method={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} />}
+      {editing && <MethodEditor kind={kind} method={typeof editing === 'string' ? undefined : editing} initialType={editing === 'new-card' ? 'card' : 'standard'} onClose={() => setEditing(null)} />}
       <DeleteMethod method={removing} onClose={() => setRemoving(null)} />
     </Shell>
   );
@@ -72,7 +73,7 @@ function MethodRow({ m, first, last, onEdit, onDelete }: { m: PaymentMethod; fir
   const refresh = useAdminRefresh();
   const { toast } = useToast();
   const fail = (e: unknown) => toast({ title: 'Not saved', description: apiError(e, 'Try again.'), variant: 'destructive' });
-  const meta = [m.amountRule, m.feeText !== 'No fee' ? m.feeText : '', `${m.fields.length} field${m.fields.length === 1 ? '' : 's'}`, proofText(m)].filter(Boolean).join(' · ');
+  const meta = [m.methodType === 'card' ? 'Saved card' : '', m.amountRule, m.feeText !== 'No fee' ? m.feeText : '', `${m.fields.length} field${m.fields.length === 1 ? '' : 's'}`, proofText(m)].filter(Boolean).join(' · ');
   return (
     <li className={cx('rounded-xl border p-4', m.enabled ? 'border-[#E2E8F0]' : 'border-dashed border-slate-300 bg-slate-50')} data-testid={`row-method-${m.id}`}>
       <div className="flex flex-wrap items-center gap-3">
@@ -165,8 +166,10 @@ function checkDraft(d: Draft, kind: Kind): string {
   return '';
 }
 
-function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentMethod; onClose: () => void }) {
+function MethodEditor({ kind, method, onClose, initialType = 'standard' }: { kind: Kind; method?: PaymentMethod; onClose: () => void; initialType?: 'standard' | 'card' }) {
   const [current, setCurrent] = useState<PaymentMethod | undefined>(method);
+  // Phase 13: chosen once, when the method is made.
+  const [methodType, setMethodType] = useState<'standard' | 'card'>(method?.methodType ?? initialType);
   const [d, setD] = useState<Draft>(() => toDraft(method, kind));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -210,7 +213,7 @@ function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentM
     };
     let saved = current;
     try {
-      saved = current ? await update.mutateAsync({ methodId: current.id, data }) : await create.mutateAsync({ data: { ...data, kind, name: data.name! } });
+      saved = current ? await update.mutateAsync({ methodId: current.id, data }) : await create.mutateAsync({ data: { ...data, kind, name: data.name!, methodType } });
       setCurrent(saved);
     } catch (e) { setBusy(false); return setError(apiError(e, 'The method could not be saved.')); }
     // The logo is a second step: a method saved without one still exists, so a logo problem keeps the form open on that method.
@@ -262,6 +265,22 @@ function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentM
             )}
             {(current?.logoUrl || d.logoFile) && !d.removeLogo && (
               <button type="button" className="text-xs font-semibold text-red-700 underline" data-testid="button-logo-remove" onClick={() => set({ removeLogo: true, logoFile: null, logoUrlInput: '' })}>Remove logo</button>
+            )}
+          </fieldset>
+
+          <fieldset data-testid="fieldset-method-type">
+            <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Type</legend>
+            {current ? (
+              <p className="text-sm text-slate-700" data-testid="text-method-type">{methodType === 'card' ? 'Saved card: customers pick the physical card they collected at the office.' : 'Standard: customers fill in the details below.'} The type can't be changed.</p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Method type">
+                {([['standard', 'Standard', 'Customers fill in your fields (bank, wallet…)'], ['card', 'Saved card', kind === 'Deposit' ? 'Charge the physical card the customer saved' : 'Pay to the physical card the customer saved']] as const).map(([v, label, hint]) => (
+                  <label key={v} className={cx('press flex cursor-pointer flex-col rounded-lg border p-3 text-sm', methodType === v ? 'border-[#111] bg-[var(--brand)]/30' : 'border-slate-300')}>
+                    <span className="flex items-center gap-2 font-semibold"><input type="radio" name="method-type" checked={methodType === v} onChange={() => setMethodType(v)} className="accent-[#111]" data-testid={`radio-method-type-${v}`} />{label}</span>
+                    <span className="mt-0.5 text-xs text-slate-600">{hint}</span>
+                  </label>
+                ))}
+              </div>
             )}
           </fieldset>
 
@@ -359,6 +378,7 @@ function MethodEditor({ kind, method, onClose }: { kind: Kind; method?: PaymentM
                 <div className="min-w-0"><p className="truncate font-semibold">{d.name.trim() || 'Method name'}</p><p className="font-num text-xs text-slate-500">{previewRule(d)}{previewFee(d) ? ` · ${previewFee(d)}` : ''}</p></div>
               </div>
               <MethodInstructions text={d.instructions} testid="text-preview-instructions" />
+              {methodType === 'card' && <p className="rounded-xl border border-dashed border-slate-300 p-3 text-xs text-slate-600" data-testid="text-preview-card-picker">The customer picks one of their saved cards here.</p>}
               {d.amountMode === 'fixed'
                 ? d.fixed.length ? <FixedAmountChoices amounts={d.fixed.map(Number)} value="" onChange={() => {}} activeClass="border-[var(--brand-ink)] bg-[var(--brand)] text-[var(--brand-fg)]" /> : null
                 : <input disabled placeholder="Amount" className={cx(ainput, 'min-h-11')} aria-label="Amount (preview)" />}

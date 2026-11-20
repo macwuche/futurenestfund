@@ -33,6 +33,8 @@ import type {
   AdminKycQueue,
   AdminLedgerPage,
   AdminRequest,
+  AdminSavedCard,
+  AdminSavedCardDetail,
   AdminSearchResults,
   AdminTierRequest,
   AdminTierSettings,
@@ -61,8 +63,11 @@ import type {
   BrandingUpdate,
   CardActionInput,
   CardBuyInput,
+  CardDecisionInput,
   CardDeclineInput,
   CardIssueInput,
+  CardPaymentsOverview,
+  CardReveal,
   CardTopUpInput,
   CardTypesUpdate,
   ClientErrorReceipt,
@@ -91,7 +96,9 @@ import type {
   ListAdminApplicationsParams,
   ListAdminAuditParams,
   ListAdminCardRequestsParams,
+  ListAdminPaymentCardsParams,
   ListAdminPaymentMethodsParams,
+  ListAdminReportedCardsParams,
   ListAdminRequestsParams,
   ListAdminTierRequestsParams,
   ListAdminTransactionsParams,
@@ -111,6 +118,10 @@ import type {
   PlanApplicationForm,
   PlanApplicationResubmitForm,
   ReasonInput,
+  ReportCardInput,
+  ReportedCard,
+  SavedCard,
+  SavedCardInput,
   SearchAdminParams,
   Session,
   TierDecisionInput,
@@ -3961,6 +3972,9 @@ if(applicantRequestForm.note !== undefined) {
  }
 if(applicantRequestForm.file !== undefined) {
  formData.append(`file`, applicantRequestForm.file);
+ }
+if(applicantRequestForm.cardId !== undefined) {
+ formData.append(`cardId`, applicantRequestForm.cardId);
  }
 
   return customFetch<ApplicantTransaction>(getCreateApplicantRequestUrl(),
@@ -9613,5 +9627,891 @@ export const useReviewAdminKycDocument = <TError = ErrorType<ErrorMessage>,
         TContext
       > => {
       return useMutation(getReviewAdminKycDocumentMutationOptions(options));
+    }
+
+export const getListApplicantPaymentCardsUrl = () => {
+
+
+
+
+  return `/api/applicant/payment-cards`
+}
+
+/**
+ * @summary The customer's saved physical cards (Phase 13), for card deposits and withdrawals
+ */
+export const listApplicantPaymentCards = async ( options?: Parameters<typeof customFetch>[1]): Promise<SavedCard[]> => {
+
+  return customFetch<SavedCard[]>(getListApplicantPaymentCardsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListApplicantPaymentCardsQueryKey = () => {
+    return [
+    `/api/applicant/payment-cards`
+    ] as const;
+    }
+
+
+export const getListApplicantPaymentCardsQueryOptions = <TData = Awaited<ReturnType<typeof listApplicantPaymentCards>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicantPaymentCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListApplicantPaymentCardsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listApplicantPaymentCards>>> = ({ signal }) => listApplicantPaymentCards({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listApplicantPaymentCards>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListApplicantPaymentCardsQueryResult = NonNullable<Awaited<ReturnType<typeof listApplicantPaymentCards>>>
+export type ListApplicantPaymentCardsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary The customer's saved physical cards (Phase 13), for card deposits and withdrawals
+ */
+
+export function useListApplicantPaymentCards<TData = Awaited<ReturnType<typeof listApplicantPaymentCards>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicantPaymentCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListApplicantPaymentCardsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateApplicantPaymentCardUrl = () => {
+
+
+
+
+  return `/api/applicant/payment-cards`
+}
+
+/**
+ * @summary Save a physical card collected at the office
+ */
+export const createApplicantPaymentCard = async (savedCardInput: SavedCardInput, options?: Parameters<typeof customFetch>[1]): Promise<SavedCard> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SavedCard>(getCreateApplicantPaymentCardUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(savedCardInput)
+  }
+);}
+
+
+
+
+
+export const getCreateApplicantPaymentCardMutationKey = () => ['createApplicantPaymentCard'] as const;
+
+export const getCreateApplicantPaymentCardMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApplicantPaymentCard>>, TError,CreateApplicantPaymentCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createApplicantPaymentCard>>, TError,CreateApplicantPaymentCardMutationVariables, TContext> => {
+
+const mutationKey = getCreateApplicantPaymentCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createApplicantPaymentCard>>, CreateApplicantPaymentCardMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createApplicantPaymentCard(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateApplicantPaymentCardMutationResult = NonNullable<Awaited<ReturnType<typeof createApplicantPaymentCard>>>
+    export type CreateApplicantPaymentCardMutationBody = BodyType<SavedCardInput>
+    export type CreateApplicantPaymentCardMutationError = ErrorType<ErrorMessage>
+    export type CreateApplicantPaymentCardMutationVariables = {data: BodyType<SavedCardInput>}
+
+    /**
+ * @summary Save a physical card collected at the office
+ */
+export const useCreateApplicantPaymentCard = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApplicantPaymentCard>>, TError,CreateApplicantPaymentCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createApplicantPaymentCard>>,
+        TError,
+        CreateApplicantPaymentCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateApplicantPaymentCardMutationOptions(options));
+    }
+
+export const getDeleteApplicantPaymentCardUrl = (cardId: string,) => {
+
+
+
+
+  return `/api/applicant/payment-cards/${cardId}`
+}
+
+/**
+ * @summary Remove a saved card (not while a request made with it is waiting)
+ */
+export const deleteApplicantPaymentCard = async (cardId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteApplicantPaymentCardUrl(cardId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteApplicantPaymentCardMutationKey = () => ['deleteApplicantPaymentCard'] as const;
+
+export const getDeleteApplicantPaymentCardMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteApplicantPaymentCard>>, TError,DeleteApplicantPaymentCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteApplicantPaymentCard>>, TError,DeleteApplicantPaymentCardMutationVariables, TContext> => {
+
+const mutationKey = getDeleteApplicantPaymentCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteApplicantPaymentCard>>, DeleteApplicantPaymentCardMutationVariables> = (props) => {
+          const {cardId} = props ?? {};
+
+          return  deleteApplicantPaymentCard(cardId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteApplicantPaymentCardMutationResult = NonNullable<Awaited<ReturnType<typeof deleteApplicantPaymentCard>>>
+
+    export type DeleteApplicantPaymentCardMutationError = ErrorType<ErrorMessage>
+    export type DeleteApplicantPaymentCardMutationVariables = {cardId: string}
+
+    /**
+ * @summary Remove a saved card (not while a request made with it is waiting)
+ */
+export const useDeleteApplicantPaymentCard = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteApplicantPaymentCard>>, TError,DeleteApplicantPaymentCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteApplicantPaymentCard>>,
+        TError,
+        DeleteApplicantPaymentCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteApplicantPaymentCardMutationOptions(options));
+    }
+
+export const getGetAdminCardPaymentsOverviewUrl = () => {
+
+
+
+
+  return `/api/admin/card-payments/overview`
+}
+
+/**
+ * @summary Card payments at a glance (Phase 13)
+ */
+export const getAdminCardPaymentsOverview = async ( options?: Parameters<typeof customFetch>[1]): Promise<CardPaymentsOverview> => {
+
+  return customFetch<CardPaymentsOverview>(getGetAdminCardPaymentsOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminCardPaymentsOverviewQueryKey = () => {
+    return [
+    `/api/admin/card-payments/overview`
+    ] as const;
+    }
+
+
+export const getGetAdminCardPaymentsOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getAdminCardPaymentsOverview>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminCardPaymentsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminCardPaymentsOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminCardPaymentsOverview>>> = ({ signal }) => getAdminCardPaymentsOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminCardPaymentsOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminCardPaymentsOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminCardPaymentsOverview>>>
+export type GetAdminCardPaymentsOverviewQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Card payments at a glance (Phase 13)
+ */
+
+export function useGetAdminCardPaymentsOverview<TData = Awaited<ReturnType<typeof getAdminCardPaymentsOverview>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminCardPaymentsOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminCardPaymentsOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminPaymentCardsUrl = (params?: ListAdminPaymentCardsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/payment-cards?${stringifiedParams}` : `/api/admin/payment-cards`
+}
+
+/**
+ * @summary Customers' saved cards with their flags
+ */
+export const listAdminPaymentCards = async (params?: ListAdminPaymentCardsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminSavedCard[]> => {
+
+  return customFetch<AdminSavedCard[]>(getListAdminPaymentCardsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminPaymentCardsQueryKey = (params?: ListAdminPaymentCardsParams,) => {
+    return [
+    `/api/admin/payment-cards`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminPaymentCardsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminPaymentCards>>, TError = ErrorType<unknown>>(params?: ListAdminPaymentCardsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminPaymentCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminPaymentCardsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminPaymentCards>>> = ({ signal }) => listAdminPaymentCards(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminPaymentCards>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminPaymentCardsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminPaymentCards>>>
+export type ListAdminPaymentCardsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Customers' saved cards with their flags
+ */
+
+export function useListAdminPaymentCards<TData = Awaited<ReturnType<typeof listAdminPaymentCards>>, TError = ErrorType<unknown>>(
+ params?: ListAdminPaymentCardsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminPaymentCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminPaymentCardsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminPaymentCardUrl = (cardId: string,) => {
+
+
+
+
+  return `/api/admin/payment-cards/${cardId}`
+}
+
+/**
+ * @summary One saved card, its requests, other accounts with the same card and its reports
+ */
+export const getAdminPaymentCard = async (cardId: string, options?: Parameters<typeof customFetch>[1]): Promise<AdminSavedCardDetail> => {
+
+  return customFetch<AdminSavedCardDetail>(getGetAdminPaymentCardUrl(cardId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminPaymentCardQueryKey = (cardId: string,) => {
+    return [
+    `/api/admin/payment-cards/${cardId}`
+    ] as const;
+    }
+
+
+export const getGetAdminPaymentCardQueryOptions = <TData = Awaited<ReturnType<typeof getAdminPaymentCard>>, TError = ErrorType<ErrorMessage>>(cardId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminPaymentCard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminPaymentCardQueryKey(cardId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminPaymentCard>>> = ({ signal }) => getAdminPaymentCard(cardId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: cardId !== null && cardId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminPaymentCard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminPaymentCardQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminPaymentCard>>>
+export type GetAdminPaymentCardQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary One saved card, its requests, other accounts with the same card and its reports
+ */
+
+export function useGetAdminPaymentCard<TData = Awaited<ReturnType<typeof getAdminPaymentCard>>, TError = ErrorType<ErrorMessage>>(
+ cardId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminPaymentCard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminPaymentCardQueryOptions(cardId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRevealAdminPaymentCardUrl = (cardId: string,) => {
+
+
+
+
+  return `/api/admin/payment-cards/${cardId}/reveal`
+}
+
+/**
+ * @summary The full card number and CVV, to pay or charge the card (audited)
+ */
+export const revealAdminPaymentCard = async (cardId: string, options?: Parameters<typeof customFetch>[1]): Promise<CardReveal> => {
+
+  return customFetch<CardReveal>(getRevealAdminPaymentCardUrl(cardId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevealAdminPaymentCardMutationKey = () => ['revealAdminPaymentCard'] as const;
+
+export const getRevealAdminPaymentCardMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revealAdminPaymentCard>>, TError,RevealAdminPaymentCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revealAdminPaymentCard>>, TError,RevealAdminPaymentCardMutationVariables, TContext> => {
+
+const mutationKey = getRevealAdminPaymentCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revealAdminPaymentCard>>, RevealAdminPaymentCardMutationVariables> = (props) => {
+          const {cardId} = props ?? {};
+
+          return  revealAdminPaymentCard(cardId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevealAdminPaymentCardMutationResult = NonNullable<Awaited<ReturnType<typeof revealAdminPaymentCard>>>
+
+    export type RevealAdminPaymentCardMutationError = ErrorType<ErrorMessage>
+    export type RevealAdminPaymentCardMutationVariables = {cardId: string}
+
+    /**
+ * @summary The full card number and CVV, to pay or charge the card (audited)
+ */
+export const useRevealAdminPaymentCard = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revealAdminPaymentCard>>, TError,RevealAdminPaymentCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revealAdminPaymentCard>>,
+        TError,
+        RevealAdminPaymentCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRevealAdminPaymentCardMutationOptions(options));
+    }
+
+export const getDecideAdminPaymentCardUrl = (cardId: string,) => {
+
+
+
+
+  return `/api/admin/payment-cards/${cardId}/decision`
+}
+
+/**
+ * @summary Verify, block (with a reason the customer sees) or unblock a saved card
+ */
+export const decideAdminPaymentCard = async (cardId: string,
+    cardDecisionInput: CardDecisionInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminSavedCardDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminSavedCardDetail>(getDecideAdminPaymentCardUrl(cardId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(cardDecisionInput)
+  }
+);}
+
+
+
+
+
+export const getDecideAdminPaymentCardMutationKey = () => ['decideAdminPaymentCard'] as const;
+
+export const getDecideAdminPaymentCardMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideAdminPaymentCard>>, TError,DecideAdminPaymentCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideAdminPaymentCard>>, TError,DecideAdminPaymentCardMutationVariables, TContext> => {
+
+const mutationKey = getDecideAdminPaymentCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideAdminPaymentCard>>, DecideAdminPaymentCardMutationVariables> = (props) => {
+          const {cardId,data} = props ?? {};
+
+          return  decideAdminPaymentCard(cardId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideAdminPaymentCardMutationResult = NonNullable<Awaited<ReturnType<typeof decideAdminPaymentCard>>>
+    export type DecideAdminPaymentCardMutationBody = BodyType<CardDecisionInput>
+    export type DecideAdminPaymentCardMutationError = ErrorType<ErrorMessage>
+    export type DecideAdminPaymentCardMutationVariables = {cardId: string;data: BodyType<CardDecisionInput>}
+
+    /**
+ * @summary Verify, block (with a reason the customer sees) or unblock a saved card
+ */
+export const useDecideAdminPaymentCard = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideAdminPaymentCard>>, TError,DecideAdminPaymentCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideAdminPaymentCard>>,
+        TError,
+        DecideAdminPaymentCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDecideAdminPaymentCardMutationOptions(options));
+    }
+
+export const getListAdminReportedCardsUrl = (params?: ListAdminReportedCardsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/reported-cards?${stringifiedParams}` : `/api/admin/reported-cards`
+}
+
+/**
+ * @summary Cards reported lost, stolen, expired or damaged
+ */
+export const listAdminReportedCards = async (params?: ListAdminReportedCardsParams, options?: Parameters<typeof customFetch>[1]): Promise<ReportedCard[]> => {
+
+  return customFetch<ReportedCard[]>(getListAdminReportedCardsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminReportedCardsQueryKey = (params?: ListAdminReportedCardsParams,) => {
+    return [
+    `/api/admin/reported-cards`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminReportedCardsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminReportedCards>>, TError = ErrorType<unknown>>(params?: ListAdminReportedCardsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminReportedCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminReportedCardsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminReportedCards>>> = ({ signal }) => listAdminReportedCards(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminReportedCards>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminReportedCardsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminReportedCards>>>
+export type ListAdminReportedCardsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Cards reported lost, stolen, expired or damaged
+ */
+
+export function useListAdminReportedCards<TData = Awaited<ReturnType<typeof listAdminReportedCards>>, TError = ErrorType<unknown>>(
+ params?: ListAdminReportedCardsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminReportedCards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminReportedCardsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAdminReportedCardUrl = () => {
+
+
+
+
+  return `/api/admin/reported-cards`
+}
+
+/**
+ * @summary Add a card to the reported list, by its full number or from a saved card
+ */
+export const createAdminReportedCard = async (reportCardInput: ReportCardInput, options?: Parameters<typeof customFetch>[1]): Promise<ReportedCard> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReportedCard>(getCreateAdminReportedCardUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reportCardInput)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminReportedCardMutationKey = () => ['createAdminReportedCard'] as const;
+
+export const getCreateAdminReportedCardMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminReportedCard>>, TError,CreateAdminReportedCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminReportedCard>>, TError,CreateAdminReportedCardMutationVariables, TContext> => {
+
+const mutationKey = getCreateAdminReportedCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminReportedCard>>, CreateAdminReportedCardMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminReportedCard(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminReportedCardMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminReportedCard>>>
+    export type CreateAdminReportedCardMutationBody = BodyType<ReportCardInput>
+    export type CreateAdminReportedCardMutationError = ErrorType<ErrorMessage>
+    export type CreateAdminReportedCardMutationVariables = {data: BodyType<ReportCardInput>}
+
+    /**
+ * @summary Add a card to the reported list, by its full number or from a saved card
+ */
+export const useCreateAdminReportedCard = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminReportedCard>>, TError,CreateAdminReportedCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminReportedCard>>,
+        TError,
+        CreateAdminReportedCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAdminReportedCardMutationOptions(options));
+    }
+
+export const getClearAdminReportedCardUrl = (reportId: string,) => {
+
+
+
+
+  return `/api/admin/reported-cards/${reportId}/clear`
+}
+
+/**
+ * @summary Clear a report (the card can be used again unless it's blocked)
+ */
+export const clearAdminReportedCard = async (reportId: string, options?: Parameters<typeof customFetch>[1]): Promise<ReportedCard> => {
+
+  return customFetch<ReportedCard>(getClearAdminReportedCardUrl(reportId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getClearAdminReportedCardMutationKey = () => ['clearAdminReportedCard'] as const;
+
+export const getClearAdminReportedCardMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearAdminReportedCard>>, TError,ClearAdminReportedCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof clearAdminReportedCard>>, TError,ClearAdminReportedCardMutationVariables, TContext> => {
+
+const mutationKey = getClearAdminReportedCardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearAdminReportedCard>>, ClearAdminReportedCardMutationVariables> = (props) => {
+          const {reportId} = props ?? {};
+
+          return  clearAdminReportedCard(reportId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClearAdminReportedCardMutationResult = NonNullable<Awaited<ReturnType<typeof clearAdminReportedCard>>>
+
+    export type ClearAdminReportedCardMutationError = ErrorType<ErrorMessage>
+    export type ClearAdminReportedCardMutationVariables = {reportId: string}
+
+    /**
+ * @summary Clear a report (the card can be used again unless it's blocked)
+ */
+export const useClearAdminReportedCard = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearAdminReportedCard>>, TError,ClearAdminReportedCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof clearAdminReportedCard>>,
+        TError,
+        ClearAdminReportedCardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getClearAdminReportedCardMutationOptions(options));
     }
 

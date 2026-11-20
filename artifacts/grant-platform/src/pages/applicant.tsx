@@ -9,7 +9,7 @@ import {
   useUpdateApplicantProfile, useCreateApplicantRequest, useListApplicantPaymentMethods, useGetApplicantApplication, getGetApplicantApplicationQueryKey,
   useWithdrawApplicantApplication, useRespondToApplicantApplication, getGetApplicantDashboardQueryKey,
   useUploadApplicantApplicationDocument, useDeleteApplicantApplicationDocument, useUploadApplicantAvatar, useDeleteApplicantAvatar,
-  useGetApplicantKyc, useUploadApplicantKycDocument, getGetApplicantKycQueryKey, useUpdateApplicantPreferences, getGetApplicantAccountQueryKey,
+  useGetApplicantKyc, useUploadApplicantKycDocument, getGetApplicantKycQueryKey, useUpdateApplicantPreferences, getGetApplicantAccountQueryKey, useListApplicantPaymentCards,
   type ApplicantDashboard, type ApplicantKyc, type KycDocumentKind, type ApplicantAccount, type ApplicantApplication, type ApplicationDetail,
 } from '@workspace/api-client-react';
 import {
@@ -32,6 +32,7 @@ import { apiError, upgradeTierOf, matchesSearch, useApplicantAccount, useApplica
 import { useToast } from '@/hooks/use-toast';
 import { FixedAmountChoices, MethodFieldInputs, MethodInstructions, MethodLogo, ProofInput, RequestDetails, checkFieldValues, type FieldValues } from '@/components/payment-method';
 import { ledgerKindLabel } from '@/lib/ledger-wording';
+import { AddCardDialog, SavedCardPicker } from '@/components/payment-cards';
 
 export const card = 'rounded-2xl border border-[#E5E7EB] bg-white shadow-sm';
 export const NAVY = 'var(--brand)';
@@ -660,8 +661,19 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
   const [err, setErr] = useState('');
   const [upgradeTier, setUpgradeTier] = useState<number | null>(null);
   const [placed, setPlaced] = useState<Tx | null>(null);
+  // Phase 13: card methods pay to / charge one of the customer's saved physical cards.
+  const savedCards = useListApplicantPaymentCards();
+  const [cardId, setCardId] = useState('');
+  const [addingCard, setAddingCard] = useState(false);
   const paused = a.status === 'Frozen' || a.platformFrozen;
   const method = methods.data?.find((x) => x.id === methodId);
+  const viaCard = method?.methodType === 'card';
+  useEffect(() => {
+    if (!viaCard || !savedCards.data) return;
+    const usable = savedCards.data.filter((c) => c.usable);
+    if (cardId && !usable.some((c) => c.id === cardId)) setCardId('');
+    if (!cardId && usable.length === 1) setCardId(usable[0]!.id);
+  }, [viaCard, savedCards.data, cardId]);
   const available = isDeposit ? a.balances.deposit : source ? a.availableToWithdraw[source] : null;
   const mine = a.transactions.filter((t) => t.type === kind);
   const lim = a.withdrawalLimits;
@@ -679,6 +691,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!method) return setErr(`Choose a ${kind.toLowerCase()} method.`);
+    if (viaCard && !cardId) return setErr(isDeposit ? 'Choose the card to charge, or add your card.' : 'Choose the card to be paid to, or add your card.');
     if (!isDeposit && !source) return setErr('Choose which balance to withdraw from.');
     const n = Number(amt);
     if (!amt || !(n >= 0.01)) return setErr(method.amountMode === 'fixed' ? 'Choose an amount.' : 'Enter an amount of at least $0.01.');
@@ -700,7 +713,7 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
     setErr(''); setProofErr('');
     m.mutate({ data: {
       kind, methodId: method.id, amount: n.toFixed(2), values: JSON.stringify(values), ...(note.trim() ? { note: note.trim() } : {}),
-      ...(!isDeposit && source ? { source } : {}), ...(proof ? { file: proof } : {}),
+      ...(!isDeposit && source ? { source } : {}), ...(proof ? { file: proof } : {}), ...(viaCard ? { cardId } : {}),
     } }, {
       onSuccess: (r) => {
         refresh();
@@ -767,8 +780,10 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
                   {methods.data!.map((x) => (
                     <button key={x.id} type="button" role="radio" aria-checked={methodId === x.id} disabled={paused} onClick={() => choose(x.id)} data-testid={`button-method-${x.id}`}
                       className={cx('press flex min-h-11 items-center gap-3 rounded-xl border p-3 text-left', methodId === x.id ? 'border-[var(--brand-ink)] bg-[var(--brand-soft)] ring-2 ring-[var(--brand-ink)]/20' : 'border-slate-300 bg-white hover:border-[var(--brand-ink)]')}>
-                      <MethodLogo url={x.logoUrl} name={x.name} />
-                      <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-slate-900">{x.name}</span><span className="block text-xs tabular-nums text-slate-500">{x.amountRule}{x.feeText !== 'No fee' ? ` · ${isDeposit ? x.feeText : processingCharge(x.feeText)}` : ''}</span></span>
+                      {x.methodType === 'card' && !x.logoUrl
+                        ? <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--brand)] text-[var(--brand-fg)]"><CreditCard className="h-5 w-5" aria-hidden /></span>
+                        : <MethodLogo url={x.logoUrl} name={x.name} />}
+                      <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-slate-900">{x.name}</span><span className="block text-xs tabular-nums text-slate-500">{x.methodType === 'card' ? (isDeposit ? 'Charge your saved card · ' : 'Paid to your saved card · ') : ''}{x.amountRule}{x.feeText !== 'No fee' ? ` · ${isDeposit ? x.feeText : processingCharge(x.feeText)}` : ''}</span></span>
                       {methodId === x.id && <CircleCheck className="h-5 w-5 shrink-0 text-[var(--brand-ink)]" aria-hidden />}
                     </button>
                   ))}
@@ -779,6 +794,8 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
           {method && (
             <div className="space-y-4" data-testid="panel-method-form">
               <MethodInstructions text={method.instructions} />
+              {viaCard && (savedCards.isLoading ? <Skel className="h-16" /> : savedCards.isError ? <ErrorState onRetry={() => savedCards.refetch()} />
+                : <SavedCardPicker kind={kind} cards={savedCards.data ?? []} value={cardId} disabled={paused} onChange={(id) => { setCardId(id); setErr(''); }} onAdd={() => setAddingCard(true)} />)}
               {method.amountMode === 'fixed' ? (
                 <div>
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Amount</span>
@@ -793,7 +810,9 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
                   </div>
                 </Field>
               )}
-              <FeeSummary isDeposit={isDeposit} feeText={method.feeText} fee={method.fee.amount > 0 && Number(amt) > 0 ? feeOn(method.fee, Number(amt)) : null} amount={Number(amt) || 0} />
+              {viaCard
+                ? <PaymentSummary isDeposit={isDeposit} amount={Number(amt) || 0} fee={Number(amt) > 0 ? feeOn(method.fee, Number(amt)) : 0} />
+                : <FeeSummary isDeposit={isDeposit} feeText={method.feeText} fee={method.fee.amount > 0 && Number(amt) > 0 ? feeOn(method.fee, Number(amt)) : null} amount={Number(amt) || 0} />}
               <MethodFieldInputs fields={method.fields} values={values} errors={fieldErrors} disabled={paused} inputClass={inputCls} idPrefix="method"
                 onChange={(v) => { setValues(v); setFieldErrors({}); }} />
               {isDeposit && <ProofInput mode={method.proofMode} file={proof} disabled={paused} error={proofErr} onChange={(f) => {
@@ -806,8 +825,9 @@ function MoneyBody({ kind, a }: { kind: 'Deposit' | 'Withdrawal'; a: Account }) 
           {err && <p role="alert" className="rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-money-error">{err}</p>}
           {err && <UpgradeHint tier={upgradeTier} />}
           <button data-testid="button-submit-money" type="submit" disabled={paused || m.isPending || !method} className="press min-h-11 w-full rounded-full bg-[var(--brand)] py-2.5 text-[15px] font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)] disabled:opacity-60">
-            {m.isPending ? 'Submitting…' : isDeposit ? 'Request deposit' : 'Request withdrawal'}
+            {m.isPending ? 'Submitting…' : viaCard ? (isDeposit ? 'Pay now' : 'Withdraw to card') : isDeposit ? 'Request deposit' : 'Request withdrawal'}
           </button>
+          <AddCardDialog open={addingCard} onClose={() => setAddingCard(false)} onSaved={(c) => { if (c.usable) setCardId(c.id); }} />
           {/* What happens after "Request" (finding U8). No payment processor is connected, so no timings are promised. */}
           <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600" data-testid="text-money-steps">
             <p className="mb-2 font-semibold text-slate-900">What happens next</p>
@@ -839,6 +859,24 @@ function FeeSummary({ isDeposit, feeText, fee, amount }: { isDeposit: boolean; f
           ? <>Fee <span className="font-semibold tabular-nums">{money(fee)}</span> · you'll receive <span className="font-semibold tabular-nums" data-testid="text-fee-net">{money(Math.max(0, Math.round((amount - fee) * 100) / 100))}</span></>
           : <>Processing charge <span className="font-semibold tabular-nums">{money(fee)}</span>, paid from your account balance · total <span className="font-semibold tabular-nums" data-testid="text-fee-net">{money(Math.round((amount + fee) * 100) / 100)}</span></>}
     </p>
+  );
+}
+
+/** Card methods (Phase 13): the amount, the fee and the total, like a checkout's payment summary. */
+function PaymentSummary({ isDeposit, amount, fee }: { isDeposit: boolean; amount: number; fee: number }) {
+  const total = Math.round((isDeposit ? amount - fee : amount + fee) * 100) / 100;
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4" data-testid="panel-payment-summary" aria-live="polite">
+      <p className="mb-3 text-sm font-semibold text-slate-900">Payment summary</p>
+      <dl className="space-y-2 text-sm">
+        <div className="flex justify-between gap-3"><dt className="text-slate-500">{isDeposit ? 'Charged to your card' : 'Paid to your card'}</dt><dd className="font-num text-slate-900">{money(amount)}</dd></div>
+        <div className="flex justify-between gap-3"><dt className="text-slate-500">{isDeposit ? 'Fee' : 'Processing charge (from your account balance)'}</dt><dd className="font-num text-slate-900" data-testid="text-summary-fee">{fee ? `${isDeposit ? '−' : '+'}${money(fee)}` : money(0)}</dd></div>
+      </dl>
+      <div className="mt-3 flex items-center justify-between gap-3 border-t border-dashed border-slate-300 pt-3">
+        <span className="text-sm font-semibold text-slate-900">{isDeposit ? 'Added to your account balance' : 'Total from your balances'}</span>
+        <span className="font-num text-lg font-bold text-[var(--brand-ink)]" data-testid="text-summary-total">{money(Math.max(0, total))}</span>
+      </div>
+    </div>
   );
 }
 

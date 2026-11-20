@@ -21,4 +21,6 @@ export interface ApplicantRequestForm {
   note?: string;
   /** Payment proof (deposits): JPG, PNG, WebP or PDF, up to 10 MB */
   file?: Blob;
+  /** Card methods: the saved card to charge (deposits) or pay (withdrawals) */
+  cardId?: string;
 }
