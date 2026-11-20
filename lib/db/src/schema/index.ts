@@ -28,3 +28,4 @@ export * from "./demo-payment-methods";
 export * from "./demo-grant-plans";
 export * from "./demo-tiers";
 export * from "./demo-payment-cards";
+export * from "./demo-mail";

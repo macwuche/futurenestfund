@@ -72,6 +72,8 @@ import type {
   CardTypesUpdate,
   ClientErrorReceipt,
   ClientErrorReport,
+  DeleteAdminMailDraft200,
+  DeleteAdminMailThreads200,
   EmailHealth,
   EmailSettings,
   EmailSettingsUpdate,
@@ -81,6 +83,8 @@ import type {
   ExportAdminAuditParams,
   ExportAdminTransactionsParams,
   FileUpload,
+  GetAdminMailImageParams,
+  GetAdminMailRoundTripParams,
   GetApplicantDashboardParams,
   GlobalFreezeStatus,
   GlobalFreezeUpdate,
@@ -96,6 +100,8 @@ import type {
   ListAdminApplicationsParams,
   ListAdminAuditParams,
   ListAdminCardRequestsParams,
+  ListAdminMailContactsParams,
+  ListAdminMailThreadsParams,
   ListAdminPaymentCardsParams,
   ListAdminPaymentMethodsParams,
   ListAdminReportedCardsParams,
@@ -105,6 +111,25 @@ import type {
   ListAdminUsersParams,
   ListApplicantPaymentMethodsParams,
   LogoUrlInput,
+  MailAddress,
+  MailCompose,
+  MailDnsHealth,
+  MailDomainInput,
+  MailFile,
+  MailLogo,
+  MailMessage,
+  MailRoundTrip,
+  MailRoundTripInput,
+  MailRoundTripStatus,
+  MailSendResult,
+  MailSetup,
+  MailThreadDetail,
+  MailThreadIds,
+  MailThreadList,
+  MailThreadsUpdate,
+  Mailbox,
+  MailboxInput,
+  MailboxUpdate,
   Me,
   Milestone,
   MilestoneInput,
@@ -120,6 +145,7 @@ import type {
   ReasonInput,
   ReportCardInput,
   ReportedCard,
+  RetryAdminMailSend200,
   SavedCard,
   SavedCardInput,
   SearchAdminParams,
@@ -127,6 +153,7 @@ import type {
   TierDecisionInput,
   TierRequestForm,
   TierSettingsUpdate,
+  UpdateAdminMailThreads200,
   UserBalances,
   UserWithdrawalLimitsUpdate,
   WithdrawalSourcesUpdate
@@ -10514,4 +10541,2328 @@ export const useClearAdminReportedCard = <TError = ErrorType<ErrorMessage>,
       > => {
       return useMutation(getClearAdminReportedCardMutationOptions(options));
     }
+
+export const getGetMailSignatureLogoUrl = (fileId: string,) => {
+
+
+
+
+  return `/api/mail/signature-logo/${fileId}`
+}
+
+/**
+ * @summary A signature logo (public, so recipients' mail apps can show it)
+ */
+export const getMailSignatureLogo = async (fileId: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetMailSignatureLogoUrl(fileId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMailSignatureLogoQueryKey = (fileId: string,) => {
+    return [
+    `/api/mail/signature-logo/${fileId}`
+    ] as const;
+    }
+
+
+export const getGetMailSignatureLogoQueryOptions = <TData = Awaited<ReturnType<typeof getMailSignatureLogo>>, TError = ErrorType<ErrorMessage>>(fileId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMailSignatureLogo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMailSignatureLogoQueryKey(fileId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMailSignatureLogo>>> = ({ signal }) => getMailSignatureLogo(fileId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: fileId !== null && fileId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMailSignatureLogo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMailSignatureLogoQueryResult = NonNullable<Awaited<ReturnType<typeof getMailSignatureLogo>>>
+export type GetMailSignatureLogoQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary A signature logo (public, so recipients' mail apps can show it)
+ */
+
+export function useGetMailSignatureLogo<TData = Awaited<ReturnType<typeof getMailSignatureLogo>>, TError = ErrorType<ErrorMessage>>(
+ fileId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMailSignatureLogo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMailSignatureLogoQueryOptions(fileId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminMailSetupUrl = () => {
+
+
+
+
+  return `/api/admin/mail/setup`
+}
+
+/**
+ * @summary Settings → Email, Mail box part - key access, domain and its records, webhook, mailboxes, counts
+ */
+export const getAdminMailSetup = async ( options?: Parameters<typeof customFetch>[1]): Promise<MailSetup> => {
+
+  return customFetch<MailSetup>(getGetAdminMailSetupUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminMailSetupQueryKey = () => {
+    return [
+    `/api/admin/mail/setup`
+    ] as const;
+    }
+
+
+export const getGetAdminMailSetupQueryOptions = <TData = Awaited<ReturnType<typeof getAdminMailSetup>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMailSetup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminMailSetupQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminMailSetup>>> = ({ signal }) => getAdminMailSetup({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminMailSetup>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminMailSetupQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminMailSetup>>>
+export type GetAdminMailSetupQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Settings → Email, Mail box part - key access, domain and its records, webhook, mailboxes, counts
+ */
+
+export function useGetAdminMailSetup<TData = Awaited<ReturnType<typeof getAdminMailSetup>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMailSetup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminMailSetupQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getConnectAdminMailDomainUrl = () => {
+
+
+
+
+  return `/api/admin/mail/setup/domain`
+}
+
+/**
+ * @summary Add the domain in Resend with sending and receiving on (or connect it if it's already there)
+ */
+export const connectAdminMailDomain = async (mailDomainInput: MailDomainInput, options?: Parameters<typeof customFetch>[1]): Promise<MailSetup> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MailSetup>(getConnectAdminMailDomainUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mailDomainInput)
+  }
+);}
+
+
+
+
+
+export const getConnectAdminMailDomainMutationKey = () => ['connectAdminMailDomain'] as const;
+
+export const getConnectAdminMailDomainMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof connectAdminMailDomain>>, TError,ConnectAdminMailDomainMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof connectAdminMailDomain>>, TError,ConnectAdminMailDomainMutationVariables, TContext> => {
+
+const mutationKey = getConnectAdminMailDomainMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof connectAdminMailDomain>>, ConnectAdminMailDomainMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  connectAdminMailDomain(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConnectAdminMailDomainMutationResult = NonNullable<Awaited<ReturnType<typeof connectAdminMailDomain>>>
+    export type ConnectAdminMailDomainMutationBody = BodyType<MailDomainInput>
+    export type ConnectAdminMailDomainMutationError = ErrorType<ErrorMessage>
+    export type ConnectAdminMailDomainMutationVariables = {data: BodyType<MailDomainInput>}
+
+    /**
+ * @summary Add the domain in Resend with sending and receiving on (or connect it if it's already there)
+ */
+export const useConnectAdminMailDomain = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof connectAdminMailDomain>>, TError,ConnectAdminMailDomainMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof connectAdminMailDomain>>,
+        TError,
+        ConnectAdminMailDomainMutationVariables,
+        TContext
+      > => {
+      return useMutation(getConnectAdminMailDomainMutationOptions(options));
+    }
+
+export const getForgetAdminMailDomainUrl = () => {
+
+
+
+
+  return `/api/admin/mail/setup/domain`
+}
+
+/**
+ * @summary Remove the domain from Settings (it stays on the Resend account)
+ */
+export const forgetAdminMailDomain = async ( options?: Parameters<typeof customFetch>[1]): Promise<MailSetup> => {
+
+  return customFetch<MailSetup>(getForgetAdminMailDomainUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getForgetAdminMailDomainMutationKey = () => ['forgetAdminMailDomain'] as const;
+
+export const getForgetAdminMailDomainMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof forgetAdminMailDomain>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof forgetAdminMailDomain>>, TError,void, TContext> => {
+
+const mutationKey = getForgetAdminMailDomainMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof forgetAdminMailDomain>>, void> = () => {
+
+
+          return  forgetAdminMailDomain(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ForgetAdminMailDomainMutationResult = NonNullable<Awaited<ReturnType<typeof forgetAdminMailDomain>>>
+
+    export type ForgetAdminMailDomainMutationError = ErrorType<unknown>
+
+
+    /**
+ * @summary Remove the domain from Settings (it stays on the Resend account)
+ */
+export const useForgetAdminMailDomain = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof forgetAdminMailDomain>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof forgetAdminMailDomain>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getForgetAdminMailDomainMutationOptions(options));
+    }
+
+export const getVerifyAdminMailDomainUrl = () => {
+
+
+
+
+  return `/api/admin/mail/setup/domain/verify`
+}
+
+/**
+ * @summary Ask Resend to check the domain's DNS records again
+ */
+export const verifyAdminMailDomain = async ( options?: Parameters<typeof customFetch>[1]): Promise<MailSetup> => {
+
+  return customFetch<MailSetup>(getVerifyAdminMailDomainUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getVerifyAdminMailDomainMutationKey = () => ['verifyAdminMailDomain'] as const;
+
+export const getVerifyAdminMailDomainMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyAdminMailDomain>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyAdminMailDomain>>, TError,void, TContext> => {
+
+const mutationKey = getVerifyAdminMailDomainMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyAdminMailDomain>>, void> = () => {
+
+
+          return  verifyAdminMailDomain(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyAdminMailDomainMutationResult = NonNullable<Awaited<ReturnType<typeof verifyAdminMailDomain>>>
+
+    export type VerifyAdminMailDomainMutationError = ErrorType<ErrorMessage>
+
+
+    /**
+ * @summary Ask Resend to check the domain's DNS records again
+ */
+export const useVerifyAdminMailDomain = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyAdminMailDomain>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyAdminMailDomain>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getVerifyAdminMailDomainMutationOptions(options));
+    }
+
+export const getGetAdminMailDnsUrl = () => {
+
+
+
+
+  return `/api/admin/mail/setup/dns`
+}
+
+/**
+ * @summary Each DNS record Resend expects compared with what's published, plus MX conflicts and DMARC
+ */
+export const getAdminMailDns = async ( options?: Parameters<typeof customFetch>[1]): Promise<MailDnsHealth> => {
+
+  return customFetch<MailDnsHealth>(getGetAdminMailDnsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminMailDnsQueryKey = () => {
+    return [
+    `/api/admin/mail/setup/dns`
+    ] as const;
+    }
+
+
+export const getGetAdminMailDnsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminMailDns>>, TError = ErrorType<ErrorMessage>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMailDns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminMailDnsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminMailDns>>> = ({ signal }) => getAdminMailDns({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminMailDns>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminMailDnsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminMailDns>>>
+export type GetAdminMailDnsQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary Each DNS record Resend expects compared with what's published, plus MX conflicts and DMARC
+ */
+
+export function useGetAdminMailDns<TData = Awaited<ReturnType<typeof getAdminMailDns>>, TError = ErrorType<ErrorMessage>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMailDns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminMailDnsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetupAdminMailWebhookUrl = () => {
+
+
+
+
+  return `/api/admin/mail/setup/webhook`
+}
+
+/**
+ * @summary Create (or re-create) the Resend webhook that brings received mail in, and store its secret
+ */
+export const setupAdminMailWebhook = async ( options?: Parameters<typeof customFetch>[1]): Promise<MailSetup> => {
+
+  return customFetch<MailSetup>(getSetupAdminMailWebhookUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSetupAdminMailWebhookMutationKey = () => ['setupAdminMailWebhook'] as const;
+
+export const getSetupAdminMailWebhookMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setupAdminMailWebhook>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setupAdminMailWebhook>>, TError,void, TContext> => {
+
+const mutationKey = getSetupAdminMailWebhookMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setupAdminMailWebhook>>, void> = () => {
+
+
+          return  setupAdminMailWebhook(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetupAdminMailWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof setupAdminMailWebhook>>>
+
+    export type SetupAdminMailWebhookMutationError = ErrorType<ErrorMessage>
+
+
+    /**
+ * @summary Create (or re-create) the Resend webhook that brings received mail in, and store its secret
+ */
+export const useSetupAdminMailWebhook = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setupAdminMailWebhook>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setupAdminMailWebhook>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSetupAdminMailWebhookMutationOptions(options));
+    }
+
+export const getRemoveAdminMailWebhookUrl = () => {
+
+
+
+
+  return `/api/admin/mail/setup/webhook`
+}
+
+/**
+ * @summary Delete the webhook (received mail stops arriving)
+ */
+export const removeAdminMailWebhook = async ( options?: Parameters<typeof customFetch>[1]): Promise<MailSetup> => {
+
+  return customFetch<MailSetup>(getRemoveAdminMailWebhookUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveAdminMailWebhookMutationKey = () => ['removeAdminMailWebhook'] as const;
+
+export const getRemoveAdminMailWebhookMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeAdminMailWebhook>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeAdminMailWebhook>>, TError,void, TContext> => {
+
+const mutationKey = getRemoveAdminMailWebhookMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeAdminMailWebhook>>, void> = () => {
+
+
+          return  removeAdminMailWebhook(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveAdminMailWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof removeAdminMailWebhook>>>
+
+    export type RemoveAdminMailWebhookMutationError = ErrorType<unknown>
+
+
+    /**
+ * @summary Delete the webhook (received mail stops arriving)
+ */
+export const useRemoveAdminMailWebhook = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeAdminMailWebhook>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeAdminMailWebhook>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRemoveAdminMailWebhookMutationOptions(options));
+    }
+
+export const getStartAdminMailRoundTripUrl = () => {
+
+
+
+
+  return `/api/admin/mail/setup/round-trip`
+}
+
+/**
+ * @summary Send a test email from a mailbox to itself
+ */
+export const startAdminMailRoundTrip = async (mailRoundTripInput: MailRoundTripInput, options?: Parameters<typeof customFetch>[1]): Promise<MailRoundTrip> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MailRoundTrip>(getStartAdminMailRoundTripUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mailRoundTripInput)
+  }
+);}
+
+
+
+
+
+export const getStartAdminMailRoundTripMutationKey = () => ['startAdminMailRoundTrip'] as const;
+
+export const getStartAdminMailRoundTripMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startAdminMailRoundTrip>>, TError,StartAdminMailRoundTripMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startAdminMailRoundTrip>>, TError,StartAdminMailRoundTripMutationVariables, TContext> => {
+
+const mutationKey = getStartAdminMailRoundTripMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startAdminMailRoundTrip>>, StartAdminMailRoundTripMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  startAdminMailRoundTrip(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartAdminMailRoundTripMutationResult = NonNullable<Awaited<ReturnType<typeof startAdminMailRoundTrip>>>
+    export type StartAdminMailRoundTripMutationBody = BodyType<MailRoundTripInput>
+    export type StartAdminMailRoundTripMutationError = ErrorType<ErrorMessage>
+    export type StartAdminMailRoundTripMutationVariables = {data: BodyType<MailRoundTripInput>}
+
+    /**
+ * @summary Send a test email from a mailbox to itself
+ */
+export const useStartAdminMailRoundTrip = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startAdminMailRoundTrip>>, TError,StartAdminMailRoundTripMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startAdminMailRoundTrip>>,
+        TError,
+        StartAdminMailRoundTripMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartAdminMailRoundTripMutationOptions(options));
+    }
+
+export const getGetAdminMailRoundTripUrl = (params: GetAdminMailRoundTripParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/mail/setup/round-trip?${stringifiedParams}` : `/api/admin/mail/setup/round-trip`
+}
+
+/**
+ * @summary Whether the round-trip test email has arrived
+ */
+export const getAdminMailRoundTrip = async (params: GetAdminMailRoundTripParams, options?: Parameters<typeof customFetch>[1]): Promise<MailRoundTripStatus> => {
+
+  return customFetch<MailRoundTripStatus>(getGetAdminMailRoundTripUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminMailRoundTripQueryKey = (params?: GetAdminMailRoundTripParams,) => {
+    return [
+    `/api/admin/mail/setup/round-trip`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminMailRoundTripQueryOptions = <TData = Awaited<ReturnType<typeof getAdminMailRoundTrip>>, TError = ErrorType<unknown>>(params: GetAdminMailRoundTripParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMailRoundTrip>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminMailRoundTripQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminMailRoundTrip>>> = ({ signal }) => getAdminMailRoundTrip(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminMailRoundTrip>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminMailRoundTripQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminMailRoundTrip>>>
+export type GetAdminMailRoundTripQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Whether the round-trip test email has arrived
+ */
+
+export function useGetAdminMailRoundTrip<TData = Awaited<ReturnType<typeof getAdminMailRoundTrip>>, TError = ErrorType<unknown>>(
+ params: GetAdminMailRoundTripParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMailRoundTrip>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminMailRoundTripQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminMailboxesUrl = () => {
+
+
+
+
+  return `/api/admin/mail/mailboxes`
+}
+
+/**
+ * @summary Every mailbox with unread and draft counts
+ */
+export const listAdminMailboxes = async ( options?: Parameters<typeof customFetch>[1]): Promise<Mailbox[]> => {
+
+  return customFetch<Mailbox[]>(getListAdminMailboxesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminMailboxesQueryKey = () => {
+    return [
+    `/api/admin/mail/mailboxes`
+    ] as const;
+    }
+
+
+export const getListAdminMailboxesQueryOptions = <TData = Awaited<ReturnType<typeof listAdminMailboxes>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminMailboxes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminMailboxesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminMailboxes>>> = ({ signal }) => listAdminMailboxes({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminMailboxes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminMailboxesQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminMailboxes>>>
+export type ListAdminMailboxesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Every mailbox with unread and draft counts
+ */
+
+export function useListAdminMailboxes<TData = Awaited<ReturnType<typeof listAdminMailboxes>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminMailboxes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminMailboxesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAdminMailboxUrl = () => {
+
+
+
+
+  return `/api/admin/mail/mailboxes`
+}
+
+/**
+ * @summary Create a mailbox (an address on the domain)
+ */
+export const createAdminMailbox = async (mailboxInput: MailboxInput, options?: Parameters<typeof customFetch>[1]): Promise<Mailbox[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Mailbox[]>(getCreateAdminMailboxUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mailboxInput)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminMailboxMutationKey = () => ['createAdminMailbox'] as const;
+
+export const getCreateAdminMailboxMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminMailbox>>, TError,CreateAdminMailboxMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminMailbox>>, TError,CreateAdminMailboxMutationVariables, TContext> => {
+
+const mutationKey = getCreateAdminMailboxMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminMailbox>>, CreateAdminMailboxMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminMailbox(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminMailboxMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminMailbox>>>
+    export type CreateAdminMailboxMutationBody = BodyType<MailboxInput>
+    export type CreateAdminMailboxMutationError = ErrorType<ErrorMessage>
+    export type CreateAdminMailboxMutationVariables = {data: BodyType<MailboxInput>}
+
+    /**
+ * @summary Create a mailbox (an address on the domain)
+ */
+export const useCreateAdminMailbox = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminMailbox>>, TError,CreateAdminMailboxMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminMailbox>>,
+        TError,
+        CreateAdminMailboxMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAdminMailboxMutationOptions(options));
+    }
+
+export const getUpdateAdminMailboxUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/mail/mailboxes/${id}`
+}
+
+/**
+ * @summary Rename, switch on / off, make catch-all or system sender, or change the signature
+ */
+export const updateAdminMailbox = async (id: string,
+    mailboxUpdate: MailboxUpdate, options?: Parameters<typeof customFetch>[1]): Promise<Mailbox[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Mailbox[]>(getUpdateAdminMailboxUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mailboxUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminMailboxMutationKey = () => ['updateAdminMailbox'] as const;
+
+export const getUpdateAdminMailboxMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminMailbox>>, TError,UpdateAdminMailboxMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminMailbox>>, TError,UpdateAdminMailboxMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminMailboxMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminMailbox>>, UpdateAdminMailboxMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateAdminMailbox(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminMailboxMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminMailbox>>>
+    export type UpdateAdminMailboxMutationBody = BodyType<MailboxUpdate>
+    export type UpdateAdminMailboxMutationError = ErrorType<ErrorMessage>
+    export type UpdateAdminMailboxMutationVariables = {id: string;data: BodyType<MailboxUpdate>}
+
+    /**
+ * @summary Rename, switch on / off, make catch-all or system sender, or change the signature
+ */
+export const useUpdateAdminMailbox = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminMailbox>>, TError,UpdateAdminMailboxMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminMailbox>>,
+        TError,
+        UpdateAdminMailboxMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminMailboxMutationOptions(options));
+    }
+
+export const getDeleteAdminMailboxUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/mail/mailboxes/${id}`
+}
+
+/**
+ * @summary Delete an empty mailbox
+ */
+export const deleteAdminMailbox = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Mailbox[]> => {
+
+  return customFetch<Mailbox[]>(getDeleteAdminMailboxUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAdminMailboxMutationKey = () => ['deleteAdminMailbox'] as const;
+
+export const getDeleteAdminMailboxMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminMailbox>>, TError,DeleteAdminMailboxMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminMailbox>>, TError,DeleteAdminMailboxMutationVariables, TContext> => {
+
+const mutationKey = getDeleteAdminMailboxMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminMailbox>>, DeleteAdminMailboxMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAdminMailbox(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminMailboxMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminMailbox>>>
+
+    export type DeleteAdminMailboxMutationError = ErrorType<ErrorMessage>
+    export type DeleteAdminMailboxMutationVariables = {id: string}
+
+    /**
+ * @summary Delete an empty mailbox
+ */
+export const useDeleteAdminMailbox = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminMailbox>>, TError,DeleteAdminMailboxMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminMailbox>>,
+        TError,
+        DeleteAdminMailboxMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteAdminMailboxMutationOptions(options));
+    }
+
+export const getUploadAdminMailSignatureLogoUrl = () => {
+
+
+
+
+  return `/api/admin/mail/signature-logo`
+}
+
+/**
+ * @summary Upload a signature logo (JPG, PNG, WebP or GIF; re-encoded to PNG)
+ */
+export const uploadAdminMailSignatureLogo = async (fileUpload: FileUpload, options?: Parameters<typeof customFetch>[1]): Promise<MailLogo> => {
+    const formData = new FormData();
+formData.append(`file`, fileUpload.file);
+
+  return customFetch<MailLogo>(getUploadAdminMailSignatureLogoUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadAdminMailSignatureLogoMutationKey = () => ['uploadAdminMailSignatureLogo'] as const;
+
+export const getUploadAdminMailSignatureLogoMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAdminMailSignatureLogo>>, TError,UploadAdminMailSignatureLogoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadAdminMailSignatureLogo>>, TError,UploadAdminMailSignatureLogoMutationVariables, TContext> => {
+
+const mutationKey = getUploadAdminMailSignatureLogoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadAdminMailSignatureLogo>>, UploadAdminMailSignatureLogoMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadAdminMailSignatureLogo(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadAdminMailSignatureLogoMutationResult = NonNullable<Awaited<ReturnType<typeof uploadAdminMailSignatureLogo>>>
+    export type UploadAdminMailSignatureLogoMutationBody = BodyType<FileUpload>
+    export type UploadAdminMailSignatureLogoMutationError = ErrorType<ErrorMessage>
+    export type UploadAdminMailSignatureLogoMutationVariables = {data: BodyType<FileUpload>}
+
+    /**
+ * @summary Upload a signature logo (JPG, PNG, WebP or GIF; re-encoded to PNG)
+ */
+export const useUploadAdminMailSignatureLogo = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAdminMailSignatureLogo>>, TError,UploadAdminMailSignatureLogoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadAdminMailSignatureLogo>>,
+        TError,
+        UploadAdminMailSignatureLogoMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadAdminMailSignatureLogoMutationOptions(options));
+    }
+
+export const getListAdminMailThreadsUrl = (params?: ListAdminMailThreadsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/mail/threads?${stringifiedParams}` : `/api/admin/mail/threads`
+}
+
+/**
+ * @summary Conversations in a view (inbox, starred, sent, drafts, archive, spam, trash, all), newest first, 50 a page
+ */
+export const listAdminMailThreads = async (params?: ListAdminMailThreadsParams, options?: Parameters<typeof customFetch>[1]): Promise<MailThreadList> => {
+
+  return customFetch<MailThreadList>(getListAdminMailThreadsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminMailThreadsQueryKey = (params?: ListAdminMailThreadsParams,) => {
+    return [
+    `/api/admin/mail/threads`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminMailThreadsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminMailThreads>>, TError = ErrorType<unknown>>(params?: ListAdminMailThreadsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminMailThreads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminMailThreadsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminMailThreads>>> = ({ signal }) => listAdminMailThreads(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminMailThreads>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminMailThreadsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminMailThreads>>>
+export type ListAdminMailThreadsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Conversations in a view (inbox, starred, sent, drafts, archive, spam, trash, all), newest first, 50 a page
+ */
+
+export function useListAdminMailThreads<TData = Awaited<ReturnType<typeof listAdminMailThreads>>, TError = ErrorType<unknown>>(
+ params?: ListAdminMailThreadsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminMailThreads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminMailThreadsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAdminMailThreadsUrl = () => {
+
+
+
+
+  return `/api/admin/mail/threads`
+}
+
+/**
+ * @summary Mark read / unread, star, or move conversations (archive, spam, trash, inbox)
+ */
+export const updateAdminMailThreads = async (mailThreadsUpdate: MailThreadsUpdate, options?: Parameters<typeof customFetch>[1]): Promise<UpdateAdminMailThreads200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<UpdateAdminMailThreads200>(getUpdateAdminMailThreadsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mailThreadsUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminMailThreadsMutationKey = () => ['updateAdminMailThreads'] as const;
+
+export const getUpdateAdminMailThreadsMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminMailThreads>>, TError,UpdateAdminMailThreadsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminMailThreads>>, TError,UpdateAdminMailThreadsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminMailThreadsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminMailThreads>>, UpdateAdminMailThreadsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAdminMailThreads(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminMailThreadsMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminMailThreads>>>
+    export type UpdateAdminMailThreadsMutationBody = BodyType<MailThreadsUpdate>
+    export type UpdateAdminMailThreadsMutationError = ErrorType<ErrorMessage>
+    export type UpdateAdminMailThreadsMutationVariables = {data: BodyType<MailThreadsUpdate>}
+
+    /**
+ * @summary Mark read / unread, star, or move conversations (archive, spam, trash, inbox)
+ */
+export const useUpdateAdminMailThreads = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminMailThreads>>, TError,UpdateAdminMailThreadsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminMailThreads>>,
+        TError,
+        UpdateAdminMailThreadsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminMailThreadsMutationOptions(options));
+    }
+
+export const getDeleteAdminMailThreadsUrl = () => {
+
+
+
+
+  return `/api/admin/mail/threads/delete`
+}
+
+/**
+ * @summary Delete conversations for good (from Trash or Spam)
+ */
+export const deleteAdminMailThreads = async (mailThreadIds: MailThreadIds, options?: Parameters<typeof customFetch>[1]): Promise<DeleteAdminMailThreads200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DeleteAdminMailThreads200>(getDeleteAdminMailThreadsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mailThreadIds)
+  }
+);}
+
+
+
+
+
+export const getDeleteAdminMailThreadsMutationKey = () => ['deleteAdminMailThreads'] as const;
+
+export const getDeleteAdminMailThreadsMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminMailThreads>>, TError,DeleteAdminMailThreadsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminMailThreads>>, TError,DeleteAdminMailThreadsMutationVariables, TContext> => {
+
+const mutationKey = getDeleteAdminMailThreadsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminMailThreads>>, DeleteAdminMailThreadsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  deleteAdminMailThreads(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminMailThreadsMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminMailThreads>>>
+    export type DeleteAdminMailThreadsMutationBody = BodyType<MailThreadIds>
+    export type DeleteAdminMailThreadsMutationError = ErrorType<ErrorMessage>
+    export type DeleteAdminMailThreadsMutationVariables = {data: BodyType<MailThreadIds>}
+
+    /**
+ * @summary Delete conversations for good (from Trash or Spam)
+ */
+export const useDeleteAdminMailThreads = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminMailThreads>>, TError,DeleteAdminMailThreadsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminMailThreads>>,
+        TError,
+        DeleteAdminMailThreadsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteAdminMailThreadsMutationOptions(options));
+    }
+
+export const getGetAdminMailThreadUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/mail/threads/${id}`
+}
+
+/**
+ * @summary A conversation with its messages (opening it marks it read)
+ */
+export const getAdminMailThread = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<MailThreadDetail> => {
+
+  return customFetch<MailThreadDetail>(getGetAdminMailThreadUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminMailThreadQueryKey = (id: string,) => {
+    return [
+    `/api/admin/mail/threads/${id}`
+    ] as const;
+    }
+
+
+export const getGetAdminMailThreadQueryOptions = <TData = Awaited<ReturnType<typeof getAdminMailThread>>, TError = ErrorType<ErrorMessage>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMailThread>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminMailThreadQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminMailThread>>> = ({ signal }) => getAdminMailThread(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminMailThread>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminMailThreadQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminMailThread>>>
+export type GetAdminMailThreadQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary A conversation with its messages (opening it marks it read)
+ */
+
+export function useGetAdminMailThread<TData = Awaited<ReturnType<typeof getAdminMailThread>>, TError = ErrorType<ErrorMessage>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMailThread>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminMailThreadQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveAdminMailDraftUrl = () => {
+
+
+
+
+  return `/api/admin/mail/drafts`
+}
+
+/**
+ * @summary Save a draft (new, or the one with this id)
+ */
+export const saveAdminMailDraft = async (mailCompose: MailCompose, options?: Parameters<typeof customFetch>[1]): Promise<MailMessage> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MailMessage>(getSaveAdminMailDraftUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mailCompose)
+  }
+);}
+
+
+
+
+
+export const getSaveAdminMailDraftMutationKey = () => ['saveAdminMailDraft'] as const;
+
+export const getSaveAdminMailDraftMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveAdminMailDraft>>, TError,SaveAdminMailDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveAdminMailDraft>>, TError,SaveAdminMailDraftMutationVariables, TContext> => {
+
+const mutationKey = getSaveAdminMailDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveAdminMailDraft>>, SaveAdminMailDraftMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveAdminMailDraft(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveAdminMailDraftMutationResult = NonNullable<Awaited<ReturnType<typeof saveAdminMailDraft>>>
+    export type SaveAdminMailDraftMutationBody = BodyType<MailCompose>
+    export type SaveAdminMailDraftMutationError = ErrorType<ErrorMessage>
+    export type SaveAdminMailDraftMutationVariables = {data: BodyType<MailCompose>}
+
+    /**
+ * @summary Save a draft (new, or the one with this id)
+ */
+export const useSaveAdminMailDraft = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveAdminMailDraft>>, TError,SaveAdminMailDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveAdminMailDraft>>,
+        TError,
+        SaveAdminMailDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveAdminMailDraftMutationOptions(options));
+    }
+
+export const getGetAdminMailDraftUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/mail/drafts/${id}`
+}
+
+/**
+ * @summary A draft
+ */
+export const getAdminMailDraft = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<MailMessage> => {
+
+  return customFetch<MailMessage>(getGetAdminMailDraftUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminMailDraftQueryKey = (id: string,) => {
+    return [
+    `/api/admin/mail/drafts/${id}`
+    ] as const;
+    }
+
+
+export const getGetAdminMailDraftQueryOptions = <TData = Awaited<ReturnType<typeof getAdminMailDraft>>, TError = ErrorType<ErrorMessage>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMailDraft>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminMailDraftQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminMailDraft>>> = ({ signal }) => getAdminMailDraft(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminMailDraft>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminMailDraftQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminMailDraft>>>
+export type GetAdminMailDraftQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary A draft
+ */
+
+export function useGetAdminMailDraft<TData = Awaited<ReturnType<typeof getAdminMailDraft>>, TError = ErrorType<ErrorMessage>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMailDraft>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminMailDraftQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteAdminMailDraftUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/mail/drafts/${id}`
+}
+
+/**
+ * @summary Discard a draft
+ */
+export const deleteAdminMailDraft = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<DeleteAdminMailDraft200> => {
+
+  return customFetch<DeleteAdminMailDraft200>(getDeleteAdminMailDraftUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAdminMailDraftMutationKey = () => ['deleteAdminMailDraft'] as const;
+
+export const getDeleteAdminMailDraftMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminMailDraft>>, TError,DeleteAdminMailDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdminMailDraft>>, TError,DeleteAdminMailDraftMutationVariables, TContext> => {
+
+const mutationKey = getDeleteAdminMailDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdminMailDraft>>, DeleteAdminMailDraftMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAdminMailDraft(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdminMailDraftMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminMailDraft>>>
+
+    export type DeleteAdminMailDraftMutationError = ErrorType<ErrorMessage>
+    export type DeleteAdminMailDraftMutationVariables = {id: string}
+
+    /**
+ * @summary Discard a draft
+ */
+export const useDeleteAdminMailDraft = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdminMailDraft>>, TError,DeleteAdminMailDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdminMailDraft>>,
+        TError,
+        DeleteAdminMailDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteAdminMailDraftMutationOptions(options));
+    }
+
+export const getSendAdminMailUrl = () => {
+
+
+
+
+  return `/api/admin/mail/send`
+}
+
+/**
+ * @summary Send (or reply / forward); it goes after the undo delay
+ */
+export const sendAdminMail = async (mailCompose: MailCompose, options?: Parameters<typeof customFetch>[1]): Promise<MailSendResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MailSendResult>(getSendAdminMailUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mailCompose)
+  }
+);}
+
+
+
+
+
+export const getSendAdminMailMutationKey = () => ['sendAdminMail'] as const;
+
+export const getSendAdminMailMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAdminMail>>, TError,SendAdminMailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendAdminMail>>, TError,SendAdminMailMutationVariables, TContext> => {
+
+const mutationKey = getSendAdminMailMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendAdminMail>>, SendAdminMailMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendAdminMail(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendAdminMailMutationResult = NonNullable<Awaited<ReturnType<typeof sendAdminMail>>>
+    export type SendAdminMailMutationBody = BodyType<MailCompose>
+    export type SendAdminMailMutationError = ErrorType<ErrorMessage>
+    export type SendAdminMailMutationVariables = {data: BodyType<MailCompose>}
+
+    /**
+ * @summary Send (or reply / forward); it goes after the undo delay
+ */
+export const useSendAdminMail = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAdminMail>>, TError,SendAdminMailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendAdminMail>>,
+        TError,
+        SendAdminMailMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendAdminMailMutationOptions(options));
+    }
+
+export const getUndoAdminMailSendUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/mail/messages/${id}/undo`
+}
+
+/**
+ * @summary Undo send while the email still waits (it becomes a draft again)
+ */
+export const undoAdminMailSend = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<MailMessage> => {
+
+  return customFetch<MailMessage>(getUndoAdminMailSendUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getUndoAdminMailSendMutationKey = () => ['undoAdminMailSend'] as const;
+
+export const getUndoAdminMailSendMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoAdminMailSend>>, TError,UndoAdminMailSendMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof undoAdminMailSend>>, TError,UndoAdminMailSendMutationVariables, TContext> => {
+
+const mutationKey = getUndoAdminMailSendMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof undoAdminMailSend>>, UndoAdminMailSendMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  undoAdminMailSend(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UndoAdminMailSendMutationResult = NonNullable<Awaited<ReturnType<typeof undoAdminMailSend>>>
+
+    export type UndoAdminMailSendMutationError = ErrorType<ErrorMessage>
+    export type UndoAdminMailSendMutationVariables = {id: string}
+
+    /**
+ * @summary Undo send while the email still waits (it becomes a draft again)
+ */
+export const useUndoAdminMailSend = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoAdminMailSend>>, TError,UndoAdminMailSendMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof undoAdminMailSend>>,
+        TError,
+        UndoAdminMailSendMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUndoAdminMailSendMutationOptions(options));
+    }
+
+export const getRetryAdminMailSendUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/mail/messages/${id}/retry`
+}
+
+/**
+ * @summary Try sending a failed email again
+ */
+export const retryAdminMailSend = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<RetryAdminMailSend200> => {
+
+  return customFetch<RetryAdminMailSend200>(getRetryAdminMailSendUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryAdminMailSendMutationKey = () => ['retryAdminMailSend'] as const;
+
+export const getRetryAdminMailSendMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryAdminMailSend>>, TError,RetryAdminMailSendMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryAdminMailSend>>, TError,RetryAdminMailSendMutationVariables, TContext> => {
+
+const mutationKey = getRetryAdminMailSendMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryAdminMailSend>>, RetryAdminMailSendMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  retryAdminMailSend(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryAdminMailSendMutationResult = NonNullable<Awaited<ReturnType<typeof retryAdminMailSend>>>
+
+    export type RetryAdminMailSendMutationError = ErrorType<ErrorMessage>
+    export type RetryAdminMailSendMutationVariables = {id: string}
+
+    /**
+ * @summary Try sending a failed email again
+ */
+export const useRetryAdminMailSend = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryAdminMailSend>>, TError,RetryAdminMailSendMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryAdminMailSend>>,
+        TError,
+        RetryAdminMailSendMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRetryAdminMailSendMutationOptions(options));
+    }
+
+export const getUploadAdminMailAttachmentUrl = () => {
+
+
+
+
+  return `/api/admin/mail/attachments`
+}
+
+/**
+ * @summary Upload an attachment for an email being written (PDF, images, Office, OpenDocument, text; up to 15 MB)
+ */
+export const uploadAdminMailAttachment = async (fileUpload: FileUpload, options?: Parameters<typeof customFetch>[1]): Promise<MailFile> => {
+    const formData = new FormData();
+formData.append(`file`, fileUpload.file);
+
+  return customFetch<MailFile>(getUploadAdminMailAttachmentUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadAdminMailAttachmentMutationKey = () => ['uploadAdminMailAttachment'] as const;
+
+export const getUploadAdminMailAttachmentMutationOptions = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAdminMailAttachment>>, TError,UploadAdminMailAttachmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadAdminMailAttachment>>, TError,UploadAdminMailAttachmentMutationVariables, TContext> => {
+
+const mutationKey = getUploadAdminMailAttachmentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadAdminMailAttachment>>, UploadAdminMailAttachmentMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadAdminMailAttachment(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadAdminMailAttachmentMutationResult = NonNullable<Awaited<ReturnType<typeof uploadAdminMailAttachment>>>
+    export type UploadAdminMailAttachmentMutationBody = BodyType<FileUpload>
+    export type UploadAdminMailAttachmentMutationError = ErrorType<ErrorMessage>
+    export type UploadAdminMailAttachmentMutationVariables = {data: BodyType<FileUpload>}
+
+    /**
+ * @summary Upload an attachment for an email being written (PDF, images, Office, OpenDocument, text; up to 15 MB)
+ */
+export const useUploadAdminMailAttachment = <TError = ErrorType<ErrorMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadAdminMailAttachment>>, TError,UploadAdminMailAttachmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadAdminMailAttachment>>,
+        TError,
+        UploadAdminMailAttachmentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadAdminMailAttachmentMutationOptions(options));
+    }
+
+export const getGetAdminMailFileUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/mail/files/${id}`
+}
+
+/**
+ * @summary Download or view an attachment
+ */
+export const getAdminMailFile = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetAdminMailFileUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminMailFileQueryKey = (id: string,) => {
+    return [
+    `/api/admin/mail/files/${id}`
+    ] as const;
+    }
+
+
+export const getGetAdminMailFileQueryOptions = <TData = Awaited<ReturnType<typeof getAdminMailFile>>, TError = ErrorType<ErrorMessage>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMailFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminMailFileQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminMailFile>>> = ({ signal }) => getAdminMailFile(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminMailFile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminMailFileQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminMailFile>>>
+export type GetAdminMailFileQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary Download or view an attachment
+ */
+
+export function useGetAdminMailFile<TData = Awaited<ReturnType<typeof getAdminMailFile>>, TError = ErrorType<ErrorMessage>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMailFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminMailFileQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminMailImageUrl = (params: GetAdminMailImageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/mail/image?${stringifiedParams}` : `/api/admin/mail/image`
+}
+
+/**
+ * @summary An image from the internet in a received email, fetched by the server (Show images), so the sender never sees the admin
+ */
+export const getAdminMailImage = async (params: GetAdminMailImageParams, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetAdminMailImageUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminMailImageQueryKey = (params?: GetAdminMailImageParams,) => {
+    return [
+    `/api/admin/mail/image`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminMailImageQueryOptions = <TData = Awaited<ReturnType<typeof getAdminMailImage>>, TError = ErrorType<ErrorMessage>>(params: GetAdminMailImageParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMailImage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminMailImageQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminMailImage>>> = ({ signal }) => getAdminMailImage(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminMailImage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminMailImageQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminMailImage>>>
+export type GetAdminMailImageQueryError = ErrorType<ErrorMessage>
+
+
+/**
+ * @summary An image from the internet in a received email, fetched by the server (Show images), so the sender never sees the admin
+ */
+
+export function useGetAdminMailImage<TData = Awaited<ReturnType<typeof getAdminMailImage>>, TError = ErrorType<ErrorMessage>>(
+ params: GetAdminMailImageParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminMailImage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminMailImageQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminMailContactsUrl = (params: ListAdminMailContactsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/mail/contacts?${stringifiedParams}` : `/api/admin/mail/contacts`
+}
+
+/**
+ * @summary Address suggestions for To / Cc / Bcc (registered users and people mailed before)
+ */
+export const listAdminMailContacts = async (params: ListAdminMailContactsParams, options?: Parameters<typeof customFetch>[1]): Promise<MailAddress[]> => {
+
+  return customFetch<MailAddress[]>(getListAdminMailContactsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminMailContactsQueryKey = (params?: ListAdminMailContactsParams,) => {
+    return [
+    `/api/admin/mail/contacts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminMailContactsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminMailContacts>>, TError = ErrorType<unknown>>(params: ListAdminMailContactsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminMailContacts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminMailContactsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminMailContacts>>> = ({ signal }) => listAdminMailContacts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminMailContacts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminMailContactsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminMailContacts>>>
+export type ListAdminMailContactsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Address suggestions for To / Cc / Bcc (registered users and people mailed before)
+ */
+
+export function useListAdminMailContacts<TData = Awaited<ReturnType<typeof listAdminMailContacts>>, TError = ErrorType<unknown>>(
+ params: ListAdminMailContactsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminMailContacts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminMailContactsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

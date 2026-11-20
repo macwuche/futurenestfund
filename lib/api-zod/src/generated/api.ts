@@ -72,7 +72,7 @@ export const GetEmailSettingsResponse = zod.object({
   "encryptionProblem": zod.string().nullable(),
   "apiKey": zod.object({
   "set": zod.boolean(),
-  "source": zod.enum(['settings', 'environment', 'none']),
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)'),
   "hint": zod.string().nullable().describe('e.g. re_••••abcd; the secret itself is never returned'),
   "updatedAt": zod.string().nullable(),
   "updatedBy": zod.string().nullable(),
@@ -80,7 +80,7 @@ export const GetEmailSettingsResponse = zod.object({
 }),
   "hookSecret": zod.object({
   "set": zod.boolean(),
-  "source": zod.enum(['settings', 'environment', 'none']),
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)'),
   "hint": zod.string().nullable().describe('e.g. re_••••abcd; the secret itself is never returned'),
   "updatedAt": zod.string().nullable(),
   "updatedBy": zod.string().nullable(),
@@ -88,23 +88,23 @@ export const GetEmailSettingsResponse = zod.object({
 }),
   "fromName": zod.object({
   "value": zod.string().nullable(),
-  "source": zod.enum(['settings', 'environment', 'none'])
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)')
 }),
   "fromAddress": zod.object({
   "value": zod.string().nullable(),
-  "source": zod.enum(['settings', 'environment', 'none'])
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)')
 }),
   "replyTo": zod.object({
   "value": zod.string().nullable(),
-  "source": zod.enum(['settings', 'environment', 'none'])
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)')
 }),
   "signature": zod.object({
   "value": zod.string().nullable(),
-  "source": zod.enum(['settings', 'environment', 'none'])
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)')
 }),
   "supportEmail": zod.object({
   "value": zod.string().nullable(),
-  "source": zod.enum(['settings', 'environment', 'none'])
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)')
 }),
   "from": zod.string().nullable().describe('The From header in use'),
   "sending": zod.boolean().describe('Whether email can be sent (key and sender address set)'),
@@ -149,7 +149,7 @@ export const UpdateEmailSettingsResponse = zod.object({
   "encryptionProblem": zod.string().nullable(),
   "apiKey": zod.object({
   "set": zod.boolean(),
-  "source": zod.enum(['settings', 'environment', 'none']),
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)'),
   "hint": zod.string().nullable().describe('e.g. re_••••abcd; the secret itself is never returned'),
   "updatedAt": zod.string().nullable(),
   "updatedBy": zod.string().nullable(),
@@ -157,7 +157,7 @@ export const UpdateEmailSettingsResponse = zod.object({
 }),
   "hookSecret": zod.object({
   "set": zod.boolean(),
-  "source": zod.enum(['settings', 'environment', 'none']),
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)'),
   "hint": zod.string().nullable().describe('e.g. re_••••abcd; the secret itself is never returned'),
   "updatedAt": zod.string().nullable(),
   "updatedBy": zod.string().nullable(),
@@ -165,23 +165,23 @@ export const UpdateEmailSettingsResponse = zod.object({
 }),
   "fromName": zod.object({
   "value": zod.string().nullable(),
-  "source": zod.enum(['settings', 'environment', 'none'])
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)')
 }),
   "fromAddress": zod.object({
   "value": zod.string().nullable(),
-  "source": zod.enum(['settings', 'environment', 'none'])
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)')
 }),
   "replyTo": zod.object({
   "value": zod.string().nullable(),
-  "source": zod.enum(['settings', 'environment', 'none'])
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)')
 }),
   "signature": zod.object({
   "value": zod.string().nullable(),
-  "source": zod.enum(['settings', 'environment', 'none'])
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)')
 }),
   "supportEmail": zod.object({
   "value": zod.string().nullable(),
-  "source": zod.enum(['settings', 'environment', 'none'])
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)')
 }),
   "from": zod.string().nullable().describe('The From header in use'),
   "sending": zod.boolean().describe('Whether email can be sent (key and sender address set)'),
@@ -204,7 +204,7 @@ export const RemoveEmailSecretResponse = zod.object({
   "encryptionProblem": zod.string().nullable(),
   "apiKey": zod.object({
   "set": zod.boolean(),
-  "source": zod.enum(['settings', 'environment', 'none']),
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)'),
   "hint": zod.string().nullable().describe('e.g. re_••••abcd; the secret itself is never returned'),
   "updatedAt": zod.string().nullable(),
   "updatedBy": zod.string().nullable(),
@@ -212,7 +212,7 @@ export const RemoveEmailSecretResponse = zod.object({
 }),
   "hookSecret": zod.object({
   "set": zod.boolean(),
-  "source": zod.enum(['settings', 'environment', 'none']),
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)'),
   "hint": zod.string().nullable().describe('e.g. re_••••abcd; the secret itself is never returned'),
   "updatedAt": zod.string().nullable(),
   "updatedBy": zod.string().nullable(),
@@ -220,23 +220,23 @@ export const RemoveEmailSecretResponse = zod.object({
 }),
   "fromName": zod.object({
   "value": zod.string().nullable(),
-  "source": zod.enum(['settings', 'environment', 'none'])
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)')
 }),
   "fromAddress": zod.object({
   "value": zod.string().nullable(),
-  "source": zod.enum(['settings', 'environment', 'none'])
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)')
 }),
   "replyTo": zod.object({
   "value": zod.string().nullable(),
-  "source": zod.enum(['settings', 'environment', 'none'])
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)')
 }),
   "signature": zod.object({
   "value": zod.string().nullable(),
-  "source": zod.enum(['settings', 'environment', 'none'])
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)')
 }),
   "supportEmail": zod.object({
   "value": zod.string().nullable(),
-  "source": zod.enum(['settings', 'environment', 'none'])
+  "source": zod.enum(['settings', 'environment', 'mailbox', 'none']).describe('mailbox = taken from the mailbox that sends system emails (Phase 14)')
 }),
   "from": zod.string().nullable().describe('The From header in use'),
   "sending": zod.boolean().describe('Whether email can be sent (key and sender address set)'),
@@ -5853,5 +5853,1411 @@ export const ClearAdminReportedCardResponse = zod.object({
   "clearedBy": zod.string().optional(),
   "matchingCards": zod.number().int().optional().describe('Saved cards (not removed) with this number')
 })
+
+
+/**
+ * @summary A signature logo (public, so recipients' mail apps can show it)
+ */
+export const GetMailSignatureLogoParams = zod.object({
+  "fileId": zod.coerce.string()
+})
+
+export const GetMailSignatureLogoResponse = zod.unknown()
+
+
+/**
+ * @summary Settings → Email, Mail box part - key access, domain and its records, webhook, mailboxes, counts
+ */
+export const getAdminMailSetupResponseMailboxesItemSignatureLinksMax = 3;
+
+
+
+export const GetAdminMailSetupResponse = zod.object({
+  "keyAccess": zod.enum(['full', 'sending', 'invalid', 'missing', 'unreachable']),
+  "appUrl": zod.string().nullable(),
+  "inboundUrl": zod.string().nullable(),
+  "domain": zod.object({
+  "name": zod.string(),
+  "region": zod.string().nullable(),
+  "addedAt": zod.string(),
+  "addedBy": zod.string()
+}).nullable(),
+  "resend": zod.object({
+  "status": zod.string(),
+  "sending": zod.string(),
+  "receiving": zod.string(),
+  "records": zod.array(zod.object({
+  "record": zod.string().describe('What it\'s for in Resend: DKIM, SPF, Receiving…'),
+  "name": zod.string(),
+  "type": zod.string(),
+  "value": zod.string(),
+  "priority": zod.number().int().nullable(),
+  "status": zod.string(),
+  "ttl": zod.string()
+}))
+}).nullable(),
+  "domainError": zod.string().nullable(),
+  "webhook": zod.object({
+  "endpoint": zod.string(),
+  "createdAt": zod.string(),
+  "createdBy": zod.string()
+}).nullable(),
+  "webhookSecret": zod.object({
+  "set": zod.boolean(),
+  "source": zod.string(),
+  "hint": zod.string().nullable(),
+  "unreadable": zod.boolean()
+}),
+  "inbound": zod.object({
+  "lastCallAt": zod.string().nullable(),
+  "lastStatus": zod.string().nullable(),
+  "lastError": zod.string().nullable(),
+  "waiting": zod.number().int(),
+  "failed": zod.number().int(),
+  "receivedLast24h": zod.number().int(),
+  "sentLast24h": zod.number().int(),
+  "systemSentLast24h": zod.number().int()
+}),
+  "mailboxes": zod.array(zod.object({
+  "id": zod.string(),
+  "address": zod.string(),
+  "displayName": zod.string(),
+  "enabled": zod.boolean(),
+  "catchAll": zod.boolean().describe('Gets mail sent to addresses nobody created'),
+  "systemSender": zod.boolean().describe('System emails are sent from and replied to this mailbox, with its signature'),
+  "signature": zod.object({
+  "enabled": zod.boolean(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "organisation": zod.string(),
+  "phone": zod.string(),
+  "website": zod.string(),
+  "email": zod.string(),
+  "links": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string()
+})).max(getAdminMailSetupResponseMailboxesItemSignatureLinksMax),
+  "color": zod.string().nullable().describe('#RRGGBB, or null = the app\'s brand colour'),
+  "logoFileId": zod.string().nullable(),
+  "layout": zod.enum(['side', 'stacked']),
+  "footer": zod.string()
+}).describe('A mailbox\'s signature (logo, details in its colour, a short footer)'),
+  "signatureLogoUrl": zod.string().nullable(),
+  "signaturePreview": zod.string().describe('The signature as sent (HTML)'),
+  "unread": zod.number().int(),
+  "drafts": zod.number().int(),
+  "threads": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})),
+  "regions": zod.array(zod.string()),
+  "dailyLimit": zod.number().int().describe('Resend plan\'s emails per day (Free: 100), received mail included')
+})
+
+
+/**
+ * @summary Add the domain in Resend with sending and receiving on (or connect it if it's already there)
+ */
+export const connectAdminMailDomainBodyNameMax = 253;
+
+
+
+export const ConnectAdminMailDomainBody = zod.object({
+  "name": zod.string().max(connectAdminMailDomainBodyNameMax),
+  "region": zod.enum(['us-east-1', 'eu-west-1', 'sa-east-1', 'ap-northeast-1']).optional()
+})
+
+export const connectAdminMailDomainResponseMailboxesItemSignatureLinksMax = 3;
+
+
+
+export const ConnectAdminMailDomainResponse = zod.object({
+  "keyAccess": zod.enum(['full', 'sending', 'invalid', 'missing', 'unreachable']),
+  "appUrl": zod.string().nullable(),
+  "inboundUrl": zod.string().nullable(),
+  "domain": zod.object({
+  "name": zod.string(),
+  "region": zod.string().nullable(),
+  "addedAt": zod.string(),
+  "addedBy": zod.string()
+}).nullable(),
+  "resend": zod.object({
+  "status": zod.string(),
+  "sending": zod.string(),
+  "receiving": zod.string(),
+  "records": zod.array(zod.object({
+  "record": zod.string().describe('What it\'s for in Resend: DKIM, SPF, Receiving…'),
+  "name": zod.string(),
+  "type": zod.string(),
+  "value": zod.string(),
+  "priority": zod.number().int().nullable(),
+  "status": zod.string(),
+  "ttl": zod.string()
+}))
+}).nullable(),
+  "domainError": zod.string().nullable(),
+  "webhook": zod.object({
+  "endpoint": zod.string(),
+  "createdAt": zod.string(),
+  "createdBy": zod.string()
+}).nullable(),
+  "webhookSecret": zod.object({
+  "set": zod.boolean(),
+  "source": zod.string(),
+  "hint": zod.string().nullable(),
+  "unreadable": zod.boolean()
+}),
+  "inbound": zod.object({
+  "lastCallAt": zod.string().nullable(),
+  "lastStatus": zod.string().nullable(),
+  "lastError": zod.string().nullable(),
+  "waiting": zod.number().int(),
+  "failed": zod.number().int(),
+  "receivedLast24h": zod.number().int(),
+  "sentLast24h": zod.number().int(),
+  "systemSentLast24h": zod.number().int()
+}),
+  "mailboxes": zod.array(zod.object({
+  "id": zod.string(),
+  "address": zod.string(),
+  "displayName": zod.string(),
+  "enabled": zod.boolean(),
+  "catchAll": zod.boolean().describe('Gets mail sent to addresses nobody created'),
+  "systemSender": zod.boolean().describe('System emails are sent from and replied to this mailbox, with its signature'),
+  "signature": zod.object({
+  "enabled": zod.boolean(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "organisation": zod.string(),
+  "phone": zod.string(),
+  "website": zod.string(),
+  "email": zod.string(),
+  "links": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string()
+})).max(connectAdminMailDomainResponseMailboxesItemSignatureLinksMax),
+  "color": zod.string().nullable().describe('#RRGGBB, or null = the app\'s brand colour'),
+  "logoFileId": zod.string().nullable(),
+  "layout": zod.enum(['side', 'stacked']),
+  "footer": zod.string()
+}).describe('A mailbox\'s signature (logo, details in its colour, a short footer)'),
+  "signatureLogoUrl": zod.string().nullable(),
+  "signaturePreview": zod.string().describe('The signature as sent (HTML)'),
+  "unread": zod.number().int(),
+  "drafts": zod.number().int(),
+  "threads": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})),
+  "regions": zod.array(zod.string()),
+  "dailyLimit": zod.number().int().describe('Resend plan\'s emails per day (Free: 100), received mail included')
+})
+
+
+/**
+ * @summary Remove the domain from Settings (it stays on the Resend account)
+ */
+export const forgetAdminMailDomainResponseMailboxesItemSignatureLinksMax = 3;
+
+
+
+export const ForgetAdminMailDomainResponse = zod.object({
+  "keyAccess": zod.enum(['full', 'sending', 'invalid', 'missing', 'unreachable']),
+  "appUrl": zod.string().nullable(),
+  "inboundUrl": zod.string().nullable(),
+  "domain": zod.object({
+  "name": zod.string(),
+  "region": zod.string().nullable(),
+  "addedAt": zod.string(),
+  "addedBy": zod.string()
+}).nullable(),
+  "resend": zod.object({
+  "status": zod.string(),
+  "sending": zod.string(),
+  "receiving": zod.string(),
+  "records": zod.array(zod.object({
+  "record": zod.string().describe('What it\'s for in Resend: DKIM, SPF, Receiving…'),
+  "name": zod.string(),
+  "type": zod.string(),
+  "value": zod.string(),
+  "priority": zod.number().int().nullable(),
+  "status": zod.string(),
+  "ttl": zod.string()
+}))
+}).nullable(),
+  "domainError": zod.string().nullable(),
+  "webhook": zod.object({
+  "endpoint": zod.string(),
+  "createdAt": zod.string(),
+  "createdBy": zod.string()
+}).nullable(),
+  "webhookSecret": zod.object({
+  "set": zod.boolean(),
+  "source": zod.string(),
+  "hint": zod.string().nullable(),
+  "unreadable": zod.boolean()
+}),
+  "inbound": zod.object({
+  "lastCallAt": zod.string().nullable(),
+  "lastStatus": zod.string().nullable(),
+  "lastError": zod.string().nullable(),
+  "waiting": zod.number().int(),
+  "failed": zod.number().int(),
+  "receivedLast24h": zod.number().int(),
+  "sentLast24h": zod.number().int(),
+  "systemSentLast24h": zod.number().int()
+}),
+  "mailboxes": zod.array(zod.object({
+  "id": zod.string(),
+  "address": zod.string(),
+  "displayName": zod.string(),
+  "enabled": zod.boolean(),
+  "catchAll": zod.boolean().describe('Gets mail sent to addresses nobody created'),
+  "systemSender": zod.boolean().describe('System emails are sent from and replied to this mailbox, with its signature'),
+  "signature": zod.object({
+  "enabled": zod.boolean(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "organisation": zod.string(),
+  "phone": zod.string(),
+  "website": zod.string(),
+  "email": zod.string(),
+  "links": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string()
+})).max(forgetAdminMailDomainResponseMailboxesItemSignatureLinksMax),
+  "color": zod.string().nullable().describe('#RRGGBB, or null = the app\'s brand colour'),
+  "logoFileId": zod.string().nullable(),
+  "layout": zod.enum(['side', 'stacked']),
+  "footer": zod.string()
+}).describe('A mailbox\'s signature (logo, details in its colour, a short footer)'),
+  "signatureLogoUrl": zod.string().nullable(),
+  "signaturePreview": zod.string().describe('The signature as sent (HTML)'),
+  "unread": zod.number().int(),
+  "drafts": zod.number().int(),
+  "threads": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})),
+  "regions": zod.array(zod.string()),
+  "dailyLimit": zod.number().int().describe('Resend plan\'s emails per day (Free: 100), received mail included')
+})
+
+
+/**
+ * @summary Ask Resend to check the domain's DNS records again
+ */
+export const verifyAdminMailDomainResponseMailboxesItemSignatureLinksMax = 3;
+
+
+
+export const VerifyAdminMailDomainResponse = zod.object({
+  "keyAccess": zod.enum(['full', 'sending', 'invalid', 'missing', 'unreachable']),
+  "appUrl": zod.string().nullable(),
+  "inboundUrl": zod.string().nullable(),
+  "domain": zod.object({
+  "name": zod.string(),
+  "region": zod.string().nullable(),
+  "addedAt": zod.string(),
+  "addedBy": zod.string()
+}).nullable(),
+  "resend": zod.object({
+  "status": zod.string(),
+  "sending": zod.string(),
+  "receiving": zod.string(),
+  "records": zod.array(zod.object({
+  "record": zod.string().describe('What it\'s for in Resend: DKIM, SPF, Receiving…'),
+  "name": zod.string(),
+  "type": zod.string(),
+  "value": zod.string(),
+  "priority": zod.number().int().nullable(),
+  "status": zod.string(),
+  "ttl": zod.string()
+}))
+}).nullable(),
+  "domainError": zod.string().nullable(),
+  "webhook": zod.object({
+  "endpoint": zod.string(),
+  "createdAt": zod.string(),
+  "createdBy": zod.string()
+}).nullable(),
+  "webhookSecret": zod.object({
+  "set": zod.boolean(),
+  "source": zod.string(),
+  "hint": zod.string().nullable(),
+  "unreadable": zod.boolean()
+}),
+  "inbound": zod.object({
+  "lastCallAt": zod.string().nullable(),
+  "lastStatus": zod.string().nullable(),
+  "lastError": zod.string().nullable(),
+  "waiting": zod.number().int(),
+  "failed": zod.number().int(),
+  "receivedLast24h": zod.number().int(),
+  "sentLast24h": zod.number().int(),
+  "systemSentLast24h": zod.number().int()
+}),
+  "mailboxes": zod.array(zod.object({
+  "id": zod.string(),
+  "address": zod.string(),
+  "displayName": zod.string(),
+  "enabled": zod.boolean(),
+  "catchAll": zod.boolean().describe('Gets mail sent to addresses nobody created'),
+  "systemSender": zod.boolean().describe('System emails are sent from and replied to this mailbox, with its signature'),
+  "signature": zod.object({
+  "enabled": zod.boolean(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "organisation": zod.string(),
+  "phone": zod.string(),
+  "website": zod.string(),
+  "email": zod.string(),
+  "links": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string()
+})).max(verifyAdminMailDomainResponseMailboxesItemSignatureLinksMax),
+  "color": zod.string().nullable().describe('#RRGGBB, or null = the app\'s brand colour'),
+  "logoFileId": zod.string().nullable(),
+  "layout": zod.enum(['side', 'stacked']),
+  "footer": zod.string()
+}).describe('A mailbox\'s signature (logo, details in its colour, a short footer)'),
+  "signatureLogoUrl": zod.string().nullable(),
+  "signaturePreview": zod.string().describe('The signature as sent (HTML)'),
+  "unread": zod.number().int(),
+  "drafts": zod.number().int(),
+  "threads": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})),
+  "regions": zod.array(zod.string()),
+  "dailyLimit": zod.number().int().describe('Resend plan\'s emails per day (Free: 100), received mail included')
+})
+
+
+/**
+ * @summary Each DNS record Resend expects compared with what's published, plus MX conflicts and DMARC
+ */
+export const GetAdminMailDnsResponse = zod.object({
+  "checkedAt": zod.string(),
+  "domain": zod.string(),
+  "resendStatus": zod.string(),
+  "receiving": zod.string(),
+  "records": zod.array(zod.object({
+  "record": zod.string(),
+  "name": zod.string(),
+  "type": zod.string(),
+  "expected": zod.string(),
+  "found": zod.array(zod.string()),
+  "status": zod.enum(['ok', 'warn', 'fail', 'off']),
+  "detail": zod.string(),
+  "resendStatus": zod.string().nullable(),
+  "priority": zod.number().int().nullable()
+})),
+  "checks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "status": zod.enum(['ok', 'warn', 'fail', 'off']),
+  "detail": zod.string()
+})),
+  "dmarcSuggestion": zod.string()
+})
+
+
+/**
+ * @summary Create (or re-create) the Resend webhook that brings received mail in, and store its secret
+ */
+export const setupAdminMailWebhookResponseMailboxesItemSignatureLinksMax = 3;
+
+
+
+export const SetupAdminMailWebhookResponse = zod.object({
+  "keyAccess": zod.enum(['full', 'sending', 'invalid', 'missing', 'unreachable']),
+  "appUrl": zod.string().nullable(),
+  "inboundUrl": zod.string().nullable(),
+  "domain": zod.object({
+  "name": zod.string(),
+  "region": zod.string().nullable(),
+  "addedAt": zod.string(),
+  "addedBy": zod.string()
+}).nullable(),
+  "resend": zod.object({
+  "status": zod.string(),
+  "sending": zod.string(),
+  "receiving": zod.string(),
+  "records": zod.array(zod.object({
+  "record": zod.string().describe('What it\'s for in Resend: DKIM, SPF, Receiving…'),
+  "name": zod.string(),
+  "type": zod.string(),
+  "value": zod.string(),
+  "priority": zod.number().int().nullable(),
+  "status": zod.string(),
+  "ttl": zod.string()
+}))
+}).nullable(),
+  "domainError": zod.string().nullable(),
+  "webhook": zod.object({
+  "endpoint": zod.string(),
+  "createdAt": zod.string(),
+  "createdBy": zod.string()
+}).nullable(),
+  "webhookSecret": zod.object({
+  "set": zod.boolean(),
+  "source": zod.string(),
+  "hint": zod.string().nullable(),
+  "unreadable": zod.boolean()
+}),
+  "inbound": zod.object({
+  "lastCallAt": zod.string().nullable(),
+  "lastStatus": zod.string().nullable(),
+  "lastError": zod.string().nullable(),
+  "waiting": zod.number().int(),
+  "failed": zod.number().int(),
+  "receivedLast24h": zod.number().int(),
+  "sentLast24h": zod.number().int(),
+  "systemSentLast24h": zod.number().int()
+}),
+  "mailboxes": zod.array(zod.object({
+  "id": zod.string(),
+  "address": zod.string(),
+  "displayName": zod.string(),
+  "enabled": zod.boolean(),
+  "catchAll": zod.boolean().describe('Gets mail sent to addresses nobody created'),
+  "systemSender": zod.boolean().describe('System emails are sent from and replied to this mailbox, with its signature'),
+  "signature": zod.object({
+  "enabled": zod.boolean(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "organisation": zod.string(),
+  "phone": zod.string(),
+  "website": zod.string(),
+  "email": zod.string(),
+  "links": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string()
+})).max(setupAdminMailWebhookResponseMailboxesItemSignatureLinksMax),
+  "color": zod.string().nullable().describe('#RRGGBB, or null = the app\'s brand colour'),
+  "logoFileId": zod.string().nullable(),
+  "layout": zod.enum(['side', 'stacked']),
+  "footer": zod.string()
+}).describe('A mailbox\'s signature (logo, details in its colour, a short footer)'),
+  "signatureLogoUrl": zod.string().nullable(),
+  "signaturePreview": zod.string().describe('The signature as sent (HTML)'),
+  "unread": zod.number().int(),
+  "drafts": zod.number().int(),
+  "threads": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})),
+  "regions": zod.array(zod.string()),
+  "dailyLimit": zod.number().int().describe('Resend plan\'s emails per day (Free: 100), received mail included')
+})
+
+
+/**
+ * @summary Delete the webhook (received mail stops arriving)
+ */
+export const removeAdminMailWebhookResponseMailboxesItemSignatureLinksMax = 3;
+
+
+
+export const RemoveAdminMailWebhookResponse = zod.object({
+  "keyAccess": zod.enum(['full', 'sending', 'invalid', 'missing', 'unreachable']),
+  "appUrl": zod.string().nullable(),
+  "inboundUrl": zod.string().nullable(),
+  "domain": zod.object({
+  "name": zod.string(),
+  "region": zod.string().nullable(),
+  "addedAt": zod.string(),
+  "addedBy": zod.string()
+}).nullable(),
+  "resend": zod.object({
+  "status": zod.string(),
+  "sending": zod.string(),
+  "receiving": zod.string(),
+  "records": zod.array(zod.object({
+  "record": zod.string().describe('What it\'s for in Resend: DKIM, SPF, Receiving…'),
+  "name": zod.string(),
+  "type": zod.string(),
+  "value": zod.string(),
+  "priority": zod.number().int().nullable(),
+  "status": zod.string(),
+  "ttl": zod.string()
+}))
+}).nullable(),
+  "domainError": zod.string().nullable(),
+  "webhook": zod.object({
+  "endpoint": zod.string(),
+  "createdAt": zod.string(),
+  "createdBy": zod.string()
+}).nullable(),
+  "webhookSecret": zod.object({
+  "set": zod.boolean(),
+  "source": zod.string(),
+  "hint": zod.string().nullable(),
+  "unreadable": zod.boolean()
+}),
+  "inbound": zod.object({
+  "lastCallAt": zod.string().nullable(),
+  "lastStatus": zod.string().nullable(),
+  "lastError": zod.string().nullable(),
+  "waiting": zod.number().int(),
+  "failed": zod.number().int(),
+  "receivedLast24h": zod.number().int(),
+  "sentLast24h": zod.number().int(),
+  "systemSentLast24h": zod.number().int()
+}),
+  "mailboxes": zod.array(zod.object({
+  "id": zod.string(),
+  "address": zod.string(),
+  "displayName": zod.string(),
+  "enabled": zod.boolean(),
+  "catchAll": zod.boolean().describe('Gets mail sent to addresses nobody created'),
+  "systemSender": zod.boolean().describe('System emails are sent from and replied to this mailbox, with its signature'),
+  "signature": zod.object({
+  "enabled": zod.boolean(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "organisation": zod.string(),
+  "phone": zod.string(),
+  "website": zod.string(),
+  "email": zod.string(),
+  "links": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string()
+})).max(removeAdminMailWebhookResponseMailboxesItemSignatureLinksMax),
+  "color": zod.string().nullable().describe('#RRGGBB, or null = the app\'s brand colour'),
+  "logoFileId": zod.string().nullable(),
+  "layout": zod.enum(['side', 'stacked']),
+  "footer": zod.string()
+}).describe('A mailbox\'s signature (logo, details in its colour, a short footer)'),
+  "signatureLogoUrl": zod.string().nullable(),
+  "signaturePreview": zod.string().describe('The signature as sent (HTML)'),
+  "unread": zod.number().int(),
+  "drafts": zod.number().int(),
+  "threads": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})),
+  "regions": zod.array(zod.string()),
+  "dailyLimit": zod.number().int().describe('Resend plan\'s emails per day (Free: 100), received mail included')
+})
+
+
+/**
+ * @summary Send a test email from a mailbox to itself
+ */
+export const StartAdminMailRoundTripBody = zod.object({
+  "mailboxId": zod.string()
+})
+
+export const StartAdminMailRoundTripResponse = zod.object({
+  "token": zod.string(),
+  "mailboxId": zod.string(),
+  "sentAt": zod.string()
+})
+
+
+/**
+ * @summary Whether the round-trip test email has arrived
+ */
+export const GetAdminMailRoundTripQueryParams = zod.object({
+  "token": zod.coerce.string(),
+  "mailboxId": zod.coerce.string()
+})
+
+export const GetAdminMailRoundTripResponse = zod.object({
+  "arrived": zod.boolean(),
+  "receivedAt": zod.string().nullable(),
+  "threadId": zod.string().nullable()
+})
+
+
+/**
+ * @summary Every mailbox with unread and draft counts
+ */
+export const listAdminMailboxesResponseSignatureLinksMax = 3;
+
+
+
+export const ListAdminMailboxesResponseItem = zod.object({
+  "id": zod.string(),
+  "address": zod.string(),
+  "displayName": zod.string(),
+  "enabled": zod.boolean(),
+  "catchAll": zod.boolean().describe('Gets mail sent to addresses nobody created'),
+  "systemSender": zod.boolean().describe('System emails are sent from and replied to this mailbox, with its signature'),
+  "signature": zod.object({
+  "enabled": zod.boolean(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "organisation": zod.string(),
+  "phone": zod.string(),
+  "website": zod.string(),
+  "email": zod.string(),
+  "links": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string()
+})).max(listAdminMailboxesResponseSignatureLinksMax),
+  "color": zod.string().nullable().describe('#RRGGBB, or null = the app\'s brand colour'),
+  "logoFileId": zod.string().nullable(),
+  "layout": zod.enum(['side', 'stacked']),
+  "footer": zod.string()
+}).describe('A mailbox\'s signature (logo, details in its colour, a short footer)'),
+  "signatureLogoUrl": zod.string().nullable(),
+  "signaturePreview": zod.string().describe('The signature as sent (HTML)'),
+  "unread": zod.number().int(),
+  "drafts": zod.number().int(),
+  "threads": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})
+export const ListAdminMailboxesResponse = zod.array(ListAdminMailboxesResponseItem)
+
+
+/**
+ * @summary Create a mailbox (an address on the domain)
+ */
+export const createAdminMailboxBodyAddressMax = 254;
+
+export const createAdminMailboxBodyDisplayNameMax = 60;
+
+
+
+export const CreateAdminMailboxBody = zod.object({
+  "address": zod.string().max(createAdminMailboxBodyAddressMax).describe('The part before @, or the full address on the domain'),
+  "displayName": zod.string().max(createAdminMailboxBodyDisplayNameMax).optional()
+})
+
+export const createAdminMailboxResponseSignatureLinksMax = 3;
+
+
+
+export const CreateAdminMailboxResponseItem = zod.object({
+  "id": zod.string(),
+  "address": zod.string(),
+  "displayName": zod.string(),
+  "enabled": zod.boolean(),
+  "catchAll": zod.boolean().describe('Gets mail sent to addresses nobody created'),
+  "systemSender": zod.boolean().describe('System emails are sent from and replied to this mailbox, with its signature'),
+  "signature": zod.object({
+  "enabled": zod.boolean(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "organisation": zod.string(),
+  "phone": zod.string(),
+  "website": zod.string(),
+  "email": zod.string(),
+  "links": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string()
+})).max(createAdminMailboxResponseSignatureLinksMax),
+  "color": zod.string().nullable().describe('#RRGGBB, or null = the app\'s brand colour'),
+  "logoFileId": zod.string().nullable(),
+  "layout": zod.enum(['side', 'stacked']),
+  "footer": zod.string()
+}).describe('A mailbox\'s signature (logo, details in its colour, a short footer)'),
+  "signatureLogoUrl": zod.string().nullable(),
+  "signaturePreview": zod.string().describe('The signature as sent (HTML)'),
+  "unread": zod.number().int(),
+  "drafts": zod.number().int(),
+  "threads": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})
+export const CreateAdminMailboxResponse = zod.array(CreateAdminMailboxResponseItem)
+
+
+/**
+ * @summary Rename, switch on / off, make catch-all or system sender, or change the signature
+ */
+export const UpdateAdminMailboxParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateAdminMailboxBodyDisplayNameMax = 60;
+
+export const updateAdminMailboxBodySignatureLinksMax = 3;
+
+
+
+export const UpdateAdminMailboxBody = zod.object({
+  "displayName": zod.string().max(updateAdminMailboxBodyDisplayNameMax).optional(),
+  "enabled": zod.boolean().optional(),
+  "catchAll": zod.literal(true).optional(),
+  "systemSender": zod.literal(true).optional(),
+  "signature": zod.object({
+  "enabled": zod.boolean(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "organisation": zod.string(),
+  "phone": zod.string(),
+  "website": zod.string(),
+  "email": zod.string(),
+  "links": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string()
+})).max(updateAdminMailboxBodySignatureLinksMax),
+  "color": zod.string().nullable().describe('#RRGGBB, or null = the app\'s brand colour'),
+  "logoFileId": zod.string().nullable(),
+  "layout": zod.enum(['side', 'stacked']),
+  "footer": zod.string()
+}).optional().describe('A mailbox\'s signature (logo, details in its colour, a short footer)')
+})
+
+export const updateAdminMailboxResponseSignatureLinksMax = 3;
+
+
+
+export const UpdateAdminMailboxResponseItem = zod.object({
+  "id": zod.string(),
+  "address": zod.string(),
+  "displayName": zod.string(),
+  "enabled": zod.boolean(),
+  "catchAll": zod.boolean().describe('Gets mail sent to addresses nobody created'),
+  "systemSender": zod.boolean().describe('System emails are sent from and replied to this mailbox, with its signature'),
+  "signature": zod.object({
+  "enabled": zod.boolean(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "organisation": zod.string(),
+  "phone": zod.string(),
+  "website": zod.string(),
+  "email": zod.string(),
+  "links": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string()
+})).max(updateAdminMailboxResponseSignatureLinksMax),
+  "color": zod.string().nullable().describe('#RRGGBB, or null = the app\'s brand colour'),
+  "logoFileId": zod.string().nullable(),
+  "layout": zod.enum(['side', 'stacked']),
+  "footer": zod.string()
+}).describe('A mailbox\'s signature (logo, details in its colour, a short footer)'),
+  "signatureLogoUrl": zod.string().nullable(),
+  "signaturePreview": zod.string().describe('The signature as sent (HTML)'),
+  "unread": zod.number().int(),
+  "drafts": zod.number().int(),
+  "threads": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})
+export const UpdateAdminMailboxResponse = zod.array(UpdateAdminMailboxResponseItem)
+
+
+/**
+ * @summary Delete an empty mailbox
+ */
+export const DeleteAdminMailboxParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const deleteAdminMailboxResponseSignatureLinksMax = 3;
+
+
+
+export const DeleteAdminMailboxResponseItem = zod.object({
+  "id": zod.string(),
+  "address": zod.string(),
+  "displayName": zod.string(),
+  "enabled": zod.boolean(),
+  "catchAll": zod.boolean().describe('Gets mail sent to addresses nobody created'),
+  "systemSender": zod.boolean().describe('System emails are sent from and replied to this mailbox, with its signature'),
+  "signature": zod.object({
+  "enabled": zod.boolean(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "organisation": zod.string(),
+  "phone": zod.string(),
+  "website": zod.string(),
+  "email": zod.string(),
+  "links": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string()
+})).max(deleteAdminMailboxResponseSignatureLinksMax),
+  "color": zod.string().nullable().describe('#RRGGBB, or null = the app\'s brand colour'),
+  "logoFileId": zod.string().nullable(),
+  "layout": zod.enum(['side', 'stacked']),
+  "footer": zod.string()
+}).describe('A mailbox\'s signature (logo, details in its colour, a short footer)'),
+  "signatureLogoUrl": zod.string().nullable(),
+  "signaturePreview": zod.string().describe('The signature as sent (HTML)'),
+  "unread": zod.number().int(),
+  "drafts": zod.number().int(),
+  "threads": zod.number().int(),
+  "createdAt": zod.coerce.date()
+})
+export const DeleteAdminMailboxResponse = zod.array(DeleteAdminMailboxResponseItem)
+
+
+/**
+ * @summary Upload a signature logo (JPG, PNG, WebP or GIF; re-encoded to PNG)
+ */
+export const UploadAdminMailSignatureLogoBody = zod.object({
+  "file": zod.instanceof(Blob)
+})
+
+export const UploadAdminMailSignatureLogoResponse = zod.object({
+  "id": zod.string(),
+  "url": zod.string()
+})
+
+
+/**
+ * @summary Conversations in a view (inbox, starred, sent, drafts, archive, spam, trash, all), newest first, 50 a page
+ */
+export const listAdminMailThreadsQueryQMax = 200;
+
+
+
+
+export const ListAdminMailThreadsQueryParams = zod.object({
+  "mailboxId": zod.coerce.string().optional(),
+  "view": zod.enum(['inbox', 'starred', 'sent', 'drafts', 'archive', 'spam', 'trash', 'all']).optional(),
+  "q": zod.coerce.string().max(listAdminMailThreadsQueryQMax).optional(),
+  "page": zod.coerce.number().int().min(1).optional(),
+  "unread": zod.coerce.boolean().optional(),
+  "attachments": zod.coerce.boolean().optional()
+})
+
+export const ListAdminMailThreadsResponse = zod.object({
+  "view": zod.enum(['inbox', 'starred', 'sent', 'drafts', 'archive', 'spam', 'trash', 'all']),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "total": zod.number().int(),
+  "threads": zod.array(zod.object({
+  "id": zod.string(),
+  "mailboxId": zod.string(),
+  "mailboxAddress": zod.string(),
+  "subject": zod.string(),
+  "snippet": zod.string(),
+  "folder": zod.enum(['inbox', 'archive', 'spam', 'trash']),
+  "starred": zod.boolean(),
+  "unread": zod.boolean(),
+  "messageCount": zod.number().int(),
+  "hasAttachments": zod.boolean(),
+  "participants": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "lastMessageAt": zod.coerce.date(),
+  "profileId": zod.string().nullable()
+})),
+  "drafts": zod.array(zod.object({
+  "id": zod.string(),
+  "mailboxId": zod.string(),
+  "threadId": zod.string().nullable(),
+  "subject": zod.string(),
+  "to": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "snippet": zod.string(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Mark read / unread, star, or move conversations (archive, spam, trash, inbox)
+ */
+export const updateAdminMailThreadsBodyIdsMax = 200;
+
+
+
+export const UpdateAdminMailThreadsBody = zod.object({
+  "ids": zod.array(zod.string()).max(updateAdminMailThreadsBodyIdsMax),
+  "unread": zod.boolean().optional(),
+  "starred": zod.boolean().optional(),
+  "folder": zod.enum(['inbox', 'archive', 'spam', 'trash']).optional()
+})
+
+export const UpdateAdminMailThreadsResponse = zod.object({
+  "updated": zod.number().int()
+})
+
+
+/**
+ * @summary Delete conversations for good (from Trash or Spam)
+ */
+export const deleteAdminMailThreadsBodyIdsMax = 200;
+
+
+
+export const DeleteAdminMailThreadsBody = zod.object({
+  "ids": zod.array(zod.string()).max(deleteAdminMailThreadsBodyIdsMax)
+})
+
+export const DeleteAdminMailThreadsResponse = zod.object({
+  "deleted": zod.number().int()
+})
+
+
+/**
+ * @summary A conversation with its messages (opening it marks it read)
+ */
+export const GetAdminMailThreadParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetAdminMailThreadResponse = zod.object({
+  "thread": zod.object({
+  "id": zod.string(),
+  "mailboxId": zod.string(),
+  "mailboxAddress": zod.string(),
+  "subject": zod.string(),
+  "snippet": zod.string(),
+  "folder": zod.enum(['inbox', 'archive', 'spam', 'trash']),
+  "starred": zod.boolean(),
+  "unread": zod.boolean(),
+  "messageCount": zod.number().int(),
+  "hasAttachments": zod.boolean(),
+  "participants": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "lastMessageAt": zod.coerce.date(),
+  "profileId": zod.string().nullable()
+}),
+  "messages": zod.array(zod.object({
+  "id": zod.string(),
+  "threadId": zod.string().nullable(),
+  "mailboxId": zod.string(),
+  "direction": zod.enum(['in', 'out']),
+  "status": zod.enum(['received', 'draft', 'queued', 'sending', 'sent', 'failed']),
+  "from": zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+}),
+  "to": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "cc": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "bcc": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "replyTo": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "subject": zod.string(),
+  "html": zod.string().describe('Sanitised HTML; remote images are in data-remote-src until shown'),
+  "text": zod.string(),
+  "snippet": zod.string(),
+  "unread": zod.boolean(),
+  "remoteImages": zod.boolean(),
+  "authFailed": zod.boolean().describe('SPF, DKIM or DMARC failed: may not be from who it says'),
+  "authentication": zod.unknown().optional(),
+  "sentBy": zod.string().nullable(),
+  "sendAt": zod.string().nullable(),
+  "sentAt": zod.string().nullable(),
+  "error": zod.string().nullable(),
+  "date": zod.coerce.date(),
+  "withSignature": zod.boolean(),
+  "forwardOf": zod.string().nullable(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "size": zod.number().int(),
+  "inline": zod.boolean(),
+  "contentId": zod.string().nullable(),
+  "available": zod.boolean(),
+  "blockedReason": zod.string().nullable().describe('Why a received file wasn\'t kept (type not accepted, too large, virus scan)'),
+  "url": zod.string().nullable()
+}))
+})),
+  "drafts": zod.array(zod.object({
+  "id": zod.string(),
+  "threadId": zod.string().nullable(),
+  "mailboxId": zod.string(),
+  "direction": zod.enum(['in', 'out']),
+  "status": zod.enum(['received', 'draft', 'queued', 'sending', 'sent', 'failed']),
+  "from": zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+}),
+  "to": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "cc": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "bcc": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "replyTo": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "subject": zod.string(),
+  "html": zod.string().describe('Sanitised HTML; remote images are in data-remote-src until shown'),
+  "text": zod.string(),
+  "snippet": zod.string(),
+  "unread": zod.boolean(),
+  "remoteImages": zod.boolean(),
+  "authFailed": zod.boolean().describe('SPF, DKIM or DMARC failed: may not be from who it says'),
+  "authentication": zod.unknown().optional(),
+  "sentBy": zod.string().nullable(),
+  "sendAt": zod.string().nullable(),
+  "sentAt": zod.string().nullable(),
+  "error": zod.string().nullable(),
+  "date": zod.coerce.date(),
+  "withSignature": zod.boolean(),
+  "forwardOf": zod.string().nullable(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "size": zod.number().int(),
+  "inline": zod.boolean(),
+  "contentId": zod.string().nullable(),
+  "available": zod.boolean(),
+  "blockedReason": zod.string().nullable().describe('Why a received file wasn\'t kept (type not accepted, too large, virus scan)'),
+  "url": zod.string().nullable()
+}))
+})),
+  "profile": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "organization": zod.string(),
+  "tier": zod.number().int(),
+  "status": zod.string(),
+  "verificationLevel": zod.string()
+}).nullable()
+})
+
+
+/**
+ * @summary Save a draft (new, or the one with this id)
+ */
+export const saveAdminMailDraftBodyToMax = 50;
+
+export const saveAdminMailDraftBodyCcMax = 50;
+
+export const saveAdminMailDraftBodyBccMax = 50;
+
+export const saveAdminMailDraftBodySubjectMax = 300;
+
+export const saveAdminMailDraftBodyHtmlMax = 500000;
+
+export const saveAdminMailDraftBodyAttachmentIdsMax = 20;
+
+
+
+export const SaveAdminMailDraftBody = zod.object({
+  "id": zod.string().optional().describe('The draft being sent or saved again'),
+  "mailboxId": zod.string(),
+  "to": zod.array(zod.string()).max(saveAdminMailDraftBodyToMax).optional(),
+  "cc": zod.array(zod.string()).max(saveAdminMailDraftBodyCcMax).optional(),
+  "bcc": zod.array(zod.string()).max(saveAdminMailDraftBodyBccMax).optional(),
+  "subject": zod.string().max(saveAdminMailDraftBodySubjectMax).optional(),
+  "html": zod.string().max(saveAdminMailDraftBodyHtmlMax).optional(),
+  "replyToMessageId": zod.string().optional(),
+  "forwardOfMessageId": zod.string().optional(),
+  "attachmentIds": zod.array(zod.string()).max(saveAdminMailDraftBodyAttachmentIdsMax).optional(),
+  "withSignature": zod.boolean().optional()
+})
+
+export const SaveAdminMailDraftResponse = zod.object({
+  "id": zod.string(),
+  "threadId": zod.string().nullable(),
+  "mailboxId": zod.string(),
+  "direction": zod.enum(['in', 'out']),
+  "status": zod.enum(['received', 'draft', 'queued', 'sending', 'sent', 'failed']),
+  "from": zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+}),
+  "to": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "cc": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "bcc": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "replyTo": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "subject": zod.string(),
+  "html": zod.string().describe('Sanitised HTML; remote images are in data-remote-src until shown'),
+  "text": zod.string(),
+  "snippet": zod.string(),
+  "unread": zod.boolean(),
+  "remoteImages": zod.boolean(),
+  "authFailed": zod.boolean().describe('SPF, DKIM or DMARC failed: may not be from who it says'),
+  "authentication": zod.unknown().optional(),
+  "sentBy": zod.string().nullable(),
+  "sendAt": zod.string().nullable(),
+  "sentAt": zod.string().nullable(),
+  "error": zod.string().nullable(),
+  "date": zod.coerce.date(),
+  "withSignature": zod.boolean(),
+  "forwardOf": zod.string().nullable(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "size": zod.number().int(),
+  "inline": zod.boolean(),
+  "contentId": zod.string().nullable(),
+  "available": zod.boolean(),
+  "blockedReason": zod.string().nullable().describe('Why a received file wasn\'t kept (type not accepted, too large, virus scan)'),
+  "url": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary A draft
+ */
+export const GetAdminMailDraftParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetAdminMailDraftResponse = zod.object({
+  "id": zod.string(),
+  "threadId": zod.string().nullable(),
+  "mailboxId": zod.string(),
+  "direction": zod.enum(['in', 'out']),
+  "status": zod.enum(['received', 'draft', 'queued', 'sending', 'sent', 'failed']),
+  "from": zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+}),
+  "to": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "cc": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "bcc": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "replyTo": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "subject": zod.string(),
+  "html": zod.string().describe('Sanitised HTML; remote images are in data-remote-src until shown'),
+  "text": zod.string(),
+  "snippet": zod.string(),
+  "unread": zod.boolean(),
+  "remoteImages": zod.boolean(),
+  "authFailed": zod.boolean().describe('SPF, DKIM or DMARC failed: may not be from who it says'),
+  "authentication": zod.unknown().optional(),
+  "sentBy": zod.string().nullable(),
+  "sendAt": zod.string().nullable(),
+  "sentAt": zod.string().nullable(),
+  "error": zod.string().nullable(),
+  "date": zod.coerce.date(),
+  "withSignature": zod.boolean(),
+  "forwardOf": zod.string().nullable(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "size": zod.number().int(),
+  "inline": zod.boolean(),
+  "contentId": zod.string().nullable(),
+  "available": zod.boolean(),
+  "blockedReason": zod.string().nullable().describe('Why a received file wasn\'t kept (type not accepted, too large, virus scan)'),
+  "url": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Discard a draft
+ */
+export const DeleteAdminMailDraftParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteAdminMailDraftResponse = zod.object({
+  "deleted": zod.boolean()
+})
+
+
+/**
+ * @summary Send (or reply / forward); it goes after the undo delay
+ */
+export const sendAdminMailBodyToMax = 50;
+
+export const sendAdminMailBodyCcMax = 50;
+
+export const sendAdminMailBodyBccMax = 50;
+
+export const sendAdminMailBodySubjectMax = 300;
+
+export const sendAdminMailBodyHtmlMax = 500000;
+
+export const sendAdminMailBodyAttachmentIdsMax = 20;
+
+
+
+export const SendAdminMailBody = zod.object({
+  "id": zod.string().optional().describe('The draft being sent or saved again'),
+  "mailboxId": zod.string(),
+  "to": zod.array(zod.string()).max(sendAdminMailBodyToMax).optional(),
+  "cc": zod.array(zod.string()).max(sendAdminMailBodyCcMax).optional(),
+  "bcc": zod.array(zod.string()).max(sendAdminMailBodyBccMax).optional(),
+  "subject": zod.string().max(sendAdminMailBodySubjectMax).optional(),
+  "html": zod.string().max(sendAdminMailBodyHtmlMax).optional(),
+  "replyToMessageId": zod.string().optional(),
+  "forwardOfMessageId": zod.string().optional(),
+  "attachmentIds": zod.array(zod.string()).max(sendAdminMailBodyAttachmentIdsMax).optional(),
+  "withSignature": zod.boolean().optional()
+})
+
+export const SendAdminMailResponse = zod.object({
+  "id": zod.string(),
+  "threadId": zod.string(),
+  "sendAt": zod.string(),
+  "undoSeconds": zod.number().int()
+})
+
+
+/**
+ * @summary Undo send while the email still waits (it becomes a draft again)
+ */
+export const UndoAdminMailSendParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UndoAdminMailSendResponse = zod.object({
+  "id": zod.string(),
+  "threadId": zod.string().nullable(),
+  "mailboxId": zod.string(),
+  "direction": zod.enum(['in', 'out']),
+  "status": zod.enum(['received', 'draft', 'queued', 'sending', 'sent', 'failed']),
+  "from": zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+}),
+  "to": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "cc": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "bcc": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "replyTo": zod.array(zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})),
+  "subject": zod.string(),
+  "html": zod.string().describe('Sanitised HTML; remote images are in data-remote-src until shown'),
+  "text": zod.string(),
+  "snippet": zod.string(),
+  "unread": zod.boolean(),
+  "remoteImages": zod.boolean(),
+  "authFailed": zod.boolean().describe('SPF, DKIM or DMARC failed: may not be from who it says'),
+  "authentication": zod.unknown().optional(),
+  "sentBy": zod.string().nullable(),
+  "sendAt": zod.string().nullable(),
+  "sentAt": zod.string().nullable(),
+  "error": zod.string().nullable(),
+  "date": zod.coerce.date(),
+  "withSignature": zod.boolean(),
+  "forwardOf": zod.string().nullable(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "size": zod.number().int(),
+  "inline": zod.boolean(),
+  "contentId": zod.string().nullable(),
+  "available": zod.boolean(),
+  "blockedReason": zod.string().nullable().describe('Why a received file wasn\'t kept (type not accepted, too large, virus scan)'),
+  "url": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Try sending a failed email again
+ */
+export const RetryAdminMailSendParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RetryAdminMailSendResponse = zod.object({
+  "id": zod.string()
+})
+
+
+/**
+ * @summary Upload an attachment for an email being written (PDF, images, Office, OpenDocument, text; up to 15 MB)
+ */
+export const UploadAdminMailAttachmentBody = zod.object({
+  "file": zod.instanceof(Blob)
+})
+
+export const UploadAdminMailAttachmentResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "mimeType": zod.string(),
+  "size": zod.number().int(),
+  "inline": zod.boolean(),
+  "contentId": zod.string().nullable(),
+  "available": zod.boolean(),
+  "blockedReason": zod.string().nullable().describe('Why a received file wasn\'t kept (type not accepted, too large, virus scan)'),
+  "url": zod.string().nullable()
+})
+
+
+/**
+ * @summary Download or view an attachment
+ */
+export const GetAdminMailFileParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetAdminMailFileResponse = zod.unknown()
+
+
+/**
+ * @summary An image from the internet in a received email, fetched by the server (Show images), so the sender never sees the admin
+ */
+export const getAdminMailImageQueryUrlMax = 2000;
+
+
+
+export const GetAdminMailImageQueryParams = zod.object({
+  "url": zod.coerce.string().max(getAdminMailImageQueryUrlMax)
+})
+
+export const GetAdminMailImageResponse = zod.unknown()
+
+
+/**
+ * @summary Address suggestions for To / Cc / Bcc (registered users and people mailed before)
+ */
+export const listAdminMailContactsQueryQMax = 100;
+
+
+
+export const ListAdminMailContactsQueryParams = zod.object({
+  "q": zod.coerce.string().max(listAdminMailContactsQueryQMax)
+})
+
+export const ListAdminMailContactsResponseItem = zod.object({
+  "address": zod.string(),
+  "name": zod.string().nullable()
+})
+export const ListAdminMailContactsResponse = zod.array(ListAdminMailContactsResponseItem)
 
 

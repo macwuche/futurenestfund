@@ -23,6 +23,7 @@ Secret values (passwords, keys, connection strings) are **not** in this file. Th
 | 11 | Grant plans: admin-made plans (industry, award, application fee, logo, own application form with file uploads); industries (admin-managed, chosen at sign-up, drive recommendations); the application fee is charged on approval and may take the account balance below $0; matchmaking, the sample grants and the free-form application removed | **Built and tested 2026-11-05** (`work.md` §20, migration 0011 + Supabase 0005); committed `010d4b9`; deployed 2026-11-05 at `f39c238` |
 | 12 | Branding: the admin sets the application's name, one brand colour for both sides (live preview; readable text worked out for any colour) and a logo (upload or link); shown everywhere, emails included; open screens follow within 15 s | **Built and tested 2026-11-06** (`work.md` §24, migration 0013), committed `1c4b760`, **deployed 2026-11-06** |
 | 13 | Card payments: customers save the physical card they collected at the office (number and CVV encrypted) and add funds from it or are paid to it through a **Saved card** payment method; admins get **Card Payments** (overview and analytics, saved cards with block / unblock and an audited "Show card details", a reported list for lost / stolen / expired cards, the card request queue) | **Deployed 2026-11-20** (`a93e715`, migration 0015 + Supabase 0007). **Changed 2026-11-20:** cards are active as soon as they're saved, with a "card added" email; admins only approve the deposits and withdrawals (migration 0016) |
+| 14 | Mail box: Gmail-style admin Mail (`/admin/mail`) for mailboxes on the domain (e.g. support@futurenestfund.org): receive through Resend's webhook, read, reply / reply all / forward, attachments, drafts, undo send, search, folders, shortcuts; Settings → Email sets up the domain, DNS checks, webhook, mailboxes and designed signatures (logo, colour, footer); system emails come from the system mailbox. Full record: [`email.md`](../email.md) | **Built and tested 2026-11-20** (migration 0017 + Supabase 0008), not deployed |
 | 7 | UI overhaul: admin email settings + health checks, Settings rebuilt, one design system, admin layout, admin tables on phones, applicant fixes (review scored the UI 67/100) | Done: 7.1 on 2026-10-31, 7.2–7.7 on 2026-11-01 ([`work.md`](../work.md) §13 and the log after it) |
 
 What still needs you is listed in §12 (go-live checklist) and §15 (open items).
@@ -283,6 +284,7 @@ Dashboard settings (see §12): Site URL and Redirect URLs are set to `https://ac
 | `lib/db/migrations/0013_branding.sql` | `demo_settings.branding` (name, colour, logo) |
 | `lib/db/migrations/0014_grant_award_range.sql` | `demo_grant_plans.amount_mode`, `max_amount_cents` (range plans; `amount_cents` is then the minimum); `demo_applications.requested_cents` |
 | `lib/db/migrations/0015_card_payments.sql` | `demo_payment_cards` (saved cards: sealed number and CVV, HMAC number hash, status), `demo_reported_cards`; `demo_payment_methods.method_type`; `demo_requests.card_id` |
+| `lib/db/migrations/0017_mail.sql` | `demo_mail_mailboxes`, `demo_mail_threads`, `demo_mail_messages`, `demo_mail_files`, `demo_mail_inbound` (Phase 14, `email.md`) |
 | `lib/db/migrations/0016_card_auto_active.sql` | `demo_payment_cards.status` default `Active`; existing `Pending` / `Verified` cards become `Active` |
 | `lib/db/migrations/0007_email_settings.sql` | `demo_settings.email_config`, `email_secrets`, `email_hook_seen_at`, `email_hook_result`; `demo_notifications.email_last_error` |
 | `lib/db/supabase/migrations/0001_user_roles.sql` | `user_roles` (Supabase only) |
@@ -291,6 +293,7 @@ Dashboard settings (see §12): Site URL and Redirect URLs are set to `https://ac
 | `lib/db/supabase/migrations/0004_payment_methods.sql` | `app_api_all` policy for `demo_payment_methods`; no Data API grants |
 | `lib/db/supabase/migrations/0005_grant_plans.sql` | `app_api_all` policies for `demo_industries` and `demo_grant_plans`; no Data API grants |
 | `lib/db/supabase/migrations/0006_tier_requests.sql` | `app_api_all` policy for `demo_tier_requests`; no Data API grants |
+| `lib/db/supabase/migrations/0008_mail.sql` | `app_api_all` policies for the five mail tables; no Data API grants |
 | `lib/db/supabase/migrations/0007_card_payments.sql` | `app_api_all` policies for `demo_payment_cards` and `demo_reported_cards`; no Data API grants |
 
 Changing the schema: edit `lib/db/src/schema` → `pnpm --filter @workspace/db run generate` → review the new SQL → `pnpm --filter @workspace/scripts run db:migrate`. A new table also needs an `app_api_all` policy in a new Supabase migration. Both existing databases were "baselined" once on 2026-10-29 (`db:migrate -- --baseline`), because they had been built with `drizzle-kit push`.
@@ -300,6 +303,8 @@ Changing the schema: edit `lib/db/src/schema` → `pnpm --filter @workspace/db r
 ## 7. Email
 
 All email goes through **Resend** (`lib/email.ts`). Email is off until there's an API key and a sender address.
+
+**Full email documentation, including the planned admin Mail box and new email settings: [`email.md`](../email.md).**
 
 **Admin → Settings → Email** (`lib/emailSettings.ts`, `components/email-settings.tsx`, Phase 7.1) is where it's set up, with no SSH or restart:
 - **Resend API key** and **Send Email Hook secret**: write-only. Each is encrypted (AES-256-GCM, field-bound) with a master key that never goes into the database before it's stored in `demo_settings.email_secrets`; the browser only ever gets a hint like `re_••••abcd`. The master key is `SETTINGS_ENCRYPTION_KEY` when set, otherwise a key file the API creates itself on first start (`settings.key` next to `UPLOAD_DIR`, mode 600; on the VPS `/var/lib/futurenestfund/settings.key`, not in the nightly backup; `SETTINGS_KEY_FILE` overrides the place), so the admin can save the Resend key with nothing done on the server (2026-11-01). Losing the key file means entering the secrets again.
@@ -420,7 +425,7 @@ No secrets. `PORT` and `BASE_PATH` for Vite; everything else comes from `GET /ap
 | Command | What it does |
 |---|---|
 | `pnpm run typecheck` | Type-check every package |
-| `pnpm test` | Vitest unit tests (144; one more runs against a real Redis with `TEST_REDIS_URL`) |
+| `pnpm test` | Vitest unit tests (171; one more runs against a real Redis with `TEST_REDIS_URL`) |
 | `pnpm --filter @workspace/api-spec run codegen` | Regenerate API hooks / validators after editing `openapi.yaml` |
 | `pnpm --filter @workspace/db run generate` | Write a new migration from schema changes |
 | `pnpm --filter @workspace/scripts run db:migrate` | Apply pending migrations (`-- --baseline` once for a database built with push) |
@@ -669,6 +674,8 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 - **Decision (2026-11-20, the owner's):** no card check. A card is usable as soon as the customer saves it (status `Active`), and they're emailed that it was added. The only approval is each deposit and withdrawal made with it; admins can still block a card and keep the reported list.
 - Tests: `cardRules.test.ts` (7), the card-added email in `emailTemplates.test.ts`, `.unlazy/phase13-card-payments.mjs` 11/11, `.unlazy/phase13-ui.mjs` 9/9 desktop + 9/9 phone (through `proxy.mjs`).
 - **To go live:** commit, `deploy.sh` (migration 0016 for the change; 0015 + Supabase 0007 are already live), then create a Saved card deposit and/or withdrawal method in Payment Gateway (Card Payments links to it).
+
+**Phase 14 (Mail box)**, built and tested 2026-11-20, everything in [`email.md`](../email.md) (§13 as built). **To go live:** `deploy.sh` (0016, 0017, Supabase 0008), then `docs/DEPLOY.md` step 10 (full-access Resend key, domain `futurenestfund.org`, DNS records at Cloudflare, receiving, the support@ mailbox and its signature, round-trip test).
 
 **Limits worth knowing:**
 - The API can't sign anyone in by itself if Supabase is down; requests answer 503 until it's back.

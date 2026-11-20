@@ -18,10 +18,16 @@ import { masterKey, open, seal, SecretBoxError } from "./secretBox";
  * - Applied without a restart: saving reloads the settings in this process, and every process re-reads them each minute.
  */
 
-type Source = "settings" | "environment" | "none";
-type Config = { fromName?: string | null; fromAddress?: string | null; replyTo?: string | null; signature?: string | null; supportEmail?: string | null; updatedAt?: string; updatedBy?: string };
+type Source = "settings" | "environment" | "mailbox" | "none";
+/** The Mail box's domain in Resend and its webhook (Phase 14, email.md). */
+export type MailDomainConfig = { id: string; name: string; region: string | null; addedAt: string; addedBy: string };
+export type MailWebhookConfig = { id: string; endpoint: string; createdAt: string; createdBy: string };
+type Config = {
+  fromName?: string | null; fromAddress?: string | null; replyTo?: string | null; signature?: string | null; supportEmail?: string | null; updatedAt?: string; updatedBy?: string;
+  mailDomain?: MailDomainConfig | null; mailWebhook?: MailWebhookConfig | null;
+};
 type SecretEntry = { sealed: string; hint: string; updatedAt: string; updatedBy: string };
-const SECRETS = { resendApiKey: "Resend API key", hookSecret: "Send Email Hook secret" } as const;
+const SECRETS = { resendApiKey: "Resend API key", hookSecret: "Send Email Hook secret", inboundSecret: "Resend webhook signing secret" } as const;
 export type SecretName = keyof typeof SECRETS;
 type Secrets = Partial<Record<SecretName, SecretEntry>>;
 
@@ -36,9 +42,17 @@ let unreadable: Partial<Record<SecretName, boolean>> = {};
 let hookSeenAt: Date | null = null;
 let hookResult: string | null = null;
 
+/**
+ * The mailbox that sends system emails (notifications, money, tiers), set by mail.ts: its address becomes the sender
+ * and reply-to (so replies land in Mail, decision Q7) and its signature replaces the plain-text one (Q10).
+ */
+export type SystemSender = { name: string; address: string; signatureHtml: string; signatureText: string };
+let systemSender: SystemSender | null = null;
+export function setSystemSender(next: SystemSender | null) { systemSender = next; apply(); }
+
 const formatFrom = (name: string | null, address: string) => (name ? `"${name.replace(/["\\\r\n<>]/g, "")}" <${address}>` : address);
 const hintFor = (secret: string) => {
-  const prefix = /^(re_|v1,whsec_)/.exec(secret)?.[1] ?? "";
+  const prefix = /^(re_|v1,whsec_|whsec_)/.exec(secret)?.[1] ?? "";
   return `${prefix}••••${secret.slice(-4)}`;
 };
 
@@ -48,14 +62,16 @@ function effective() {
   const envFrom = parseFrom(env.from);
   const pick = <T>(saved: T | null | undefined, fromEnv: T | null | undefined): { value: T | null; source: Source } =>
     saved != null ? { value: saved, source: "settings" } : fromEnv != null ? { value: fromEnv, source: "environment" } : { value: null, source: "none" };
-  const fromAddress = pick(config.fromAddress, envFrom?.address);
-  const fromName = pick(config.fromName, envFrom?.name);
+  const sys = systemSender;
+  const fromAddress = sys ? { value: sys.address, source: "mailbox" as Source } : pick(config.fromAddress, envFrom?.address);
+  const fromName = sys ? { value: sys.name, source: "mailbox" as Source } : pick(config.fromName, envFrom?.name);
   return {
     apiKey: pick(opened.resendApiKey, env.apiKey),
     hookSecret: pick(opened.hookSecret, env.hookSecret),
+    inboundSecret: pick(opened.inboundSecret, process.env["RESEND_WEBHOOK_SECRET"]?.trim() || null),
     fromName, fromAddress,
     from: fromAddress.value ? formatFrom(fromName.value ?? appName(), fromAddress.value) : null,
-    replyTo: pick(config.replyTo, env.replyTo),
+    replyTo: sys ? { value: sys.address, source: "mailbox" as Source } : pick(config.replyTo, env.replyTo),
     signature: pick(config.signature, null),
     supportEmail: pick(config.supportEmail, envSupport()),
   };
@@ -64,7 +80,10 @@ function effective() {
 function apply() {
   const e = effective();
   setEmailRuntime({ apiKey: e.apiKey.value, from: e.from, replyTo: e.replyTo.value, hookSecret: e.hookSecret.value });
-  setEmailBranding({ signature: e.signature.value, supportEmail: e.supportEmail.value });
+  setEmailBranding({
+    signature: e.signature.value, supportEmail: e.supportEmail.value,
+    ...(systemSender?.signatureHtml ? { signatureHtml: systemSender.signatureHtml, signatureText: systemSender.signatureText } : {}),
+  });
 }
 
 const asObject = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -138,6 +157,34 @@ export function emailSettingsView() {
     updatedAt: config.updatedAt ?? null,
     updatedBy: config.updatedBy ?? null,
   };
+}
+
+/* ---------- the Mail box's domain, webhook and webhook secret (mail.ts / mailSetup.ts) ---------- */
+
+export const mailDomainConfig = () => config.mailDomain ?? null;
+export const mailWebhookConfig = () => config.mailWebhook ?? null;
+export const inboundSecret = () => effective().inboundSecret.value;
+export const inboundSecretView = () => {
+  const v = effective().inboundSecret;
+  return { set: v.value !== null, source: v.source, hint: v.value ? hintFor(v.value) : null, unreadable: Boolean(unreadable.inboundSecret) };
+};
+
+/** Saves the domain / webhook (null removes) and the webhook secret, with audit lines, in one transaction. */
+export async function saveMailConfig(patch: { mailDomain?: MailDomainConfig | null; mailWebhook?: MailWebhookConfig | null; inboundSecret?: string | null }, actor: string, audits: string[]) {
+  const { key, problem } = masterKey();
+  if (patch.inboundSecret && !key) throw new DemoInputError(`Secrets can't be saved yet: ${problem}`);
+  await db.transaction(async (tx) => {
+    const [row] = await tx.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, PLATFORM)).for("update");
+    const next: Config = { ...(asObject(row?.emailConfig) as Config) };
+    if (patch.mailDomain !== undefined) next.mailDomain = patch.mailDomain;
+    if (patch.mailWebhook !== undefined) next.mailWebhook = patch.mailWebhook;
+    const sealedNext: Secrets = { ...(asObject(row?.emailSecrets) as Secrets) };
+    if (patch.inboundSecret === null) delete sealedNext.inboundSecret;
+    else if (patch.inboundSecret) sealedNext.inboundSecret = { sealed: seal(patch.inboundSecret, "inboundSecret", key!), hint: hintFor(patch.inboundSecret), updatedAt: new Date().toISOString(), updatedBy: actor };
+    await tx.update(demoSettingsTable).set({ emailConfig: next, emailSecrets: sealedNext }).where(eq(demoSettingsTable.id, PLATFORM));
+    for (const action of audits) await tx.insert(demoAuditTable).values({ actor, action });
+  });
+  await loadEmailSettings();
 }
 
 /** For the Help Centre and other public places: the support address, if one is set. */

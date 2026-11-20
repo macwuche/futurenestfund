@@ -95,7 +95,7 @@ Status: ☐ not started · ◐ in progress · ☑ done. "Who": **you** = in a da
 | 8c | Applicant signs up (real inbox), confirms, signs in | you | ☑ 2026-10-31 (`/api/applicant/dashboard`, `/account`, `/kyc` → 200 in the API log; those routes only answer signed-in applicants; confirmation email from Supabase's built-in sender arrived) | Applicant dashboard loads |
 | 8d | Admin → Settings → "Send test errors" | you | ☑ 2026-10-31 (server `240ee29f…` and browser `a746d44f…` both in `fnf-pm2 logs`) | Both references found in `fnf-pm2 logs` |
 | 9 | `postgresql-client` (pg_dump ≥ 17), log rotation, nightly backup cron, one manual backup | you | ☑ 2026-10-31 (pg_dump 18.6; `db-20261031-1503.dump` 32K + `uploads-20261031-1503.tar.gz`) | Files in `/var/backups/futurenestfund` |
-| 10 | Email, all in **Admin → Settings → Email** (since 2026-11-01 the API creates its own encryption key file, `/var/lib/futurenestfund/settings.key`; nothing to add to `api.env`; deployed in d9f2edc, file present): Resend API key, sender (records already exist for **`mail.futurenestfund.org`**, so use e.g. `no-reply@mail.futurenestfund.org`), support address, signature, test email; Supabase Send Email Hook → the URL shown there, secret saved there (steps in `docs/DEPLOY.md`) | you | ☐ | All email health checks green; a password-reset email arrives from Resend |
+| 10 | Email and the Mail box (Phase 14, after deploying it), all in **Admin → Settings → Email** (since 2026-11-01 the API creates its own encryption key file, `/var/lib/futurenestfund/settings.key`; nothing to add to `api.env`; deployed in d9f2edc, file present): Resend API key, sender (records already exist for **`mail.futurenestfund.org`**, so use e.g. `no-reply@mail.futurenestfund.org`), support address, signature, test email; Supabase Send Email Hook → the URL shown there, secret saved there (steps in `docs/DEPLOY.md`) | you | ☐ | All email health checks green; a password-reset email arrives from Resend |
 | 11 | Optional: virus scanning: check `free -m`; if there's room, `apt install clamav-daemon`, `CLAMAV_SOCKET` in `api.env`, restart; EICAR test (steps in `docs/DEPLOY.md`) | you | ☐ (decide on memory first, §8) | Settings → Monitoring says **Scanning**; an EICAR upload is refused |
 
 Step 6.5 counts as **done** when steps 1–9 have been followed once end to end. Steps 10 and 11 can follow later.
@@ -124,6 +124,8 @@ The app is live at `a93e715` (2026-11-20, card payments, Phase 13; before that `
 | Check the 40 starting industries | Admin → Settings → Industries | The starting list is used |
 | Set the application name, colour and logo | Admin → Settings → Branding | The app is called "GrantApp" in navy; the admin side's accents turn navy too (they were lime) |
 | Set each tier's limits and cards, and the Tier 2 / Tier 3 upgrade forms | Admin → Settings → Tiers | Every tier has the old platform-wide withdrawal limits, no top-up limits, every card; nobody can ask to move up |
+
+**Waiting to deploy:** `c19a631` (cards active once saved, migration 0016) and Phase 14 Mail box (migration 0017 + Supabase 0008). After `deploy.sh`, follow `docs/DEPLOY.md` step 10, which now sets up the domain `futurenestfund.org`, receiving and the support@ mailbox (`email.md`).
 
 Card payments are deployed (`a93e715`, migration 0015 and Supabase 0007 applied). Rolling back to `afb0f64` works: the migrations only add tables and columns; older code ignores saved cards and shows card requests as plain requests through their method.
 

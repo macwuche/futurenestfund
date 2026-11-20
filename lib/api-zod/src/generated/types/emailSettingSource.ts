@@ -6,11 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * mailbox = taken from the mailbox that sends system emails (Phase 14)
+ */
 export type EmailSettingSource = typeof EmailSettingSource[keyof typeof EmailSettingSource];
 
 
 export const EmailSettingSource = {
   settings: 'settings',
   environment: 'environment',
+  mailbox: 'mailbox',
   none: 'none',
 } as const;

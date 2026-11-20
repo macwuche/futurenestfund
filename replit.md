@@ -15,6 +15,7 @@ This is an explicitly labeled **interactive demo**, not a production financial s
 - Sample seeding: `artifacts/api-server/src/lib/demoSeed.ts`
 - Workspace behavior/transactions: `artifacts/api-server/src/lib/demoWorkspace.ts`
 - Applicant records (applications, milestones): `artifacts/api-server/src/lib/applicantRecords.ts`; uploads: `uploads.ts`, `kyc.ts`, `avatars.ts`
+- Admin Mail box (Phase 14, full record in `email.md`): `artifacts/api-server/src/lib/mail*.ts`, `resendApi.ts`, `routes/mail.ts`; UI `src/pages/admin-mail.tsx`, `components/mail/*`, `components/mail-settings.tsx`. Received HTML is cleaned server-side (`mailHtml.ts`) and shown in a shadow root; remote images only through `/api/admin/mail/image`
 - Admin operations (application decisions, deposit/withdrawal approvals, KYC review, ledger, CSV export, search): `artifacts/api-server/src/lib/adminOps.ts`; admin UI in `src/pages/admin.tsx`, `admin-ops.tsx`, `components/admin-bits.tsx`
 
 ## Run and verify

@@ -24,6 +24,7 @@ import { BrandingProvider } from '@/lib/branding';
 import { TierPage } from '@/pages/applicant-tier';
 import { PaymentCardsPage } from '@/pages/applicant-payment-cards';
 import { AdminCardPaymentsPage } from '@/pages/admin-card-payments';
+import { AdminMailPage } from '@/pages/admin-mail';
 import {
   Redirect,
   Route,
@@ -51,6 +52,7 @@ function Router() {
         <Route path="/cards" component={CardsPage} />
         <Route path="/payment-cards" component={PaymentCardsPage} />
         <Route path="/admin/card-payments" component={AdminCardPaymentsPage} />
+        <Route path="/admin/mail" component={AdminMailPage} />
         <Route path="/transactions" component={TransactionsPage} />
         <Route path="/withdrawals" component={WithdrawalsPage} />
         <Route path="/deposits" component={DepositsPage} />

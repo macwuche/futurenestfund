@@ -17,6 +17,7 @@ import { TierSettings } from '@/components/tier-settings';
 import { BrandingSettings } from '@/components/branding-settings';
 import { UserWithdrawalSources } from '@/components/withdrawal-sources';
 import { MonitoringSettings, RateLimitSettings, VirusScanSettings } from '@/components/monitoring-settings';
+import { MailSetupCard } from '@/components/mail-settings';
 import { EmailSettingsCard } from '@/components/email-settings';
 import { CardControls } from '@/components/card-controls';
 import { CardTypeSettings } from '@/components/card-type-settings';
@@ -473,7 +474,7 @@ function UserApplications({ userId }: { userId: string }) {
 const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: Snowflake, hint: 'Global freeze and the rules every approval follows' },
   { id: 'branding', label: 'Branding', icon: Palette, hint: 'The application name, brand colour and logo, on both sides and in every email' },
-  { id: 'email', label: 'Email', icon: Mail, hint: 'Resend key, sender, signature and health checks' },
+  { id: 'email', label: 'Email', icon: Mail, hint: 'Resend key, domain and DNS, receiving, mailboxes, signatures and health checks' },
   { id: 'tiers', label: 'Tiers', icon: Gauge, hint: 'What each tier allows: withdrawal and top-up limits, cards, and the upgrade forms' },
   { id: 'cards', label: 'Cards', icon: CreditCard, hint: 'The card types applicants can buy, with their prices and fees' },
   { id: 'industries', label: 'Industries', icon: Briefcase, hint: 'The industries users choose from and grant plans belong to' },
@@ -513,7 +514,7 @@ export function AdminSettingsPage() {
           </header>
           {current.id === 'general' && <GeneralSettings />}
           {current.id === 'branding' && <BrandingSettings />}
-          {current.id === 'email' && <EmailSettingsCard />}
+          {current.id === 'email' && <div className="space-y-5"><MailSetupCard /><EmailSettingsCard /></div>}
           {current.id === 'tiers' && <TierSettings />}
           {current.id === 'cards' && <CardTypeSettings />}
           {current.id === 'industries' && <IndustrySettings />}

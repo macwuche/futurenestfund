@@ -189,10 +189,14 @@ ls -lh /var/backups/futurenestfund
 Email is set up entirely in the app: **Admin → Settings → Email**. Nothing is needed on the server.
 
 1. **Encryption key (automatic):** the Resend key and hook secret saved in Settings are encrypted with a master key that never goes into the database. The API creates it by itself on first start as `/var/lib/futurenestfund/settings.key` (user `futurenestfund`, mode 600). It survives deploys and isn't in the nightly backup, so a stolen backup can't reveal the secrets. If the file is ever lost (e.g. a new server), Settings says the saved secrets can't be read and you enter them again. To check it's there: `ls -l /var/lib/futurenestfund/settings.key`. (Setting `SETTINGS_ENCRYPTION_KEY` in `api.env` still works and takes precedence; don't add it now, or the secrets saved with the file can't be read.)
-2. **Resend:** records already exist for `mail.futurenestfund.org`, so check that domain in Resend → Domains first (otherwise add a domain and put the DNS records it lists in Cloudflare; they're on their own names and **don't affect the website**). Create an API key (Sending access is enough).
-3. **Admin → Settings → Email:** paste the API key; set the sender name and address (e.g. `no-reply@mail.futurenestfund.org`), the support address and the signature; save. The health checks show whether Resend accepts the key and the domain is verified. Send a test email to yourself.
-4. **Supabase → Authentication → Hooks → Send Email** → HTTPS: paste the hook URL shown in Settings (`https://access.futurenestfund.org/api/hooks/supabase/send-email`), generate the secret, and save it as **Hook secret** in Settings. No restart is needed.
-5. Test with a password reset: it should arrive from your sender with the signature, and the "Supabase sign-in emails" check turns green.
+2. **Resend:** create a **full-access** API key (Resend → API Keys). Full access lets the app add the domain and the webhook itself (Phase 14, `email.md`).
+3. **Admin → Settings → Email → "Sending and sender":** paste the API key and save.
+4. **Admin → Settings → Email → "Domain and DNS":** add `futurenestfund.org` (region Europe). Copy every record listed into Cloudflare as **DNS only**: the `resend._domainkey` TXT (DKIM), the `send` MX and TXT (SPF / bounces) and the **MX on the root** (`@`, receiving). None of them touch the website's records. Press **Check DNS**, then **Verify**. Add the suggested `_dmarc` TXT too.
+5. **"Receiving (webhook)":** press **Turn on receiving** (it creates the Resend webhook to `https://access.futurenestfund.org/api/hooks/resend/inbound` and stores its secret). The Free plan allows one webhook: delete any unused one in Resend first.
+6. **"Mailboxes and signatures":** create `support` (it becomes the catch-all and the sender of system emails, so applicants' replies land in Mail). Edit its signature (logo, colour, footer).
+7. **"Round-trip test":** run it; it should arrive within a minute. Then send a test email to yourself and reply to it from your own inbox: the reply shows in **Admin → Mail**.
+8. **Supabase → Authentication → Hooks → Send Email** → HTTPS: paste the hook URL shown in Settings (`https://access.futurenestfund.org/api/hooks/supabase/send-email`), generate the secret, and save it as **Hook secret** in Settings. No restart is needed.
+9. Test with a password reset: it should arrive from support@ with the signature, and the "Supabase sign-in emails" check turns green.
 
 Values saved in Settings win over `RESEND_API_KEY` / `EMAIL_FROM` / `SEND_EMAIL_HOOK_SECRET` in `api.env`; those still work as a fallback. Backups contain the secrets only in encrypted form; the master key isn't in them.
 

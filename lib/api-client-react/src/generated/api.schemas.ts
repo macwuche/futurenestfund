@@ -5,6 +5,483 @@
  * Grant applicant and administration dashboard API
  * OpenAPI spec version: 0.1.0
  */
+export type MailView = typeof MailView[keyof typeof MailView];
+
+
+export const MailView = {
+  inbox: 'inbox',
+  starred: 'starred',
+  sent: 'sent',
+  drafts: 'drafts',
+  archive: 'archive',
+  spam: 'spam',
+  trash: 'trash',
+  all: 'all',
+} as const;
+
+export interface MailAddress {
+  address: string;
+  /** @nullable */
+  name: string | null;
+}
+
+export type MailSignatureLinksItem = {
+  label: string;
+  url: string;
+};
+
+export type MailSignatureLayout = typeof MailSignatureLayout[keyof typeof MailSignatureLayout];
+
+
+export const MailSignatureLayout = {
+  side: 'side',
+  stacked: 'stacked',
+} as const;
+
+/**
+ * A mailbox's signature (logo, details in its colour, a short footer)
+ */
+export interface MailSignature {
+  enabled: boolean;
+  name: string;
+  title: string;
+  organisation: string;
+  phone: string;
+  website: string;
+  email: string;
+  /** @maxItems 3 */
+  links: MailSignatureLinksItem[];
+  /**
+     * #RRGGBB, or null = the app's brand colour
+     * @nullable
+     */
+  color: string | null;
+  /** @nullable */
+  logoFileId: string | null;
+  layout: MailSignatureLayout;
+  footer: string;
+}
+
+export interface Mailbox {
+  id: string;
+  address: string;
+  displayName: string;
+  enabled: boolean;
+  /** Gets mail sent to addresses nobody created */
+  catchAll: boolean;
+  /** System emails are sent from and replied to this mailbox, with its signature */
+  systemSender: boolean;
+  signature: MailSignature;
+  /** @nullable */
+  signatureLogoUrl: string | null;
+  /** The signature as sent (HTML) */
+  signaturePreview: string;
+  unread: number;
+  drafts: number;
+  threads: number;
+  createdAt: string;
+}
+
+export interface MailboxInput {
+  /**
+     * The part before @, or the full address on the domain
+     * @maxLength 254
+     */
+  address: string;
+  /** @maxLength 60 */
+  displayName?: string;
+}
+
+export interface MailboxUpdate {
+  /** @maxLength 60 */
+  displayName?: string;
+  enabled?: boolean;
+  catchAll?: true;
+  systemSender?: true;
+  signature?: MailSignature;
+}
+
+export interface MailLogo {
+  id: string;
+  url: string;
+}
+
+export type MailDomainInputRegion = typeof MailDomainInputRegion[keyof typeof MailDomainInputRegion];
+
+
+export const MailDomainInputRegion = {
+  'us-east-1': 'us-east-1',
+  'eu-west-1': 'eu-west-1',
+  'sa-east-1': 'sa-east-1',
+  'ap-northeast-1': 'ap-northeast-1',
+} as const;
+
+export interface MailDomainInput {
+  /** @maxLength 253 */
+  name: string;
+  region?: MailDomainInputRegion;
+}
+
+export interface MailDnsRecord {
+  /** What it's for in Resend: DKIM, SPF, Receiving… */
+  record: string;
+  name: string;
+  type: string;
+  value: string;
+  /** @nullable */
+  priority: number | null;
+  status: string;
+  ttl: string;
+}
+
+export type MailSetupKeyAccess = typeof MailSetupKeyAccess[keyof typeof MailSetupKeyAccess];
+
+
+export const MailSetupKeyAccess = {
+  full: 'full',
+  sending: 'sending',
+  invalid: 'invalid',
+  missing: 'missing',
+  unreachable: 'unreachable',
+} as const;
+
+/**
+ * @nullable
+ */
+export type MailSetupDomain = {
+  name: string;
+  /** @nullable */
+  region: string | null;
+  addedAt: string;
+  addedBy: string;
+} | null;
+
+/**
+ * @nullable
+ */
+export type MailSetupResend = {
+  status: string;
+  sending: string;
+  receiving: string;
+  records: MailDnsRecord[];
+} | null;
+
+/**
+ * @nullable
+ */
+export type MailSetupWebhook = {
+  endpoint: string;
+  createdAt: string;
+  createdBy: string;
+} | null;
+
+export type MailSetupWebhookSecret = {
+  set: boolean;
+  source: string;
+  /** @nullable */
+  hint: string | null;
+  unreadable: boolean;
+};
+
+export type MailSetupInbound = {
+  /** @nullable */
+  lastCallAt: string | null;
+  /** @nullable */
+  lastStatus: string | null;
+  /** @nullable */
+  lastError: string | null;
+  waiting: number;
+  failed: number;
+  receivedLast24h: number;
+  sentLast24h: number;
+  systemSentLast24h: number;
+};
+
+export interface MailSetup {
+  keyAccess: MailSetupKeyAccess;
+  /** @nullable */
+  appUrl: string | null;
+  /** @nullable */
+  inboundUrl: string | null;
+  /** @nullable */
+  domain: MailSetupDomain;
+  /** @nullable */
+  resend: MailSetupResend;
+  /** @nullable */
+  domainError: string | null;
+  /** @nullable */
+  webhook: MailSetupWebhook;
+  webhookSecret: MailSetupWebhookSecret;
+  inbound: MailSetupInbound;
+  mailboxes: Mailbox[];
+  regions: string[];
+  /** Resend plan's emails per day (Free: 100), received mail included */
+  dailyLimit: number;
+}
+
+export type MailDnsHealthRecordsItemStatus = typeof MailDnsHealthRecordsItemStatus[keyof typeof MailDnsHealthRecordsItemStatus];
+
+
+export const MailDnsHealthRecordsItemStatus = {
+  ok: 'ok',
+  warn: 'warn',
+  fail: 'fail',
+  off: 'off',
+} as const;
+
+export type MailDnsHealthRecordsItem = {
+  record: string;
+  name: string;
+  type: string;
+  expected: string;
+  found: string[];
+  status: MailDnsHealthRecordsItemStatus;
+  detail: string;
+  /** @nullable */
+  resendStatus: string | null;
+  /** @nullable */
+  priority: number | null;
+};
+
+export type MailDnsHealthChecksItemStatus = typeof MailDnsHealthChecksItemStatus[keyof typeof MailDnsHealthChecksItemStatus];
+
+
+export const MailDnsHealthChecksItemStatus = {
+  ok: 'ok',
+  warn: 'warn',
+  fail: 'fail',
+  off: 'off',
+} as const;
+
+export type MailDnsHealthChecksItem = {
+  id: string;
+  label: string;
+  status: MailDnsHealthChecksItemStatus;
+  detail: string;
+};
+
+export interface MailDnsHealth {
+  checkedAt: string;
+  domain: string;
+  resendStatus: string;
+  receiving: string;
+  records: MailDnsHealthRecordsItem[];
+  checks: MailDnsHealthChecksItem[];
+  dmarcSuggestion: string;
+}
+
+export interface MailRoundTripInput {
+  mailboxId: string;
+}
+
+export interface MailThreadIds {
+  /** @maxItems 200 */
+  ids: string[];
+}
+
+export interface MailRoundTrip {
+  token: string;
+  mailboxId: string;
+  sentAt: string;
+}
+
+export interface MailRoundTripStatus {
+  arrived: boolean;
+  /** @nullable */
+  receivedAt: string | null;
+  /** @nullable */
+  threadId: string | null;
+}
+
+export type MailThreadFolder = typeof MailThreadFolder[keyof typeof MailThreadFolder];
+
+
+export const MailThreadFolder = {
+  inbox: 'inbox',
+  archive: 'archive',
+  spam: 'spam',
+  trash: 'trash',
+} as const;
+
+export interface MailThread {
+  id: string;
+  mailboxId: string;
+  mailboxAddress: string;
+  subject: string;
+  snippet: string;
+  folder: MailThreadFolder;
+  starred: boolean;
+  unread: boolean;
+  messageCount: number;
+  hasAttachments: boolean;
+  participants: MailAddress[];
+  lastMessageAt: string;
+  /** @nullable */
+  profileId: string | null;
+}
+
+export interface MailDraftSummary {
+  id: string;
+  mailboxId: string;
+  /** @nullable */
+  threadId: string | null;
+  subject: string;
+  to: MailAddress[];
+  snippet: string;
+  updatedAt: string;
+}
+
+export interface MailThreadList {
+  view: MailView;
+  page: number;
+  pageSize: number;
+  total: number;
+  threads: MailThread[];
+  drafts: MailDraftSummary[];
+}
+
+export interface MailFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  inline: boolean;
+  /** @nullable */
+  contentId: string | null;
+  available: boolean;
+  /**
+     * Why a received file wasn't kept (type not accepted, too large, virus scan)
+     * @nullable
+     */
+  blockedReason: string | null;
+  /** @nullable */
+  url: string | null;
+}
+
+export type MailMessageDirection = typeof MailMessageDirection[keyof typeof MailMessageDirection];
+
+
+export const MailMessageDirection = {
+  in: 'in',
+  out: 'out',
+} as const;
+
+export type MailMessageStatus = typeof MailMessageStatus[keyof typeof MailMessageStatus];
+
+
+export const MailMessageStatus = {
+  received: 'received',
+  draft: 'draft',
+  queued: 'queued',
+  sending: 'sending',
+  sent: 'sent',
+  failed: 'failed',
+} as const;
+
+export interface MailMessage {
+  id: string;
+  /** @nullable */
+  threadId: string | null;
+  mailboxId: string;
+  direction: MailMessageDirection;
+  status: MailMessageStatus;
+  from: MailAddress;
+  to: MailAddress[];
+  cc: MailAddress[];
+  bcc: MailAddress[];
+  replyTo: MailAddress[];
+  subject: string;
+  /** Sanitised HTML; remote images are in data-remote-src until shown */
+  html: string;
+  text: string;
+  snippet: string;
+  unread: boolean;
+  remoteImages: boolean;
+  /** SPF, DKIM or DMARC failed: may not be from who it says */
+  authFailed: boolean;
+  authentication?: unknown;
+  /** @nullable */
+  sentBy: string | null;
+  /** @nullable */
+  sendAt: string | null;
+  /** @nullable */
+  sentAt: string | null;
+  /** @nullable */
+  error: string | null;
+  date: string;
+  withSignature: boolean;
+  /** @nullable */
+  forwardOf: string | null;
+  attachments: MailFile[];
+}
+
+/**
+ * @nullable
+ */
+export type MailThreadDetailProfile = {
+  id: string;
+  name: string;
+  email: string;
+  organization: string;
+  tier: number;
+  status: string;
+  verificationLevel: string;
+} | null;
+
+export interface MailThreadDetail {
+  thread: MailThread;
+  messages: MailMessage[];
+  drafts: MailMessage[];
+  /** @nullable */
+  profile: MailThreadDetailProfile;
+}
+
+export type MailThreadsUpdateFolder = typeof MailThreadsUpdateFolder[keyof typeof MailThreadsUpdateFolder];
+
+
+export const MailThreadsUpdateFolder = {
+  inbox: 'inbox',
+  archive: 'archive',
+  spam: 'spam',
+  trash: 'trash',
+} as const;
+
+export interface MailThreadsUpdate {
+  /** @maxItems 200 */
+  ids: string[];
+  unread?: boolean;
+  starred?: boolean;
+  folder?: MailThreadsUpdateFolder;
+}
+
+export interface MailCompose {
+  /** The draft being sent or saved again */
+  id?: string;
+  mailboxId: string;
+  /** @maxItems 50 */
+  to?: string[];
+  /** @maxItems 50 */
+  cc?: string[];
+  /** @maxItems 50 */
+  bcc?: string[];
+  /** @maxLength 300 */
+  subject?: string;
+  /** @maxLength 500000 */
+  html?: string;
+  replyToMessageId?: string;
+  forwardOfMessageId?: string;
+  /** @maxItems 20 */
+  attachmentIds?: string[];
+  withSignature?: boolean;
+}
+
+export interface MailSendResult {
+  id: string;
+  threadId: string;
+  sendAt: string;
+  undoSeconds: number;
+}
+
 export type CardNetwork = typeof CardNetwork[keyof typeof CardNetwork];
 
 
@@ -745,12 +1222,16 @@ export interface ClientErrorReceipt {
   reference: string;
 }
 
+/**
+ * mailbox = taken from the mailbox that sends system emails (Phase 14)
+ */
 export type EmailSettingSource = typeof EmailSettingSource[keyof typeof EmailSettingSource];
 
 
 export const EmailSettingSource = {
   settings: 'settings',
   environment: 'environment',
+  mailbox: 'mailbox',
   none: 'none',
 } as const;
 
@@ -2937,5 +3418,55 @@ export type ListAdminReportedCardsParams = {
  * Include cleared reports
  */
 cleared?: boolean;
+};
+
+export type GetAdminMailRoundTripParams = {
+token: string;
+mailboxId: string;
+};
+
+export type ListAdminMailThreadsParams = {
+mailboxId?: string;
+view?: MailView;
+/**
+ * @maxLength 200
+ */
+q?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+unread?: boolean;
+attachments?: boolean;
+};
+
+export type UpdateAdminMailThreads200 = {
+  updated: number;
+};
+
+export type DeleteAdminMailThreads200 = {
+  deleted: number;
+};
+
+export type DeleteAdminMailDraft200 = {
+  deleted: boolean;
+};
+
+export type RetryAdminMailSend200 = {
+  id: string;
+};
+
+export type GetAdminMailImageParams = {
+/**
+ * @maxLength 2000
+ */
+url: string;
+};
+
+export type ListAdminMailContactsParams = {
+/**
+ * @maxLength 100
+ */
+q: string;
 };
 

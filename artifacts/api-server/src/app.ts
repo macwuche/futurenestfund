@@ -9,6 +9,7 @@ import { TierLimitError } from "./lib/tierRules";
 import { UploadError } from "./lib/uploads";
 import { ScanUnavailableError } from "./lib/virusScan";
 import { sendEmailHook } from "./lib/sendEmailHook";
+import { INBOUND_PATH, mailInboundHook } from "./lib/mailSetup";
 import { hookLimit } from "./lib/rateLimit";
 import { forwardError, shortReference } from "./lib/monitoring";
 
@@ -57,6 +58,10 @@ app.use((_req, res, next) => {
 });
 // Signed by Supabase over the exact bytes, so it needs the raw body and must come before express.json().
 app.post("/api/hooks/supabase/send-email", hookLimit, express.raw({ type: () => true, limit: "64kb" }), sendEmailHook);
+// Resend's webhook (received mail, delivery news): Svix-signed over the raw body, like the hook above.
+app.post(INBOUND_PATH, hookLimit, express.raw({ type: () => true, limit: "256kb" }), mailInboundHook);
+// Composing mail sends whole emails (up to 500 kB of HTML); everything else stays at 100 kB.
+app.use("/api/admin/mail", express.json({ limit: "600kb" }));
 app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ extended: true }));
 

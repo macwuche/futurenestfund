@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { seedDemoData } from "./lib/demoSeed";
 import { database } from "@workspace/db";
 import { startNotificationMailer } from "./lib/notificationMailer";
+import { startMailWorkers } from "./lib/mail";
 import { loadEmailSettings, startEmailSettingsRefresh } from "./lib/emailSettings";
 import { loadBranding, startBrandingRefresh } from "./lib/branding";
 import { flushReports, forwardError } from "./lib/monitoring";
@@ -45,6 +46,7 @@ startEmailSettingsRefresh();
 await loadBranding();
 startBrandingRefresh();
 startNotificationMailer();
+startMailWorkers();
 
 const onListening = (err?: Error) => {
   if (err) {

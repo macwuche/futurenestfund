@@ -120,6 +120,13 @@
       "when": 1795162212064,
       "tag": "0016_card_auto_active",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795173902809,
+      "tag": "0017_mail",
+      "breakpoints": true
     }
   ]
 }

@@ -25,6 +25,7 @@ const settingsOnly = (v: EmailSettingValue) => (v.source === 'settings' ? v.valu
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 
 function SourceNote({ v, envLabel = 'server environment' }: { v: EmailSettingValue; envLabel?: string }) {
+  if (v.source === 'mailbox') return <span className="mt-1 block text-xs text-slate-500" data-testid="text-source-mailbox">In use from the mailbox that sends system emails: <b className="font-medium text-slate-700">{v.value}</b> (Mailboxes and signatures, above). This field only applies when no mailbox sends them.</span>;
   if (v.source !== 'environment') return null;
   return <span className="mt-1 block text-xs text-slate-500">In use from the {envLabel}: <b className="font-medium text-slate-700">{v.value}</b>. Enter a value to replace it.</span>;
 }

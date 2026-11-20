@@ -7,13 +7,13 @@ import { z } from 'zod';
 import {
   useGetAdminDashboard, useListAdminCardRequests, getListAdminCardRequestsQueryKey, useUpdateGlobalFreeze, useSearchAdmin, getSearchAdminQueryKey,
   useMarkApplicantNotificationsRead, getListApplicantNotificationsQueryKey, type NotificationList,
-  useGetAdminCardPaymentsOverview, getGetAdminCardPaymentsOverviewQueryKey,
+  useGetAdminCardPaymentsOverview, getGetAdminCardPaymentsOverviewQueryKey, useListAdminMailboxes, getListAdminMailboxesQueryKey,
 } from '@workspace/api-client-react';
 import {
   LayoutDashboard, FileText, CreditCard, ArrowLeftRight, ArrowUpFromLine, PlusCircle, Settings, Bell, Search, Plus, Menu, X,
   Users, ArrowDownToLine, Snowflake, Building2, ScanLine, House, ClipboardList, ChartPie, Milestone,
   MessageCircleQuestion, Ellipsis, BadgeCheck, Upload, ArrowLeftRight as SwitchIcon, LogOut, Wallet, ChevronDown, Award, Gauge,
-  WalletCards,
+  WalletCards, Mail,
 } from 'lucide-react';
 import { usePendingTierRequests } from '@/lib/tier-requests';
 import { BrandMark, useBranding } from '@/lib/branding';
@@ -55,6 +55,7 @@ const userNavFooter: NavItem[] = [
 const adminNav: NavItem[] = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/users', label: 'Users', icon: Users },
+  { href: '/admin/mail', label: 'Mail', icon: Mail },
   { href: '/admin/grant-plans', label: 'Grant Plans', icon: Award },
   { href: '/admin/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { href: '/admin/deposits', label: 'Deposit Page', icon: ArrowDownToLine },
@@ -447,6 +448,8 @@ function AdminNavList({ onNav }: { onNav?: () => void }) {
   // Phase 13: card deposits and withdrawals waiting for approval.
   const cardOverview = useGetAdminCardPaymentsOverview({ query: { queryKey: getGetAdminCardPaymentsOverviewQueryKey(), refetchInterval: 60_000 } }).data;
   const cardsToCheck = cardOverview ? cardOverview.pending.deposits + cardOverview.pending.withdrawals : 0;
+  // Phase 14: unread mail across every mailbox (the Mail page refreshes the same query).
+  const mailUnread = (useListAdminMailboxes({ query: { queryKey: getListAdminMailboxesQueryKey(), refetchInterval: 30_000 } }).data ?? []).reduce((n, b) => n + b.unread, 0);
   const row = (active: boolean) => cx('group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
     active ? 'bg-[var(--brand)] text-[var(--brand-fg)] font-semibold' : 'text-slate-300 hover:bg-white/10 hover:text-white hover:translate-x-0.5');
   return (
@@ -481,6 +484,9 @@ function AdminNavList({ onNav }: { onNav?: () => void }) {
           <Link key={i.href} href={i.href} onClick={onNav} aria-current={active ? 'page' : undefined} data-testid={testId(i.href)} className={row(active)}>
             <i.icon className="h-[18px] w-[18px]" />
             <span className="flex-1">{i.label}</span>
+            {i.href === '/admin/mail' && mailUnread > 0 && (
+              <span data-testid="badge-mail-unread" aria-label={`${mailUnread} unread`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[var(--brand-glow)]' : 'bg-[var(--brand)] text-[var(--brand-fg)]')}>{mailUnread}</span>
+            )}
             {i.href === '/admin/tiers' && tierRequests > 0 && (
               <span data-testid="badge-tier-requests" aria-label={`${tierRequests} waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[var(--brand-glow)]' : 'bg-[var(--brand)] text-[var(--brand-fg)]')}>{tierRequests}</span>
             )}

@@ -9,7 +9,8 @@ export const escapeHtml = (s: string) =>
  * Set from Admin Settings → Email (emailSettings.ts): a plain-text signature added to every email, and the address
  * people can write to for help. Both are escaped like everything else.
  */
-export type EmailBranding = { signature: string | null; supportEmail: string | null };
+/** `signatureHtml` / `signatureText`: the system mailbox's designed signature (Phase 14), used instead of the plain one. */
+export type EmailBranding = { signature: string | null; supportEmail: string | null; signatureHtml?: string; signatureText?: string };
 let branding: EmailBranding = { signature: null, supportEmail: null };
 export function setEmailBranding(next: EmailBranding) { branding = next; }
 
@@ -17,6 +18,7 @@ export function setEmailBranding(next: EmailBranding) { branding = next; }
 let appBrand = { name: "GrantApp", ...brandPalette("#1E3A8A") };
 export function setAppBrand(next: { name: string; color: string }) { appBrand = { name: next.name, ...brandPalette(next.color) }; }
 export const appName = () => appBrand.name;
+export const appBrandColor = () => appBrand.brand;
 
 type Block = { kind: "p"; text: string } | { kind: "button"; label: string; href: string } | { kind: "code"; code: string } | { kind: "small"; text: string }
   | { kind: "rows"; rows: [string, string][] };
@@ -37,7 +39,7 @@ function render(to: string, subject: string, heading: string, blocks: Block[]): 
         + `<p style="margin:0 0 16px;font-size:12px;line-height:1.5;color:#64748B">Button not working? Paste this link into your browser:<br><a href="${escapeHtml(b.href)}" style="color:${appBrand.ink};word-break:break-all">${escapeHtml(b.href)}</a></p>`;
     }
   }).join("");
-  const sig = branding.signature?.trim()
+  const sig = branding.signatureHtml ? branding.signatureHtml : branding.signature?.trim()
     ? `<p style="margin:24px 0 0;padding-top:16px;border-top:1px solid #E5E7EB;font-size:14px;line-height:1.6;color:#334155" data-signature>${branding.signature.trim().split("\n").map(escapeHtml).join("<br>")}</p>`
     : "";
   const support = branding.supportEmail
@@ -53,7 +55,7 @@ function render(to: string, subject: string, heading: string, blocks: Block[]): 
     + `<tr><td style="padding:20px 4px 0;font-size:12px;line-height:1.5;color:#64748B">Sent by ${escapeHtml(appBrand.name)} to ${escapeHtml(to)}. If you didn't expect this email, you can ignore it.${support}</td></tr>`
     + `</table></td></tr></table></body></html>`;
   const text = [heading, "", ...blocks.map((b) => (b.kind === "button" ? `${b.label}: ${b.href}` : b.kind === "code" ? b.code : b.kind === "rows" ? b.rows.map(([k, v]) => `${k}: ${v}`).join("\n") : b.text)), "",
-    ...(branding.signature?.trim() ? ["--", branding.signature.trim(), ""] : []),
+    ...(branding.signatureText ? [branding.signatureText, ""] : branding.signature?.trim() ? ["--", branding.signature.trim(), ""] : []),
     `Sent by ${appName()} to ${to}. If you didn't expect this email, you can ignore it.${branding.supportEmail ? ` Questions? Write to ${branding.supportEmail}.` : ""}`].join("\n");
   return { to, subject, html: page, text };
 }

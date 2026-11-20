@@ -1,0 +1,21 @@
+-- The admin Mail box tables (app migration 0017): only the API role reads or writes them, like every other app table.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.demo_mail_mailboxes TO app_api;
+DROP POLICY IF EXISTS app_api_all ON public.demo_mail_mailboxes;
+CREATE POLICY app_api_all ON public.demo_mail_mailboxes FOR ALL TO app_api USING (true) WITH CHECK (true);
+REVOKE ALL ON public.demo_mail_mailboxes FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.demo_mail_threads TO app_api;
+DROP POLICY IF EXISTS app_api_all ON public.demo_mail_threads;
+CREATE POLICY app_api_all ON public.demo_mail_threads FOR ALL TO app_api USING (true) WITH CHECK (true);
+REVOKE ALL ON public.demo_mail_threads FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.demo_mail_messages TO app_api;
+DROP POLICY IF EXISTS app_api_all ON public.demo_mail_messages;
+CREATE POLICY app_api_all ON public.demo_mail_messages FOR ALL TO app_api USING (true) WITH CHECK (true);
+REVOKE ALL ON public.demo_mail_messages FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.demo_mail_files TO app_api;
+DROP POLICY IF EXISTS app_api_all ON public.demo_mail_files;
+CREATE POLICY app_api_all ON public.demo_mail_files FOR ALL TO app_api USING (true) WITH CHECK (true);
+REVOKE ALL ON public.demo_mail_files FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.demo_mail_inbound TO app_api;
+DROP POLICY IF EXISTS app_api_all ON public.demo_mail_inbound;
+CREATE POLICY app_api_all ON public.demo_mail_inbound FOR ALL TO app_api USING (true) WITH CHECK (true);
+REVOKE ALL ON public.demo_mail_inbound FROM anon, authenticated;

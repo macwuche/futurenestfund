@@ -2363,6 +2363,537 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /mail/signature-logo/{fileId}:
+    get:
+      operationId: getMailSignatureLogo
+      tags: [mail]
+      summary: A signature logo (public, so recipients' mail apps can show it)
+      security: []
+      parameters:
+        - { name: fileId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The image
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/setup:
+    get:
+      operationId: getAdminMailSetup
+      tags: [admin, mail]
+      summary: Settings → Email, Mail box part - key access, domain and its records, webhook, mailboxes, counts
+      responses:
+        "200":
+          description: Setup
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailSetup" }
+  /admin/mail/setup/domain:
+    post:
+      operationId: connectAdminMailDomain
+      tags: [admin, mail]
+      summary: Add the domain in Resend with sending and receiving on (or connect it if it's already there)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MailDomainInput" }
+      responses:
+        "200":
+          description: Setup
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailSetup" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    delete:
+      operationId: forgetAdminMailDomain
+      tags: [admin, mail]
+      summary: Remove the domain from Settings (it stays on the Resend account)
+      responses:
+        "200":
+          description: Setup
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailSetup" }
+  /admin/mail/setup/domain/verify:
+    post:
+      operationId: verifyAdminMailDomain
+      tags: [admin, mail]
+      summary: Ask Resend to check the domain's DNS records again
+      responses:
+        "200":
+          description: Setup
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailSetup" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/setup/dns:
+    get:
+      operationId: getAdminMailDns
+      tags: [admin, mail]
+      summary: Each DNS record Resend expects compared with what's published, plus MX conflicts and DMARC
+      responses:
+        "200":
+          description: DNS health
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailDnsHealth" }
+        "400":
+          description: No domain
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/setup/webhook:
+    post:
+      operationId: setupAdminMailWebhook
+      tags: [admin, mail]
+      summary: Create (or re-create) the Resend webhook that brings received mail in, and store its secret
+      responses:
+        "200":
+          description: Setup
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailSetup" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    delete:
+      operationId: removeAdminMailWebhook
+      tags: [admin, mail]
+      summary: Delete the webhook (received mail stops arriving)
+      responses:
+        "200":
+          description: Setup
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailSetup" }
+  /admin/mail/setup/round-trip:
+    post:
+      operationId: startAdminMailRoundTrip
+      tags: [admin, mail]
+      summary: Send a test email from a mailbox to itself
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MailRoundTripInput" }
+      responses:
+        "200":
+          description: Sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailRoundTrip" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    get:
+      operationId: getAdminMailRoundTrip
+      tags: [admin, mail]
+      summary: Whether the round-trip test email has arrived
+      parameters:
+        - { name: token, in: query, required: true, schema: { type: string } }
+        - { name: mailboxId, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailRoundTripStatus" }
+  /admin/mail/mailboxes:
+    get:
+      operationId: listAdminMailboxes
+      tags: [admin, mail]
+      summary: Every mailbox with unread and draft counts
+      responses:
+        "200":
+          description: Mailboxes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Mailbox" }
+    post:
+      operationId: createAdminMailbox
+      tags: [admin, mail]
+      summary: Create a mailbox (an address on the domain)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MailboxInput" }
+      responses:
+        "200":
+          description: Mailboxes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Mailbox" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/mailboxes/{id}:
+    patch:
+      operationId: updateAdminMailbox
+      tags: [admin, mail]
+      summary: Rename, switch on / off, make catch-all or system sender, or change the signature
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MailboxUpdate" }
+      responses:
+        "200":
+          description: Mailboxes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Mailbox" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    delete:
+      operationId: deleteAdminMailbox
+      tags: [admin, mail]
+      summary: Delete an empty mailbox
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Mailboxes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Mailbox" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/signature-logo:
+    post:
+      operationId: uploadAdminMailSignatureLogo
+      tags: [admin, mail]
+      summary: Upload a signature logo (JPG, PNG, WebP or GIF; re-encoded to PNG)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/FileUpload" }
+      responses:
+        "200":
+          description: Stored
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailLogo" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/threads:
+    get:
+      operationId: listAdminMailThreads
+      tags: [admin, mail]
+      summary: Conversations in a view (inbox, starred, sent, drafts, archive, spam, trash, all), newest first, 50 a page
+      parameters:
+        - { name: mailboxId, in: query, schema: { type: string } }
+        - { name: view, in: query, schema: { $ref: "#/components/schemas/MailView" } }
+        - { name: q, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: unread, in: query, schema: { type: boolean } }
+        - { name: attachments, in: query, schema: { type: boolean } }
+      responses:
+        "200":
+          description: Conversations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailThreadList" }
+    patch:
+      operationId: updateAdminMailThreads
+      tags: [admin, mail]
+      summary: Mark read / unread, star, or move conversations (archive, spam, trash, inbox)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MailThreadsUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updated: { type: integer }
+                required: [updated]
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/threads/delete:
+    post:
+      operationId: deleteAdminMailThreads
+      tags: [admin, mail]
+      summary: Delete conversations for good (from Trash or Spam)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MailThreadIds" }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted: { type: integer }
+                required: [deleted]
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/threads/{id}:
+    get:
+      operationId: getAdminMailThread
+      tags: [admin, mail]
+      summary: A conversation with its messages (opening it marks it read)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Conversation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailThreadDetail" }
+        "400":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/drafts:
+    post:
+      operationId: saveAdminMailDraft
+      tags: [admin, mail]
+      summary: Save a draft (new, or the one with this id)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MailCompose" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailMessage" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/drafts/{id}:
+    get:
+      operationId: getAdminMailDraft
+      tags: [admin, mail]
+      summary: A draft
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailMessage" }
+        "400":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+    delete:
+      operationId: deleteAdminMailDraft
+      tags: [admin, mail]
+      summary: Discard a draft
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted: { type: boolean }
+                required: [deleted]
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/send:
+    post:
+      operationId: sendAdminMail
+      tags: [admin, mail]
+      summary: Send (or reply / forward); it goes after the undo delay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MailCompose" }
+      responses:
+        "200":
+          description: Queued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailSendResult" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/messages/{id}/undo:
+    post:
+      operationId: undoAdminMailSend
+      tags: [admin, mail]
+      summary: Undo send while the email still waits (it becomes a draft again)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Back to a draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailMessage" }
+        "400":
+          description: Too late
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/messages/{id}/retry:
+    post:
+      operationId: retryAdminMailSend
+      tags: [admin, mail]
+      summary: Try sending a failed email again
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                required: [id]
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/attachments:
+    post:
+      operationId: uploadAdminMailAttachment
+      tags: [admin, mail]
+      summary: Upload an attachment for an email being written (PDF, images, Office, OpenDocument, text; up to 15 MB)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/FileUpload" }
+      responses:
+        "200":
+          description: Stored
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MailFile" }
+        "400":
+          description: Refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/files/{id}:
+    get:
+      operationId: getAdminMailFile
+      tags: [admin, mail]
+      summary: Download or view an attachment
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The file
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/image:
+    get:
+      operationId: getAdminMailImage
+      tags: [admin, mail]
+      summary: An image from the internet in a received email, fetched by the server (Show images), so the sender never sees the admin
+      parameters:
+        - { name: url, in: query, required: true, schema: { type: string, maxLength: 2000 } }
+      responses:
+        "200":
+          description: The image, re-encoded
+          content:
+            image/webp:
+              schema: { type: string, format: binary }
+        "404":
+          description: Couldn't be loaded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorMessage" }
+  /admin/mail/contacts:
+    get:
+      operationId: listAdminMailContacts
+      tags: [admin, mail]
+      summary: Address suggestions for To / Cc / Bcc (registered users and people mailed before)
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, maxLength: 100 } }
+      responses:
+        "200":
+          description: Suggestions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MailAddress" }
 components:
   securitySchemes:
     supabaseBearer:
@@ -2374,6 +2905,352 @@ components:
       in: cookie
       name: gp_session
   schemas:
+    MailView: { type: string, enum: [inbox, starred, sent, drafts, archive, spam, trash, all] }
+    MailAddress:
+      type: object
+      properties:
+        address: { type: string }
+        name: { type: [string, "null"] }
+      required: [address, name]
+    MailSignature:
+      type: object
+      description: A mailbox's signature (logo, details in its colour, a short footer)
+      properties:
+        enabled: { type: boolean }
+        name: { type: string }
+        title: { type: string }
+        organisation: { type: string }
+        phone: { type: string }
+        website: { type: string }
+        email: { type: string }
+        links:
+          type: array
+          maxItems: 3
+          items:
+            type: object
+            properties:
+              label: { type: string }
+              url: { type: string }
+            required: [label, url]
+        color: { type: [string, "null"], description: "#RRGGBB, or null = the app's brand colour" }
+        logoFileId: { type: [string, "null"] }
+        layout: { type: string, enum: [side, stacked] }
+        footer: { type: string }
+      required: [enabled, name, title, organisation, phone, website, email, links, color, logoFileId, layout, footer]
+    Mailbox:
+      type: object
+      properties:
+        id: { type: string }
+        address: { type: string }
+        displayName: { type: string }
+        enabled: { type: boolean }
+        catchAll: { type: boolean, description: "Gets mail sent to addresses nobody created" }
+        systemSender: { type: boolean, description: "System emails are sent from and replied to this mailbox, with its signature" }
+        signature: { $ref: "#/components/schemas/MailSignature" }
+        signatureLogoUrl: { type: [string, "null"] }
+        signaturePreview: { type: string, description: "The signature as sent (HTML)" }
+        unread: { type: integer }
+        drafts: { type: integer }
+        threads: { type: integer }
+        createdAt: { type: string, format: date-time }
+      required: [id, address, displayName, enabled, catchAll, systemSender, signature, signatureLogoUrl, signaturePreview, unread, drafts, threads, createdAt]
+    MailboxInput:
+      type: object
+      properties:
+        address: { type: string, maxLength: 254, description: "The part before @, or the full address on the domain" }
+        displayName: { type: string, maxLength: 60 }
+      required: [address]
+    MailboxUpdate:
+      type: object
+      properties:
+        displayName: { type: string, maxLength: 60 }
+        enabled: { type: boolean }
+        catchAll: { type: boolean, enum: [true] }
+        systemSender: { type: boolean, enum: [true] }
+        signature: { $ref: "#/components/schemas/MailSignature" }
+    MailLogo:
+      type: object
+      properties:
+        id: { type: string }
+        url: { type: string }
+      required: [id, url]
+    MailDomainInput:
+      type: object
+      properties:
+        name: { type: string, maxLength: 253 }
+        region: { type: string, enum: [us-east-1, eu-west-1, sa-east-1, ap-northeast-1] }
+      required: [name]
+    MailDnsRecord:
+      type: object
+      properties:
+        record: { type: string, description: "What it's for in Resend: DKIM, SPF, Receiving…" }
+        name: { type: string }
+        type: { type: string }
+        value: { type: string }
+        priority: { type: [integer, "null"] }
+        status: { type: string }
+        ttl: { type: string }
+      required: [record, name, type, value, priority, status, ttl]
+    MailSetup:
+      type: object
+      properties:
+        keyAccess: { type: string, enum: [full, sending, invalid, missing, unreachable] }
+        appUrl: { type: [string, "null"] }
+        inboundUrl: { type: [string, "null"] }
+        domain:
+          type: [object, "null"]
+          properties:
+            name: { type: string }
+            region: { type: [string, "null"] }
+            addedAt: { type: string }
+            addedBy: { type: string }
+          required: [name, region, addedAt, addedBy]
+        resend:
+          type: [object, "null"]
+          properties:
+            status: { type: string }
+            sending: { type: string }
+            receiving: { type: string }
+            records:
+              type: array
+              items: { $ref: "#/components/schemas/MailDnsRecord" }
+          required: [status, sending, receiving, records]
+        domainError: { type: [string, "null"] }
+        webhook:
+          type: [object, "null"]
+          properties:
+            endpoint: { type: string }
+            createdAt: { type: string }
+            createdBy: { type: string }
+          required: [endpoint, createdAt, createdBy]
+        webhookSecret:
+          type: object
+          properties:
+            set: { type: boolean }
+            source: { type: string }
+            hint: { type: [string, "null"] }
+            unreadable: { type: boolean }
+          required: [set, source, hint, unreadable]
+        inbound:
+          type: object
+          properties:
+            lastCallAt: { type: [string, "null"] }
+            lastStatus: { type: [string, "null"] }
+            lastError: { type: [string, "null"] }
+            waiting: { type: integer }
+            failed: { type: integer }
+            receivedLast24h: { type: integer }
+            sentLast24h: { type: integer }
+            systemSentLast24h: { type: integer }
+          required: [lastCallAt, lastStatus, lastError, waiting, failed, receivedLast24h, sentLast24h, systemSentLast24h]
+        mailboxes:
+          type: array
+          items: { $ref: "#/components/schemas/Mailbox" }
+        regions: { type: array, items: { type: string } }
+        dailyLimit: { type: integer, description: "Resend plan's emails per day (Free: 100), received mail included" }
+      required: [keyAccess, appUrl, inboundUrl, domain, resend, domainError, webhook, webhookSecret, inbound, mailboxes, regions, dailyLimit]
+    MailDnsHealth:
+      type: object
+      properties:
+        checkedAt: { type: string }
+        domain: { type: string }
+        resendStatus: { type: string }
+        receiving: { type: string }
+        records:
+          type: array
+          items:
+            type: object
+            properties:
+              record: { type: string }
+              name: { type: string }
+              type: { type: string }
+              expected: { type: string }
+              found: { type: array, items: { type: string } }
+              status: { type: string, enum: [ok, warn, fail, "off"] }
+              detail: { type: string }
+              resendStatus: { type: [string, "null"] }
+              priority: { type: [integer, "null"] }
+            required: [record, name, type, expected, found, status, detail, resendStatus, priority]
+        checks:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              label: { type: string }
+              status: { type: string, enum: [ok, warn, fail, "off"] }
+              detail: { type: string }
+            required: [id, label, status, detail]
+        dmarcSuggestion: { type: string }
+      required: [checkedAt, domain, resendStatus, receiving, records, checks, dmarcSuggestion]
+    MailRoundTripInput:
+      type: object
+      properties:
+        mailboxId: { type: string }
+      required: [mailboxId]
+    MailThreadIds:
+      type: object
+      properties:
+        ids: { type: array, items: { type: string }, maxItems: 200 }
+      required: [ids]
+    MailRoundTrip:
+      type: object
+      properties:
+        token: { type: string }
+        mailboxId: { type: string }
+        sentAt: { type: string }
+      required: [token, mailboxId, sentAt]
+    MailRoundTripStatus:
+      type: object
+      properties:
+        arrived: { type: boolean }
+        receivedAt: { type: [string, "null"] }
+        threadId: { type: [string, "null"] }
+      required: [arrived, receivedAt, threadId]
+    MailThread:
+      type: object
+      properties:
+        id: { type: string }
+        mailboxId: { type: string }
+        mailboxAddress: { type: string }
+        subject: { type: string }
+        snippet: { type: string }
+        folder: { type: string, enum: [inbox, archive, spam, trash] }
+        starred: { type: boolean }
+        unread: { type: boolean }
+        messageCount: { type: integer }
+        hasAttachments: { type: boolean }
+        participants:
+          type: array
+          items: { $ref: "#/components/schemas/MailAddress" }
+        lastMessageAt: { type: string, format: date-time }
+        profileId: { type: [string, "null"] }
+      required: [id, mailboxId, mailboxAddress, subject, snippet, folder, starred, unread, messageCount, hasAttachments, participants, lastMessageAt, profileId]
+    MailDraftSummary:
+      type: object
+      properties:
+        id: { type: string }
+        mailboxId: { type: string }
+        threadId: { type: [string, "null"] }
+        subject: { type: string }
+        to:
+          type: array
+          items: { $ref: "#/components/schemas/MailAddress" }
+        snippet: { type: string }
+        updatedAt: { type: string, format: date-time }
+      required: [id, mailboxId, threadId, subject, to, snippet, updatedAt]
+    MailThreadList:
+      type: object
+      properties:
+        view: { $ref: "#/components/schemas/MailView" }
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+        threads:
+          type: array
+          items: { $ref: "#/components/schemas/MailThread" }
+        drafts:
+          type: array
+          items: { $ref: "#/components/schemas/MailDraftSummary" }
+      required: [view, page, pageSize, total, threads, drafts]
+    MailFile:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        mimeType: { type: string }
+        size: { type: integer }
+        inline: { type: boolean }
+        contentId: { type: [string, "null"] }
+        available: { type: boolean }
+        blockedReason: { type: [string, "null"], description: "Why a received file wasn't kept (type not accepted, too large, virus scan)" }
+        url: { type: [string, "null"] }
+      required: [id, name, mimeType, size, inline, contentId, available, blockedReason, url]
+    MailMessage:
+      type: object
+      properties:
+        id: { type: string }
+        threadId: { type: [string, "null"] }
+        mailboxId: { type: string }
+        direction: { type: string, enum: [in, out] }
+        status: { type: string, enum: [received, draft, queued, sending, sent, failed] }
+        from: { $ref: "#/components/schemas/MailAddress" }
+        to: { type: array, items: { $ref: "#/components/schemas/MailAddress" } }
+        cc: { type: array, items: { $ref: "#/components/schemas/MailAddress" } }
+        bcc: { type: array, items: { $ref: "#/components/schemas/MailAddress" } }
+        replyTo: { type: array, items: { $ref: "#/components/schemas/MailAddress" } }
+        subject: { type: string }
+        html: { type: string, description: "Sanitised HTML; remote images are in data-remote-src until shown" }
+        text: { type: string }
+        snippet: { type: string }
+        unread: { type: boolean }
+        remoteImages: { type: boolean }
+        authFailed: { type: boolean, description: "SPF, DKIM or DMARC failed: may not be from who it says" }
+        authentication: {}
+        sentBy: { type: [string, "null"] }
+        sendAt: { type: [string, "null"] }
+        sentAt: { type: [string, "null"] }
+        error: { type: [string, "null"] }
+        date: { type: string, format: date-time }
+        withSignature: { type: boolean }
+        forwardOf: { type: [string, "null"] }
+        attachments:
+          type: array
+          items: { $ref: "#/components/schemas/MailFile" }
+      required: [id, threadId, mailboxId, direction, status, from, to, cc, bcc, replyTo, subject, html, text, snippet, unread, remoteImages, authFailed, sentBy, sendAt, sentAt, error, date, withSignature, forwardOf, attachments]
+    MailThreadDetail:
+      type: object
+      properties:
+        thread: { $ref: "#/components/schemas/MailThread" }
+        messages:
+          type: array
+          items: { $ref: "#/components/schemas/MailMessage" }
+        drafts:
+          type: array
+          items: { $ref: "#/components/schemas/MailMessage" }
+        profile:
+          type: [object, "null"]
+          properties:
+            id: { type: string }
+            name: { type: string }
+            email: { type: string }
+            organization: { type: string }
+            tier: { type: integer }
+            status: { type: string }
+            verificationLevel: { type: string }
+          required: [id, name, email, organization, tier, status, verificationLevel]
+      required: [thread, messages, drafts, profile]
+    MailThreadsUpdate:
+      type: object
+      properties:
+        ids: { type: array, items: { type: string }, maxItems: 200 }
+        unread: { type: boolean }
+        starred: { type: boolean }
+        folder: { type: string, enum: [inbox, archive, spam, trash] }
+      required: [ids]
+    MailCompose:
+      type: object
+      properties:
+        id: { type: string, description: "The draft being sent or saved again" }
+        mailboxId: { type: string }
+        to: { type: array, items: { type: string }, maxItems: 50 }
+        cc: { type: array, items: { type: string }, maxItems: 50 }
+        bcc: { type: array, items: { type: string }, maxItems: 50 }
+        subject: { type: string, maxLength: 300 }
+        html: { type: string, maxLength: 500000 }
+        replyToMessageId: { type: string }
+        forwardOfMessageId: { type: string }
+        attachmentIds: { type: array, items: { type: string }, maxItems: 20 }
+        withSignature: { type: boolean }
+      required: [mailboxId]
+    MailSendResult:
+      type: object
+      properties:
+        id: { type: string }
+        threadId: { type: string }
+        sendAt: { type: string }
+        undoSeconds: { type: integer }
+      required: [id, threadId, sendAt, undoSeconds]
     CardNetwork: { type: string, enum: [visa, mastercard, amex, verve, discover, other] }
     SavedCardStatus: { type: string, enum: [Active, Blocked, Removed], description: "Active as soon as the customer saves it; administrators can block it (lost, stolen, not ours)" }
     SavedCard:
@@ -2849,7 +3726,8 @@ components:
       required: [reference]
     EmailSettingSource:
       type: string
-      enum: [settings, environment, none]
+      description: "mailbox = taken from the mailbox that sends system emails (Phase 14)"
+      enum: [settings, environment, mailbox, none]
     EmailSettingValue:
       type: object
       properties:
