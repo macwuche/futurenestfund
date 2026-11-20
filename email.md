@@ -1,6 +1,6 @@
 # email.md: everything about email in GrantApp
 
-_Started 2026-11-20 · branch `user-side-redesign` · status: **built and tested 2026-11-20 (Phase 14), not deployed yet** (needs `deploy.sh`: migrations 0016, 0017 and Supabase 0008, then the go-live steps in §13). Sections marked "planned" describe what was built; §13 records how it was built and tested._
+_Started 2026-11-20 · branch `user-side-redesign` · status: **built, tested and deployed 2026-11-20 (Phase 14, `713229c`)**; next: the go-live setup in §13 / `docs/DEPLOY.md` step 10. Sections marked "planned" describe what was built; §13 records how it was built and tested._
 
 This file is the single place for email: what exists today, what we're building (the admin **Mail** box and the new email settings), how it works, and every decision. `docs/PROJECT.md` §7 keeps a short summary and links here.
 

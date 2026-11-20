@@ -113,7 +113,7 @@ Step 6.5 counts as **done** when steps 1–9 have been followed once end to end.
 
 ## 6b. After deploying (in the admin area)
 
-The app is live at `a93e715` (2026-11-20, card payments, Phase 13; before that `afb0f64`, the apply page's charge note removed, and `da871ec`, award ranges). These need you in the admin area, or applicants can't use the matching feature:
+The app is live at `713229c` (2026-11-20, Mail box, Phase 14; before that `a93e715`, card payments, Phase 13; before that `afb0f64`, the apply page's charge note removed, and `da871ec`, award ranges). These need you in the admin area, or applicants can't use the matching feature:
 
 | What | Where | Until it's done |
 |---|---|---|
@@ -125,7 +125,7 @@ The app is live at `a93e715` (2026-11-20, card payments, Phase 13; before that `
 | Set the application name, colour and logo | Admin → Settings → Branding | The app is called "GrantApp" in navy; the admin side's accents turn navy too (they were lime) |
 | Set each tier's limits and cards, and the Tier 2 / Tier 3 upgrade forms | Admin → Settings → Tiers | Every tier has the old platform-wide withdrawal limits, no top-up limits, every card; nobody can ask to move up |
 
-**Waiting to deploy:** `c19a631` (cards active once saved, migration 0016) and Phase 14 Mail box (migration 0017 + Supabase 0008). After `deploy.sh`, follow `docs/DEPLOY.md` step 10, which now sets up the domain `futurenestfund.org`, receiving and the support@ mailbox (`email.md`).
+**Phase 14 Mail box is deployed** (`713229c`, 2026-11-20, with `c19a631`: migrations 0016, 0017 and Supabase 0008 applied). **Next:** `docs/DEPLOY.md` step 10, which now sets up the domain `futurenestfund.org`, receiving and the support@ mailbox (`email.md`). Until then Admin → Mail says "Mail isn't set up yet". Rolling back to `a93e715` works: the migrations only add tables and a column default.
 
 Card payments are deployed (`a93e715`, migration 0015 and Supabase 0007 applied). Rolling back to `afb0f64` works: the migrations only add tables and columns; older code ignores saved cards and shows card requests as plain requests through their method.
 
@@ -197,3 +197,4 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 | 2026-11-17 | Deployed **da871ec** (award ranges: a grant plan's award is fixed or a minimum–maximum range the applicant chooses, % charge on the amount, admins may approve less; and `c540a0a`, "processing charge" instead of "fee" on the applicant's Withdrawals page; up from `3612717`). Builds OK; app migrations: 1 applied (**0014** `grant_award_range`: `demo_grant_plans.amount_mode`, `max_amount_cents`, `demo_applications.requested_cents`), 15 recorded; Supabase migrations all skipped (0001–0006). API reloaded, health OK, `futurenestfund-api` online. RAM 55.3% right after the build. pnpm offered 12.21.0; not taken (the server stays on 10.26.1). |
 | 2026-11-17 | Deployed **afb0f64** (apply page: the amber application-charge note removed; up from `da871ec`, a docs-only commit in between). Builds OK; no migrations (0 applied, 15 recorded; Supabase all skipped). API reloaded, health OK, `futurenestfund-api` online. RAM 63.7% right after the build. |
 | 2026-11-20 | Deployed **a93e715** (Phase 13 card payments: saved physical cards, Saved card payment methods, Admin → Card Payments; up from `afb0f64`, a docs-only commit in between). Builds OK; app migrations: 1 applied (**0015** `card_payments`: `demo_payment_cards`, `demo_reported_cards`, `demo_payment_methods.method_type`, `demo_requests.card_id`), 16 recorded; Supabase **0007_card_payments** applied, 0001–0006 skipped. API reloaded, health OK, `futurenestfund-api` online. RAM 47% right after the build. pnpm offered 12.21.0; not taken. Next: create a Saved card method in Payment Gateway. |
+| 2026-11-20 | Deployed **713229c** (Phase 14 Mail box, plus `c19a631` cards active once saved; up from `a93e715`). Builds OK; app migrations: 2 applied (**0016** `card_auto_active`, **0017** `mail`: `demo_mail_mailboxes`, `demo_mail_threads`, `demo_mail_messages`, `demo_mail_files`, `demo_mail_inbound`), 18 recorded; Supabase **0008_mail** applied, 0001–0007 skipped. API reloaded, health OK, `futurenestfund-api` online. RAM 73.9% right after the build. Next: DEPLOY step 10 (Resend full-access key, domain `futurenestfund.org`, DNS at Cloudflare, receiving, support@ mailbox, round-trip test). |
