@@ -2699,7 +2699,7 @@ One commit when 9.4 is green. `deploy.sh` applies 0012 and Supabase 0006.
 ### 23c. Withdrawal fees per tier (answers 1 and 2)
 - Only **withdrawal** method fees differ by tier. Deposit fees, card fees and grant application fees stay one fee for everyone.
 - **Admin → Settings → Withdrawal fees** (new section, `/admin/settings/withdrawal-fees`): a row per withdrawal method, with a Tier 1, Tier 2 and Tier 3 fee (fixed $ or %, same input as today). Empty = that tier pays the method's own fee from Payment Gateway, so nothing changes until the admin fills it in. Shows each tier's fee on a sample amount (e.g. "$100 → $2.00"). Audited.
-- Stored with the method: `demo_payment_methods.tier_fees` jsonb (`{ "1": FeeRule, … }`, missing tier = the method's fee). Migration 0015 (0013 went to branding, §24; 0014 to award ranges, §28), no new table, so no Supabase migration.
+- Stored with the method: `demo_payment_methods.tier_fees` jsonb (`{ "1": FeeRule, … }`, missing tier = the method's fee). Migration 0018 (0013 went to branding, §24; 0014 to award ranges, §28; 0015–0016 to card payments; 0017 to the Mail box), no new table, so no Supabase migration.
 - Payment Gateway's withdrawal form keeps the method fee, labelled "Default fee (tiers without their own fee in Settings → Withdrawal fees)".
 - Worked out from the user's tier when they place a withdrawal; stored on the request (`fee_cents`, snapshot fee text) as today, so held fees, approvals, declines, emails and reports work unchanged.
 - The applicant's withdrawal form shows **their** tier's fee for each method; "Your tier" lists the withdrawal fee per method for each tier, so an upgrade shows what it saves.
@@ -2834,4 +2834,48 @@ One commit when green; `deploy.sh` applies 0015. **Parked 2026-11-06** while bra
 **Changed:** the amber note (`FeeNote`, `applicant-grants.tsx`) is gone from both places it showed: the plan's details step and the summary before submitting. Kept: the summary's Application charge box ("Charged from your account balance only if approved"), the charge on plan cards, a range plan's line about its percentage, and the toast after submitting.
 
 **Tests:** typecheck clean; `phase11-ui` 9 + 9 and `phase-award-range-ui` 4 + 4 (expectations updated: the note is absent).
+
+---
+
+## 30. Phase 13: card payments (2026-11-20)
+
+**Built:** customers save the physical card they collected at the office (number and CVV sealed with the settings master key; keyed HMAC to spot the same card elsewhere and on the reported list) and pay in from it or are paid out to it through a **Saved card** payment method. Admin → **Card Payments**: overview and analytics, saved cards (block / unblock, audited "Show card details"), reported cards, card requests. Owner's decisions: the CVV is stored (encrypted) despite PCI DSS, risk accepted; no card check.
+
+**Commits:** `a93e715` (migration 0015, Supabase 0007; deployed 2026-11-20), then `c19a631`: cards are **active once saved** with a "card added" security email; admins only approve the deposits and withdrawals (migration 0016). Full description in `docs/PROJECT.md` §15 (Phase 13).
+
+**Tests:** `cardRules.test.ts` (7), card-added email test, `.unlazy/phase13-card-payments.mjs` 11/11, `phase13-ui.mjs` 9 + 9.
+
+---
+
+## 31. Phase 14: the admin Mail box (2026-11-20)
+
+**Request (user, 2026-11-20):** a Gmail-like admin email box (attachments, reply, forward, switch between created addresses) and an email section in Admin Settings for the Resend key, domain, creating addresses, the webhook, DNS health and connectivity, plus designed signatures (brand colour, logo, simple footer). Questions first, and `email.md` documenting everything.
+
+**Answers (user, 2026-11-20):** domain `futurenestfund.org`; nobody receives mail there today; start with `support@`; every admin sees every mailbox; a catch-all for unknown addresses; undo send and shortcuts now (labels, snooze, scheduled send later); applicants' replies land in Mail; failed SPF/DKIM/DMARC = red warning; Trash and Spam emptied after 30 days; designed signature on system emails too, one per mailbox, footer = website name; Resend Free plan; full-access key; attachments limited to Word, PDF, images, PowerPoint, Excel and similar (no macros). All recorded in `email.md` §11.
+
+**Built** (plan, design and as-built record in `email.md`, §13 in particular): five tables (migration 0017, Supabase 0008); receiving through Resend's `email.received` webhook (Svix-signed, queued with retries), mail and attachments copied to our own storage, threading by References / In-Reply-To or subject; the Mail page (folders, mailbox switcher, search, filters, bulk actions, conversation view with applicant card, Show images through the server's proxy, attachment cards, shortcuts, phone layout); Compose (TipTap editor, chips with suggestions, Cc/Bcc, drag-and-drop attachments, autosaved drafts, signature, Undo for 10 s); Settings → Email (checklist, domain and live DNS checks, webhook, mailboxes, signature editor with live preview, round-trip test, daily usage bar); system emails sent from the system mailbox with its signature.
+
+**Found and fixed while testing:** a duplicate address gave a 500 (the database library wraps the error code); Undo send returned the draft before it was saved; keyboard shortcuts crashed on events not from page elements; the Mail page was slightly taller than the screen.
+
+**Tests:** typecheck clean; `pnpm test` 171/171 (+1 skipped; new `mail.test.ts` 21); `.unlazy/phase14-mail.mjs` 15/15 and `phase14-ui.mjs` 7/7 desktop + 7/7 phone against the extended Resend stand-in (`mock-resend.mjs`: domains, webhooks, received mail, signed calls, loop-back delivery); `phase7-email` 10/11 (the miss expects that suite's own `APP_URL`). Demo data restored afterwards (`restore-demo-db.sh` now also empties the card and mail tables).
+
+**Deployed** 2026-11-20 at `713229c` (migrations 0016, 0017, Supabase 0008 applied; record `fe549ce`). **Next:** `docs/DEPLOY.md` step 10 in the admin area.
+
+**Note:** while restarting a local test server, a too-broad `pkill` probably also stopped the Replit dev API on :8080; restart it from the Replit workflows if the preview shows "Can't reach".
+
+---
+
+## 32. Summary of 2026-11-20
+
+| Step | Commit | Deployed | Notes |
+|---|---|---|---|
+| Phase 13 card payments | `a93e715` | `a93e715` (0015, Supabase 0007) | §30 |
+| Cards active once saved | `c19a631` | `713229c` (0016) | §30 |
+| Phase 14 Mail box | `713229c` | `713229c` (0017, Supabase 0008) | §31, `email.md` |
+
+**Live now:** `713229c` at https://access.futurenestfund.org.
+
+**Needs the user:** DEPLOY step 10 (email and the Mail box setup); from before: grant plans, payment methods (incl. a Saved card method), card types, branding, tier settings (`server.md` §6b); rotate the secrets pasted in chat and delete the GitHub token; Supabase minimum password length 8; off-server backup copies; ClamAV only if memory allows; reboot at a quiet time.
+
+**Waiting for the user's go:** 9.5 (any number of cards, withdrawal fees per tier; its planned migration is now **0018**, since 0015–0017 were used).
 

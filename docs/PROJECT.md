@@ -1,6 +1,6 @@
 # GrantApp: project documentation
 
-_Last updated 2026-11-06 · branch `user-side-redesign` · Phases 0–5, 7 and 8 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1, 9.2 and 9.3 done; Phase 10 done; Phase 11 (grant plans, industries, application fees) done (`010d4b9`); 9.4 tier rules done (`924fffb`); branding done (`1c4b760`); 9.5 planned · award ranges done (`da871ec`) · **live at https://access.futurenestfund.org** (`afb0f64` deployed 2026-11-17)._
+_Last updated 2026-11-20 · branch `user-side-redesign` · Phases 0–5, 7, 8, 10–14 complete; Phase 6: 6.1–6.6 done (6.6 in code, ClamAV not installed on the server yet); Phase 9: 9.1–9.4 done, 9.5 planned · **live at https://access.futurenestfund.org** (`713229c` deployed 2026-11-20: Mail box). Email setup in Admin → Settings → Email (DEPLOY step 10) still to do._
 
 A grant-management web app with two workspaces: **applicants** apply for grants and manage funding; **administrators** review applications, money requests and identity documents. Grants, balances and cards are **sample data**: no payment processor, card network or OCR is connected.
 
@@ -602,12 +602,22 @@ Latest run (2026-11-01, after Phase 7 and 6.6, demo mode): typecheck clean, `pnp
 | `010d4b9` | Grant plans, industries and application fees; matchmaking and sample grants removed (Phase 11) |
 | `1c4b760` | Branding: admin-set application name, brand colour and logo on both sides and in emails |
 | `924fffb` | Tier rules: withdrawal and top-up limits and cards per tier, upgrade forms and the Tier Upgrades queue (9.4) |
+| `3612717` | Wording: "application charge" instead of "application fee" |
+| `c540a0a` | Wording: "processing charge" instead of "fee" on Withdrawals |
+| `da871ec` | Grant plans: award as a fixed amount or a range the applicant chooses (migration 0014) |
+| `afb0f64` | Apply page: the application charge note removed |
+| `a93e715` | Card payments: saved physical cards for deposits and withdrawals, Admin → Card Payments (Phase 13, migration 0015, Supabase 0007) |
+| `c19a631` | Card payments: cards active once saved, "card added" email; admins only approve card deposits and withdrawals (migration 0016) |
+| `713229c` | Mail box: Gmail-style admin Mail, domain / DNS / webhook setup, mailboxes, designed signatures; system emails from the system mailbox (Phase 14, migration 0017, Supabase 0008; `email.md`) |
+| `dcf0067`, `5e1c1c7`, `480b0a5`, `a2fff87`, `7413c74`, `9ac6f96`, `fe549ce` | `server.md` deployment records for `2ad3f00`, `1c4b760`, `3612717`, `da871ec`, `afb0f64`, `a93e715`, `713229c` |
 
 ---
 
 ## 15. Open items and next steps
 
-**Live:** `afb0f64` (apply page charge note removed; deployed 2026-11-17, no migration). Before that: `da871ec` (award ranges, migration 0014; and `c540a0a`, withdrawal "processing charge" wording; deployed 2026-11-17). Before that: `3612717` ("application charge" wording; 2026-11-09, no migration), `1c4b760` (branding; 2026-11-06, migration 0013), `2ad3f00` (9.4 tier rules; 2026-11-06, migration 0012, Supabase 0006), on 2026-11-05: `dc386f9` (9.1, Phase 10, 9.3; migrations 0009, 0010, Supabase 0004), `a1072f6` (9.2), `1b2a4c0` (8.2), `f39c238` (Phase 11; migration 0011, Supabase 0005). Records in `server.md` §10.
+**Live:** `713229c` (Phase 14 Mail box, with `c19a631` cards active once saved; deployed 2026-11-20, migrations 0016, 0017, Supabase 0008). Before that: `a93e715` (Phase 13 card payments; 2026-11-20, migration 0015, Supabase 0007), `afb0f64` (apply page charge note removed; 2026-11-17), `da871ec` (award ranges, migration 0014; and `c540a0a`, withdrawal "processing charge" wording; 2026-11-17), `3612717` ("application charge" wording; 2026-11-09), `1c4b760` (branding; 2026-11-06, migration 0013), `2ad3f00` (9.4 tier rules; 2026-11-06, migration 0012, Supabase 0006), and the 2026-11-05 deploys. Records in `server.md` §10.
+
+**Needs you now (email):** `docs/DEPLOY.md` step 10: full-access Resend key, domain `futurenestfund.org`, DNS records at Cloudflare, Turn on receiving, the support@ mailbox and its signature, round-trip test, Supabase Send Email Hook ([`email.md`](../email.md) §13).
 
 **Needs you now, in the admin area** (nothing below works for applicants until it's set up):
 1. **Grant Plans:** create at least one plan (until then applicants see "No grants are open right now").
