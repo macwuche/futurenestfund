@@ -2968,4 +2968,4 @@ One commit when green; `deploy.sh` applies 0015. **Parked 2026-11-06** while bra
 
 **Tests (2026-11-25):** typecheck clean; `pnpm test` 179/179 (+1 skipped), incl. `actAs.test.ts` (7, real `authenticate` middleware in Supabase mode); API and web production builds OK; `.unlazy/phase15-sign-in-as.mjs` 14/14 (demo mode: API on :8099, Vite on :8097, `phase15-proxy.mjs` on :8098, headless Chromium on :9222; it writes one audit row). Review: every applicant actor goes through the helper; the only raw `fetch` in the web app is crash reporting, so uploads carry the header too. Not run: a browser check with real Supabase sign-ins (covered by the unit tests); try it once on the live site after deploying.
 
-**Committed** `94ad341`; docs in the following commit. **Deploy:** `deploy.sh` (no migration).
+**Committed** `94ad341`; docs `14c1996`. **Deployed** 2026-11-25 at `14c1996` (no migration; record in `server.md` §10). **Needs the user:** one try on the live site with real accounts.
