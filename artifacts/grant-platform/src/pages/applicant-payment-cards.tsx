@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useListApplicantPaymentCards, useDeleteApplicantPaymentCard, getListApplicantPaymentCardsQueryKey, type SavedCard } from '@workspace/api-client-react';
@@ -13,8 +13,9 @@ const panel = 'rounded-2xl border border-[#E5E7EB] bg-white shadow-sm';
 
 /**
  * Payment cards (Phase 13): the physical cards a customer collected at the office and saved, to add funds from or be paid
- * to. A card is usable as soon as it's saved (the customer is emailed); the finance team approves each deposit and
- * withdrawal made with it. The number and CVV are never shown back here.
+ * to. A saved card is under review until the team approves it (the customer is emailed when it's added and when it's
+ * decided); the finance team also approves each deposit and withdrawal made with it. The number and CVV are never shown
+ * back here.
  */
 export function PaymentCardsPage() {
   const q = useListApplicantPaymentCards();
@@ -28,7 +29,12 @@ export function PaymentCardsPage() {
 function Body({ cards }: { cards: SavedCard[] }) {
   const [adding, setAdding] = useState(false);
   const [selected, setSelected] = useState(cards[0]?.id ?? '');
-  useEffect(() => { if (!cards.some((c) => c.id === selected)) setSelected(cards[0]?.id ?? ''); }, [cards, selected]);
+  // A card just saved isn't in the list until it refreshes: keep it selected until then instead of falling back.
+  const justSaved = useRef('');
+  useEffect(() => {
+    if (cards.some((c) => c.id === justSaved.current)) justSaved.current = '';
+    if (selected !== justSaved.current && !cards.some((c) => c.id === selected)) setSelected(cards[0]?.id ?? '');
+  }, [cards, selected]);
   const card = cards.find((c) => c.id === selected);
   return (
     <div className="space-y-5">
@@ -40,7 +46,7 @@ function Body({ cards }: { cards: SavedCard[] }) {
               <h2 className="font-display text-2xl font-bold text-slate-900">Use your physical card</h2>
               <p className="mt-2 text-sm text-slate-600">Collected a card at our office? Save it here to add funds from it, or to have your withdrawals paid straight to it.</p>
               <ul className="mt-4 space-y-2 text-sm text-slate-700">
-                <li className="flex gap-2"><ShieldCheck className="h-4 w-4 shrink-0 text-[var(--brand-ink)]" />Our team checks every card before paying to it</li>
+                <li className="flex gap-2"><ShieldCheck className="h-4 w-4 shrink-0 text-[var(--brand-ink)]" />Our team reviews every card before it can be used</li>
                 <li className="flex gap-2"><Lock className="h-4 w-4 shrink-0 text-[var(--brand-ink)]" />Card details are encrypted</li>
               </ul>
               <button type="button" onClick={() => setAdding(true)} data-testid="button-add-first-card" className="press mt-6 inline-flex min-h-12 items-center gap-2 rounded-full bg-[var(--brand)] px-6 text-[15px] font-semibold text-[var(--brand-fg)] hover:bg-[var(--brand-dark)]">
@@ -88,14 +94,14 @@ function Body({ cards }: { cards: SavedCard[] }) {
       <section className={cx(panel, 'p-5 text-sm text-slate-600')} data-testid="section-card-help">
         <h2 className="mb-2 flex items-center gap-2 font-semibold text-slate-900"><CreditCard className="h-4 w-4" />How card payments work</h2>
         <ol className="list-decimal space-y-1 pl-5">
-          <li>Save the physical card you collected at our office.</li>
-          <li>It's ready straight away, and we email you to confirm it was added.</li>
+          <li>Save the physical card.</li>
+          <li>Our team reviews it. You can use it once it's approved, and we email you when that happens.</li>
           <li>Choose a card method in <Link href="/deposits" className="font-semibold underline">Add funds</Link> or <Link href="/withdrawals" className="font-semibold underline">Withdrawals</Link>, then pick your card.</li>
           <li>Our finance team reviews each deposit and withdrawal before any money moves.</li>
           <li>If your card is lost or stolen, contact support at once so we can block it.</li>
         </ol>
       </section>
-      <AddCardDialog open={adding} onClose={() => setAdding(false)} onSaved={(c) => setSelected(c.id)} />
+      <AddCardDialog open={adding} onClose={() => setAdding(false)} onSaved={(c) => { justSaved.current = c.id; setSelected(c.id); }} />
     </div>
   );
 }
@@ -111,7 +117,7 @@ function CardDetail({ c }: { c: SavedCard }) {
       <CardFace network={c.network} lastFour={c.lastFour} holderName={c.holderName} expiry={c.expiry} muted={!c.usable} testid="face-selected-card" />
       <dl className="mt-5 divide-y divide-slate-100 text-sm">
         <div className="flex items-center justify-between gap-3 py-2.5"><dt className="text-slate-500">Status</dt><dd><CardStatusChip c={c} /></dd></div>
-        {!c.usable && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-800" data-testid="text-card-unusable">{cardStatusText(c)}</p>}
+        {!c.usable && <p className={cx('rounded-lg px-3 py-2 text-xs', c.status === 'Pending' && !c.expired ? 'bg-amber-50 text-amber-900' : 'bg-red-50 text-red-800')} data-testid="text-card-unusable">{cardStatusText(c)}</p>}
         <div className="flex items-center justify-between gap-3 py-2.5"><dt className="text-slate-500">Card</dt><dd className="font-num font-semibold text-slate-900">{c.networkName} •••• {c.lastFour}</dd></div>
         <div className="flex items-center justify-between gap-3 py-2.5"><dt className="text-slate-500">Expires</dt><dd className="font-num font-semibold text-slate-900">{c.expiry}</dd></div>
         <div className="flex items-center justify-between gap-3 py-2.5"><dt className="text-slate-500">Added</dt><dd className="text-slate-900">{dateFmt(c.createdAt)}</dd></div>

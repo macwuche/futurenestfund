@@ -495,13 +495,15 @@ export const CardNetwork = {
 } as const;
 
 /**
- * Active as soon as the customer saves it; administrators can block it (lost, stolen, not ours)
+ * Pending (under review) when the customer saves it; an administrator approves it (Active) or declines it; administrators can block it (lost, stolen, not ours)
  */
 export type SavedCardStatus = typeof SavedCardStatus[keyof typeof SavedCardStatus];
 
 
 export const SavedCardStatus = {
+  Pending: 'Pending',
   Active: 'Active',
+  Declined: 'Declined',
   Blocked: 'Blocked',
   Removed: 'Removed',
 } as const;
@@ -524,6 +526,8 @@ export interface SavedCard {
   usable?: boolean;
   /** Applicant: why it's blocked */
   blockedReason?: string;
+  /** Applicant: why it wasn't approved */
+  declinedReason?: string;
 }
 
 export interface SavedCardInput {
@@ -549,6 +553,7 @@ export const CardFlagKind = {
   reported: 'reported',
   duplicate: 'duplicate',
   blocked: 'blocked',
+  review: 'review',
 } as const;
 
 export interface CardFlag {
@@ -674,6 +679,8 @@ export type CardDecisionInputAction = typeof CardDecisionInputAction[keyof typeo
 
 
 export const CardDecisionInputAction = {
+  approve: 'approve',
+  decline: 'decline',
   block: 'block',
   unblock: 'unblock',
 } as const;
@@ -697,7 +704,7 @@ export interface CardDecisionInput {
   /** block only */
   reason?: CardDecisionInputReason;
   /**
-     * block only: shown to the customer, at least 5 characters
+     * decline and block: shown to the customer, at least 5 characters
      * @maxLength 240
      */
   note?: string;
@@ -729,7 +736,10 @@ export interface ReportCardInput {
 
 export type CardPaymentsOverviewCards = {
   total: number;
+  /** Waiting for review */
+  pending: number;
   active: number;
+  declined: number;
   blocked: number;
   flagged: number;
   expired: number;
@@ -3408,7 +3418,9 @@ export type ListAdminPaymentCardsFilter = typeof ListAdminPaymentCardsFilter[key
 export const ListAdminPaymentCardsFilter = {
   all: 'all',
   flagged: 'flagged',
+  Pending: 'Pending',
   Active: 'Active',
+  Declined: 'Declined',
   Blocked: 'Blocked',
   Removed: 'Removed',
 } as const;

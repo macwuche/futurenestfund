@@ -131,7 +131,7 @@ export async function decideApplication(id: string, decision: Decision, note: st
       if (frozen) throw new DemoInputError("Approvals that release funds are paused by the global freeze.");
       if (profile.status === "Frozen") throw new DemoInputError("Unfreeze this account before approving funding.");
       const next = profile.grantCents + award;
-      if (next > MAX_BALANCE_CENTS) throw new DemoInputError("This would exceed the demo account limit.");
+      if (next > MAX_BALANCE_CENTS) throw new DemoInputError("This would exceed the account limit.");
       await tx.update(demoProfilesTable).set({ grantCents: next, ...(fee > 0 ? { depositCents: profile.depositCents - fee } : {}) }).where(eq(demoProfilesTable.id, profile.id));
       await tx.insert(demoLedgerTable).values({
         profileId: profile.id, kind: "Grant award", account: "grant", amountCents: award, reason: `Grant award · ${a.title}`, applicationId: a.id, actor,
@@ -286,7 +286,7 @@ export async function approveRequest(id: string, actor: string, note?: string) {
     let change: Partial<DemoProfile>;
     if (deposit) {
       const next = profile.depositCents + r.amountCents - fee;
-      if (next > MAX_BALANCE_CENTS) throw new DemoInputError("This would exceed the demo account limit.");
+      if (next > MAX_BALANCE_CENTS) throw new DemoInputError("This would exceed the account limit.");
       change = { depositCents: next };
     } else {
       if (!sourceAllowed(profile.withdrawalSources, source)) {

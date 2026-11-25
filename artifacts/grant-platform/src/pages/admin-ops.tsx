@@ -52,7 +52,7 @@ function RequestQueuePage({ kind }: { kind: 'Deposit' | 'Withdrawal' }) {
             {deposit ? 'Deposits awaiting approval' : 'Payouts awaiting sign-off'}
           </SectionTitle>
           <p className="-mt-2 mb-4 text-xs text-slate-500">
-            {deposit ? 'Approving credits the account balance and writes a ledger entry.' : 'Approving pays the amount out of the balance the applicant chose (grant or deposit) and writes a ledger entry.'} Oldest first. No real money moves.
+            {deposit ? 'Approving credits the account balance and writes a ledger entry.' : 'Approving pays the amount out of the balance the applicant chose (grant or deposit) and writes a ledger entry.'} Oldest first.
           </p>
           {pending.isLoading ? <div className="space-y-2">{[1, 2].map((i) => <Skel key={i} className="h-16" />)}</div>
             : pending.isError || !pending.data ? <ErrorState onRetry={() => pending.refetch()} />
@@ -448,7 +448,7 @@ export function AdminKycPage() {
           </div>
           <section className={cx(card, 'p-5')} data-testid="section-kyc-queue">
             <SectionTitle>Identity documents awaiting review</SectionTitle>
-            <p className="-mt-2 mb-4 text-xs text-slate-500">Oldest first. A user becomes Verified once both their Government ID and proof of address are approved. Uploaded files are not machine-checked; OCR scores appear on sample documents only and are demonstration data.</p>
+            <p className="-mt-2 mb-4 text-xs text-slate-500">Oldest first. A user becomes Verified once both their Government ID and proof of address are approved. Uploaded files are not machine-checked.</p>
             {q.data.pending.length === 0 ? <Empty title="Queue is clear" hint="Documents applicants upload in Settings appear here." /> : (
               <ul className="grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-2" data-testid="list-kyc-queue">{q.data.pending.map((d) => (
                 <li key={d.id} className="flex flex-col gap-3 rounded-xl border border-[#E2E8F0] p-4" data-testid={`row-kyc-${d.id}`}>
@@ -614,7 +614,7 @@ export function AdminApplicationPage() {
                     className={cx('w-full', d === 'Approved' ? lime : d === 'Declined' ? danger : d === 'Review' ? dark : ghost, 'disabled:cursor-not-allowed')}>{decisionCopy[d].label}</button>
                 ))}
                 {approveBlocked && <p className="text-xs text-red-700" data-testid="text-approve-blocked">{approveBlocked}</p>}
-                <p className="text-xs text-slate-500" data-testid="text-approve-effect">{approveText} Sample data; no real funds move.</p>
+                <p className="text-xs text-slate-500" data-testid="text-approve-effect">{approveText}</p>
               </>
             )}
           </aside>

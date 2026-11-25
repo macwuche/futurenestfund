@@ -195,7 +195,7 @@ export function SignUpPage() {
         <Field label="Confirm password" error={f.formState.errors.confirm?.message}>
           <PasswordInput {...f.register('confirm')} autoComplete="new-password" testid="input-confirm" />
         </Field>
-        <p className="text-xs text-slate-500">At least 8 characters. This is a preview with sample grants: don't upload real identity documents yet.</p>
+        <p className="text-xs text-slate-500">At least 8 characters.</p>
         <Submit busy={f.formState.isSubmitting} testid="button-sign-up">Create account</Submit>
       </form>
     </AuthFrame>

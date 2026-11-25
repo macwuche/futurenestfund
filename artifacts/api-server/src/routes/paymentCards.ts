@@ -13,7 +13,7 @@ import { currentAdmin, currentUserId } from "../lib/currentUser";
 import { db, demoProfilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
-/** Card payments (Phase 13): customers save the physical cards they collected; administrators check, block and report them. */
+/** Card payments (Phase 13): customers save the physical cards they collected; administrators approve or decline each one, block and report them. */
 const router: IRouter = Router();
 
 router.get("/applicant/payment-cards", async (req, res): Promise<void> => {
@@ -39,7 +39,7 @@ router.get("/admin/card-payments/overview", async (_req, res): Promise<void> => 
 });
 router.get("/admin/payment-cards", async (req, res): Promise<void> => {
   const query = ListAdminPaymentCardsQueryParams.safeParse(req.query);
-  if (!query.success) { res.status(400).json({ error: "Choose a filter: all, flagged, Active, Blocked or Removed." }); return; }
+  if (!query.success) { res.status(400).json({ error: "Choose a filter: all, flagged, Pending, Active, Declined, Blocked or Removed." }); return; }
   res.json(ListAdminPaymentCardsResponse.parse(await listAdminCards(query.data.filter ?? "all", query.data.q ?? "", query.data.userId)));
 });
 router.get("/admin/payment-cards/:cardId", async (req, res): Promise<void> => {
@@ -59,8 +59,10 @@ router.post("/admin/payment-cards/:cardId/reveal", async (req, res): Promise<voi
 router.post("/admin/payment-cards/:cardId/decision", async (req, res): Promise<void> => {
   const params = DecideAdminPaymentCardParams.safeParse(req.params);
   const input = DecideAdminPaymentCardBody.safeParse(req.body);
-  if (!input.success) { res.status(400).json({ error: "Choose block (with a reason) or unblock." }); return; }
-  const d = input.data.action === "block" ? { action: "block" as const, reason: input.data.reason ?? "", note: input.data.note ?? "" } : { action: input.data.action };
+  if (!input.success) { res.status(400).json({ error: "Choose approve, decline (with a reason), block (with a reason) or unblock." }); return; }
+  const a = input.data.action;
+  const d = a === "block" ? { action: "block" as const, reason: input.data.reason ?? "", note: input.data.note ?? "" }
+    : a === "decline" ? { action: "decline" as const, note: input.data.note ?? "" } : { action: a };
   const card = params.success ? await decideCard(params.data.cardId, d, currentAdmin(req)) : undefined;
   if (!card) { res.status(404).json({ error: "Card not found." }); return; }
   res.json(DecideAdminPaymentCardResponse.parse(card));

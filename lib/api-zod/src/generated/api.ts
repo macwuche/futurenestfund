@@ -5061,14 +5061,15 @@ export const ListAdminRequestsResponseItem = zod.object({
   "networkName": zod.string(),
   "lastFour": zod.string(),
   "expiry": zod.string().describe('MM/YY'),
-  "status": zod.enum(['Active', 'Blocked', 'Removed']).describe('Active as soon as the customer saves it; administrators can block it (lost, stolen, not ours)'),
+  "status": zod.enum(['Pending', 'Active', 'Declined', 'Blocked', 'Removed']).describe('Pending (under review) when the customer saves it; an administrator approves it (Active) or declines it; administrators can block it (lost, stolen, not ours)'),
   "expired": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
-  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked'),
+  "declinedReason": zod.string().optional().describe('Applicant: why it wasn\'t approved')
 }).describe('A physical card the customer saved (Phase 13). Never carries the full number.').and(zod.object({
   "flags": zod.array(zod.object({
-  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked']),
+  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked', 'review']),
   "text": zod.string()
 })),
   "blocker": zod.string().optional().describe('Why the request can\'t be approved with this card right now')
@@ -5133,14 +5134,15 @@ export const ApproveAdminRequestResponse = zod.object({
   "networkName": zod.string(),
   "lastFour": zod.string(),
   "expiry": zod.string().describe('MM/YY'),
-  "status": zod.enum(['Active', 'Blocked', 'Removed']).describe('Active as soon as the customer saves it; administrators can block it (lost, stolen, not ours)'),
+  "status": zod.enum(['Pending', 'Active', 'Declined', 'Blocked', 'Removed']).describe('Pending (under review) when the customer saves it; an administrator approves it (Active) or declines it; administrators can block it (lost, stolen, not ours)'),
   "expired": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
-  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked'),
+  "declinedReason": zod.string().optional().describe('Applicant: why it wasn\'t approved')
 }).describe('A physical card the customer saved (Phase 13). Never carries the full number.').and(zod.object({
   "flags": zod.array(zod.object({
-  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked']),
+  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked', 'review']),
   "text": zod.string()
 })),
   "blocker": zod.string().optional().describe('Why the request can\'t be approved with this card right now')
@@ -5205,14 +5207,15 @@ export const RejectAdminRequestResponse = zod.object({
   "networkName": zod.string(),
   "lastFour": zod.string(),
   "expiry": zod.string().describe('MM/YY'),
-  "status": zod.enum(['Active', 'Blocked', 'Removed']).describe('Active as soon as the customer saves it; administrators can block it (lost, stolen, not ours)'),
+  "status": zod.enum(['Pending', 'Active', 'Declined', 'Blocked', 'Removed']).describe('Pending (under review) when the customer saves it; an administrator approves it (Active) or declines it; administrators can block it (lost, stolen, not ours)'),
   "expired": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
-  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked'),
+  "declinedReason": zod.string().optional().describe('Applicant: why it wasn\'t approved')
 }).describe('A physical card the customer saved (Phase 13). Never carries the full number.').and(zod.object({
   "flags": zod.array(zod.object({
-  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked']),
+  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked', 'review']),
   "text": zod.string()
 })),
   "blocker": zod.string().optional().describe('Why the request can\'t be approved with this card right now')
@@ -5446,11 +5449,12 @@ export const ListApplicantPaymentCardsResponseItem = zod.object({
   "networkName": zod.string(),
   "lastFour": zod.string(),
   "expiry": zod.string().describe('MM/YY'),
-  "status": zod.enum(['Active', 'Blocked', 'Removed']).describe('Active as soon as the customer saves it; administrators can block it (lost, stolen, not ours)'),
+  "status": zod.enum(['Pending', 'Active', 'Declined', 'Blocked', 'Removed']).describe('Pending (under review) when the customer saves it; an administrator approves it (Active) or declines it; administrators can block it (lost, stolen, not ours)'),
   "expired": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
-  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked'),
+  "declinedReason": zod.string().optional().describe('Applicant: why it wasn\'t approved')
 }).describe('A physical card the customer saved (Phase 13). Never carries the full number.')
 export const ListApplicantPaymentCardsResponse = zod.array(ListApplicantPaymentCardsResponseItem)
 
@@ -5482,11 +5486,12 @@ export const CreateApplicantPaymentCardResponse = zod.object({
   "networkName": zod.string(),
   "lastFour": zod.string(),
   "expiry": zod.string().describe('MM/YY'),
-  "status": zod.enum(['Active', 'Blocked', 'Removed']).describe('Active as soon as the customer saves it; administrators can block it (lost, stolen, not ours)'),
+  "status": zod.enum(['Pending', 'Active', 'Declined', 'Blocked', 'Removed']).describe('Pending (under review) when the customer saves it; an administrator approves it (Active) or declines it; administrators can block it (lost, stolen, not ours)'),
   "expired": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
-  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked'),
+  "declinedReason": zod.string().optional().describe('Applicant: why it wasn\'t approved')
 }).describe('A physical card the customer saved (Phase 13). Never carries the full number.')
 
 
@@ -5506,7 +5511,9 @@ export const DeleteApplicantPaymentCardResponse = zod.void()
 export const GetAdminCardPaymentsOverviewResponse = zod.object({
   "cards": zod.object({
   "total": zod.number().int(),
+  "pending": zod.number().int().describe('Waiting for review'),
   "active": zod.number().int(),
+  "declined": zod.number().int(),
   "blocked": zod.number().int(),
   "flagged": zod.number().int(),
   "expired": zod.number().int(),
@@ -5571,7 +5578,7 @@ export const listAdminPaymentCardsQueryQMax = 100;
 
 
 export const ListAdminPaymentCardsQueryParams = zod.object({
-  "filter": zod.enum(['all', 'flagged', 'Active', 'Blocked', 'Removed']).default(listAdminPaymentCardsQueryFilterDefault),
+  "filter": zod.enum(['all', 'flagged', 'Pending', 'Active', 'Declined', 'Blocked', 'Removed']).default(listAdminPaymentCardsQueryFilterDefault),
   "q": zod.coerce.string().max(listAdminPaymentCardsQueryQMax).optional(),
   "userId": zod.coerce.string().optional()
 })
@@ -5583,17 +5590,18 @@ export const ListAdminPaymentCardsResponseItem = zod.object({
   "networkName": zod.string(),
   "lastFour": zod.string(),
   "expiry": zod.string().describe('MM/YY'),
-  "status": zod.enum(['Active', 'Blocked', 'Removed']).describe('Active as soon as the customer saves it; administrators can block it (lost, stolen, not ours)'),
+  "status": zod.enum(['Pending', 'Active', 'Declined', 'Blocked', 'Removed']).describe('Pending (under review) when the customer saves it; an administrator approves it (Active) or declines it; administrators can block it (lost, stolen, not ours)'),
   "expired": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
-  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked'),
+  "declinedReason": zod.string().optional().describe('Applicant: why it wasn\'t approved')
 }).describe('A physical card the customer saved (Phase 13). Never carries the full number.').and(zod.object({
   "userId": zod.string(),
   "userName": zod.string(),
   "organization": zod.string(),
   "flags": zod.array(zod.object({
-  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked']),
+  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked', 'review']),
   "text": zod.string()
 })),
   "blockReason": zod.enum(['Lost', 'Stolen', 'Expired', 'Not our card', 'Other']).optional(),
@@ -5624,17 +5632,18 @@ export const GetAdminPaymentCardResponse = zod.object({
   "networkName": zod.string(),
   "lastFour": zod.string(),
   "expiry": zod.string().describe('MM/YY'),
-  "status": zod.enum(['Active', 'Blocked', 'Removed']).describe('Active as soon as the customer saves it; administrators can block it (lost, stolen, not ours)'),
+  "status": zod.enum(['Pending', 'Active', 'Declined', 'Blocked', 'Removed']).describe('Pending (under review) when the customer saves it; an administrator approves it (Active) or declines it; administrators can block it (lost, stolen, not ours)'),
   "expired": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
-  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked'),
+  "declinedReason": zod.string().optional().describe('Applicant: why it wasn\'t approved')
 }).describe('A physical card the customer saved (Phase 13). Never carries the full number.').and(zod.object({
   "userId": zod.string(),
   "userName": zod.string(),
   "organization": zod.string(),
   "flags": zod.array(zod.object({
-  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked']),
+  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked', 'review']),
   "text": zod.string()
 })),
   "blockReason": zod.enum(['Lost', 'Stolen', 'Expired', 'Not our card', 'Other']).optional(),
@@ -5698,7 +5707,7 @@ export const RevealAdminPaymentCardResponse = zod.object({
 
 
 /**
- * @summary Verify, block (with a reason the customer sees) or unblock a saved card
+ * @summary Approve or decline a card waiting for review, block (with a reason the customer sees) or unblock a saved card
  */
 export const DecideAdminPaymentCardParams = zod.object({
   "cardId": zod.coerce.string()
@@ -5709,9 +5718,9 @@ export const decideAdminPaymentCardBodyNoteMax = 240;
 
 
 export const DecideAdminPaymentCardBody = zod.object({
-  "action": zod.enum(['block', 'unblock']),
+  "action": zod.enum(['approve', 'decline', 'block', 'unblock']),
   "reason": zod.enum(['Lost', 'Stolen', 'Expired', 'Not our card', 'Other']).optional().describe('block only'),
-  "note": zod.string().max(decideAdminPaymentCardBodyNoteMax).optional().describe('block only: shown to the customer, at least 5 characters')
+  "note": zod.string().max(decideAdminPaymentCardBodyNoteMax).optional().describe('decline and block: shown to the customer, at least 5 characters')
 })
 
 export const DecideAdminPaymentCardResponse = zod.object({
@@ -5721,17 +5730,18 @@ export const DecideAdminPaymentCardResponse = zod.object({
   "networkName": zod.string(),
   "lastFour": zod.string(),
   "expiry": zod.string().describe('MM/YY'),
-  "status": zod.enum(['Active', 'Blocked', 'Removed']).describe('Active as soon as the customer saves it; administrators can block it (lost, stolen, not ours)'),
+  "status": zod.enum(['Pending', 'Active', 'Declined', 'Blocked', 'Removed']).describe('Pending (under review) when the customer saves it; an administrator approves it (Active) or declines it; administrators can block it (lost, stolen, not ours)'),
   "expired": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "usable": zod.boolean().optional().describe('Applicant: whether it can be used for a new request'),
-  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked')
+  "blockedReason": zod.string().optional().describe('Applicant: why it\'s blocked'),
+  "declinedReason": zod.string().optional().describe('Applicant: why it wasn\'t approved')
 }).describe('A physical card the customer saved (Phase 13). Never carries the full number.').and(zod.object({
   "userId": zod.string(),
   "userName": zod.string(),
   "organization": zod.string(),
   "flags": zod.array(zod.object({
-  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked']),
+  "kind": zod.enum(['expired', 'expiring', 'reported', 'duplicate', 'blocked', 'review']),
   "text": zod.string()
 })),
   "blockReason": zod.enum(['Lost', 'Stolen', 'Expired', 'Not our card', 'Other']).optional(),

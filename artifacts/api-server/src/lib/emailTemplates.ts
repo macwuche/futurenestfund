@@ -202,18 +202,37 @@ export function tierEmail(kind: TierEmailKind, to: string, name: string, d: Tier
 }
 
 /**
- * Card payments (Phase 13): sent when a customer saves a card. It's a security notice, so it goes out even when the
- * customer turned email notifications off (only an administrator's email override stops it).
+ * Card payments (Phase 13): sent when a customer saves a card (it then waits for an administrator's review), and when an
+ * administrator approves or declines it. "card_added" is a security notice, so it goes out even when the customer turned
+ * email notifications off (only an administrator's email override stops it).
  */
-export type CardEmailKind = "card_added";
-export type CardEmailData = { card: string; holderName: string; expiry: string; date: string };
-export const isCardEmailKind = (k: unknown): k is CardEmailKind => k === "card_added";
+export type CardEmailKind = "card_added" | "card_approved" | "card_declined";
+export type CardEmailData = { card: string; holderName: string; expiry: string; date: string; reason?: string };
+export const isCardEmailKind = (k: unknown): k is CardEmailKind => k === "card_added" || k === "card_approved" || k === "card_declined";
 
-export function cardEmail(_kind: CardEmailKind, to: string, name: string, d: CardEmailData, url: string): OutgoingEmail {
+export function cardEmail(kind: CardEmailKind, to: string, name: string, d: CardEmailData, url: string): OutgoingEmail {
+  const rows: [string, string][] = [["Card", d.card], ["Name on card", d.holderName], ["Expires", d.expiry]];
+  if (kind === "card_approved") {
+    return render(to, `Your card was approved`, "Card approved", [
+      { kind: "p", text: greeting(name) },
+      { kind: "p", text: `Your ${d.card} was reviewed and approved. You can now use it to add funds and to withdraw. Each deposit and withdrawal is still reviewed by our finance team before money moves.` },
+      { kind: "rows", rows: [...rows, ["Approved", d.date]] },
+      { kind: "button", label: "View your cards", href: url },
+    ]);
+  }
+  if (kind === "card_declined") {
+    return render(to, `Your card wasn't approved`, "Card not approved", [
+      { kind: "p", text: greeting(name) },
+      { kind: "p", text: `We reviewed your ${d.card} and couldn't approve it, so it can't be used for deposits or withdrawals.` },
+      { kind: "rows", rows: [...rows, ["Reason", d.reason ?? "Contact support for details."]] },
+      { kind: "button", label: "View your cards", href: url },
+      { kind: "small", text: "You can remove this card and add it again once the problem is fixed, or contact support." },
+    ]);
+  }
   return render(to, `A card was added to your ${appName()} account`, "Card added", [
     { kind: "p", text: greeting(name) },
-    { kind: "p", text: `Your ${d.card} was added to your ${appName()} account. You can use it straight away to add funds and to withdraw. Each deposit and withdrawal is reviewed by our finance team before money moves.` },
-    { kind: "rows", rows: [["Card", d.card], ["Name on card", d.holderName], ["Expires", d.expiry], ["Added", d.date]] },
+    { kind: "p", text: `Your ${d.card} was added to your ${appName()} account and is now under review. Our team checks each card before it can be used; we'll email you as soon as it's approved.` },
+    { kind: "rows", rows: [...rows, ["Added", d.date]] },
     { kind: "button", label: "View your cards", href: url },
     { kind: "small", text: "Didn't add this card? Remove it from Payment cards and contact support straight away. We'll never ask for your card number, CVV or password by email or phone." },
   ]);

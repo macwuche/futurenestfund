@@ -2699,7 +2699,7 @@ One commit when 9.4 is green. `deploy.sh` applies 0012 and Supabase 0006.
 ### 23c. Withdrawal fees per tier (answers 1 and 2)
 - Only **withdrawal** method fees differ by tier. Deposit fees, card fees and grant application fees stay one fee for everyone.
 - **Admin → Settings → Withdrawal fees** (new section, `/admin/settings/withdrawal-fees`): a row per withdrawal method, with a Tier 1, Tier 2 and Tier 3 fee (fixed $ or %, same input as today). Empty = that tier pays the method's own fee from Payment Gateway, so nothing changes until the admin fills it in. Shows each tier's fee on a sample amount (e.g. "$100 → $2.00"). Audited.
-- Stored with the method: `demo_payment_methods.tier_fees` jsonb (`{ "1": FeeRule, … }`, missing tier = the method's fee). Migration 0018 (0013 went to branding, §24; 0014 to award ranges, §28; 0015–0016 to card payments; 0017 to the Mail box), no new table, so no Supabase migration.
+- Stored with the method: `demo_payment_methods.tier_fees` jsonb (`{ "1": FeeRule, … }`, missing tier = the method's fee). Migration 0019 (0013 went to branding, §24; 0014 to award ranges, §28; 0015–0016 and 0018 to card payments; 0017 to the Mail box), no new table, so no Supabase migration.
 - Payment Gateway's withdrawal form keeps the method fee, labelled "Default fee (tiers without their own fee in Settings → Withdrawal fees)".
 - Worked out from the user's tier when they place a withdrawal; stored on the request (`fee_cents`, snapshot fee text) as today, so held fees, approvals, declines, emails and reports work unchanged.
 - The applicant's withdrawal form shows **their** tier's fee for each method; "Your tier" lists the withdrawal fee per method for each tier, so an upgrade shows what it saves.
@@ -2877,5 +2877,44 @@ One commit when green; `deploy.sh` applies 0015. **Parked 2026-11-06** while bra
 
 **Needs the user:** DEPLOY step 10 (email and the Mail box setup); from before: grant plans, payment methods (incl. a Saved card method), card types, branding, tier settings (`server.md` §6b); rotate the secrets pasted in chat and delete the GitHub token; Supabase minimum password length 8; off-server backup copies; ClamAV only if memory allows; reboot at a quiet time.
 
-**Waiting for the user's go:** 9.5 (any number of cards, withdrawal fees per tier; its planned migration is now **0018**, since 0015–0017 were used).
+**Waiting for the user's go:** 9.5 (any number of cards, withdrawal fees per tier; its planned migration is now **0019**, since 0015–0018 were used).
 
+---
+
+## 33. Card payments: saved cards under review again (2026-11-25)
+
+**Request (user, 2026-11-25):** once users add a card, it should be under review for admin approval. This reverses the 2026-11-20 decision (`c19a631`, cards active once saved).
+
+**Also (same day):** the Payment cards page's first help step now reads "Save the physical card." (was "…you collected at our office.").
+
+**Built** (migration **0018** `0018_card_review.sql`: `demo_payment_cards.status` default `Pending`; existing `Active` cards are left active; no Supabase migration):
+- **Statuses:** `Pending` (under review) → `Active` (approved) or `Declined` (reason in `block_note`); `Blocked` and `Removed` as before. A pending or declined card can't be used for a new request, and requests can't be approved with it (`unusable()` in `lib/paymentCards.ts`).
+- **Admin** (`POST /admin/payment-cards/:id/decision`): new actions `approve` and `decline` (note of 5+ characters). Approve refuses a reported or expired card ("Decline the card instead"); a pending card can't be blocked (decline it); unblocking a card that was blocked on saving (reported number, never reviewed) sends it back to `Pending`. Audited ("Payment card approved / declined: …").
+- **Customer:** saving a declined card again removes the declined copy and starts a new review. Bell + emails: `card_added` now says "under review"; new `card_approved` and `card_declined` (with the reason). All three are security notices (sent even with email notifications off, unless an admin forced email off; `notificationMailer.ts`, `emailSettings.ts`).
+- **API contract:** `SavedCardStatus` Pending / Active / Declined / Blocked / Removed; `declinedReason` on the customer's card; flag kind `review`; filters `Pending`, `Declined`; overview `cards.pending`, `cards.declined`.
+- **Customer UI:** chips "Under review" (amber) / "Not approved" (red) / "Active"; the card detail explains it; the add-card note and toast say it's reviewed first; the help steps say "Our team reviews it. You can use it once it's approved…". Fixed on the way: after saving, the page now keeps the new card selected instead of jumping back to the first one while the list refreshes.
+- **Admin UI:** Card Payments → Saved cards: **To review** filter and tab count, "Cards to review" KPI on the overview, menu badge = cards to review + card requests waiting; the inspector has **Approve card** and **Decline** (reason dialog); Declined filter; "Waiting for review" isn't counted as a flag.
+
+**Tests (2026-11-25, demo test API on :8099 via the proxy; demo data restored afterwards):** typecheck clean; `pnpm test` 172/172 (+1 skipped; card approved / declined emails added); `phase13-card-payments.mjs` 12/12 (new check: review, approve, decline, saving a declined card again, pending card refused for a request, unblock back to review); `phase13-ui.mjs` 9/9 desktop + 9/9 phone (Under review on the customer side, Decline needs a reason, Approve → Active).
+
+**Not committed or deployed yet.** To go live: commit, Sync, `deploy.sh` (applies 0018).
+
+**Note:** the Replit dev API on :8080 still runs the build from before this change; restart its workflow to see it in the preview.
+
+---
+
+## 34. Demo wording and sample data removed from real deployments (2026-11-25)
+
+**Request (user, 2026-11-25):** on the tier side change "Upload sample documents only: this is a demo." to "Upload required documents only."; remove all demo text and demo data from the app.
+
+**Answers (user, 2026-11-25):** keep the three sample users already in the live database (no deletion); keep demo mode for development and the test suites.
+
+**Changed:**
+- **Seeding** (`lib/demoSeed.ts`, `index.ts`): `seedDemoData({ withSamples })` always creates the platform settings row and checks the append-only triggers; the sample people (Jane Cooper, David Chen, Amara Okafor) with their applications, balances, documents, milestones and ledger rows only when `authMode === "demo"`. Checked on a throwaway database: real sign-in mode → 0 profiles, 0 applications, 0 ledger rows, 1 settings row; demo mode → 3 profiles, 4 applications.
+- **Wording removed or reworded** (shown to signed-in users): Your tier ("Upload required documents only."), sign-up password hint, the applicant's account menu note, the admin footnote (now only in demo mode), Cards page ("Sample card designs…"), card shop, card details sheet ("The full card number, expiry date and security code aren't shown here. Contact support if you need them."), identity documents ("Demo workspace: upload a sample…"), admin issue-card dialog, credit/debit dialog, inspector balances, Card Requests, Deposit / Withdrawal queues, KYC queue, the request approve dialog.
+- **API messages:** "…upload limit for this account", "…exceed the account limit", "Balance adjustments are paused by the global freeze.", "Unfreeze the account before adjusting its balance."; new audit entries read "Top-up grant +$…" and "Global freeze enabled / lifted" (older entries keep their text; the log is append-only).
+- **Kept:** demo-mode-only notes (User/Admin switch, "Demo preview…", development only); "Sample document" on the seeded people's documents (they have no file); code names (`demo_*` tables, `DemoInputError`, `demo-state.tsx`).
+
+**Tests (2026-11-25):** typecheck clean; `pnpm test` 172/172 (+1 skipped); demo test API on :8099 via the proxy: `phase94-ui` 9 + 9, `phase2-desktop` 26/26, `phase93-ui` 8 + 8, `phase5-debits-ui` 5 + 5, `phase6-cards-ui` 6 + 6 (expectation updated for the card-details wording). `phase4-ui` updated (no demo note when signed in); it needs Supabase, so not run here. Demo data restored afterwards.
+
+**Not committed or deployed yet** (together with §33). After deploying, the live site shows no demo wording; the three sample users stay until deleted (that would need a one-off clean-up with the append-only triggers paused; not done, by choice).

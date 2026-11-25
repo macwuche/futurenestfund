@@ -401,7 +401,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
       <div id="sec-limits" className="grid scroll-mt-32 items-start gap-4 xl:grid-cols-2"><UserWithdrawalLimits u={u} /><UserWithdrawalSources u={u} /></div>
 
       <section id="sec-balances" className={cx(card, 'scroll-mt-32 p-5')} data-testid="section-balances">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="font-display font-bold">Balances and cards</h3><span className="text-xs text-slate-500">Sample balances. Credits and debits write a ledger entry; no real transfer.</span></div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="font-display font-bold">Balances and cards</h3><span className="text-xs text-slate-500">Credits and debits write a ledger entry.</span></div>
         <div className="grid gap-3 sm:grid-cols-3">
           {(['grant', 'deposit', 'card'] as const).map((a) => (
             <div key={a} className="rounded-xl bg-[#F4F5F8] p-4">

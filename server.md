@@ -1,6 +1,6 @@
 # GrantApp deployment tracker (server.md)
 
-_Deployment only. Last updated 2026-11-20._
+_Deployment only. Last updated 2026-11-25._
 
 - **Exact commands:** [`docs/DEPLOY.md`](docs/DEPLOY.md).
 - **This file:** the record of what's decided, done, not done yet and still to do.
@@ -124,6 +124,8 @@ The app is live at `713229c` (2026-11-20, Mail box, Phase 14; before that `a93e7
 | Check the 40 starting industries | Admin → Settings → Industries | The starting list is used |
 | Set the application name, colour and logo | Admin → Settings → Branding | The app is called "GrantApp" in navy; the admin side's accents turn navy too (they were lime) |
 | Set each tier's limits and cards, and the Tier 2 / Tier 3 upgrade forms | Admin → Settings → Tiers | Every tier has the old platform-wide withdrawal limits, no top-up limits, every card; nobody can ask to move up |
+
+**Waiting to deploy (2026-11-25):** demo wording removed and no sample data seeded on the live server (`work.md` §34; the three existing sample users stay); saved cards under review again (migration **0018**, `demo_payment_cards.status` default `Pending`; no Supabase migration; `work.md` §33). Rolling back to `713229c` works: older code treats `Pending` as unknown, so roll back only if no cards are waiting for review, or approve them first.
 
 **Phase 14 Mail box is deployed** (`713229c`, 2026-11-20, with `c19a631`: migrations 0016, 0017 and Supabase 0008 applied). **Next:** `docs/DEPLOY.md` step 10, which now sets up the domain `futurenestfund.org`, receiving and the support@ mailbox (`email.md`). Until then Admin → Mail says "Mail isn't set up yet". Rolling back to `a93e715` works: the migrations only add tables and a column default.
 

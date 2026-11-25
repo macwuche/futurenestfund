@@ -301,15 +301,15 @@ export async function adjustBalance(id: string, account: "grant" | "deposit" | "
   const debit = direction === "debit";
   return db.transaction(async tx => {
     const [settings] = await tx.select().from(demoSettingsTable).where(eq(demoSettingsTable.id, "platform")).for("update");
-    if (settings?.frozen) throw new DemoInputError("Demo financial adjustments are paused by the global freeze.");
+    if (settings?.frozen) throw new DemoInputError("Balance adjustments are paused by the global freeze.");
     const [current] = await tx.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, id)).for("update");
     if (!current) return undefined;
-    if (current.status === "Frozen") throw new DemoInputError("Unfreeze the demo account before adjusting its balance.");
+    if (current.status === "Frozen") throw new DemoInputError("Unfreeze the account before adjusting its balance.");
     // Every card top-up comes from the deposit (main) balance (9.3), through the card's own Top up; debits can still empty the card account.
     if (account === "card" && !debit) throw new DemoInputError("Card top-ups come from the user's account balance. Use Top up on one of their active cards.");
     const key = account === "grant" ? "grantCents" : account === "deposit" ? "depositCents" : "cardCents";
     const next = debit ? current[key] - cents : current[key] + cents;
-    if (next > 2000000000) throw new DemoInputError("This would exceed the demo account limit.");
+    if (next > 2000000000) throw new DemoInputError("This would exceed the account limit.");
     if (next < 0) throw new DemoInputError(`The ${accountName[account]} balance is only ${dollars(current[key])}, so ${dollars(cents)} can't be removed.`);
     if (debit && account !== "card") {
       const held = current[key] - await availableCents(current, account, tx);
@@ -317,7 +317,7 @@ export async function adjustBalance(id: string, account: "grant" | "deposit" | "
     }
     await tx.update(demoProfilesTable).set({ [key]: next }).where(eq(demoProfilesTable.id, id));
     await tx.insert(demoLedgerTable).values({ profileId: id, kind: debit ? "Debit" : "Top-up", account, amountCents: debit ? -cents : cents, reason: why, actor });
-    await tx.insert(demoAuditTable).values({ profileId: id, actor, action: debit ? `Debit ${account} −${dollars(cents)} · ${why}` : `Demo ${account} top-up +${dollars(cents)} · ${why}` });
+    await tx.insert(demoAuditTable).values({ profileId: id, actor, action: debit ? `Debit ${account} −${dollars(cents)} · ${why}` : `Top-up ${account} +${dollars(cents)} · ${why}` });
     await notifyUser(id, debit ? `${dollars(cents)} was removed from your ${accountName[account]} balance: ${why}` : `${dollars(cents)} was added to your ${accountName[account]} balance`, "/transactions", tx);
     return {
       grant: (account === "grant" ? next : current.grantCents) / 100,
@@ -330,7 +330,7 @@ export async function adjustBalance(id: string, account: "grant" | "deposit" | "
 export async function changeGlobalFreeze(frozen: boolean, actor: string, reason?: string) {
   await db.transaction(async tx => {
     await tx.update(demoSettingsTable).set({ frozen }).where(eq(demoSettingsTable.id, "platform"));
-    await tx.insert(demoAuditTable).values({ actor, action: `Demo global freeze ${frozen ? "enabled" : "lifted"}${reason?.trim() ? ` · ${reason.trim()}` : ""}` });
+    await tx.insert(demoAuditTable).values({ actor, action: `Global freeze ${frozen ? "enabled" : "lifted"}${reason?.trim() ? ` · ${reason.trim()}` : ""}` });
   });
   return { frozen };
 }

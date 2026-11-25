@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedDemoData } from "./lib/demoSeed";
+import { authMode } from "./lib/auth";
 import { database } from "@workspace/db";
 import { startNotificationMailer } from "./lib/notificationMailer";
 import { startMailWorkers } from "./lib/mail";
@@ -38,7 +39,8 @@ if (Number.isNaN(port) || port <= 0) {
 // On the VPS set HOST=127.0.0.1 so only nginx can reach the API; unset, it listens on every interface (Replit).
 const host = process.env["HOST"]?.trim() || undefined;
 
-await seedDemoData();
+// Sample people only in demo mode (development and tests); never on a real deployment.
+await seedDemoData({ withSamples: authMode === "demo" });
 // Email settings saved in Admin Settings (they win over the env vars); re-read every minute.
 await loadEmailSettings();
 startEmailSettingsRefresh();

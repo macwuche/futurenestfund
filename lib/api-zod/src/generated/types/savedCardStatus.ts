@@ -7,13 +7,15 @@
  */
 
 /**
- * Active as soon as the customer saves it; administrators can block it (lost, stolen, not ours)
+ * Pending (under review) when the customer saves it; an administrator approves it (Active) or declines it; administrators can block it (lost, stolen, not ours)
  */
 export type SavedCardStatus = typeof SavedCardStatus[keyof typeof SavedCardStatus];
 
 
 export const SavedCardStatus = {
+  Pending: 'Pending',
   Active: 'Active',
+  Declined: 'Declined',
   Blocked: 'Blocked',
   Removed: 'Removed',
 } as const;

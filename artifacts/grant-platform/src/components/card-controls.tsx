@@ -117,7 +117,7 @@ function IssueCardModal({ open, onClose, u }: { open: boolean; onClose: () => vo
           onError: (e2) => setError(apiError(e2, 'The card could not be issued.')),
         });
       }}>
-        <p className="rounded-lg bg-[var(--brand-soft)] p-3 text-xs text-slate-700">Sample card: no card network is connected and the number is random. A virtual card is active at once; a physical card stays pending until you mark it as issued. One card of each kind per user.</p>
+        <p className="rounded-lg bg-[var(--brand-soft)] p-3 text-xs text-slate-700">A virtual card is active at once; a physical card stays pending until you mark it as issued. One card of each kind per user.</p>
         <Field label="Virtual or physical"><select data-testid="select-card-kind" value={kind} onChange={(e) => { setKind(e.target.value as typeof kind); setError(''); }} className={ainput}>
           <option value="Virtual">Virtual{taken('Virtual') ? ' (already has one)' : ''}</option><option value="Physical">Physical{taken('Physical') ? ' (already has one)' : ''}</option>
         </select></Field>

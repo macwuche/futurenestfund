@@ -148,7 +148,7 @@ export async function topUpCard(userId: string, cardId: string, amount: number, 
         ? `Your account balance has ${usd(available)} available${available < profile.depositCents ? " after pending withdrawals" : ""}. Top up less, or add funds first.`
         : `The user's account balance has ${usd(available)} available${available < profile.depositCents ? " after pending withdrawals" : ""}, less than ${usd(cents)}.`);
     }
-    if (profile.cardCents + cents > 2_000_000_000) throw new DemoInputError("This would exceed the demo account limit.");
+    if (profile.cardCents + cents > 2_000_000_000) throw new DemoInputError("This would exceed the account limit.");
     // Step 9.4: a user's own top-ups follow their tier's limits (the profile row is locked, so two at once can't both fit).
     if (by === "applicant") {
       const rules = rulesOfSettings(settings);

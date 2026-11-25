@@ -12,7 +12,9 @@ export type ListAdminPaymentCardsFilter = typeof ListAdminPaymentCardsFilter[key
 export const ListAdminPaymentCardsFilter = {
   all: 'all',
   flagged: 'flagged',
+  Pending: 'Pending',
   Active: 'Active',
+  Declined: 'Declined',
   Blocked: 'Blocked',
   Removed: 'Removed',
 } as const;

@@ -190,7 +190,7 @@ function UpgradeFlow({ t, next }: { t: ApplicantTier; next: TierRule }) {
           </div>
         </div>
       )}
-      <p className="mt-4 flex items-center gap-1.5 text-xs text-slate-500"><Lock className="h-3.5 w-3.5" aria-hidden />Upload sample documents only: this is a demo.</p>
+      <p className="mt-4 flex items-center gap-1.5 text-xs text-slate-500"><Lock className="h-3.5 w-3.5" aria-hidden />Upload required documents only.</p>
     </section>
   );
 }

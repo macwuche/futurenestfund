@@ -98,7 +98,7 @@ function BuyCardModal({ choice, a, onClose }: { choice: Choice | null; a: Applic
             <div className="flex justify-between"><dt>Fee</dt><dd>{money(Math.round((total - (choice.p.price ?? 0)) * 100) / 100)}</dd></div>
             <div className="flex justify-between border-t pt-1 font-semibold"><dt>Total, from your account balance</dt><dd>{money(total)}</dd></div>
           </dl>
-          <p className="text-sm text-slate-600">{choice.kind === 'Virtual' ? 'Your virtual card is ready to use straight away.' : 'Your physical card is posted to you. Once it arrives, ask us to activate it from this page.'} Sample card: no real card network is connected.</p>
+          <p className="text-sm text-slate-600">{choice.kind === 'Virtual' ? 'Your virtual card is ready to use straight away.' : 'Your physical card is posted to you. Once it arrives, ask us to activate it from this page.'}</p>
           {short && <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="text-buy-short">Your account balance has {money(a.availableToWithdraw.deposit)} available. Add funds first.</p>}
           {error && <p role="alert" className="rounded-lg bg-[#FEF2F2] px-3 py-2 text-sm text-[#991B1B]" data-testid="text-buy-error">{error}</p>}
           {error && <UpgradeHint tier={upgradeTier} testid="hint-buy-upgrade" />}

@@ -13,7 +13,7 @@ export interface CardDecisionInput {
   /** block only */
   reason?: CardDecisionInputReason;
   /**
-     * block only: shown to the customer, at least 5 characters
+     * decline and block: shown to the customer, at least 5 characters
      * @maxLength 240
      */
   note?: string;

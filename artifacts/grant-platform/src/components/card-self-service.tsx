@@ -82,7 +82,7 @@ export function OwnCardControls({ c, accountFrozen }: { c: UserCard; accountFroz
           ))}
         </dl>
         <p className={cx('mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-600')}>
-          This is a sample card. No card network is connected, so there is no full card number, expiry date or security code to show.
+          The full card number, expiry date and security code aren't shown here. Contact support if you need them.
         </p>
       </Modal>
     </>

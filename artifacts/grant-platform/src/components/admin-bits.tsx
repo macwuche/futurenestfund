@@ -146,7 +146,7 @@ type Account = 'grant' | 'deposit' | 'card';
 type Balances = Record<Account, number>;
 
 /**
- * Credit or debit a sample balance. With `user` it is fixed to that person; otherwise a picker is shown (credits only).
+ * Credit or debit a balance. With `user` it is fixed to that person; otherwise a picker is shown (credits only).
  * A debit shows the balance before and after, and asks for confirmation before anything is recorded.
  */
 export function CreditModal({ open, onClose, user, account = 'deposit', users, direction = 'credit', balances }: {
@@ -188,8 +188,8 @@ export function CreditModal({ open, onClose, user, account = 'deposit', users, d
           if (debit) setConfirming(v); else record(v);
         })}>
           <p className={cx('rounded-lg p-3 text-xs text-slate-700', debit ? 'bg-[#FEF2F2]' : 'bg-[var(--brand-soft)]')}>
-            {debit ? 'Takes money off a sample balance (never below $0, and never below what pending withdrawals hold), with a ledger entry and an audit record. The user is notified with your reason.'
-              : 'Adds to a sample balance and writes a ledger entry and an audit record.'} Refused while the platform or the account is frozen. No real transfer occurs.
+            {debit ? 'Takes money off the balance (never below $0, and never below what pending withdrawals hold), with a ledger entry and an audit record. The user is notified with your reason.'
+              : 'Adds to the balance and writes a ledger entry and an audit record.'} Refused while the platform or the account is frozen.
           </p>
           {user ? <p className="text-sm">User: <b>{user.name}</b></p> : (
             <Field label="User" error={f.formState.errors.userId?.message}>

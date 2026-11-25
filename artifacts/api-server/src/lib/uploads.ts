@@ -175,7 +175,7 @@ export async function storeUpload<T>(
   const accept = ACCEPTS[purpose];
   if (!detected || !accept.types.includes(detected)) throw new UploadError(`Upload ${accept.label}, up to 10 MB.`);
   const [{ n }] = await db.select({ n: count() }).from(demoFilesTable).where(eq(demoFilesTable.profileId, profileId));
-  if (n >= MAX_FILES_PER_USER) throw new UploadError("You've reached the upload limit for this demo account.");
+  if (n >= MAX_FILES_PER_USER) throw new UploadError("You've reached the upload limit for this account.");
 
   let data = file.buffer; let type = detected;
   if ((IMAGE as readonly string[]).includes(detected)) ({ data, type } = await reencode(file.buffer, purpose));

@@ -26,4 +26,6 @@ export interface SavedCard {
   usable?: boolean;
   /** Applicant: why it's blocked */
   blockedReason?: string;
+  /** Applicant: why it wasn't approved */
+  declinedReason?: string;
 }

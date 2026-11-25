@@ -6,9 +6,11 @@
  *   carry the last four; `revealCard` opens one card for an administrator and audits it.
  * - `number_hash` is an HMAC of the number under a key derived from the master key: it finds the same card on another
  *   account or on the reported list without opening anything, and isn't reversible without the key.
- * - A saved card is Active at once and the customer is emailed that it was added; administrators approve each deposit
- *   and withdrawal made with it. They can block a card and keep the reported list (lost / stolen / expired). A blocked,
- *   reported or expired card can't be used for a new request, and requests made with it can't be approved.
+ * - A saved card starts Pending (under review) and can't be used until an administrator approves it (Active) or declines
+ *   it (Declined, with a reason the customer sees). The customer is emailed when it's added and when it's decided.
+ *   Administrators also approve each deposit and withdrawal made with a card, can block a card and keep the reported
+ *   list (lost / stolen / expired). A pending, declined, blocked, reported or expired card can't be used for a new
+ *   request, and requests made with it can't be approved.
  */
 import { createHmac } from "node:crypto";
 import { and, asc, desc, eq, gte, inArray, isNull, ne, sql } from "drizzle-orm";
@@ -26,6 +28,7 @@ import {
 import type { DbTx } from "./uploads";
 
 const MAX_CARDS = 5;
+const SYSTEM_REPORTED = "System (reported list)";
 const NUMBER_FIELD = "payment_card.number";
 const CVV_FIELD = "payment_card.cvv";
 const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
@@ -41,7 +44,7 @@ const hashNumber = (digits: string) => createHmac("sha256", createHmac("sha256",
 
 /* ---------- flags: what an administrator should know before paying or charging a card ---------- */
 
-export type CardFlag = { kind: "expired" | "expiring" | "reported" | "duplicate" | "blocked"; text: string };
+export type CardFlag = { kind: "expired" | "expiring" | "reported" | "duplicate" | "blocked" | "review"; text: string };
 type Context = { reported: Map<string, DemoReportedCard>; holders: Map<string, Set<string>> };
 
 /** The open reports and who else saved each number, for the given cards. */
@@ -68,6 +71,7 @@ function flagsOf(c: DemoPaymentCard, ctx: Context, now = new Date()): CardFlag[]
   else if (expiresSoon(c.expMonth, c.expYear, now)) flags.push({ kind: "expiring", text: `Expires ${expiryText(c.expMonth, c.expYear)}` });
   const others = [...(ctx.holders.get(c.numberHash) ?? [])].filter(p => p !== c.profileId).length;
   if (others > 0) flags.push({ kind: "duplicate", text: `Also saved on ${others} other account${others === 1 ? "" : "s"}` });
+  if (c.status === "Pending") flags.push({ kind: "review", text: "Waiting for review" });
   return flags;
 }
 
@@ -75,6 +79,8 @@ function flagsOf(c: DemoPaymentCard, ctx: Context, now = new Date()): CardFlag[]
 function unusable(c: DemoPaymentCard, ctx: Context, who: "applicant" | "admin"): string | null {
   const label = cardLabel(c);
   if (c.status === "Removed") return who === "applicant" ? `Your ${label} was removed. Choose another card.` : `The customer removed ${label}.`;
+  if (c.status === "Pending") return who === "applicant" ? `Your ${label} is still being reviewed. You can use it once it's approved.` : `${label} hasn't been approved yet. Approve the card first, or decline this request.`;
+  if (c.status === "Declined") return who === "applicant" ? `Your ${label} wasn't approved${c.blockNote ? `: ${c.blockNote}` : ""}. Choose another card.` : `${label} was declined. Decline this request.`;
   if (c.status === "Blocked") return who === "applicant" ? `Your ${label} is blocked${c.blockNote ? `: ${c.blockNote}` : ""}. Contact support.` : `${label} is blocked (${c.blockReason ?? "Other"}). Unblock it first, or decline this request.`;
   const report = ctx.reported.get(c.numberHash);
   if (report) return who === "applicant" ? `Your ${label} can't be used. Contact support.` : `${label} is on the reported list (${report.reason}). Clear the report first, or decline this request.`;
@@ -86,7 +92,7 @@ function unusable(c: DemoPaymentCard, ctx: Context, who: "applicant" | "admin"):
 
 const base = (c: DemoPaymentCard) => ({
   id: c.id, holderName: c.holderName, network: c.network as CardNetworkKey, networkName: NETWORK_NAME[c.network as CardNetworkKey] ?? "Card",
-  lastFour: c.lastFour, expiry: expiryText(c.expMonth, c.expYear), status: c.status as "Active" | "Blocked" | "Removed",
+  lastFour: c.lastFour, expiry: expiryText(c.expMonth, c.expYear), status: c.status as "Pending" | "Active" | "Declined" | "Blocked" | "Removed",
   expired: isExpired(c.expMonth, c.expYear), createdAt: c.createdAt.toISOString(),
 });
 
@@ -95,6 +101,7 @@ const applicantCard = (c: DemoPaymentCard, ctx: Context) => ({
   ...base(c),
   usable: !unusable(c, ctx, "applicant"),
   ...(c.status === "Blocked" ? { blockedReason: c.blockNote || "Blocked by our team. Contact support." } : {}),
+  ...(c.status === "Declined" ? { declinedReason: c.blockNote || "Not approved by our team. Contact support." } : {}),
 });
 
 type CardStats = { requests: number; pending: number; depositedCents: number; withdrawnCents: number; lastUsedAt: Date | null };
@@ -147,18 +154,22 @@ export async function saveCard(profileId: string, input: CardInput, actor: strin
     const [profile] = await tx.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, profileId)).for("update");
     if (!profile) throw new Error(`Applicant ${profileId} is missing`);
     if (profile.status === "Frozen") throw new DemoInputError("Your account is frozen. Contact support to make changes.");
-    const mine = await tx.select().from(demoPaymentCardsTable).where(and(eq(demoPaymentCardsTable.profileId, profileId), ne(demoPaymentCardsTable.status, "Removed")));
+    let mine = await tx.select().from(demoPaymentCardsTable).where(and(eq(demoPaymentCardsTable.profileId, profileId), ne(demoPaymentCardsTable.status, "Removed")));
+    // Saving a declined card again sends it for a new review: the declined copy is removed.
+    const declined = mine.filter(c => c.numberHash === numberHash && c.status === "Declined");
+    for (const c of declined) await tx.update(demoPaymentCardsTable).set({ status: "Removed", removedAt: new Date() }).where(eq(demoPaymentCardsTable.id, c.id));
+    mine = mine.filter(c => !declined.includes(c));
     if (mine.some(c => c.numberHash === numberHash)) throw new DemoInputError(`You've already saved ${cardLabel(parsed)}.`);
     if (mine.length >= MAX_CARDS) throw new DemoInputError(`You can save up to ${MAX_CARDS} cards. Remove one first.`);
     const [report] = await tx.select().from(demoReportedCardsTable).where(and(eq(demoReportedCardsTable.numberHash, numberHash), isNull(demoReportedCardsTable.clearedAt))).limit(1);
     const [created] = await tx.insert(demoPaymentCardsTable).values({
       profileId, holderName: parsed.holderName, network: parsed.network, lastFour: parsed.lastFour, numberHash,
       numberSealed: seal(parsed.number, NUMBER_FIELD, k), cvvSealed: seal(parsed.cvv, CVV_FIELD, k), expMonth: parsed.expMonth, expYear: parsed.expYear,
-      ...(report ? { status: "Blocked", blockReason: report.reason === "Stolen" || report.reason === "Lost" || report.reason === "Expired" ? report.reason : "Other", blockNote: "This card can't be used. Contact support.", reviewedBy: "System (reported list)", reviewedAt: new Date() } : {}),
+      ...(report ? { status: "Blocked", blockReason: report.reason === "Stolen" || report.reason === "Lost" || report.reason === "Expired" ? report.reason : "Other", blockNote: "This card can't be used. Contact support.", reviewedBy: SYSTEM_REPORTED, reviewedAt: new Date() } : {}),
     }).returning();
     if (!report) {
       const label = cardLabel(parsed);
-      await notifyUser(profileId, `Your ${label} was added. You can use it for deposits and withdrawals.`, "/payment-cards", tx, {
+      await notifyUser(profileId, `Your ${label} was added and is under review. We'll let you know once it's approved.`, "/payment-cards", tx, {
         kind: "card_added",
         data: { card: label, holderName: parsed.holderName, expiry: expiryText(parsed.expMonth, parsed.expYear),
           date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) },
@@ -224,12 +235,12 @@ const requestCard = (c: DemoPaymentCard, ctx: Context) => {
 
 /* ---------- administrators ---------- */
 
-export type AdminCardFilter = "all" | "flagged" | "Active" | "Blocked" | "Removed";
+export type AdminCardFilter = "all" | "flagged" | "Pending" | "Active" | "Declined" | "Blocked" | "Removed";
 
 export async function listAdminCards(filter: AdminCardFilter, q = "", userId?: string) {
   const conditions = [
     ...(userId ? [eq(demoPaymentCardsTable.profileId, userId)] : []),
-    ...(filter === "Active" || filter === "Blocked" || filter === "Removed" ? [eq(demoPaymentCardsTable.status, filter)] : []),
+    ...(filter !== "all" && filter !== "flagged" ? [eq(demoPaymentCardsTable.status, filter)] : []),
     ...(filter === "flagged" || filter === "all" ? [ne(demoPaymentCardsTable.status, "Removed")] : []),
   ];
   const rows = await db.select({ c: demoPaymentCardsTable, name: demoProfilesTable.name, organization: demoProfilesTable.organization }).from(demoPaymentCardsTable)
@@ -241,7 +252,7 @@ export async function listAdminCards(filter: AdminCardFilter, q = "", userId?: s
   const digits = cardDigits(q);
   return rows
     .map(r => adminCard(r.c, ctx, r.name ? { name: r.name, organization: r.organization ?? "" } : undefined, stats.get(r.c.id)))
-    .filter(c => filter !== "flagged" || c.flags.length > 0)
+    .filter(c => filter !== "flagged" || c.flags.some(f => f.kind !== "review"))
     .filter(c => !needle || c.userName.toLowerCase().includes(needle) || c.holderName.toLowerCase().includes(needle) || c.organization.toLowerCase().includes(needle)
       || (digits.length >= 4 && /^\d+$/.test(digits) && c.lastFour === digits.slice(-4)));
 }
@@ -286,12 +297,18 @@ export async function revealCard(id: string, actor: string) {
   return { id, number: formatNumber(number), cvv, holderName: row.c.holderName, expiry: expiryText(row.c.expMonth, row.c.expYear), networkName: NETWORK_NAME[row.c.network as CardNetworkKey] ?? "Card" };
 }
 
-export type CardDecision = { action: "block"; reason: string; note: string } | { action: "unblock" };
+export type CardDecision = { action: "approve" } | { action: "decline"; note: string } | { action: "block"; reason: string; note: string } | { action: "unblock" };
+
+const today = () => new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 export async function decideCard(id: string, d: CardDecision, actor: string) {
   if (!isUuid(id)) return undefined;
   let reason: BlockReason | undefined;
   let note = "";
+  if (d.action === "decline") {
+    note = (d.note ?? "").trim().slice(0, 240);
+    if (note.length < 5) throw new DemoInputError("Give the customer a reason of at least 5 characters.");
+  }
   if (d.action === "block") {
     if (!(BLOCK_REASONS as readonly string[]).includes(d.reason)) throw new DemoInputError("Choose why the card is blocked.");
     reason = d.reason as BlockReason;
@@ -304,15 +321,34 @@ export async function decideCard(id: string, d: CardDecision, actor: string) {
     if (c.status === "Removed") throw new DemoInputError("The customer removed this card, so it can't be changed.");
     const label = cardLabel(c);
     const now = new Date();
-    if (d.action === "block") {
+    const email = { card: label, holderName: c.holderName, expiry: expiryText(c.expMonth, c.expYear), date: today() };
+    if (d.action === "approve") {
+      if (c.status === "Active") return true;
+      if (c.status !== "Pending") throw new DemoInputError(c.status === "Blocked" ? "Unblock the card first." : "Only a card waiting for review can be approved.");
+      const report = (await contextFor([c], tx)).reported.get(c.numberHash);
+      if (report) throw new DemoInputError(`${label} is on the reported list (${report.reason}). Decline the card instead.`);
+      if (isExpired(c.expMonth, c.expYear)) throw new DemoInputError(`${label} expired ${expiryText(c.expMonth, c.expYear)}. Decline the card instead.`);
+      await tx.update(demoPaymentCardsTable).set({ status: "Active", reviewedBy: actor, reviewedAt: now }).where(eq(demoPaymentCardsTable.id, id));
+      await tx.insert(demoAuditTable).values({ profileId: c.profileId, actor, action: `Payment card approved: ${label}` });
+      await notifyUser(c.profileId, `Your ${label} was approved. You can use it for deposits and withdrawals.`, "/payment-cards", tx, { kind: "card_approved", data: email });
+    } else if (d.action === "decline") {
+      if (c.status !== "Pending") throw new DemoInputError("Only a card waiting for review can be declined.");
+      await tx.update(demoPaymentCardsTable).set({ status: "Declined", blockNote: note, reviewedBy: actor, reviewedAt: now }).where(eq(demoPaymentCardsTable.id, id));
+      await tx.insert(demoAuditTable).values({ profileId: c.profileId, actor, action: `Payment card declined: ${label} · ${note}` });
+      await notifyUser(c.profileId, `Your ${label} wasn't approved: ${note}`, "/payment-cards", tx, { kind: "card_declined", data: { ...email, reason: note } });
+    } else if (d.action === "block") {
+      if (c.status === "Declined") throw new DemoInputError("This card was declined, so it can't be used anyway.");
+      if (c.status === "Pending") throw new DemoInputError("This card hasn't been approved yet: decline it instead.");
       await tx.update(demoPaymentCardsTable).set({ status: "Blocked", blockReason: reason, blockNote: note, reviewedBy: actor, reviewedAt: now }).where(eq(demoPaymentCardsTable.id, id));
       await tx.insert(demoAuditTable).values({ profileId: c.profileId, actor, action: `Payment card blocked: ${label} · ${reason} · ${note}` });
       await notifyUser(c.profileId, `Your ${label} was blocked: ${note}`, "/payment-cards", tx);
     } else {
       if (c.status !== "Blocked") throw new DemoInputError("This card isn't blocked.");
-      await tx.update(demoPaymentCardsTable).set({ status: "Active", blockReason: null, blockNote: null, reviewedBy: actor, reviewedAt: now }).where(eq(demoPaymentCardsTable.id, id));
-      await tx.insert(demoAuditTable).values({ profileId: c.profileId, actor, action: `Payment card unblocked: ${label}` });
-      await notifyUser(c.profileId, `Your ${label} is unblocked and can be used again.`, "/payment-cards", tx);
+      // A card blocked on saving (its number was on the reported list) was never reviewed, so it goes back to review.
+      const neverReviewed = c.reviewedBy === SYSTEM_REPORTED;
+      await tx.update(demoPaymentCardsTable).set({ status: neverReviewed ? "Pending" : "Active", blockReason: null, blockNote: null, reviewedBy: neverReviewed ? null : actor, reviewedAt: neverReviewed ? null : now }).where(eq(demoPaymentCardsTable.id, id));
+      await tx.insert(demoAuditTable).values({ profileId: c.profileId, actor, action: `Payment card unblocked: ${label}${neverReviewed ? " · back to review" : ""}` });
+      await notifyUser(c.profileId, neverReviewed ? `Your ${label} is unblocked and is now under review.` : `Your ${label} is unblocked and can be used again.`, "/payment-cards", tx);
     }
     return true;
   });
@@ -382,7 +418,7 @@ export async function clearReport(id: string, actor: string) {
 export async function cardPaymentsOverview() {
   const cards = await db.select().from(demoPaymentCardsTable).where(ne(demoPaymentCardsTable.status, "Removed"));
   const ctx = await contextFor(cards);
-  const flagged = cards.map(c => flagsOf(c, ctx)).filter(f => f.length > 0);
+  const flagged = cards.map(c => flagsOf(c, ctx)).filter(f => f.some(x => x.kind !== "review"));
   const count = (s: string) => cards.filter(c => c.status === s).length;
   const byNetwork = Object.entries(cards.reduce<Record<string, number>>((m, c) => ({ ...m, [c.network]: (m[c.network] ?? 0) + 1 }), {}))
     .map(([network, n]) => ({ network: network as CardNetworkKey, networkName: NETWORK_NAME[network as CardNetworkKey] ?? "Card", count: n })).sort((a, b) => b.count - a.count);
@@ -417,7 +453,7 @@ export async function cardPaymentsOverview() {
   const decided = (totals?.completed ?? 0) + (totals?.declined ?? 0);
   const $ = (v: number | undefined) => Number(v ?? 0) / 100;
   return {
-    cards: { total: cards.length, active: count("Active"), blocked: count("Blocked"), flagged: flagged.length,
+    cards: { total: cards.length, pending: count("Pending"), active: count("Active"), declined: count("Declined"), blocked: count("Blocked"), flagged: flagged.length,
       expired: cards.filter(c => isExpired(c.expMonth, c.expYear)).length, reported: cards.filter(c => ctx.reported.has(c.numberHash)).length,
       customers: new Set(cards.map(c => c.profileId)).size },
     reportedOpen: reportedOpen?.n ?? 0,

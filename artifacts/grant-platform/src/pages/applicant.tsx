@@ -572,7 +572,6 @@ function CardsBody({ a }: { a: Account }) {
             ))}</ul>
           </div>
         )}
-        <p className="text-xs text-slate-500">Sample card designs. No real card network is connected.</p>
       </section>
       <CardShop a={a} />
     </div>
@@ -1090,7 +1089,7 @@ function IdentitySection() {
             <ul className="space-y-3">
               {KYC_KINDS.map((k) => <KycRow key={k.kind} {...k} doc={q.data.documents.find((d) => d.kind === k.kind)} />)}
             </ul>
-            <p className="mt-4 text-xs text-slate-500">Images (JPG, PNG, WebP) or PDF, up to 10 MB. Images are re-saved without location data. <strong className="font-semibold">Demo workspace: upload a sample or redacted document, not a real ID.</strong></p>
+            <p className="mt-4 text-xs text-slate-500">Images (JPG, PNG, WebP) or PDF, up to 10 MB. Images are re-saved without location data.</p>
           </>
         )}
     </section>

@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   useCreateApplicantPaymentCard, getListApplicantNotificationsQueryKey, getListApplicantPaymentCardsQueryKey, type CardNetwork, type SavedCard,
 } from '@workspace/api-client-react';
-import { CircleAlert, CreditCard, Lock, Plus, ShieldCheck } from 'lucide-react';
+import { CircleAlert, Clock, CreditCard, Lock, Plus, ShieldCheck } from 'lucide-react';
 import { Modal, cx } from '@/components/bits';
 import { apiError } from '@/lib/demo-state';
 import { useToast } from '@/hooks/use-toast';
@@ -109,14 +109,17 @@ export function CardFace({ network, lastFour, digits, holderName, expiry, muted,
 /** What the card's status means for the customer. */
 export function cardStatusText(c: SavedCard) {
   if (c.status === 'Blocked') return c.blockedReason ?? 'Blocked. Contact support.';
+  if (c.status === 'Declined') return `Not approved: ${c.declinedReason ?? 'contact support.'}`;
   if (c.expired) return 'Expired';
+  if (c.status === 'Pending') return "Under review. You can use it once it's approved.";
   return 'Ready to use';
 }
 export function CardStatusChip({ c }: { c: SavedCard }) {
-  const bad = c.status === 'Blocked' || c.expired || !c.usable;
-  const tone = bad ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800';
-  const label = c.status === 'Blocked' ? 'Blocked' : c.expired ? 'Expired' : !c.usable ? "Can't be used" : 'Active';
-  return <span className={cx('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold', tone)} data-testid={`chip-card-status-${c.id}`}>{!bad && <ShieldCheck className="h-3 w-3" />}{label}</span>;
+  const review = c.status === 'Pending' && !c.expired;
+  const bad = !review && (c.status === 'Blocked' || c.status === 'Declined' || c.expired || !c.usable);
+  const tone = review ? 'bg-amber-50 text-amber-900' : bad ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800';
+  const label = review ? 'Under review' : c.status === 'Blocked' ? 'Blocked' : c.status === 'Declined' ? 'Not approved' : c.expired ? 'Expired' : !c.usable ? "Can't be used" : 'Active';
+  return <span className={cx('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold', tone)} data-testid={`chip-card-status-${c.id}`}>{review ? <Clock className="h-3 w-3" /> : !bad && <ShieldCheck className="h-3 w-3" />}{label}</span>;
 }
 
 /* ---------- adding a card ---------- */
@@ -177,7 +180,7 @@ export function AddCardDialog({ open, onClose, onSaved }: { open: boolean; onClo
       onSuccess: (card) => {
         qc.invalidateQueries({ queryKey: getListApplicantPaymentCardsQueryKey() });
         qc.invalidateQueries({ queryKey: getListApplicantNotificationsQueryKey() });
-        toast(card.status === 'Blocked' ? { title: "This card can't be used", description: 'Contact support.' } : { title: 'Card added', description: "It's ready to use. We've emailed you to confirm." });
+        toast(card.status === 'Blocked' ? { title: "This card can't be used", description: 'Contact support.' } : { title: 'Card added', description: "It's now under review. We'll email you once it's approved." });
         onSaved?.(card); onClose();
       },
       onError: (e2) => setErr(apiError(e2, "The card couldn't be saved. Please try again.")),
@@ -191,7 +194,7 @@ export function AddCardDialog({ open, onClose, onSaved }: { open: boolean; onClo
         <CardFace network={network} digits={digits} holderName={holderName} expiry={expiry} testid="preview-add-card" />
         <p className="flex items-start gap-2 rounded-xl bg-[var(--brand-soft)] px-3 py-2 text-xs text-slate-700">
           <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[var(--brand-ink)]" />
-          Only the physical card you collected at our office can be used. It's ready as soon as you save it, and we'll email you to confirm.
+          Only the physical card you collected at our office can be used. Our team reviews each card before it can be used, and we'll email you once it's approved.
         </p>
         <h3 className="text-sm font-semibold text-slate-900">Card info</h3>
         <label className="block">
@@ -264,7 +267,7 @@ export function SavedCardPicker({ cards, value, onChange, onAdd, disabled, kind 
                   <span className="block truncate text-sm font-semibold text-slate-900">{c.holderName}</span>
                   <span className="font-num block text-xs text-slate-500">•••• <span className="font-semibold text-slate-800">{c.lastFour}</span> · exp {c.expiry}</span>
                   <span className="mt-1 block"><CardStatusChip c={c} /></span>
-                  {!c.usable && <span className="mt-0.5 block text-xs text-red-700">{cardStatusText(c)}</span>}
+                  {!c.usable && <span className={cx('mt-0.5 block text-xs', c.status === 'Pending' && !c.expired ? 'text-amber-800' : 'text-red-700')}>{cardStatusText(c)}</span>}
                 </span>
                 <span aria-hidden className={cx('grid h-5 w-5 shrink-0 place-items-center rounded-full border-2', on ? 'border-[var(--brand-ink)]' : 'border-slate-300')}>
                   {on && <span className="h-2.5 w-2.5 rounded-full bg-[var(--brand-ink)]" />}

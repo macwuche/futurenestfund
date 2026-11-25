@@ -11,7 +11,20 @@ const seedUuid = (key: string) => {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
 };
 
-export async function seedDemoData(): Promise<void> {
+/**
+ * Start-up: the platform settings row and the append-only triggers check, always. The sample people (Jane, David,
+ * Amara) with their applications, balances, documents and ledger rows only with `withSamples` (demo mode, development
+ * and tests): a real deployment never gets sample data.
+ */
+export async function seedDemoData({ withSamples }: { withSamples: boolean }): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.insert(demoSettingsTable).values({ id: "platform", frozen: false }).onConflictDoNothing();
+    // The append-only triggers come from migration 0002; refuse to run without them rather than silently allow edits.
+    const { rows: found } = await tx.execute<{ tgname: string }>(sql`select tgname from pg_trigger where not tgisinternal and tgname in (${sql.join(APPEND_ONLY_TRIGGERS.map((t) => sql`${t}`), sql`, `)})`);
+    const absent = APPEND_ONLY_TRIGGERS.filter((t) => !found.some((r) => r.tgname === t));
+    if (absent.length) throw new Error(`Append-only triggers missing (${absent.join(", ")}): run pnpm --filter @workspace/scripts run db:migrate`);
+  });
+  if (!withSamples) return;
   await db.transaction(async (tx) => {
     const people = [
       { id: "usr-jane", name: "Jane Cooper", email: "jane.cooper@example.com", organization: "Acme Foundation", phone: "+1 (415) 555-0132", telegram: "@janecooper", maskedId: "•••• •••• 4829", tier: 2, verificationLevel: "Verified", grantCents: 1500000, depositCents: 425000, cardCents: 125000, joinedAt: "2026-07-12" },
@@ -42,8 +55,6 @@ export async function seedDemoData(): Promise<void> {
         { id: `${person.id}-bill`, profileId: person.id, kind: "Proof of address", name: "Utility bill · sample", status: docStatus, sampleConfidence: 96.1, createdAt: new Date(`${person.joinedAt}T15:00:00Z`) },
       ]).onConflictDoNothing();
     }
-    await tx.insert(demoSettingsTable).values({ id: "platform", frozen: false }).onConflictDoNothing();
-
     // Ledger entries explaining the sample balances (fixed ids, so they're inserted once).
     // Jane's grant balance is the award for her approved application.
     const opening = people.flatMap((person) => ([["grant", person.grantCents], ["deposit", person.depositCents], ["card", person.cardCents]] as const)
@@ -59,11 +70,6 @@ export async function seedDemoData(): Promise<void> {
         };
       }));
     await tx.insert(demoLedgerTable).values(opening).onConflictDoNothing();
-
-    // The append-only triggers come from migration 0002; refuse to run without them rather than silently allow edits.
-    const { rows } = await tx.execute<{ tgname: string }>(sql`select tgname from pg_trigger where not tgisinternal and tgname in (${sql.join(APPEND_ONLY_TRIGGERS.map((t) => sql`${t}`), sql`, `)})`);
-    const missing = APPEND_ONLY_TRIGGERS.filter((t) => !rows.some((r) => r.tgname === t));
-    if (missing.length) throw new Error(`Append-only triggers missing (${missing.join(", ")}): run pnpm --filter @workspace/scripts run db:migrate`);
 
     // Sample applications with their status history. Each is inserted once; history only for newly inserted rows.
     const at = (d: string) => new Date(`${d}T15:00:00Z`);

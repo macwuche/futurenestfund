@@ -78,7 +78,7 @@ export function AdminCardRequestsPage() {
           <p className="mb-4 text-xs text-slate-500">
             {tab === 'requested'
               ? 'The user says their physical card arrived. Activating makes it usable; declining keeps it pending and tells them why. Oldest request first.'
-              : 'Physical cards sent out that nobody has asked to activate yet. You can still mark one as issued. Oldest first.'} Cards are samples; no card network is connected.
+              : 'Physical cards sent out that nobody has asked to activate yet. You can still mark one as issued. Oldest first.'}
           </p>
           {q.isLoading ? <div className="space-y-2">{[1, 2].map((i) => <Skel key={i} className="h-16" />)}</div>
             : q.isError || !q.data ? <ErrorState onRetry={() => q.refetch()} />

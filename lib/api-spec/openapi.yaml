@@ -2234,7 +2234,7 @@ paths:
       tags: [admin]
       summary: Customers' saved cards with their flags
       parameters:
-        - { name: filter, in: query, required: false, schema: { type: string, enum: [all, flagged, Active, Blocked, Removed], default: all } }
+        - { name: filter, in: query, required: false, schema: { type: string, enum: [all, flagged, Pending, Active, Declined, Blocked, Removed], default: all } }
         - { name: q, in: query, required: false, schema: { type: string, maxLength: 100 } }
         - { name: userId, in: query, required: false, schema: { type: string } }
       responses:
@@ -2283,7 +2283,7 @@ paths:
     post:
       operationId: decideAdminPaymentCard
       tags: [admin]
-      summary: Verify, block (with a reason the customer sees) or unblock a saved card
+      summary: Approve or decline a card waiting for review, block (with a reason the customer sees) or unblock a saved card
       parameters:
         - { name: cardId, in: path, required: true, schema: { type: string } }
       requestBody:
@@ -3252,7 +3252,7 @@ components:
         undoSeconds: { type: integer }
       required: [id, threadId, sendAt, undoSeconds]
     CardNetwork: { type: string, enum: [visa, mastercard, amex, verve, discover, other] }
-    SavedCardStatus: { type: string, enum: [Active, Blocked, Removed], description: "Active as soon as the customer saves it; administrators can block it (lost, stolen, not ours)" }
+    SavedCardStatus: { type: string, enum: [Pending, Active, Declined, Blocked, Removed], description: "Pending (under review) when the customer saves it; an administrator approves it (Active) or declines it; administrators can block it (lost, stolen, not ours)" }
     SavedCard:
       type: object
       description: A physical card the customer saved (Phase 13). Never carries the full number.
@@ -3268,6 +3268,7 @@ components:
         createdAt: { type: string, format: date-time }
         usable: { type: boolean, description: "Applicant: whether it can be used for a new request" }
         blockedReason: { type: string, description: "Applicant: why it's blocked" }
+        declinedReason: { type: string, description: "Applicant: why it wasn't approved" }
       required: [id, holderName, network, networkName, lastFour, expiry, status, expired, createdAt]
     SavedCardInput:
       type: object
@@ -3280,7 +3281,7 @@ components:
     CardFlag:
       type: object
       properties:
-        kind: { type: string, enum: [expired, expiring, reported, duplicate, blocked] }
+        kind: { type: string, enum: [expired, expiring, reported, duplicate, blocked, review] }
         text: { type: string }
       required: [kind, text]
     RequestCard:
@@ -3362,9 +3363,9 @@ components:
     CardDecisionInput:
       type: object
       properties:
-        action: { type: string, enum: [block, unblock] }
+        action: { type: string, enum: [approve, decline, block, unblock] }
         reason: { type: string, enum: [Lost, Stolen, Expired, Not our card, Other], description: "block only" }
-        note: { type: string, maxLength: 240, description: "block only: shown to the customer, at least 5 characters" }
+        note: { type: string, maxLength: 240, description: "decline and block: shown to the customer, at least 5 characters" }
       required: [action]
     ReportedCard:
       type: object
@@ -3396,13 +3397,15 @@ components:
           type: object
           properties:
             total: { type: integer }
+            pending: { type: integer, description: "Waiting for review" }
             active: { type: integer }
+            declined: { type: integer }
             blocked: { type: integer }
             flagged: { type: integer }
             expired: { type: integer }
             reported: { type: integer }
             customers: { type: integer }
-          required: [total, active, blocked, flagged, expired, reported, customers]
+          required: [total, pending, active, declined, blocked, flagged, expired, reported, customers]
         reportedOpen: { type: integer }
         pending:
           type: object

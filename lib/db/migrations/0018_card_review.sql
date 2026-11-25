@@ -1,0 +1,1 @@
+ALTER TABLE "demo_payment_cards" ALTER COLUMN "status" SET DEFAULT 'Pending';

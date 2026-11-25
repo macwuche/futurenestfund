@@ -38,6 +38,17 @@ describe("email templates", () => {
     expect(m.html).toContain("Ada &lt;L&gt;");
     expect(m.html).toContain('href="https://app.example.org/payment-cards"');
     expect(m.text).toContain("Didn't add this card?");
+    expect(m.text).toContain("under review");
+  });
+  it("card approved / declined (Phase 13): approval says it can be used; a decline shows the reason, escaped", () => {
+    const d = { card: "Visa •• 4242", holderName: "Ada", expiry: "08/29", date: "21 Nov 2026" };
+    const ok = cardEmail("card_approved", "ada@x.org", "Ada", d, "https://app.example.org/payment-cards");
+    expect(ok.subject).toBe("Your card was approved");
+    expect(ok.text).toContain("You can now use it");
+    const no = cardEmail("card_declined", "ada@x.org", "Ada", { ...d, reason: "Name <doesn't> match" }, "https://app.example.org/payment-cards");
+    expect(no.subject).toBe("Your card wasn't approved");
+    expect(no.html).toContain("Name &lt;doesn");
+    expect(no.text).toContain("Reason: Name <doesn't> match");
   });
   describe("tier emails (9.4)", () => {
     const url = "https://app.example.org/tier";

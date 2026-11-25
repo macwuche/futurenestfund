@@ -263,7 +263,6 @@ function UserCard({ onNav }: { onNav?: () => void }) {
           ) : (
             <>
               <button role="menuitem" onClick={out.run} disabled={out.busy} data-testid="menu-sign-out" className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 disabled:opacity-60"><LogOut className="h-4 w-4 text-slate-500" />{out.busy ? 'Signing out…' : 'Sign out'}</button>
-              <p className="mt-1 border-t border-slate-100 px-3 pb-1 pt-2 text-[11px] leading-snug text-slate-500" data-testid="text-demo-note">Preview with sample grants. No real transfers, card networks or OCR are connected.</p>
             </>
           )}
         </div>
@@ -445,9 +444,9 @@ function AdminNavList({ onNav }: { onNav?: () => void }) {
   // Activation requests waiting (the same query the Card Requests page uses, so deciding one updates the badge).
   const cardRequests = useListAdminCardRequests({ status: 'requested' }, { query: { queryKey: getListAdminCardRequestsQueryKey({ status: 'requested' }), refetchInterval: 60_000 } }).data?.requested ?? 0;
   const tierRequests = usePendingTierRequests(60_000).data?.length ?? 0;
-  // Phase 13: card deposits and withdrawals waiting for approval.
+  // Phase 13: saved cards waiting for review, plus card deposits and withdrawals waiting for approval.
   const cardOverview = useGetAdminCardPaymentsOverview({ query: { queryKey: getGetAdminCardPaymentsOverviewQueryKey(), refetchInterval: 60_000 } }).data;
-  const cardsToCheck = cardOverview ? cardOverview.pending.deposits + cardOverview.pending.withdrawals : 0;
+  const cardsToCheck = cardOverview ? cardOverview.cards.pending + cardOverview.pending.deposits + cardOverview.pending.withdrawals : 0;
   // Phase 14: unread mail across every mailbox (the Mail page refreshes the same query).
   const mailUnread = (useListAdminMailboxes({ query: { queryKey: getListAdminMailboxesQueryKey(), refetchInterval: 30_000 } }).data ?? []).reduce((n, b) => n + b.unread, 0);
   const row = (active: boolean) => cx('group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
@@ -491,7 +490,7 @@ function AdminNavList({ onNav }: { onNav?: () => void }) {
               <span data-testid="badge-tier-requests" aria-label={`${tierRequests} waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[var(--brand-glow)]' : 'bg-[var(--brand)] text-[var(--brand-fg)]')}>{tierRequests}</span>
             )}
             {i.href === '/admin/card-payments' && cardsToCheck > 0 && (
-              <span data-testid="badge-cards-to-check" aria-label={`${cardsToCheck} card requests waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[var(--brand-glow)]' : 'bg-[var(--brand)] text-[var(--brand-fg)]')}>{cardsToCheck}</span>
+              <span data-testid="badge-cards-to-check" aria-label={`${cardsToCheck} cards and card requests waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[var(--brand-glow)]' : 'bg-[var(--brand)] text-[var(--brand-fg)]')}>{cardsToCheck}</span>
             )}
             {i.href === '/admin/cards' && cardRequests > 0 && (
               <span data-testid="badge-card-requests" aria-label={`${cardRequests} waiting`} className={cx('font-num grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold', active ? 'bg-[#111] text-[var(--brand-glow)]' : 'bg-[var(--brand)] text-[var(--brand-fg)]')}>{cardRequests}</span>
@@ -576,13 +575,13 @@ function AdminFrame({ title, open, setOpen, loc, children }: { title: string; op
   );
 }
 
+/** Development only: the demo preview's reminder. Nothing on a real deployment. */
 function AdminFootNote() {
   const { status } = useAuth();
+  if (status !== 'demo') return null;
   return (
     <p className="mt-8 text-center text-xs text-slate-500" data-testid="text-demo-note">
-      {status === 'demo'
-        ? 'Demo preview. No real sign-in, transfers, card networks or OCR are connected; there is one shared demo administrator.'
-        : 'Sample data. No real transfers, card networks or OCR are connected.'}
+      Demo preview. No real sign-in, transfers, card networks or OCR are connected; there is one shared demo administrator.
     </p>
   );
 }

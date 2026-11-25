@@ -2,9 +2,10 @@ import { index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-c
 
 /**
  * Card payments (Phase 13): physical cards customers collected at the office, saved by the customer so deposits can be
- * charged to them and withdrawals paid to them. A card is usable as soon as it's saved (the customer gets a "card added"
- * email); administrators approve each deposit and withdrawal made with it, can block a card, and keep a list of cards
- * reported lost, stolen or expired (`demo_reported_cards`).
+ * charged to them and withdrawals paid to them. A saved card waits for review (Pending) until an administrator approves
+ * it (Active) or declines it (Declined); the customer is emailed at each step. Administrators also approve each deposit
+ * and withdrawal made with it, can block a card, and keep a list of cards reported lost, stolen or expired
+ * (`demo_reported_cards`).
  *
  * The card number and CVV are encrypted with the settings master key (lib/secretBox.ts, field-bound); only an
  * administrator's "Show card details" opens them, and every view is audited. `number_hash` (HMAC of the number with the
@@ -22,9 +23,9 @@ export const demoPaymentCardsTable = pgTable("demo_payment_cards", {
   cvvSealed: text("cvv_sealed").notNull(),
   expMonth: integer("exp_month").notNull(),
   expYear: integer("exp_year").notNull(),
-  /** Active | Blocked | Removed (by the customer) */
-  status: text("status").notNull().default("Active"),
-  /** Blocked: Lost | Stolen | Expired | Not our card | Other, and the note shown to the customer. */
+  /** Pending (under review) | Active (approved) | Declined | Blocked | Removed (by the customer) */
+  status: text("status").notNull().default("Pending"),
+  /** Blocked: Lost | Stolen | Expired | Not our card | Other, and the note shown to the customer (also the decline reason). */
   blockReason: text("block_reason"),
   blockNote: text("block_note"),
   reviewedBy: text("reviewed_by"),

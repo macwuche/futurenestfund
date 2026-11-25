@@ -10216,7 +10216,7 @@ export const getDecideAdminPaymentCardUrl = (cardId: string,) => {
 }
 
 /**
- * @summary Verify, block (with a reason the customer sees) or unblock a saved card
+ * @summary Approve or decline a card waiting for review, block (with a reason the customer sees) or unblock a saved card
  */
 export const decideAdminPaymentCard = async (cardId: string,
     cardDecisionInput: CardDecisionInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminSavedCardDetail> => {
@@ -10283,7 +10283,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type DecideAdminPaymentCardMutationVariables = {cardId: string;data: BodyType<CardDecisionInput>}
 
     /**
- * @summary Verify, block (with a reason the customer sees) or unblock a saved card
+ * @summary Approve or decline a card waiting for review, block (with a reason the customer sees) or unblock a saved card
  */
 export const useDecideAdminPaymentCard = <TError = ErrorType<ErrorMessage>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideAdminPaymentCard>>, TError,DecideAdminPaymentCardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
