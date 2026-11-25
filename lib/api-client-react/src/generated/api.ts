@@ -1699,6 +1699,7 @@ export const getDeleteSessionUrl = () => {
 }
 
 /**
+ * With `X-Act-As`, clears only the signed-in-as-user cookie, so the administrator stays signed in.
  * @summary Clear the download cookie (on sign-out)
  */
 export const deleteSession = async ( options?: Parameters<typeof customFetch>[1]): Promise<void> => {
@@ -6056,6 +6057,81 @@ export const useUpdateAdminUser = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUpdateAdminUserMutationOptions(options));
+    }
+
+export const getStartAdminSignInAsUrl = (userId: string,) => {
+
+
+
+
+  return `/api/admin/users/${userId}/sign-in-as`
+}
+
+/**
+ * Writes an audit entry. The new tab then sends `X-Act-As: <userId>` with the administrator's own bearer token (and the GET-only `gp_act_as` cookie under /api/applicant), and the API treats those requests as this user.
+ * @summary Record that an administrator is opening this user's account in a new tab
+ */
+export const startAdminSignInAs = async (userId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getStartAdminSignInAsUrl(userId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getStartAdminSignInAsMutationKey = () => ['startAdminSignInAs'] as const;
+
+export const getStartAdminSignInAsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startAdminSignInAs>>, TError,StartAdminSignInAsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startAdminSignInAs>>, TError,StartAdminSignInAsMutationVariables, TContext> => {
+
+const mutationKey = getStartAdminSignInAsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startAdminSignInAs>>, StartAdminSignInAsMutationVariables> = (props) => {
+          const {userId} = props ?? {};
+
+          return  startAdminSignInAs(userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartAdminSignInAsMutationResult = NonNullable<Awaited<ReturnType<typeof startAdminSignInAs>>>
+
+    export type StartAdminSignInAsMutationError = ErrorType<void>
+    export type StartAdminSignInAsMutationVariables = {userId: string}
+
+    /**
+ * @summary Record that an administrator is opening this user's account in a new tab
+ */
+export const useStartAdminSignInAs = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startAdminSignInAs>>, TError,StartAdminSignInAsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startAdminSignInAs>>,
+        TError,
+        StartAdminSignInAsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartAdminSignInAsMutationOptions(options));
     }
 
 export const getCreateUserBalanceAdjustmentUrl = (userId: string,) => {

@@ -101,16 +101,18 @@ export function Layout({ admin, children }: { admin: boolean; children: ReactNod
   // Links to a section (e.g. /settings#verification) let that page scroll itself.
   useEffect(() => { setOpen(false); if (!window.location.hash) window.scrollTo(0, 0); }, [loc]);
   const { appName } = useBranding();
+  const { me } = useAuth();
+  const actingAs = me?.actingAdmin ? me.name : null;
   useEffect(() => {
     if (!title) return;
-    document.title = `${title} | ${appName}`;
+    document.title = `${actingAs ? `As ${actingAs} · ` : ''}${title} | ${appName}`;
     const description = admin
       ? `${title}: grant administration.`
       : `${title}: apply for grants, follow your applications and manage your funding.`;
     document.querySelector('meta[name="description"]')?.setAttribute('content', description);
     document.querySelector('meta[property="og:title"]')?.setAttribute('content', document.title);
     document.querySelector('meta[property="og:description"]')?.setAttribute('content', description);
-  }, [title, admin, appName]);
+  }, [title, admin, appName, actingAs]);
   const close = useCallback(() => setOpen(false), []);
   return (
     <TitleCtx.Provider value={setTitle}>
@@ -138,6 +140,24 @@ function Logo() {
   );
 }
 
+/** Shown in a tab an administrator opened with "Sign in as user", so it's never mistaken for their own workspace. */
+function ActingAsBanner() {
+  const { me, actingAs, stopActingAs } = useAuth();
+  const [busy, setBusy] = useState(false);
+  if (!actingAs || !me) return null;
+  return (
+    <div role="status" data-testid="banner-acting-as" className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-amber-400 px-4 py-2 text-sm text-slate-900 sm:px-6 lg:px-8">
+      <span className="min-w-0 flex-1">
+        Signed in as <strong data-testid="text-acting-as-user">{me.name}</strong> ({me.email}) by {me.actingAdmin}. What you do here happens on their account.
+      </span>
+      <button type="button" data-testid="button-stop-acting-as" disabled={busy} onClick={() => { setBusy(true); void stopActingAs(); }}
+        className="press shrink-0 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
+        {busy ? 'Leaving…' : 'Exit and close tab'}
+      </button>
+    </div>
+  );
+}
+
 function UserFrame({ title, open, setOpen, close, loc, children }: { title: string; open: boolean; setOpen: (b: boolean) => void; close: () => void; loc: string; children: ReactNode }) {
   const isDash = loc === '/' || loc === '/dashboard';
   return (
@@ -157,6 +177,7 @@ function UserFrame({ title, open, setOpen, close, loc, children }: { title: stri
         <UserSidebar onNav={close} />
       </aside>
       <div className="min-w-0 flex-1">
+        <ActingAsBanner />
         <UserTopDesktop />
         <UserTopMobile title={title} isDash={isDash} onMenu={() => setOpen(true)} />
         <main id="main" className="mx-auto w-full max-w-[1280px] px-4 pb-28 pt-2 sm:px-6 lg:px-8 lg:pb-10 lg:pt-6">

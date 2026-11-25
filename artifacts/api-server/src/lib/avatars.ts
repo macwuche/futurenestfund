@@ -1,3 +1,4 @@
+import { asApplicant } from "./actingAs";
 import { eq } from "drizzle-orm";
 import { db, demoProfilesTable, demoAuditTable, demoAdminProfilesTable } from "@workspace/db";
 import { notifyUser } from "./notifications";
@@ -17,7 +18,7 @@ export async function setAvatar(profileId: string, file: Express.Multer.File | u
       const [p] = await tx.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, profileId)).for("update");
       if (!p) throw new ProfileMissing();
       await tx.update(demoProfilesTable).set({ avatarFileId: stored.id }).where(eq(demoProfilesTable.id, profileId));
-      await tx.insert(demoAuditTable).values({ profileId, actor: admin ?? p.name, action: admin ? "Profile photo updated by an administrator" : "Profile photo updated" });
+      await tx.insert(demoAuditTable).values({ profileId, actor: admin ?? asApplicant(p.name), action: admin ? "Profile photo updated by an administrator" : "Profile photo updated" });
       if (admin) await notifyUser(profileId, "An administrator updated your profile photo.", "/settings", tx);
       return p.avatarFileId;
     });
@@ -36,7 +37,7 @@ export async function clearAvatar(profileId: string, admin?: string) {
     if (!p) return { found: false, previous: null };
     if (!p.avatarFileId) return { found: true, previous: null };
     await tx.update(demoProfilesTable).set({ avatarFileId: null }).where(eq(demoProfilesTable.id, profileId));
-    await tx.insert(demoAuditTable).values({ profileId, actor: admin ?? p.name, action: admin ? "Profile photo removed by an administrator" : "Profile photo removed" });
+    await tx.insert(demoAuditTable).values({ profileId, actor: admin ?? asApplicant(p.name), action: admin ? "Profile photo removed by an administrator" : "Profile photo removed" });
     if (admin) await notifyUser(profileId, "An administrator removed your profile photo.", "/settings", tx);
     return { found: true, previous: p.avatarFileId };
   });

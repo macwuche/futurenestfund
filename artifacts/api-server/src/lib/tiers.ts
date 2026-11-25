@@ -3,6 +3,7 @@
  * requests (the user fills in the next tier's form; an administrator approves or declines), and the prompt a user gets when
  * a tier limit stops a withdrawal or a card top-up. The rules themselves are in tierRules.ts.
  */
+import { asApplicant } from "./actingAs";
 import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { db, demoAuditTable, demoFilesTable, demoLedgerTable, demoNotificationsTable, demoProfilesTable, demoSettingsTable, demoTierRequestsTable, type DemoTierRequest } from "@workspace/db";
@@ -145,7 +146,7 @@ export async function submitTierRequest(profileId: string, input: { answers: unk
       const [locked] = await tx.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, profileId)).for("update");
       if (!locked || tierOf(locked.tier) !== from) throw new RecordInputError("Your tier changed while you were filling in the form. Reload the page and try again.");
       await tx.insert(demoTierRequestsTable).values({ id, profileId, fromTier: from, toTier: to, formSnapshot: form, answers: { ...answers, ...Object.fromEntries(stored) } });
-      await tx.insert(demoAuditTable).values({ profileId, actor: locked.name, action: `Tier ${to} upgrade requested (from Tier ${from})` });
+      await tx.insert(demoAuditTable).values({ profileId, actor: asApplicant(locked.name), action: `Tier ${to} upgrade requested (from Tier ${from})` });
       await notifyUser(profileId, `Your Tier ${to} upgrade request was sent. We'll let you know when it's reviewed.`, "/tier", tx);
     });
   } catch (err) {

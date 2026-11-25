@@ -1,3 +1,4 @@
+import { asApplicant } from "./actingAs";
 import { and, asc, desc, eq, ne } from "drizzle-orm";
 import {
   db, demoApplicationsTable, demoApplicationEventsTable, demoMilestonesTable, demoProfilesTable, demoAuditTable, demoFilesTable, demoGrantPlansTable,
@@ -57,7 +58,7 @@ export async function applicationDetail(profileId: string, id: string) {
 
 async function actorName(profileId: string) {
   const [p] = await db.select({ name: demoProfilesTable.name }).from(demoProfilesTable).where(eq(demoProfilesTable.id, profileId));
-  return p?.name ?? "Applicant";
+  return asApplicant(p?.name ?? "Applicant");
 }
 
 export async function withdrawApplication(profileId: string, id: string) {

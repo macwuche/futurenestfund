@@ -507,7 +507,8 @@ export const GetMeResponse = zod.object({
   "email": zod.string(),
   "name": zod.string(),
   "role": zod.enum(['applicant', 'admin', 'root']),
-  "profileId": zod.string().nullable()
+  "profileId": zod.string().nullable(),
+  "actingAdmin": zod.string().nullable().describe('Set while an administrator is signed in as this user (X-Act-As); the administrator\'s email')
 })
 
 
@@ -521,6 +522,7 @@ export const CreateSessionResponse = zod.object({
 
 
 /**
+ * With `X-Act-As`, clears only the signed-in-as-user cookie, so the administrator stays signed in.
  * @summary Clear the download cookie (on sign-out)
  */
 export const DeleteSessionResponse = zod.void()
@@ -3030,6 +3032,17 @@ export const UpdateAdminUserResponse = zod.object({
   "createdAt": zod.coerce.date()
 }))
 })
+
+
+/**
+ * Writes an audit entry. The new tab then sends `X-Act-As: <userId>` with the administrator's own bearer token (and the GET-only `gp_act_as` cookie under /api/applicant), and the API treats those requests as this user.
+ * @summary Record that an administrator is opening this user's account in a new tab
+ */
+export const StartAdminSignInAsParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const StartAdminSignInAsResponse = zod.void()
 
 
 /**

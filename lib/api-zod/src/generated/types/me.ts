@@ -15,4 +15,9 @@ export interface Me {
   role: MeRole;
   /** @nullable */
   profileId: string | null;
+  /**
+     * Set while an administrator is signed in as this user (X-Act-As); the administrator's email
+     * @nullable
+     */
+  actingAdmin: string | null;
 }

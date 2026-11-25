@@ -1,3 +1,4 @@
+import { asApplicant } from "../lib/actingAs";
 import { Router, type IRouter } from "express";
 import {
   ListApplicantPaymentCardsResponse, CreateApplicantPaymentCardBody, CreateApplicantPaymentCardResponse, DeleteApplicantPaymentCardParams,
@@ -24,13 +25,13 @@ router.post("/applicant/payment-cards", async (req, res): Promise<void> => {
   if (!input.success) { res.status(400).json({ error: "Fill in the name on the card, the card number, the expiry date and the CVV." }); return; }
   const id = currentUserId(req);
   const [p] = await db.select({ name: demoProfilesTable.name }).from(demoProfilesTable).where(eq(demoProfilesTable.id, id));
-  res.status(201).json(CreateApplicantPaymentCardResponse.parse(await saveCard(id, input.data, p?.name ?? id)));
+  res.status(201).json(CreateApplicantPaymentCardResponse.parse(await saveCard(id, input.data, asApplicant(p?.name ?? id))));
 });
 router.delete("/applicant/payment-cards/:cardId", async (req, res): Promise<void> => {
   const params = DeleteApplicantPaymentCardParams.safeParse(req.params);
   const id = currentUserId(req);
   const [p] = await db.select({ name: demoProfilesTable.name }).from(demoProfilesTable).where(eq(demoProfilesTable.id, id));
-  if (!params.success || !await removeOwnCard(id, params.data.cardId, p?.name ?? id)) { res.status(404).json({ error: "Card not found." }); return; }
+  if (!params.success || !await removeOwnCard(id, params.data.cardId, asApplicant(p?.name ?? id))) { res.status(404).json({ error: "Card not found." }); return; }
   res.status(204).end();
 });
 

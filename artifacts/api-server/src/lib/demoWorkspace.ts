@@ -1,3 +1,4 @@
+import { asApplicant } from "./actingAs";
 import { and, asc, desc, eq, gte, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db, demoProfilesTable, demoAuditTable, demoLedgerTable, demoSettingsTable, demoRequestsTable, demoApplicationsTable, demoPaymentMethodsTable, demoTierRequestsTable, type DemoProfile } from "@workspace/db";
 import { notifyUser, requestEmailData, requestReference } from "./notifications";
@@ -489,7 +490,7 @@ export async function createApplicantRequest(profileId: string, input: RequestIn
       profileId: profile.id, kind, amountCents: cents, note, source, methodId: method.id, methodSnapshot: card ? { ...snapshot, card: card.snapshot } : snapshot,
       fieldValues: answers, proofFileId, feeCents: fee, cardId: card?.id ?? null,
     }).returning();
-    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor: profile.name, action: `${kind} request submitted +$${(cents / 100).toFixed(2)} via ${method.name}${card ? ` (${cardLabel(card.snapshot)})` : ""}${source ? ` from the ${SOURCE_LABEL[source]}` : ""}${fee ? `, fee ${dollars(fee)}` : ""}${proofFileId ? ", with payment proof" : ""}` });
+    await tx.insert(demoAuditTable).values({ profileId: profile.id, actor: asApplicant(profile.name), action: `${kind} request submitted +$${(cents / 100).toFixed(2)} via ${method.name}${card ? ` (${cardLabel(card.snapshot)})` : ""}${source ? ` from the ${SOURCE_LABEL[source]}` : ""}${fee ? `, fee ${dollars(fee)}` : ""}${proofFileId ? ", with payment proof" : ""}` });
     const amount = `$${(cents / 100).toFixed(2)}`;
     await notifyUser(profile.id, kind === "Withdrawal"
       ? `Withdrawal request of ${amount} via ${method.name} received (ref ${requestReference(row!.id)}). Our finance team will review it; your funds are released once it's approved.`

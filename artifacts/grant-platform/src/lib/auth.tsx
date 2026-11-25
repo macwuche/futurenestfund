@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
-import { createSession, deleteSession, getAuthConfig, getMe, setAuthTokenGetter, type Me } from '@workspace/api-client-react';
+import { createSession, deleteSession, getAuthConfig, getMe, setAuthTokenGetter, setExtraHeaders, type Me } from '@workspace/api-client-react';
 
 export type AuthStatus = 'loading' | 'error' | 'demo' | 'signed-out' | 'signed-in';
 interface Auth {
@@ -15,6 +15,10 @@ interface Auth {
   finishRecovery: () => void;
   /** Signed out on purpose (not an expired session), so sign-in shouldn't offer to return to the last page. */
   signedOutByUser: boolean;
+  /** True in a tab an administrator opened with "Sign in as user": `me` is that user, `me.actingAdmin` the administrator. */
+  actingAs: boolean;
+  /** Leaves a sign-in-as tab (closes it, or goes back to the admin workspace); the administrator stays signed in. */
+  stopActingAs: () => Promise<void>;
   /** 'local' signs this browser out; 'global' signs out every device, this one included. */
   signOut: (scope?: 'local' | 'global') => Promise<void>;
   /** Ends this account's sessions on every other device; this one stays signed in. */
@@ -25,6 +29,25 @@ const Ctx = createContext<Auth | null>(null);
 
 /** Where Supabase email links come back to (must be on the project's Redirect URLs list). */
 export const appUrl = (path = '') => `${window.location.origin}${import.meta.env.BASE_URL}${path}`;
+
+/**
+ * "Sign in as user": the admin page opens `?act_as=<userId>` in a new tab. The ID is kept in sessionStorage, which
+ * belongs to that one tab (and survives reloads), and sent as X-Act-As with the administrator's own sign-in. Other tabs,
+ * the administrator's included, are unaffected.
+ */
+const ACT_AS_KEY = 'gp_act_as';
+export const signInAsUrl = (userId: string) => appUrl(`?act_as=${encodeURIComponent(userId)}`);
+function readActAs(): string | null {
+  const url = new URL(window.location.href);
+  const fromUrl = url.searchParams.get('act_as');
+  if (fromUrl) {
+    sessionStorage.setItem(ACT_AS_KEY, fromUrl);
+    url.searchParams.delete('act_as');
+    window.history.replaceState(window.history.state, '', url);
+  }
+  return sessionStorage.getItem(ACT_AS_KEY);
+}
+const applyActAs = (id: string | null) => setExtraHeaders(id ? { 'X-Act-As': id } : {});
 
 /**
  * PKCE flow: no session tokens ever appear in a URL. Our emails link to /auth/confirm with a one-time token hash
@@ -42,6 +65,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [signedOutByUser, setSignedOutByUser] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const userId = useRef<string | null>(null);
+  const [actAs, setActAs] = useState<string | null>(() => { const id = readActAs(); applyActAs(id); return id; });
+  // Leaving a user's account in this tab: the sign-in (the administrator's) doesn't change, so forget everything shown.
+  const dropActAs = useCallback(() => {
+    sessionStorage.removeItem(ACT_AS_KEY);
+    applyActAs(null);
+    userId.current = null;
+    qc.clear();
+    setMe(null);
+    setStatus('loading');
+    setActAs(null);
+  }, [qc]);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,7 +84,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let config;
       try { config = await getAuthConfig(); } catch { if (!cancelled) setStatus('error'); return; }
       if (cancelled) return;
-      if (config.mode === 'demo' || !config.supabaseUrl || !config.publishableKey) { setStatus('demo'); return; }
+      if (config.mode === 'demo' || !config.supabaseUrl || !config.publishableKey) {
+        // No accounts in demo mode, but a sign-in-as tab still needs to know whom it shows (for its banner).
+        if (actAs) {
+          try { await createSession(); const who = await getMe(); if (!cancelled) setMe(who); } catch { if (!cancelled) dropActAs(); return; }
+        }
+        if (!cancelled) setStatus('demo');
+        return;
+      }
 
       const sb = createClient(config.supabaseUrl, config.publishableKey, {
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
@@ -59,6 +100,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setClient(sb);
 
       const signedOut = () => {
+        // The administrator signed out (e.g. in their own tab): this tab is no longer anyone's, so whoever signs in
+        // here next must not land in the user's account.
+        if (actAs) dropActAs();
         userId.current = null;
         qc.clear();
         setMe(null);
@@ -73,7 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const who = await getMe();
           if (!cancelled) { setMe(who); setStatus('signed-in'); }
         } catch (e) {
-          if ((e as { status?: number }).status === 401) await sb.auth.signOut({ scope: 'local' }); // e.g. the account was deleted
+          const code = (e as { status?: number }).status;
+          // A sign-in-as tab whose user was deleted, or whose administrator lost the role: carry on as yourself.
+          if (actAs && (code === 403 || code === 404)) { dropActAs(); return; }
+          if (code === 401) await sb.auth.signOut({ scope: 'local' }); // e.g. the account was deleted
           else if (!cancelled) setStatus('error');
         }
       };
@@ -93,28 +140,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubscribe = () => data.subscription.unsubscribe();
     })();
     return () => { cancelled = true; unsubscribe(); };
-  }, [qc, attempt]);
+  }, [qc, attempt, actAs, dropActAs]);
+
+  // Images and downloads use a cookie, which all tabs share: with two sign-in-as tabs open, the one in front owns it.
+  useEffect(() => {
+    if (!actAs || (status !== 'signed-in' && status !== 'demo')) return;
+    const claim = () => { if (document.visibilityState === 'visible') void createSession().catch(() => {}); };
+    window.addEventListener('focus', claim);
+    document.addEventListener('visibilitychange', claim);
+    return () => { window.removeEventListener('focus', claim); document.removeEventListener('visibilitychange', claim); };
+  }, [actAs, status]);
+
+  const stopActingAs = useCallback(async () => {
+    await deleteSession().catch(() => {}); // sent with X-Act-As, so only the act-as cookie goes
+    dropActAs();
+    window.close(); // works for the tab the admin page opened; otherwise go back to the admin workspace
+    window.location.assign(appUrl('admin'));
+  }, [dropActAs, qc]);
 
   const signOut = useCallback(async (scope: 'local' | 'global' = 'local') => {
+    if (actAs) { await stopActingAs(); return; } // never sign the administrator out from a user's tab
     if (!client) return;
     setSignedOutByUser(true);
     await deleteSession().catch(() => {}); // needs the bearer token, so before Supabase forgets it
     const { error } = await client.auth.signOut({ scope });
     if (error && scope === 'global') throw error; // a local sign-out always clears this browser, even offline
-  }, [client]);
+  }, [client, actAs, stopActingAs]);
 
   const signOutOthers = useCallback(async () => {
-    if (!client) return;
+    if (!client || actAs) return;
     const { error } = await client.auth.signOut({ scope: 'others' });
     if (error) throw error;
-  }, [client]);
+  }, [client, actAs]);
 
   const value = useMemo<Auth>(() => ({
     status, me, client, recovering, signedOutByUser,
     finishRecovery: () => setRecovering(false),
+    actingAs: !!me?.actingAdmin, stopActingAs,
     signOut, signOutOthers,
     retry: () => { setStatus('loading'); setAttempt((n) => n + 1); },
-  }), [status, me, client, recovering, signedOutByUser, signOut, signOutOthers]);
+  }), [status, me, client, recovering, signedOutByUser, stopActingAs, signOut, signOutOthers]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

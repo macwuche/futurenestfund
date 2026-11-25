@@ -20,6 +20,7 @@ import {
   WithdrawApplicantApplicationParams, RespondToApplicantApplicationParams, RespondToApplicantApplicationBody,
   ListApplicantMilestonesResponse, CreateApplicantMilestoneBody, UpdateApplicantMilestoneParams, UpdateApplicantMilestoneBody,
   DeleteApplicantMilestoneParams, CreateApplicantMilestoneResponse, UpdateApplicantMilestoneResponse, ListApplicantNotificationsResponse, MarkApplicantNotificationsReadResponse,
+  StartAdminSignInAsParams,
 } from "@workspace/api-zod";
 import {
   UploadApplicantAvatarResponse, DeleteApplicantAvatarResponse, GetApplicantKycResponse, UploadApplicantKycDocumentBody, UploadApplicantKycDocumentResponse,
@@ -35,7 +36,8 @@ import {
   RejectAdminRequestParams, RejectAdminRequestBody, RejectAdminRequestResponse, ListAdminTransactionsQueryParams, ListAdminTransactionsResponse,
   ExportAdminTransactionsQueryParams, GetAdminKycQueueResponse, ReviewAdminKycDocumentParams, ReviewAdminKycDocumentBody, ReviewAdminKycDocumentResponse,
 } from "@workspace/api-zod";
-import { db, demoProfilesTable } from "@workspace/db";
+import { db, demoAuditTable, demoProfilesTable } from "@workspace/db";
+import { logger } from "../lib/logger";
 import { changeCard, changeOwnCard, declineCardActivation, issueCard, listCardRequests, topUpCard } from "../lib/cards";
 import { adminCardTypes, changeCardTypes } from "../lib/cardTypes";
 import { applicantCardTypesFor } from "../lib/tiers";
@@ -48,7 +50,7 @@ import { receiveFile, receiveRequestForm, receiveApplicationForm, findFile, send
 import { createPlanApplication, resubmitPlanApplication } from "../lib/planApplications";
 import { applicantKyc, uploadKycDocument } from "../lib/kyc";
 import { setAvatar, clearAvatar, adminAccount, setAdminAvatar, clearAdminAvatar } from "../lib/avatars";
-import { currentAdmin, currentAdminProfile, currentUserId } from "../lib/currentUser";
+import { applicantActor, currentAdmin, currentAdminProfile, currentUserId } from "../lib/currentUser";
 import { listNotifications, markAllRead } from "../lib/notifications";
 import {
   listApplications, applicationDetail, withdrawApplication, respondToApplication,
@@ -74,7 +76,7 @@ router.patch("/applicant/profile", async (req, res): Promise<void> => {
   const input = UpdateApplicantProfileBody.safeParse(req.body);
   if (!input.success) { res.status(400).json({ error: input.error.message }); return; }
   const id = currentUserId(req);
-  await changeProfile(id, input.data, req.identity!.name);
+  await changeProfile(id, input.data, applicantActor(req));
   const [person] = await db.select().from(demoProfilesTable).where(eq(demoProfilesTable.id, id));
   res.json(UpdateApplicantProfileResponse.parse(applicantProfile(person!)));
 });
@@ -82,7 +84,7 @@ router.patch("/applicant/profile", async (req, res): Promise<void> => {
 router.patch("/applicant/preferences", async (req, res): Promise<void> => {
   const input = UpdateApplicantPreferencesBody.safeParse(req.body);
   if (!input.success) { res.status(400).json({ error: "Choose whether to get email notifications." }); return; }
-  res.json(UpdateApplicantPreferencesResponse.parse(await changePreferences(currentUserId(req), input.data, req.identity!.name)));
+  res.json(UpdateApplicantPreferencesResponse.parse(await changePreferences(currentUserId(req), input.data, applicantActor(req))));
 });
 
 router.get("/applicant/account", async (req, res): Promise<void> => {
@@ -97,7 +99,7 @@ router.post("/applicant/cards", async (req, res): Promise<void> => {
   const input = BuyApplicantCardBody.safeParse(req.body);
   if (!input.success) { res.status(400).json({ error: "Choose a card type and a virtual or physical card." }); return; }
   const id = currentUserId(req);
-  await issueCard(id, { kind: input.data.kind, type: input.data.type, actor: req.identity!.name, by: "applicant" });
+  await issueCard(id, { kind: input.data.kind, type: input.data.type, actor: applicantActor(req), by: "applicant" });
   res.json(BuyApplicantCardResponse.parse(await applicantAccount(id)));
 });
 
@@ -106,7 +108,7 @@ router.post("/applicant/cards/:cardId/top-up", async (req, res): Promise<void> =
   const input = TopUpApplicantCardBody.safeParse(req.body);
   if (!params.success || !input.success) { res.status(400).json({ error: "Enter an amount between $0.01 and $1,000,000." }); return; }
   const id = currentUserId(req);
-  if (!await topUpCard(id, params.data.cardId, input.data.amount, req.identity!.name, "applicant")) { res.status(404).json({ error: "Card not found." }); return; }
+  if (!await topUpCard(id, params.data.cardId, input.data.amount, applicantActor(req), "applicant")) { res.status(404).json({ error: "Card not found." }); return; }
   res.json(TopUpApplicantCardResponse.parse(await applicantAccount(id)));
 });
 
@@ -115,7 +117,7 @@ router.post("/applicant/cards/:cardId/actions", async (req, res): Promise<void> 
   const input = ChangeApplicantCardBody.safeParse(req.body);
   if (!params.success || !input.success) { res.status(400).json({ error: "Choose freeze, unfreeze or request activation." }); return; }
   const id = currentUserId(req);
-  if (!await changeOwnCard(id, params.data.cardId, input.data.action, req.identity!.name)) { res.status(404).json({ error: "Card not found." }); return; }
+  if (!await changeOwnCard(id, params.data.cardId, input.data.action, applicantActor(req))) { res.status(404).json({ error: "Card not found." }); return; }
   res.json(ChangeApplicantCardResponse.parse(await applicantAccount(id)));
 });
 
@@ -288,6 +290,18 @@ router.get("/admin/users/:userId", async (req, res): Promise<void> => {
   const person = await getUser(params.data.userId);
   if (!person) { res.status(404).json({ error: "User not found." }); return; }
   res.json(GetAdminUserResponse.parse(person));
+});
+
+/** Audit entry for "Sign in as user"; the new tab then acts as the user through X-Act-As (lib/auth.ts). */
+router.post("/admin/users/:userId/sign-in-as", async (req, res): Promise<void> => {
+  const params = StartAdminSignInAsParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "Invalid user ID." }); return; }
+  const [profile] = await db.select({ id: demoProfilesTable.id }).from(demoProfilesTable).where(eq(demoProfilesTable.id, params.data.userId));
+  if (!profile) { res.status(404).json({ error: "User not found." }); return; }
+  const admin = currentAdmin(req);
+  await db.insert(demoAuditTable).values({ profileId: profile.id, actor: admin, action: "Administrator signed in as this user" });
+  logger.info({ admin, profile: profile.id }, "Administrator signed in as user");
+  res.status(204).end();
 });
 
 router.patch("/admin/users/:userId", async (req, res): Promise<void> => {

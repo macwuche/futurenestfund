@@ -1,3 +1,4 @@
+import { asApplicant } from "./actingAs";
 import type { Request } from "express";
 
 /**
@@ -8,6 +9,14 @@ export function currentUserId(req: Request): string {
   const id = req.identity?.profileId;
   if (!id) throw new Error("currentUserId called outside an authenticated applicant route");
   return id;
+}
+
+/**
+ * Who to name in audit and ledger rows for an applicant's own action: the applicant, or, while an administrator is
+ * signed in as them, the administrator (so those rows never look like the user's own doing).
+ */
+export function applicantActor(req: Request): string {
+  return asApplicant(req.identity!.name);
 }
 
 /** The administrator acting on a request, as recorded in audit and ledger rows: their email (or the demo name). */

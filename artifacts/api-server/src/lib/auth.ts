@@ -1,3 +1,4 @@
+import { runActingAs } from "./actingAs";
 import { createHash, randomInt } from "node:crypto";
 import { industryFromSignUp } from "./industries";
 import type { NextFunction, Request, Response } from "express";
@@ -9,8 +10,15 @@ import { logger } from "./logger";
 
 export type Role = "applicant" | "admin" | "root";
 
-/** Who is calling. `profileId` is set for applicants only (their demo_profiles row). */
-export type Identity = { mode: "supabase" | "demo"; authUserId: string | null; email: string; name: string; role: Role; profileId: string | null };
+/**
+ * Who is calling. `profileId` is set for applicants only (their demo_profiles row). `actingAdmin` is set while an
+ * administrator is signed in as that applicant (see applyActAs): the request then acts as the applicant, and
+ * `actingAdmin` holds the administrator's email for audit and ledger rows.
+ */
+export type Identity = {
+  mode: "supabase" | "demo"; authUserId: string | null; email: string; name: string; role: Role; profileId: string | null;
+  actingAdmin?: string | null;
+};
 
 declare global {
   namespace Express {
@@ -20,6 +28,13 @@ declare global {
 
 /** GET-only cookie holding the access token, so <img> and download links work; never accepted for changes. */
 export const SESSION_COOKIE = "gp_session";
+/**
+ * "Sign in as user": the tab sends this header with the administrator's own token. The matching GET-only cookie holds
+ * the same profile ID for <img> and download links; it is scoped to /api/applicant, so it never reaches admin routes.
+ */
+export const ACT_AS_HEADER = "x-act-as";
+export const ACT_AS_COOKIE = "gp_act_as";
+export const ACT_AS_COOKIE_PATH = "/api/applicant";
 
 const supabaseUrl = process.env.SUPABASE_URL?.trim().replace(/\/+$/, "");
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY?.trim();
@@ -127,6 +142,39 @@ async function applicantProfileId(authUserId: string, email: string, claims: Sup
   return row.id;
 }
 
+function actAsTarget(req: Request): string | undefined {
+  const header = req.get(ACT_AS_HEADER)?.trim();
+  if (header) return header;
+  if (req.method === "GET" || req.method === "HEAD") return req.cookies?.[ACT_AS_COOKIE] || undefined;
+  return undefined;
+}
+
+/**
+ * Lets an administrator use the applicant workspace as one applicant, with their own sign-in (no password or session
+ * of the user's is involved). Anyone else asking is refused, so the header can't widen an applicant's access.
+ * Continues the request (inside the acting-as context, see lib/actingAs.ts), or answers it with an error.
+ */
+async function applyActAs(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const target = actAsTarget(req);
+  if (!target) { next(); return; }
+  const who = req.identity!;
+  // Demo mode has no real accounts: every visitor already sees both workspaces.
+  if (who.mode !== "demo" && who.role !== "admin" && who.role !== "root") {
+    res.status(403).json({ error: "Only administrators can sign in as a user." });
+    return;
+  }
+  const [profile] = await db.select({ id: demoProfilesTable.id, email: demoProfilesTable.email, name: demoProfilesTable.name })
+    .from(demoProfilesTable).where(eq(demoProfilesTable.id, target.slice(0, 200)));
+  if (!profile) {
+    res.status(404).json({ error: "That user no longer exists. Close this tab and pick the user again." });
+    return;
+  }
+  const admin = who.mode === "demo" ? "Demo administrator" : who.email || who.name;
+  if (req.method !== "GET" && req.method !== "HEAD") logger.info({ admin, profile: profile.id, method: req.method, path: req.path }, "Administrator acting as user");
+  req.identity = { mode: who.mode, authUserId: who.authUserId, email: profile.email, name: profile.name, role: "applicant", profileId: profile.id, actingAdmin: admin };
+  runActingAs(admin, next);
+}
+
 /** Resolves the caller; 401 when there is no valid sign-in. Runs for every route except health. */
 export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
   if (authMode === "demo") {
@@ -134,7 +182,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     req.identity = admin
       ? { mode: "demo", authUserId: null, email: "", name: "Demo administrator", role: "admin", profileId: null }
       : { mode: "demo", authUserId: null, email: "jane.cooper@example.com", name: "Jane Cooper", role: "applicant", profileId: "usr-jane" };
-    next();
+    try { await applyActAs(req, res, next); } catch (err) { next(err); }
     return;
   }
   const token = bearer(req);
@@ -151,7 +199,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       name: text(claims.user_metadata?.name, 120) || email,
       profileId: role === "applicant" ? await applicantProfileId(claims.sub!, email, claims) : null,
     };
-    next();
+    await applyActAs(req, res, next);
   } catch (err) {
     if (err instanceof AuthError) { res.status(401).json({ error: err.message }); return; }
     if (err instanceof AuthUnavailable) {

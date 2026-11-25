@@ -5,11 +5,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import {
-  useGetAdminDashboard, useListAdminUsers, useGetAdminUser, useUpdateAdminUser, useListAdminApplications,
+  useGetAdminDashboard, useListAdminUsers, useGetAdminUser, useUpdateAdminUser, useListAdminApplications, useStartAdminSignInAs,
   getGetAdminUserQueryKey, getListAdminUsersQueryKey, type ListAdminUsersSort, type ListAdminUsersDir, type AdminDashboard, type AdminUserProfile, type AdminUserSummary,
 } from '@workspace/api-client-react';
 import { keepPreviousData } from '@tanstack/react-query';
-import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, ShieldCheck, Mail, Gauge, Activity, ScrollText, UserRound, CreditCard, Briefcase, Palette } from 'lucide-react';
+import { Minus, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, FileText, Plus, Snowflake, ArrowLeft, Lock, Loader2, LogIn, ShieldCheck, Mail, Gauge, Activity, ScrollText, UserRound, CreditCard, Briefcase, Palette } from 'lucide-react';
 import { Shell, GlobalFreezeDialog } from '@/components/shell';
 import { AccountSecurity } from '@/components/security';
 import { UserWithdrawalLimits } from '@/components/withdrawal-limits';
@@ -28,6 +28,7 @@ import { AdminPhotoSettings, UserPhotoControl } from '@/components/admin-photo';
 import { Empty, ErrorState, Field, Modal, PageSkeleton, Skel, StatusBadge, cx, dateFmt, initials, money, useAnimateOnce } from '@/components/bits';
 import { card, ainput, lime, dark, ghost, danger, Stat, SectionTitle, useAdminRefresh, KycPreview, KycDecision, CreditModal } from '@/components/admin-bits';
 import { apiError } from '@/lib/demo-state';
+import { signInAsUrl } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 
 function DashGate({ title, children }: { title: string; children: (d: AdminDashboard) => ReactNode }) {
@@ -291,6 +292,31 @@ export function AdminUserPage() {
   );
 }
 
+/**
+ * Opens the user's own workspace in a new tab, signed in as them through the administrator's session (lib/auth.tsx).
+ * The tab is opened straight away, before the audit call returns, so pop-up blockers allow it.
+ */
+function SignInAsButton({ u }: { u: AdminUserProfile }) {
+  const m = useStartAdminSignInAs();
+  const refresh = useAdminRefresh();
+  const { toast } = useToast();
+  const open = () => {
+    const tab = window.open('', '_blank');
+    if (!tab) { toast({ title: "The new tab was blocked", description: 'Allow pop-ups for this site, then try again.', variant: 'destructive' }); return; }
+    tab.opener = null;
+    m.mutate({ userId: u.id }, {
+      onSuccess: () => { tab.location.href = signInAsUrl(u.id); refresh(); },
+      onError: (e) => { tab.close(); toast({ title: "Couldn't sign in as this user", description: apiError(e, 'Please try again.'), variant: 'destructive' }); },
+    });
+  };
+  return (
+    <button type="button" data-testid="button-sign-in-as" disabled={m.isPending} onClick={open} title="Opens their account in a new tab; you stay signed in here"
+      className="press inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:border-[#111] disabled:opacity-60">
+      {m.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}Sign in as user
+    </button>
+  );
+}
+
 /** One mutation per control group, so saving one setting never shows "Saving" on (or disables) another. */
 function useUserPatch(u: AdminUserProfile) {
   const m = useUpdateAdminUser();
@@ -352,6 +378,7 @@ function Inspector({ u }: { u: AdminUserProfile }) {
             <span className="break-all" data-testid="text-user-email">{u.email}</span><span aria-hidden="true" className="text-slate-300">·</span><span>{u.organization}</span>
           </div>
         </div>
+        <SignInAsButton u={u} />
         <button data-testid="button-toggle-freeze" disabled={freeze.pending} onClick={() => freeze.run({ status: frozen ? 'Active' : 'Frozen' }, frozen ? 'Account unfrozen' : 'Account frozen')} className={cx('press inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60', frozen ? 'bg-[var(--brand)] text-[var(--brand-fg)]' : 'bg-red-700 text-white')}>
           {freeze.pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Snowflake className="h-4 w-4" />}{frozen ? 'Unfreeze account' : 'Freeze account'}
         </button>

@@ -3,6 +3,7 @@
  * charges nothing: the application fee is worked out now and charged from the account balance only when an
  * administrator approves (adminOps.decideApplication), even below $0.
  */
+import { asApplicant } from "./actingAs";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { db, demoApplicationsTable, demoApplicationEventsTable, demoAuditTable, demoProfilesTable } from "@workspace/db";
@@ -45,7 +46,7 @@ export function readAnswers(raw: unknown): unknown {
 
 async function actorName(profileId: string) {
   const [p] = await db.select({ name: demoProfilesTable.name }).from(demoProfilesTable).where(eq(demoProfilesTable.id, profileId));
-  return p?.name ?? "Applicant";
+  return asApplicant(p?.name ?? "Applicant");
 }
 
 /** Store each new file against the application; on any failure, the ones already stored are removed again. */

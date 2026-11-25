@@ -320,6 +320,7 @@ paths:
       operationId: deleteSession
       tags: [auth]
       summary: Clear the download cookie (on sign-out)
+      description: With `X-Act-As`, clears only the signed-in-as-user cookie, so the administrator stays signed in.
       security:
         - supabaseBearer: []
       responses:
@@ -1303,6 +1304,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminUserProfile"
+        "404":
+          description: User not found
+  /admin/users/{userId}/sign-in-as:
+    post:
+      operationId: startAdminSignInAs
+      tags: [admin]
+      summary: Record that an administrator is opening this user's account in a new tab
+      description: >
+        Writes an audit entry. The new tab then sends `X-Act-As: <userId>` with the administrator's own bearer token
+        (and the GET-only `gp_act_as` cookie under /api/applicant), and the API treats those requests as this user.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Recorded
         "404":
           description: User not found
   /admin/users/{userId}/balance-adjustments:
@@ -3497,7 +3517,10 @@ components:
         name: { type: string }
         role: { type: string, enum: [applicant, admin, root] }
         profileId: { type: [string, "null"] }
-      required: [mode, email, name, role, profileId]
+        actingAdmin:
+          type: [string, "null"]
+          description: Set while an administrator is signed in as this user (X-Act-As); the administrator's email
+      required: [mode, email, name, role, profileId, actingAdmin]
     Session:
       type: object
       properties:

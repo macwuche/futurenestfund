@@ -1,3 +1,4 @@
+import { asApplicant } from "./actingAs";
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db, demoKycDocumentsTable, demoFilesTable, demoProfilesTable, demoAuditTable } from "@workspace/db";
@@ -50,7 +51,7 @@ export async function uploadKycDocument(profileId: string, kind: KycKind, file: 
     const complete = KYC_KINDS.every(k => current.some(c => c.kind === k && c.status !== "Rejected"));
     const toPending = complete && (profile.verificationLevel === "Unsubmitted" || profile.verificationLevel === "Rejected");
     if (toPending) await tx.update(demoProfilesTable).set({ verificationLevel: "Pending" }).where(eq(demoProfilesTable.id, profileId));
-    await tx.insert(demoAuditTable).values({ profileId, actor: profile.name, action: `KYC ${kind} uploaded (${stored.originalName})` });
+    await tx.insert(demoAuditTable).values({ profileId, actor: asApplicant(profile.name), action: `KYC ${kind} uploaded (${stored.originalName})` });
     await notifyUser(profileId, toPending ? "Your identity documents were submitted for review" : `${kind} uploaded and queued for review`, "/settings#verification", tx);
   });
   return applicantKyc(profileId);

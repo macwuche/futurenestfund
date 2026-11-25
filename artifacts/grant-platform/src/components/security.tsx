@@ -36,9 +36,16 @@ const schema = z.object({ current: z.string().min(1, 'Enter your current passwor
  * on other devices or everywhere. Renders nothing in demo mode, where there is no real account.
  */
 export function AccountSecurity({ tone }: { tone: Tone }) {
-  const { status } = useAuth();
+  const { status, actingAs } = useAuth();
   if (status !== 'signed-in') return null;
   const s = styles[tone];
+  // The password and sessions here would be the administrator's own, not this user's.
+  if (actingAs) return (
+    <section className={cx(s.card, 'p-5')} data-testid="section-security">
+      <h2 className="text-lg font-semibold text-slate-900">Sign-in &amp; security</h2>
+      <p className="mt-2 text-sm text-slate-600">Not available while an administrator is signed in as this user.</p>
+    </section>
+  );
   return (
     <section className={cx(s.card, 'p-5')} aria-labelledby="security-heading" data-testid="section-security">
       <h2 id="security-heading" className="text-lg font-semibold text-slate-900">Sign-in &amp; security</h2>
