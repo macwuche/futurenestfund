@@ -113,7 +113,7 @@ Step 6.5 counts as **done** when steps 1–9 have been followed once end to end.
 
 ## 6b. After deploying (in the admin area)
 
-The app is live at `713229c` (2026-11-20, Mail box, Phase 14; before that `a93e715`, card payments, Phase 13; before that `afb0f64`, the apply page's charge note removed, and `da871ec`, award ranges). These need you in the admin area, or applicants can't use the matching feature:
+The app is live at `3ccd6c3` (2026-11-25, card review + no demo data; before that `713229c`, 2026-11-20, Mail box, Phase 14; before that `a93e715`, card payments, Phase 13; before that `afb0f64`, the apply page's charge note removed, and `da871ec`, award ranges). These need you in the admin area, or applicants can't use the matching feature:
 
 | What | Where | Until it's done |
 |---|---|---|
@@ -125,7 +125,7 @@ The app is live at `713229c` (2026-11-20, Mail box, Phase 14; before that `a93e7
 | Set the application name, colour and logo | Admin → Settings → Branding | The app is called "GrantApp" in navy; the admin side's accents turn navy too (they were lime) |
 | Set each tier's limits and cards, and the Tier 2 / Tier 3 upgrade forms | Admin → Settings → Tiers | Every tier has the old platform-wide withdrawal limits, no top-up limits, every card; nobody can ask to move up |
 
-**Waiting to deploy (2026-11-25):** demo wording removed and no sample data seeded on the live server (`work.md` §34; the three existing sample users stay); saved cards under review again (migration **0018**, `demo_payment_cards.status` default `Pending`; no Supabase migration; `work.md` §33). Rolling back to `713229c` works: older code treats `Pending` as unknown, so roll back only if no cards are waiting for review, or approve them first.
+**Deployed 2026-11-25 at `3ccd6c3`:** demo wording removed and no sample data seeded on the live server (`work.md` §34; the three existing sample users stay); saved cards under review again (migration **0018** applied, `demo_payment_cards.status` default `Pending`; no Supabase migration; `work.md` §33). Rolling back to `713229c` works: older code treats `Pending` as unknown, so roll back only if no cards are waiting for review, or approve them first.
 
 **Phase 14 Mail box is deployed** (`713229c`, 2026-11-20, with `c19a631`: migrations 0016, 0017 and Supabase 0008 applied). **Next:** `docs/DEPLOY.md` step 10, which now sets up the domain `futurenestfund.org`, receiving and the support@ mailbox (`email.md`). Until then Admin → Mail says "Mail isn't set up yet". Rolling back to `a93e715` works: the migrations only add tables and a column default.
 
@@ -144,7 +144,7 @@ Memory readings: 1,028 MB available at rest on 2026-11-05 (before Phase 11); RAM
 These were found during the checks and **aren't part of GrantApp's deployment**:
 - **Firewall off.** noveriqgroups listens on `0.0.0.0:4001`, so it's reachable without nginx. Enabling `ufw` (allow 22, 80, 443) would close that. Allow SSH first, or you lock yourself out.
 - fail2ban isn't installed; SSH sees constant login attempts (key-only, so they fail).
-- Package updates waiting (`apt upgrade`): 7 on 2026-10-18, **29** on 2026-10-31, 21 on 2026-11-05.
+- Package updates waiting (`apt upgrade`): 7 on 2026-10-18, **29** on 2026-10-31, 21 on 2026-11-05, **32** (+5 ESM security) on 2026-11-25.
 - **"System restart required"** shown at login on 2026-11-05 (a kernel or library update is waiting for a reboot). A reboot restarts all four apps; GrantApp comes back by itself through `pm2-futurenestfund.service`. Pick a quiet time.
 
 ## 8. Later (Phase 6, after go-live)
@@ -200,3 +200,4 @@ These were found during the checks and **aren't part of GrantApp's deployment**:
 | 2026-11-17 | Deployed **afb0f64** (apply page: the amber application-charge note removed; up from `da871ec`, a docs-only commit in between). Builds OK; no migrations (0 applied, 15 recorded; Supabase all skipped). API reloaded, health OK, `futurenestfund-api` online. RAM 63.7% right after the build. |
 | 2026-11-20 | Deployed **a93e715** (Phase 13 card payments: saved physical cards, Saved card payment methods, Admin → Card Payments; up from `afb0f64`, a docs-only commit in between). Builds OK; app migrations: 1 applied (**0015** `card_payments`: `demo_payment_cards`, `demo_reported_cards`, `demo_payment_methods.method_type`, `demo_requests.card_id`), 16 recorded; Supabase **0007_card_payments** applied, 0001–0006 skipped. API reloaded, health OK, `futurenestfund-api` online. RAM 47% right after the build. pnpm offered 12.21.0; not taken. Next: create a Saved card method in Payment Gateway. |
 | 2026-11-20 | Deployed **713229c** (Phase 14 Mail box, plus `c19a631` cards active once saved; up from `a93e715`). Builds OK; app migrations: 2 applied (**0016** `card_auto_active`, **0017** `mail`: `demo_mail_mailboxes`, `demo_mail_threads`, `demo_mail_messages`, `demo_mail_files`, `demo_mail_inbound`), 18 recorded; Supabase **0008_mail** applied, 0001–0007 skipped. API reloaded, health OK, `futurenestfund-api` online. RAM 73.9% right after the build. Next: DEPLOY step 10 (Resend full-access key, domain `futurenestfund.org`, DNS at Cloudflare, receiving, support@ mailbox, round-trip test). |
+| 2026-11-25 | Deployed **3ccd6c3** (saved cards under review until an admin approves or declines them; no demo wording on the live site; sample people seeded only in demo mode; up from `713229c`, two docs-only commits in between). Builds OK; app migrations: 1 applied (**0018** `card_review`: `demo_payment_cards.status` default `Pending`, existing active cards unchanged), 19 recorded; Supabase migrations all skipped (0001–0008). API reloaded, health OK, `futurenestfund-api` online. `free -m` afterwards: 1045 MB available of 1839, swap 480 MB used (still too little for ClamAV). Login banner: 32 updates (+5 ESM security), system restart still required (§7). pnpm offered 12.23.0; not taken. The three sample users already in the database stay (owner's choice). |

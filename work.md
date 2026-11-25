@@ -2897,7 +2897,7 @@ One commit when green; `deploy.sh` applies 0015. **Parked 2026-11-06** while bra
 
 **Tests (2026-11-25, demo test API on :8099 via the proxy; demo data restored afterwards):** typecheck clean; `pnpm test` 172/172 (+1 skipped; card approved / declined emails added); `phase13-card-payments.mjs` 12/12 (new check: review, approve, decline, saving a declined card again, pending card refused for a request, unblock back to review); `phase13-ui.mjs` 9/9 desktop + 9/9 phone (Under review on the customer side, Decline needs a reason, Approve → Active).
 
-**Not committed or deployed yet.** To go live: commit, Sync, `deploy.sh` (applies 0018).
+**Committed** `3ccd6c3`. **Deployed** 2026-11-25 at `3ccd6c3` (0018 applied).
 
 **Note:** the Replit dev API on :8080 still runs the build from before this change; restart its workflow to see it in the preview.
 
@@ -2917,4 +2917,4 @@ One commit when green; `deploy.sh` applies 0015. **Parked 2026-11-06** while bra
 
 **Tests (2026-11-25):** typecheck clean; `pnpm test` 172/172 (+1 skipped); demo test API on :8099 via the proxy: `phase94-ui` 9 + 9, `phase2-desktop` 26/26, `phase93-ui` 8 + 8, `phase5-debits-ui` 5 + 5, `phase6-cards-ui` 6 + 6 (expectation updated for the card-details wording). `phase4-ui` updated (no demo note when signed in); it needs Supabase, so not run here. Demo data restored afterwards.
 
-**Not committed or deployed yet** (together with §33). After deploying, the live site shows no demo wording; the three sample users stay until deleted (that would need a one-off clean-up with the append-only triggers paused; not done, by choice).
+**Committed and deployed** together with §33 (`3ccd6c3`, 2026-11-25). After deploying, the live site shows no demo wording; the three sample users stay until deleted (that would need a one-off clean-up with the append-only triggers paused; not done, by choice).
