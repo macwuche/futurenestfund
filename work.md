@@ -2952,3 +2952,20 @@ One commit when green; `deploy.sh` applies 0015. **Parked 2026-11-06** while bra
 - Restart the Replit dev API workflow to see today's changes in the preview.
 
 **Waiting for the user's go:** 9.5 (any number of cards, withdrawal fees per tier; migration 0019), §23.
+
+---
+
+## 36. Phase 15: admin "Sign in as user" (2026-11-25)
+
+**Request (user, 2026-11-25):** on the admin's user page, a way for the admin to log in as that user.
+
+**Built** (`94ad341`, no migration):
+- **Admin:** Users → a user → **Sign in as user**. The new tab opens at once (so pop-up blockers allow it), then `POST /admin/users/:userId/sign-in-as` writes the audit entry "Administrator signed in as this user" and the tab goes to `?act_as=<userId>`.
+- **How the tab acts as the user:** the ID moves from the address bar into that tab's `sessionStorage` (survives reloads, no other tab sees it) and is sent as `X-Act-As` on every API call, with the admin's own Supabase token. `POST /auth/session` also sets the GET-only `gp_act_as` cookie (HttpOnly, SameSite=Strict, path `/api/applicant`) so images and downloads work; with two such tabs, the one in front claims it on focus. No password or session of the user's is used.
+- **API** (`lib/auth.ts` `applyActAs`): honoured only for a live `admin` / `root` sign-in (403 otherwise, 404 for an unknown user); the request becomes that applicant's (`/me` returns `actingAdmin`). It runs inside an AsyncLocalStorage context (`lib/actingAs.ts`), so every audit, ledger and application-history row an applicant action writes names "<admin email> (signed in as <name>)" (`applicantActor()` / `asApplicant()` in workspace routes, payment cards, applications, plan applications, KYC, avatars, tiers). Non-GET requests are logged. `DELETE /auth/session` from that tab clears only the act-as cookie.
+- **Web:** banner "Signed in as <name> (<email>) by <admin>…" with **Exit and close tab**; tab title "As <name> · …"; sign-out there never signs the admin out; Sign-in & security (password, sessions) is hidden. If the admin signs out, or the user no longer exists / the admin loses the role, the tab drops the user.
+- **Not changed:** the user still gets the normal bell notifications and emails for what the admin does on their account.
+
+**Tests (2026-11-25):** typecheck clean; `pnpm test` 179/179 (+1 skipped), incl. `actAs.test.ts` (7, real `authenticate` middleware in Supabase mode); API and web production builds OK; `.unlazy/phase15-sign-in-as.mjs` 14/14 (demo mode: API on :8099, Vite on :8097, `phase15-proxy.mjs` on :8098, headless Chromium on :9222; it writes one audit row). Review: every applicant actor goes through the helper; the only raw `fetch` in the web app is crash reporting, so uploads carry the header too. Not run: a browser check with real Supabase sign-ins (covered by the unit tests); try it once on the live site after deploying.
+
+**Committed** `94ad341`; docs in the following commit. **Deploy:** `deploy.sh` (no migration).

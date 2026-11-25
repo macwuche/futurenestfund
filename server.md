@@ -1,6 +1,6 @@
 # GrantApp deployment tracker (server.md)
 
-_Deployment only. Last updated 2026-11-25._
+_Deployment only. Last updated 2026-11-25. Next: `deploy.sh` for `94ad341` (admin "Sign in as user", no migration) and its docs; live is `3ccd6c3` until then._
 
 - **Exact commands:** [`docs/DEPLOY.md`](docs/DEPLOY.md).
 - **This file:** the record of what's decided, done, not done yet and still to do.
