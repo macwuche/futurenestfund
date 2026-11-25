@@ -2918,3 +2918,37 @@ One commit when green; `deploy.sh` applies 0015. **Parked 2026-11-06** while bra
 **Tests (2026-11-25):** typecheck clean; `pnpm test` 172/172 (+1 skipped); demo test API on :8099 via the proxy: `phase94-ui` 9 + 9, `phase2-desktop` 26/26, `phase93-ui` 8 + 8, `phase5-debits-ui` 5 + 5, `phase6-cards-ui` 6 + 6 (expectation updated for the card-details wording). `phase4-ui` updated (no demo note when signed in); it needs Supabase, so not run here. Demo data restored afterwards.
 
 **Committed and deployed** together with §33 (`3ccd6c3`, 2026-11-25). After deploying, the live site shows no demo wording; the three sample users stay until deleted (that would need a one-off clean-up with the append-only triggers paused; not done, by choice).
+
+---
+
+## 35. Summary of 2026-11-25
+
+| Step | Commit | Deployed | Notes |
+|---|---|---|---|
+| Docs read end to end; status confirmed | (none) | | Live was `713229c` (Phase 14 Mail box); open items as in `PROJECT.md` §15 |
+| Payment cards help text: "Save the physical card." | `3ccd6c3` | `3ccd6c3` | Was "…you collected at our office."; the add-card note and card picker still say it |
+| Saved cards under review again | `3ccd6c3` | `3ccd6c3` (migration 0018) | §33; reverses the 2026-11-20 "no card check" decision |
+| No demo wording or sample data on real deployments | `3ccd6c3` | `3ccd6c3` | §34; the three sample users already live stay (owner's choice); demo mode kept for development and tests |
+| Deploy record | `da40d84` | (docs) | `server.md` §10 |
+
+**Live now:** `3ccd6c3` at https://access.futurenestfund.org (deployed 2026-11-25; RAM 1,045 MB available afterwards).
+
+**Decisions today (owner's):**
+- Every saved card is reviewed by an admin (approve, or decline with a reason) before it can be used. Cards already active stay active.
+- The live site shows no demo or sample wording; sample people are only created in demo mode.
+- The three sample users (Jane Cooper, David Chen, Amara Okafor) stay in the live database: deleting them would mean pausing the append-only protection on the ledger and audit log.
+- Demo mode stays in development so the `.unlazy/` suites keep working.
+
+**Tests today:** typecheck clean; `pnpm test` 172/172 (+1 skipped); `phase13-card-payments` 12/12; `phase13-ui` 9 + 9; `phase94-ui` 9 + 9; `phase2-desktop` 26/26; `phase93-ui` 8 + 8; `phase5-debits-ui` 5 + 5; `phase6-cards-ui` 6 + 6; seeding checked on a throwaway database (real sign-in mode: no sample rows; demo mode: 3 profiles, 4 applications). Not run here: `phase4-ui` (needs Supabase; updated to expect no demo note).
+
+**Docs fixed on the way:** `PROJECT.md` §11 said 144 unit tests (now 172, matching §10); 9.5's planned migration moved from 0018 to **0019**.
+
+**Needs the user (unchanged unless noted):**
+- Check the live site: add a card as an applicant (Under review), approve it in Admin → Card Payments → To review (Active).
+- DEPLOY step 10: email and the Mail box (card emails only go out once it's done).
+- Admin-area setup (`server.md` §6b): grant plans, payment methods (incl. a Saved card method), card types, branding, tiers.
+- Rotate the secrets pasted in chat and delete the GitHub token; Supabase minimum password length 8; off-server backup copies.
+- Server: 32 package updates + 5 ESM security updates and a pending reboot (`server.md` §7); ClamAV still waits on memory.
+- Restart the Replit dev API workflow to see today's changes in the preview.
+
+**Waiting for the user's go:** 9.5 (any number of cards, withdrawal fees per tier; migration 0019), §23.
